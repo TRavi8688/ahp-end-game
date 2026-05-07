@@ -1,0 +1,96 @@
+name: Deploy AHP 2.0 Ecosystem
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  auth-and-backend:
+    name: Deploy Backend to Cloud Run
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: 'github-deployer@ahp2o-495503.iam.gserviceaccount.com'
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Build and Push Docker Image
+        run: |
+          # Ensure Artifact Registry repo exists
+          gcloud artifacts repositories create ahp-repo --repository-format=docker --location=us-central1 || true
+          
+          IMAGE_NAME="us-central1-docker.pkg.dev/ahp2o-495503/ahp-repo/ahp-backend:${{ github.sha }}"
+          docker build -t $IMAGE_NAME .
+          docker push $IMAGE_NAME
+
+      - name: Deploy API Service
+        run: |
+          IMAGE_NAME="us-central1-docker.pkg.dev/ahp2o-495503/ahp-repo/ahp-backend:${{ github.sha }}"
+          gcloud run deploy ahp-api \
+            --image $IMAGE_NAME \
+            --region us-central1 \
+            --platform managed \
+            --allow-unauthenticated \
+            --vpc-connector ahp-vpc \
+            --set-env-vars ENVIRONMENT=production
+
+      - name: Deploy Worker Service
+        run: |
+          IMAGE_NAME="us-central1-docker.pkg.dev/ahp2o-495503/ahp-repo/ahp-backend:${{ github.sha }}"
+          gcloud run deploy ahp-worker \
+            --image $IMAGE_NAME \
+            --region us-central1 \
+            --platform managed \
+            --no-allow-unauthenticated \
+            --vpc-connector ahp-vpc \
+            --min-instances 1 \
+            --command "arq,app.workers.arq_worker.WorkerSettings" \
+            --set-env-vars ENVIRONMENT=production
+
+  deploy-frontends:
+    name: Deploy Frontends to Firebase
+    needs: auth-and-backend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: 'github-deployer@ahp2o-495503.iam.gserviceaccount.com'
+
+      - name: Deploy Patient App
+        run: |
+          cd patient-app
+          npm install
+          npm run build
+          npx firebase-tools deploy --only hosting:patient --project ahp2o-495503
+
+      - name: Deploy Doctor App
+        run: |
+          cd doctor-app
+          npm install
+          npm run build
+          npx firebase-tools deploy --only hosting:doctor --project ahp2o-495503
