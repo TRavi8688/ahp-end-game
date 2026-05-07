@@ -97,6 +97,8 @@ class Settings(BaseSettings):
             url = url.replace("asyncpg", "psycopg2")
         elif url.startswith("postgresql://"):
             url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+        elif "aiosqlite" in url:
+            url = url.replace("+aiosqlite", "")
         return url
 
     model_config = SettingsConfigDict(

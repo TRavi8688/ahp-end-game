@@ -34,15 +34,15 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <View style={{ flex: 1, backgroundColor: '#050810', justifyContent: 'center', padding: 40 }}>
-          <Text style={{ color: '#EF4444', fontSize: 24, fontWeight: 'bold' }}>BOOT_CRITICAL: Mulajna System Failure</Text>
-          <Text style={{ color: '#94A3B8', marginTop: 20 }}>An unexpected error prevented the system from starting.</Text>
-          <Text style={{ color: '#FCD34D', marginTop: 20, fontFamily: 'monospace' }}>{this.state.error?.toString()}</Text>
+        <View style={{ flex: 1, backgroundColor: '#050810', justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+          <Text style={{ color: '#EF4444', fontSize: 24, fontWeight: 'bold' }}>App Error</Text>
+          <Text style={{ color: '#94A3B8', marginTop: 20 }}>An unexpected error occurred.</Text>
+          <Text style={{ color: '#FCD34D', marginTop: 20, fontFamily: 'monospace', textAlign: 'center' }}>{this.state.error?.toString()}</Text>
           <TouchableOpacity 
-            style={{ marginTop: 40, padding: 20, backgroundColor: '#6366F1', borderRadius: 12 }}
-            onPress={() => window.location.reload()}
+            style={{ marginTop: 40, padding: 15, backgroundColor: '#6366F1', borderRadius: 8 }}
+            onPress={() => this.setState({ hasError: false, error: null })}
           >
-            <Text style={{ color: 'white', textAlign: 'center' }}>FORCED_RESTART</Text>
+            <Text style={{ color: 'white', textAlign: 'center' }}>Try Again</Text>
           </TouchableOpacity>
         </View>
       );
@@ -52,29 +52,17 @@ class ErrorBoundary extends React.Component {
 }
 
 function AppContent() {
-  const fontsLoaded = true; // Temporary bypass for white-screen debug
-  /*
   const [fontsLoaded] = useFonts({
     Syne_800ExtraBold,
     Syne_700Bold,
     SpaceMono_400Regular,
     DMSans_400Regular,
   });
-  */
 
   const [initialRoute, setInitialRoute] = useState(null);
   const [bootReady, setBootReady] = useState(false);
 
   useEffect(() => {
-    // FORCE DEBUG: If this doesn't show up, JS is not running
-    if (typeof document !== 'undefined') {
-      const debugDiv = document.createElement('div');
-      debugDiv.innerHTML = 'MULAJNA_JS_ACTIVE_PORT_3005';
-      debugDiv.style.cssText = 'position:fixed; top:0; left:0; background:red; color:white; z-index:999999; padding:10px; font-weight:bold;';
-      document.body.appendChild(debugDiv);
-      console.log('[Mulajna] Force Debug Mounted');
-    }
-
     const init = async () => {
       try {
         console.log('[App] Booting system...');

@@ -13,6 +13,9 @@ class RoleEnum(str, enum.Enum):
     patient = "patient"
     doctor = "doctor"
     admin = "admin"
+    nurse = "nurse"
+    pharmacy = "pharmacy"
+    hospital_admin = "hospital_admin"
 
 class LicenseStatusEnum(str, enum.Enum):
     pending = "pending"
@@ -27,8 +30,11 @@ class VerificationStatusEnum(str, enum.Enum):
     completed = "completed"
 
 class QueueStatusEnum(str, enum.Enum):
-    waiting = "waiting"
-    active = "active"
+    checked_in = "checked_in"
+    waiting_vitals = "waiting_vitals"
+    waiting_doctor = "waiting_doctor"
+    consultation = "consultation"
+    pharmacy = "pharmacy"
     completed = "completed"
     cancelled = "cancelled"
 
@@ -85,6 +91,7 @@ class User(Base):
     
     patient_profile: Mapped["Patient"] = relationship(back_populates="user", uselist=False)
     doctor_profile: Mapped["Doctor"] = relationship(back_populates="user", uselist=False)
+    staff_profile: Mapped["StaffProfile"] = relationship(back_populates="user", uselist=False)
 
     __mapper_args__ = {"version_id_col": version_id}
 
@@ -126,6 +133,48 @@ class Doctor(Base):
     
     user: Mapped["User"] = relationship(back_populates="doctor_profile")
 
+    __mapper_args__ = {"version_id_col": version_id}
+
+class Hospital(Base):
+    __tablename__ = "hospitals"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    version_id: Mapped[int] = mapped_column(default=1, nullable=False)
+    name: Mapped[str] = mapped_column(String(255), index=True)
+    registration_number: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    subscription_status: Mapped[str] = mapped_column(String(50), default="active")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    
+    departments: Mapped[List["Department"]] = relationship(back_populates="hospital", cascade="all, delete-orphan")
+    staff: Mapped[List["StaffProfile"]] = relationship(back_populates="hospital", cascade="all, delete-orphan")
+    queues: Mapped[List["QueueEntry"]] = relationship(back_populates="hospital")
+
+    __mapper_args__ = {"version_id_col": version_id}
+
+class Department(Base):
+    __tablename__ = "departments"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    hospital_id: Mapped[int] = mapped_column(ForeignKey("hospitals.id"))
+    name: Mapped[str] = mapped_column(String(100))
+    
+    hospital: Mapped["Hospital"] = relationship(back_populates="departments")
+    staff: Mapped[List["StaffProfile"]] = relationship(back_populates="department")
+    queues: Mapped[List["QueueEntry"]] = relationship(back_populates="department")
+
+class StaffProfile(Base):
+    __tablename__ = "staff_profiles"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    version_id: Mapped[int] = mapped_column(default=1, nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    hospital_id: Mapped[int] = mapped_column(ForeignKey("hospitals.id"))
+    department_id: Mapped[Optional[int]] = mapped_column(ForeignKey("departments.id"))
+    
+    user: Mapped["User"] = relationship(back_populates="staff_profile")
+    hospital: Mapped["Hospital"] = relationship(back_populates="staff")
+    department: Mapped["Department"] = relationship(back_populates="staff")
+    
     __mapper_args__ = {"version_id_col": version_id}
 
 class MedicalRecord(Base):
@@ -303,13 +352,18 @@ class QueueEntry(Base):
     __tablename__ = "queue_entries"
     
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    hospital_id: Mapped[Optional[int]] = mapped_column(ForeignKey("hospitals.id"))
+    department_id: Mapped[Optional[int]] = mapped_column(ForeignKey("departments.id"))
     patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"))
-    doctor_id: Mapped[int] = mapped_column(ForeignKey("doctors.id"))
+    doctor_id: Mapped[Optional[int]] = mapped_column(ForeignKey("doctors.id"))
     clinic_name: Mapped[Optional[str]] = mapped_column(String(255))
-    status: Mapped[QueueStatusEnum] = mapped_column(SQLEnum(QueueStatusEnum), default=QueueStatusEnum.waiting)
+    status: Mapped[QueueStatusEnum] = mapped_column(SQLEnum(QueueStatusEnum), default=QueueStatusEnum.checked_in)
     token_number: Mapped[Optional[int]] = mapped_column()
     check_in_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    
+    hospital: Mapped["Hospital"] = relationship(back_populates="queues")
+    department: Mapped["Department"] = relationship(back_populates="queues")
 
 class JobFailure(Base):
     __tablename__ = "job_failures"
