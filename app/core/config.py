@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     JWT_AUDIENCE: str = "ahp-enterprise-clients"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    SECRET_KEY: str # For admin probes and internal hashing
     
     @field_validator("JWT_PRIVATE_KEY", "JWT_PUBLIC_KEY", mode="before")
     @classmethod
