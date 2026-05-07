@@ -65,7 +65,8 @@ jobs:
             --subnet ahp-subnet \
             --vpc-egress private-ranges-only \
             --min-instances 1 \
-            --command "arq,app.workers.arq_worker.WorkerSettings" \
+            --command "bash" \
+            --args "-c,python3 -m http.server \$PORT & arq app.workers.arq_worker.WorkerSettings" \
             --set-secrets "DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest,JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest" \
             --set-env-vars "ENVIRONMENT=production,CLOUD_PROVIDER=gcp,GCP_PROJECT_ID=ahp2o-495503,GCS_BUCKET_NAME=ahp2o-495503-storage"
 
