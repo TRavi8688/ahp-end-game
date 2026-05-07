@@ -127,6 +127,9 @@ async def get_metrics():
 # --- REGISTER HANDLERS & ROUTES ---
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+from app.api.v1.router import api_router as enterprise_v1_router
+app.include_router(enterprise_v1_router, prefix=settings.API_V1_STR)
+
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(patient.router, prefix=settings.API_V1_STR)
 app.include_router(profile.router, prefix=settings.API_V1_STR)
