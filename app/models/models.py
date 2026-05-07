@@ -1,4 +1,4 @@
-from sqlalchemy import String, Boolean, DateTime, ForeignKey, JSON, Text, func, Enum as SQLEnum
+from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey, JSON, Text, func, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from datetime import datetime
@@ -301,7 +301,8 @@ class PatientDashboard(Base):
     __tablename__ = "patient_dashboards"
     
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), unique=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
+    hospital_id: Mapped[Optional[int]] = mapped_column(ForeignKey("hospitals.id"), index=True, nullable=True)
     data: Mapped[dict] = mapped_column(JSON_TYPE)  # Aggregated dashboard data
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
@@ -311,19 +312,26 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
     
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    action: Mapped[str] = mapped_column(String(100), index=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
-    resource_type: Mapped[str] = mapped_column(String(50))
-    resource_id: Mapped[Optional[int]] = mapped_column(nullable=True)
-    patient_id: Mapped[Optional[int]] = mapped_column(ForeignKey("patients.id"), nullable=True)
-    details: Mapped[Optional[dict]] = mapped_column(JSON_TYPE)
-    ip_address: Mapped[Optional[str]] = mapped_column(String(45))
-    user_agent: Mapped[Optional[str]] = mapped_column(String(255))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    
-    # Immutable Security Fields
-    signature: Mapped[Optional[str]] = mapped_column(String(255)) # HMAC of content
-    prev_hash: Mapped[Optional[str]] = mapped_column(String(255)) # Chain of trust
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    hospital_id: Mapped[Optional[int]] = mapped_column(ForeignKey("hospitals.id"), nullable=True, index=True)
+    action_type: Mapped[str] = mapped_column(String(100), index=True)
+    entity_type: Mapped[str] = mapped_column(String(100), index=True)
+    entity_id: Mapped[int] = mapped_column(Integer, index=True)
+    old_value: Mapped[Optional[dict]] = mapped_column(JSON_TYPE)
+    new_value: Mapped[Optional[dict]] = mapped_column(JSON_TYPE)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    signature_hash: Mapped[Optional[str]] = mapped_column(String(255)) # HMAC of content
+
+class OutboxEvent(Base):
+    __tablename__ = "outbox_events"
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    event_type: Mapped[str] = mapped_column(String(100), index=True)
+    event_version: Mapped[str] = mapped_column(String(20))
+    tenant_id: Mapped[Optional[int]] = mapped_column(ForeignKey("hospitals.id"), index=True, nullable=True)
+    trace_id: Mapped[Optional[str]] = mapped_column(String(100), index=True)
+    payload: Mapped[dict] = mapped_column(JSON_TYPE)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    processed: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
 
 class DoctorVerificationSession(Base):
     __tablename__ = "doctor_verification_sessions"

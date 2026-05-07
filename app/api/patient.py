@@ -175,6 +175,14 @@ async def confirm_report(
         for m in data.analysis.get("structured_data", {}).get("medications", []):
             db.add(models.Medication(patient_id=current_patient.id, generic_name=m["name"], added_by="ai"))
             
+    # Trigger Async Dashboard Rebuild via Outbox
+    from app.core.outbox import add_event_to_outbox
+    add_event_to_outbox(db, {
+        "event_type": "DASHBOARD_REBUILD",
+        "tenant_id": 0, # Global or specific if known
+        "payload": {"patient_id": current_patient.id, "hospital_id": 0}
+    })
+
     await db.commit()
     return {"status": "success", "record_id": new_record.id}
 
@@ -302,11 +310,12 @@ async def set_patient_password(
 
 @router.get("/dashboard")
 async def get_dashboard(
+    hospital_id: int = 0,
     current_patient: models.Patient = Depends(deps.get_current_patient),
     db: AsyncSession = Depends(deps.get_db)
 ):
     service = DashboardService(db)
-    return await service.get_dashboard(current_patient.id)
+    return await service.get_dashboard(hospital_id, current_patient.id)
 
 @router.post("/chat", response_model=schemas.ChatResponse)
 async def chat_with_chitti(

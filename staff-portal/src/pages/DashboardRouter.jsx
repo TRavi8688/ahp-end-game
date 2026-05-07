@@ -1,6 +1,9 @@
 import { useAuthStore } from '../stores/authStore';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Routes, Route, Navigate } from 'react-router-dom';
 import { Building2, Users, LayoutDashboard, LogOut, ChevronRight } from 'lucide-react';
+import AdminDashboard from './AdminDashboard';
+import DoctorQueue from './DoctorQueue';
+import NurseVitals from './NurseVitals';
 
 export default function DashboardRouter() {
   const user = useAuthStore((s) => s.user);
@@ -59,31 +62,38 @@ export default function DashboardRouter() {
       </div>
 
       <div style={styles.main}>
-        <div style={styles.welcomeCard} className="card">
-          <span className={`badge badge--${user?.role === 'hospital_admin' ? 'admin' : user?.role || 'doctor'}`} style={{ marginBottom: '1rem' }}>
-            {roleLabel}
-          </span>
-          <h1>Welcome to your Dashboard</h1>
-          <p className="text-secondary mt-2">
-            Your hospital management tools are being set up. Use the sidebar to navigate.
-          </p>
-          {user?.role === 'hospital_admin' && !user?.tenantId && (
-            <div style={styles.callout}>
-              <Building2 size={18} style={{ color: 'var(--color-brand)', flexShrink: 0 }} />
-              <div>
-                <p style={{ fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '0.25rem' }}>
-                  Set up your hospital first
-                </p>
-                <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-                  Complete the 60-second setup wizard to unlock all dashboard features.
-                </p>
-              </div>
-              <button className="btn btn--primary btn--sm" style={{ marginLeft: 'auto', flexShrink: 0 }} onClick={() => navigate('/setup')}>
-                Start Setup
-              </button>
+        <Routes>
+          <Route path="admin/staff" element={<AdminDashboard />} />
+          <Route path="doctor/queue" element={<DoctorQueue />} />
+          <Route path="nurse/vitals" element={<NurseVitals />} />
+          <Route path="" element={
+            <div style={styles.welcomeCard} className="card">
+              <span className={`badge badge--${user?.role === 'hospital_admin' ? 'admin' : user?.role || 'doctor'}`} style={{ marginBottom: '1rem' }}>
+                {roleLabel}
+              </span>
+              <h1>Welcome to your Dashboard</h1>
+              <p className="text-secondary mt-2">
+                Your hospital management tools are being set up. Use the sidebar to navigate.
+              </p>
+              {user?.role === 'hospital_admin' && !user?.tenantId && (
+                <div style={styles.callout}>
+                  <Building2 size={18} style={{ color: 'var(--color-brand)', flexShrink: 0 }} />
+                  <div>
+                    <p style={{ fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: '0.25rem' }}>
+                      Set up your hospital first
+                    </p>
+                    <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                      Complete the 60-second setup wizard to unlock all dashboard features.
+                    </p>
+                  </div>
+                  <button className="btn btn--primary btn--sm" style={{ marginLeft: 'auto', flexShrink: 0 }} onClick={() => navigate('/setup')}>
+                    Start Setup
+                  </button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          } />
+        </Routes>
       </div>
     </div>
   );

@@ -3,12 +3,11 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 class QueueTokenStatus(str, Enum):
-    pending = "pending"
-    processed = "processed"
-    cancelled = "cancelled"
-    completed = "completed"
-    no_show = "no_show"
-    registered = "registered"
+    WAITING = "WAITING"
+    IN_PROGRESS = "IN_PROGRESS"
+    PAUSED = "PAUSED"
+    COMPLETED = "COMPLETED"
+    EMERGENCY_OVERRIDE = "EMERGENCY_OVERRIDE"
 
 class QueueTokenCreate(BaseModel):
     patient_id: int = Field(..., description="Reference to patient profile ID")

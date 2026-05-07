@@ -1,5 +1,6 @@
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm.exc import StaleDataError
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from app.models.models import Hospital, Department, StaffProfile, User, RoleEnum
 from app.schemas.hospital import HospitalCreate, DepartmentCreate
 from fastapi import HTTPException
@@ -14,14 +15,14 @@ class HospitalService:
     """
     
     @staticmethod
-    def create_hospital(db: Session, hospital_data: HospitalCreate, admin_user_id: int) -> Hospital:
+    async def create_hospital(db: AsyncSession, hospital_data: HospitalCreate, admin_user_id: int) -> Hospital:
         """
         Creates a new tenant hospital and assigns the creator as the Hospital Admin.
         Enforces an atomic transaction boundary.
         """
         try:
             # Atomic transaction block
-            with db.begin_nested():
+            async with db.begin_nested():
                 # 1. Create Hospital
                 new_hospital = Hospital(
                     name=hospital_data.name,
@@ -30,10 +31,11 @@ class HospitalService:
                     version_id=1
                 )
                 db.add(new_hospital)
-                db.flush() # Flush to get the hospital ID
+                await db.flush() # Flush to get the hospital ID
 
                 # 2. Update the User's Role to Hospital Admin
-                admin_user = db.query(User).filter(User.id == admin_user_id).with_for_update().first()
+                result = await db.execute(select(User).where(User.id == admin_user_id).with_for_update())
+                admin_user = result.scalar_one_or_none()
                 if not admin_user:
                     raise HTTPException(status_code=404, detail="Admin user not found")
                 
@@ -48,8 +50,8 @@ class HospitalService:
                 )
                 db.add(staff_profile)
             
-            db.commit()
-            db.refresh(new_hospital)
+            await db.commit()
+            await db.refresh(new_hospital)
             
             # Emit Event (Transactional Outbox pattern would go here)
             logger.info(f"HOSPITAL_CREATED: tenant_id={new_hospital.id} by admin_id={admin_user_id}")
@@ -57,28 +59,28 @@ class HospitalService:
             return new_hospital
             
         except IntegrityError:
-            db.rollback()
+            await db.rollback()
             raise HTTPException(status_code=409, detail="Hospital registration number already exists")
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             logger.error(f"Failed to create hospital: {str(e)}")
             raise e
 
     @staticmethod
-    def add_department(db: Session, hospital_id: int, dept_data: DepartmentCreate) -> Department:
+    async def add_department(db: AsyncSession, hospital_id: int, dept_data: DepartmentCreate) -> Department:
         """
         Creates a new department (zone) within a hospital tenant.
         """
         try:
-            with db.begin_nested():
+            async with db.begin_nested():
                 new_dept = Department(
                     hospital_id=hospital_id,
                     name=dept_data.name
                 )
                 db.add(new_dept)
-            db.commit()
-            db.refresh(new_dept)
+            await db.commit()
+            await db.refresh(new_dept)
             return new_dept
         except Exception as e:
-            db.rollback()
+            await db.rollback()
             raise e

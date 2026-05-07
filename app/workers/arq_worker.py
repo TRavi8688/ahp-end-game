@@ -12,12 +12,27 @@ from app.core.config import settings
 from app.core.logging import logger
 from app.core.realtime import manager, RealtimeMessage, MessageType
 
+import sentry_sdk
+from sentry_sdk.integrations.arq import ArqIntegration
+from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+
 # Create async engine for the worker exactly as before, but ARQ allows native execution
 async_engine = create_async_engine(settings.async_database_url)
 AsyncSessionLocal = sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
 async def startup(ctx):
     """ARQ context startup. Here we cleanly inject dependencies instead of relying on global singletons."""
+    if settings.SENTRY_DSN:
+        sentry_sdk.init(
+            dsn=settings.SENTRY_DSN,
+            environment=settings.ENVIRONMENT,
+            integrations=[
+                ArqIntegration(),
+                SqlalchemyIntegration()
+            ],
+            traces_sample_rate=0.2,
+        )
+
     ctx['ai_service'] = AsyncAIService()
     logger.info("ARQ Worker started and AI Service injected.")
     
@@ -95,9 +110,10 @@ async def process_medical_document_task(ctx, record_id: int, object_key: str):
             
             await db.commit()
             
-            # 4. Trigger Instant Dashboard Refresh
+            # 4. Trigger Instant Dashboard Rebuild
             dashboard_service = DashboardService(db)
-            dashboard_data = await dashboard_service.aggregate_dashboard_data(record.patient_id)
+            hospital_id = 0 # Global dashboard for now
+            dashboard_data = await dashboard_service.aggregate_dashboard_data(hospital_id, record.patient_id, persist=True)
             
             # 5. REAL-TIME NOTIFICATION (Uses Redis PubSub natively now)
             await manager.send_personal_message(
@@ -164,9 +180,15 @@ async def on_job_failure(ctx, job_id: str, exception: Exception):
 
     logger.critical(f"JOB_FINAL_FAILURE: Job {job_id} failed permanently and moved to DLQ: {exception}")
 
+async def process_outbox_events_task(ctx):
+    """Background task to process outbox events (like DASHBOARD_REBUILD)."""
+    # This would typically be a cron task in ARQ fetching unprocessed events from DB.
+    # For now, it's a placeholder to satisfy the architecture.
+    pass
+
 class WorkerSettings:
     """ARQ explicit settings definition."""
-    functions = [process_medical_document_task]
+    functions = [process_medical_document_task, process_outbox_events_task]
     on_startup = startup
     on_shutdown = shutdown
     on_job_error = on_job_failure

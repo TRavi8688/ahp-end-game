@@ -17,12 +17,12 @@ class DashboardService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_dashboard(self, patient_id: int) -> Dict[str, Any]:
+    async def get_dashboard(self, hospital_id: int, patient_id: int) -> Dict[str, Any]:
         """
         Retrieves patient dashboard from Redis cache or Precomputed Database table.
         Strictly Read-Only: No commits in this flow.
         """
-        cache_key = f"dashboard:{patient_id}"
+        cache_key = f"dashboard:{patient_id}:{hospital_id}"
         
         # 1. Redis Tier
         try:
@@ -30,11 +30,14 @@ class DashboardService:
             if cached:
                 return json.loads(cached)
         except Exception as e:
-            logger.error(f"Redis retrieval failed for dashboard {patient_id}: {e}")
+            logger.error(f"Redis retrieval failed for dashboard {hospital_id}:{patient_id}: {e}")
 
-        # 2. Precomputed PostgreSQL Tier
+        # 2. Precomputed PostgreSQL Tier (Source of Truth)
         try:
-            stmt = select(PatientDashboard).where(PatientDashboard.patient_id == patient_id)
+            stmt = select(PatientDashboard).where(
+                PatientDashboard.patient_id == patient_id,
+                PatientDashboard.hospital_id == hospital_id
+            )
             result = await self.db.execute(stmt)
             db_dashboard = result.scalar_one_or_none()
             
@@ -46,13 +49,13 @@ class DashboardService:
                     pass
                 return db_dashboard.data
         except Exception as e:
-            logger.error(f"Postgres retrieval failed for dashboard {patient_id}: {e}")
+            logger.error(f"Postgres retrieval failed for dashboard {hospital_id}:{patient_id}: {e}")
 
         # 3. Fallback: Aggregation ONLY if precomputed data is missing
-        # NOTE: This should ideally be a background job but providing a safe async aggregation here.
-        return await self.aggregate_dashboard_data(patient_id, persist=False)
+        # We compute, persist to DB (Source of Truth), and cache.
+        return await self.aggregate_dashboard_data(hospital_id, patient_id, persist=True)
 
-    async def aggregate_dashboard_data(self, patient_id: int, persist: bool = False) -> Dict[str, Any]:
+    async def aggregate_dashboard_data(self, hospital_id: int, patient_id: int, persist: bool = False) -> Dict[str, Any]:
         """
         Computes dashboard from raw clinical data.
         Optional persistence allows decoupling of heavy writes from read requests.
@@ -117,8 +120,34 @@ class DashboardService:
         }
 
         if persist:
-            # Atomic update of dashboard table
-            # Implementation here would involve upsert logic
-            pass
+            # Atomic update of dashboard table (Upsert logic)
+            stmt = select(PatientDashboard).where(
+                PatientDashboard.patient_id == patient_id,
+                PatientDashboard.hospital_id == hospital_id
+            ).with_for_update()
+            
+            async with self.db.begin_nested():
+                result = await self.db.execute(stmt)
+                db_dashboard = result.scalar_one_or_none()
+                
+                if db_dashboard:
+                    db_dashboard.data = dashboard_data
+                    db_dashboard.updated_at = datetime.utcnow()
+                else:
+                    db_dashboard = PatientDashboard(
+                        patient_id=patient_id,
+                        hospital_id=hospital_id,
+                        data=dashboard_data,
+                        updated_at=datetime.utcnow()
+                    )
+                    self.db.add(db_dashboard)
+            await self.db.commit()
+
+            # Now cache the fresh DB data
+            cache_key = f"dashboard:{patient_id}:{hospital_id}"
+            try:
+                await redis_service.set(cache_key, json.dumps(dashboard_data), expire=3600)
+            except Exception as e:
+                logger.error(f"Failed to cache aggregated dashboard {hospital_id}:{patient_id}: {e}")
 
         return dashboard_data

@@ -42,9 +42,28 @@ from app.core.database import get_db
 from app.core.limiter import limiter
 from app.models.models import Base
 from app.core.middleware import IdempotencyMiddleware, RequestIDMiddleware
+from app.schemas.common import StandardErrorSchema
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 
 # 1. Initialize Structured Logging early
 setup_logging()
+
+# Initialize Sentry
+if settings.SENTRY_DSN:
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        environment=settings.ENVIRONMENT,
+        integrations=[
+            FastApiIntegration(),
+            SqlalchemyIntegration()
+        ],
+        traces_sample_rate=0.2,
+        profiles_sample_rate=0.1,
+    )
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -126,6 +145,41 @@ async def get_metrics():
 
 # --- REGISTER HANDLERS & ROUTES ---
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError):
+    """Centralized handler for domain validation errors (ValueErrors from services)."""
+    error = StandardErrorSchema(
+        error_code="VALIDATION_ERROR",
+        message=str(exc),
+        trace_id=request.headers.get("X-Request-ID", "unknown")
+    )
+    return JSONResponse(status_code=400, content=error.dict())
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    """Fallback centralized error handler for unhandled exceptions."""
+    logger.error(f"UNHANDLED_EXCEPTION: {str(exc)}", exc_info=True)
+    
+    # Capture exception in Sentry with contextual tagging
+    with sentry_sdk.configure_scope() as scope:
+        # Assuming user might be attached to request.state by auth middleware
+        if hasattr(request.state, "user"):
+            scope.set_user({"id": request.state.user.id})
+            if hasattr(request.state.user, "hospital_id"):
+                scope.set_tag("hospital_id", request.state.user.hospital_id)
+        
+        # Tag traces
+        trace_id = request.headers.get("X-Request-ID", "unknown")
+        scope.set_tag("trace_id", trace_id)
+        sentry_sdk.capture_exception(exc)
+
+    error = StandardErrorSchema(
+        error_code="INTERNAL_SERVER_ERROR",
+        message="An unexpected server error occurred.",
+        trace_id=request.headers.get("X-Request-ID", "unknown")
+    )
+    return JSONResponse(status_code=500, content=error.dict())
 
 from app.api.v1.router import api_router as enterprise_v1_router
 app.include_router(enterprise_v1_router, prefix=settings.API_V1_STR)
