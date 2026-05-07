@@ -47,7 +47,10 @@ jobs:
             --region us-central1 \
             --platform managed \
             --allow-unauthenticated \
-            --vpc-connector ahp-vpc \
+            --network ahp-vpc \
+            --subnet ahp-subnet \
+            --vpc-egress private-ranges-only \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,SECRET_KEY=SECRET_KEY:latest" \
             --set-env-vars ENVIRONMENT=production
 
       - name: Deploy Worker Service
@@ -58,9 +61,12 @@ jobs:
             --region us-central1 \
             --platform managed \
             --no-allow-unauthenticated \
-            --vpc-connector ahp-vpc \
+            --network ahp-vpc \
+            --subnet ahp-subnet \
+            --vpc-egress private-ranges-only \
             --min-instances 1 \
             --command "arq,app.workers.arq_worker.WorkerSettings" \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,SECRET_KEY=SECRET_KEY:latest" \
             --set-env-vars ENVIRONMENT=production
 
   deploy-frontends:
