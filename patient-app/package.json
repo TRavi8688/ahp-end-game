@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "node start-web.js"
+    "web": "node start-web.js",
+    "build": "npx expo export:web"
   },
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",

@@ -18,19 +18,6 @@ from app.core.config import settings
 from app.core.logging import setup_logging, logger
 import sentry_sdk
 
-# Initialize Logging First
-setup_logging()
-
-# Initialize Sentry for Enterprise Observability
-if settings.SENTRY_DSN:
-    sentry_sdk.init(
-        dsn=settings.SENTRY_DSN,
-        traces_sample_rate=0.2 if settings.ENVIRONMENT == "production" else 1.0,
-        profiles_sample_rate=0.1 if settings.ENVIRONMENT == "production" else 1.0,
-        environment=settings.ENVIRONMENT,
-    )
-    logger.info(f"STARTUP: Sentry Observability Enabled ({settings.ENVIRONMENT}).")
-
 logger.info("STARTUP: AHP 2.0 API Enterprise Initialization...")
 
 # --- OpenTelemetry REMOVED for RAM optimization ---
@@ -76,24 +63,6 @@ app = FastAPI(
 from app.core.metrics import instrument_request
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
-# 2. MIDDLEWARE CHAIN (Order is Critical)
-# Traceability & Metrics first
-app.add_middleware(RequestIDMiddleware)
-app.middleware("http")(instrument_request())
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
-
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept", "X-Request-ID", "X-Idempotency-Key"],
-)
-
-# Idempotency (Must be after RequestID for logging correlation)
-app.add_middleware(IdempotencyMiddleware)
-
 @app.on_event("startup")
 async def startup_event():
     """Enterprise startup diagnostics."""
@@ -134,6 +103,25 @@ async def readiness_probe(request: Request, db: AsyncSession = Depends(get_db)):
 async def health_check(request: Request, db: AsyncSession = Depends(get_db)):
     """Public health check: Alias for readiness but minimal exposure."""
     return await readiness_probe(request, db)
+
+# 2. MIDDLEWARE CHAIN (Order is Critical)
+# Traceability & Metrics first
+app.add_middleware(RequestIDMiddleware)
+app.middleware("http")(instrument_request())
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "X-Request-ID", "X-Idempotency-Key"],
+)
+
+# Idempotency (Must be after RequestID for logging correlation)
+app.add_middleware(IdempotencyMiddleware)
+
 
 @app.on_event("shutdown")
 async def on_shutdown():
