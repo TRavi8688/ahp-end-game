@@ -50,6 +50,7 @@ jobs:
             --network ahp-vpc \
             --subnet ahp-subnet \
             --vpc-egress private-ranges-only \
+            --allow-unauthenticated \
             --set-secrets "DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest,JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest" \
             --set-env-vars "ENVIRONMENT=production,CLOUD_PROVIDER=gcp,GCP_PROJECT_ID=ahp2o-495503,GCS_BUCKET_NAME=ahp2o-495503-storage"
 
