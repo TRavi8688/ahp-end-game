@@ -1,5 +1,5 @@
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError, StaleDataError
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.exc import StaleDataError
 from app.models.models import Hospital, Department, StaffProfile, User, RoleEnum
 from app.schemas.hospital import HospitalCreate, DepartmentCreate
 from fastapi import HTTPException

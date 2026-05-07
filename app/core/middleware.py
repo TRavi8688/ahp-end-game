@@ -49,7 +49,10 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
     Prevents duplicate clinical record creation and thundering herd scenarios.
     """
     async def dispatch(self, request: Request, call_next):
+        # Bypass Idempotency for login endpoint (no header required)
         if request.method not in ["POST", "PATCH", "PUT"]:
+            return await call_next(request)
+        if request.url.path.startswith("/api/v1/auth/login"):
             return await call_next(request)
 
         idempotency_key = request.headers.get("X-Idempotency-Key")
