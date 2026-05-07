@@ -23,6 +23,17 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
+    @field_validator("JWT_PRIVATE_KEY", "JWT_PUBLIC_KEY", mode="before")
+    @classmethod
+    def decode_base64_keys(cls, v: Any) -> str:
+        if isinstance(v, str) and not v.startswith("-----BEGIN"):
+            import base64
+            try:
+                return base64.b64decode(v).decode("utf-8")
+            except Exception:
+                return v
+        return v
+    
     # --- 2. CLOUD INFRASTRUCTURE ---
     GCP_PROJECT_ID: Optional[str] = None
     GCS_BUCKET_NAME: Optional[str] = None
