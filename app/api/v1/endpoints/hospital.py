@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.orm import Session
-from app.api.dependencies import get_db, get_current_user
+from app.core.database import get_db
+from app.core.security import get_current_user, require_roles, require_tenant_access
 from app.schemas.hospital import HospitalCreate, HospitalResponse, DepartmentCreate, DepartmentResponse
 from app.schemas.common import APIResponse, StandardErrorSchema
 from app.services.hospital_service import HospitalService
@@ -20,7 +21,7 @@ def create_hospital(
     hospital_data: HospitalCreate,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles("admin", "hospital_admin")),
     idempotency_key: str = Header(..., description="Idempotency key to prevent duplicate hospital creation"),
     trace_id: str = Depends(generate_trace_id)
 ):
@@ -55,12 +56,13 @@ def create_department(
     hospital_id: int,
     dept_data: DepartmentCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles("hospital_admin", "admin")),
+    _tenant: User = Depends(require_tenant_access(0)),  # hospital_id injected at runtime
     trace_id: str = Depends(generate_trace_id)
 ):
     """
     Create a new Department (Zone) within the Hospital.
-    Requires Hospital Admin privileges.
+    Requires Hospital Admin privileges scoped to this tenant.
     """
     # TODO: Add granular RBAC check here to ensure current_user is admin of hospital_id
     

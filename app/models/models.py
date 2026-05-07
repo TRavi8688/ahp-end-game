@@ -79,7 +79,7 @@ class User(Base):
     __tablename__ = "users"
     
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    version_id: Mapped[int] = mapped_column(default=1, nullable=False) # Optimistic Locking
+    version_id: Mapped[int] = mapped_column(default=1, nullable=False)  # Optimistic Locking
     insforge_id: Mapped[Optional[str]] = mapped_column(String(100), unique=True, index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
@@ -87,6 +87,10 @@ class User(Base):
     first_name: Mapped[Optional[str]] = mapped_column(String(100))
     last_name: Mapped[Optional[str]] = mapped_column(String(100))
     is_active: Mapped[bool] = mapped_column(default=True)
+    # --- Enterprise: JWT Revocation ---
+    # Incrementing this field instantly invalidates ALL existing tokens for
+    # this user without a token blacklist. One-click revoke for any staff.
+    token_version: Mapped[int] = mapped_column(default=1, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     
     patient_profile: Mapped["Patient"] = relationship(back_populates="user", uselist=False)
