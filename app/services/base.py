@@ -9,7 +9,7 @@ class BaseService(Generic[T]):
     Enterprise Base Service providing common CRUD operations with 
     transactional integrity and strict type safety.
     """
-    def __init__(self, model: Type[T], db: AsyncSession):
+    def __init__(self, model: Optional[Type[T]] = None, db: Optional[AsyncSession] = None):
         self.model = model
         self.db = db
 

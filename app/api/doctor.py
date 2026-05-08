@@ -7,6 +7,7 @@ from app.models.models import Doctor, User, Patient, DoctorAccess, Allergy, Queu
 from app.api.deps import get_current_doctor
 from app.repositories.base import PatientRepository
 from typing import List
+from app.core.limiter import limiter
 
 router = APIRouter(prefix="/doctor", tags=["Doctor"])
 
