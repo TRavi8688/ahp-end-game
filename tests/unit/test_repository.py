@@ -3,11 +3,16 @@ from unittest.mock import AsyncMock, MagicMock
 from app.repositories.base import AsyncBaseRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 
-class MockModel:
-    def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
-    id = 1
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import Integer
+
+class Base(DeclarativeBase):
+    pass
+
+class MockModel(Base):
+    __tablename__ = "mock_model"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column()
 
 @pytest.mark.asyncio
 async def test_repository_get():
@@ -35,5 +40,5 @@ async def test_repository_create():
     await repo.create(data)
     
     assert mock_db.add.called
-    assert mock_db.commit.called
+    assert mock_db.flush.called
     assert mock_db.refresh.called
