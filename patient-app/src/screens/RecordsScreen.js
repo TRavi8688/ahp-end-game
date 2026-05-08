@@ -4,14 +4,16 @@ import {
     ActivityIndicator, Modal, Image, Alert, ScrollView, Linking, Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import axios from 'axios';
-import { SecurityUtils } from '../utils/security';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import ApiService from '../utils/ApiService';
 import { Theme, GlobalStyles } from '../theme';
-import { HapticUtils } from '../utils/haptics';
+import { HapticUtils as Haptics } from '../utils/haptics';
 
-export default function MyRecordsScreen({ navigation }) {
+export default function RecordsScreen({ navigation }) {
     const [records, setRecords] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -19,21 +21,17 @@ export default function MyRecordsScreen({ navigation }) {
     const [analysisData, setAnalysisData] = useState(null);
     const [uploadProgress, setUploadProgress] = useState(0);
 
-    // --- NEW: Record Detail Viewer ---
+    // --- Record Detail Viewer ---
     const [showDetail, setShowDetail] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState(null);
 
     const fetchRecords = async () => {
         try {
-            const token = await SecurityUtils.getToken();
-            const response = await axios.get(`${API_BASE_URL}/patient/records`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const data = await ApiService.getRecords();
 
-            // Hidden records are fine in AsyncStorage as they aren't sensitive auth data
             const hiddenIdsStr = await AsyncStorage.getItem('hidden_records');
             const hiddenIds = hiddenIdsStr ? JSON.parse(hiddenIdsStr) : [];
-            const visibleRecords = response.data.filter(r => !hiddenIds.includes(r.id));
+            const visibleRecords = data.filter(r => !hiddenIds.includes(r.id));
 
             setRecords(visibleRecords);
         } catch (error) {
@@ -50,13 +48,13 @@ export default function MyRecordsScreen({ navigation }) {
     );
 
     const openRecord = (record) => {
-        HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Light);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setSelectedRecord(record);
         setShowDetail(true);
     };
 
     const handleUpload = async (type) => {
-        HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Medium);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         try {
             let result;
             if (type === 'camera') {
@@ -83,52 +81,32 @@ export default function MyRecordsScreen({ navigation }) {
         setUploadProgress(10);
 
         try {
-            const token = await SecurityUtils.getToken();
             const formData = new FormData();
 
             const fileUri = file.uri;
             const fileName = file.name || `upload_${Date.now()}.jpg`;
             const fileType = file.mimeType || 'image/jpeg';
 
-            let uploadResponse;
-
             if (Platform.OS === 'web') {
-                // On web: convert data URI / blob URI to a real File object
                 const fetchRes = await fetch(fileUri);
                 const blob = await fetchRes.blob();
                 const realFile = new File([blob], fileName, { type: fileType });
                 formData.append('file', realFile);
-
-                setUploadProgress(30);
-
-                // Use native fetch (NOT axios) — axios breaks multipart blob uploads on web
-                const rawResp = await fetch(`${API_BASE_URL}/patient/upload-report`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData,
-                });
-                uploadResponse = { data: await rawResp.json(), status: rawResp.status };
-                if (!rawResp.ok) throw new Error(uploadResponse.data?.detail || 'Upload failed');
             } else {
-                // On native iOS/Android: axios handles {uri, name, type} correctly
                 formData.append('file', { uri: fileUri, name: fileName, type: fileType });
-                setUploadProgress(30);
-                uploadResponse = await axios.post(`${API_BASE_URL}/patient/upload-report`, formData, {
-                    headers: {
-                        'Content-Type': 'multipart/form-data',
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
             }
 
+            setUploadProgress(30);
+            const data = await ApiService.uploadReport(formData);
             setUploadProgress(100);
-            if (uploadResponse.data.status === 'success') {
-                HapticUtils.notificationAsync(HapticUtils.NotificationFeedbackType.Success);
-                setAnalysisData(uploadResponse.data);
+
+            if (data.status === 'success') {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                setAnalysisData(data);
                 setShowAnalysis(true);
             } else {
-                HapticUtils.notificationAsync(HapticUtils.NotificationFeedbackType.Error);
-                Alert.alert('Analysis Failed', uploadResponse.data.message || 'Chitti could not read this document.');
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                Alert.alert('Analysis Failed', data.message || 'Chitti could not read this document.');
             }
         } catch (error) {
             console.error('Upload error:', error);
@@ -141,10 +119,9 @@ export default function MyRecordsScreen({ navigation }) {
     };
 
     const confirmSave = async (shouldUpdateProfile) => {
-        HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Medium);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         try {
-            const token = await SecurityUtils.getToken();
-            await axios.post(`${API_BASE_URL}/patient/confirm-and-save-report`, {
+            await ApiService.confirmReport({
                 analysis: {
                     structured_data: analysisData.extracted_data,
                     summary: analysisData.summary,
@@ -154,8 +131,6 @@ export default function MyRecordsScreen({ navigation }) {
                 s3_url: analysisData.url,
                 type: analysisData.type,
                 update_profile: shouldUpdateProfile
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
             });
 
             setShowAnalysis(false);

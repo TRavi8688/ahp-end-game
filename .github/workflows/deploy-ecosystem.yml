@@ -6,8 +6,33 @@ on:
       - main
 
 jobs:
+  run-tests:
+    name: Run Automated Quality Gates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx
+
+      - name: Execute Pytest
+        run: |
+          # Run core integrity and security tests
+          # We ignore frontend directories and skip DB-heavy tests
+          pytest -v -m "not needs_db" --ignore=doctor-app --ignore=patient-app
+
   auth-and-backend:
     name: Deploy Backend to Cloud Run
+    needs: run-tests
     runs-on: ubuntu-latest
     permissions:
       contents: 'read'
@@ -29,7 +54,6 @@ jobs:
           gcloud auth list
           gcloud auth print-access-token | cut -c 1-10
 
-
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
@@ -43,7 +67,22 @@ jobs:
           
           IMAGE_NAME="us-central1-docker.pkg.dev/ahp2o-495503/ahp-repo/ahp-backend:${{ github.sha }}"
           docker build -t $IMAGE_NAME .
+          
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "us-central1-docker.pkg.dev/ahp2o-495503/ahp-repo/ahp-backend:${{ github.sha }}"
+          format: 'table'
+          exit-code: '1' # Fail the build on vulnerabilities
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Push Docker Image
+        run: |
+          IMAGE_NAME="us-central1-docker.pkg.dev/ahp2o-495503/ahp-repo/ahp-backend:${{ github.sha }}"
           docker push $IMAGE_NAME
+
 
       - name: Deploy API Service
         run: |

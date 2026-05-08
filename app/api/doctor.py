@@ -19,6 +19,7 @@ async def doctor_send_otp(req: schemas.OTPRequest):
     return await send_otp(req)
 
 @router.post("/token")
+@limiter.limit("10/minute")
 async def doctor_token(
     request: Request,
     db: AsyncSession = Depends(get_db)
@@ -109,7 +110,10 @@ async def lookup_patient(
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     
-    # Check if access already exists
+    # 1. AUDIT: Record that a lookup occurred (Accountability)
+    from app.core.audit import log_audit_action
+    
+    # Check if access already exists (moved up to use in audit log)
     stmt = select(DoctorAccess).where(
         DoctorAccess.patient_id == patient.id,
         DoctorAccess.doctor_user_id == current_doctor.user_id,
@@ -117,6 +121,19 @@ async def lookup_patient(
     )
     result = await db.execute(stmt)
     existing_access = result.scalar_one_or_none()
+
+    await log_audit_action(
+        db=db,
+        action="PATIENT_LOOKUP",
+        user_id=current_doctor.user_id,
+        resource_type="PATIENT",
+        resource_id=patient.id,
+        details={
+            "ahp_id": ahp_id, 
+            "access_already_granted": existing_access is not None,
+            "purpose": "clinical_lookup"
+        }
+    )
     
     # Get user profile for name
     stmt_user = select(User).where(User.id == patient.user_id)

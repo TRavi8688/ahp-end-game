@@ -27,6 +27,21 @@ CIRCUIT_BREAKER_STATE = Gauge(
     ["provider"]
 )
 
+# --- DB POOL TELEMETRY ---
+DB_POOL_SIZE = Gauge("db_pool_size", "Total configured pool size.")
+DB_POOL_CHECKED_OUT = Gauge("db_pool_checked_out", "Number of active connections checked out.")
+DB_POOL_OVERFLOW = Gauge("db_pool_overflow", "Number of connections in overflow.")
+
+def update_db_metrics():
+    """Syncs SQLAlchemy pool state with Prometheus gauges."""
+    from app.core.database import primary_engine
+    if primary_engine:
+        pool = primary_engine.pool
+        # Note: Accessing sync pool status on async engine is safe for metrics
+        DB_POOL_SIZE.set(pool.size())
+        DB_POOL_CHECKED_OUT.set(pool.checkedout())
+        DB_POOL_OVERFLOW.set(pool.overflow())
+
 def instrument_request():
     """Middleware-style instrumentation for SLIs."""
     async def middleware(request: Request, call_next):
@@ -35,6 +50,9 @@ def instrument_request():
         # Route resolution for labeling
         endpoint = request.url.path
         method = request.method
+        
+        # Update pool metrics on every request for high-resolution monitoring
+        update_db_metrics()
         
         response = await call_next(request)
         

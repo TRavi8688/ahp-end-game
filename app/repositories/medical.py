@@ -5,8 +5,17 @@ from app.core.security import calculate_content_checksum
 from app.core.logging import logger
 
 class MedicalRecordRepository(AsyncBaseRepository):
-    async def get_by_patient(self, patient_id: int):
+    async def get_by_patient(self, patient_id: int, hospital_id: Optional[int] = None):
+        """
+        Fetches medical records for a patient.
+        If hospital_id is provided, it enforces tenant-scoping (Doctor/Staff view).
+        If hospital_id is None, it assumes the Patient's own view (sees all their records).
+        """
         stmt = select(MedicalRecord).where(MedicalRecord.patient_id == patient_id)
+        
+        if hospital_id is not None:
+            stmt = stmt.where(MedicalRecord.hospital_id == hospital_id)
+            
         result = await self.db.execute(stmt)
         records = list(result.scalars().all())
         
@@ -14,11 +23,12 @@ class MedicalRecordRepository(AsyncBaseRepository):
         for record in records:
             if record.record_checksum:
                 # We checksum the raw_text or file_url as the 'anchor' for integrity
-                expected = calculate_content_checksum(record.raw_text or record.file_url)
+                anchor = record.raw_text or record.file_url
+                expected = calculate_content_checksum(anchor)
                 if record.record_checksum != expected:
                      logger.critical(f"TAMPER_DETECTED: Record {record.id} checksum mismatch!")
-                     # In a real hardened system, we might raise an error or flag the record
         return records
+
 
     async def create_with_integrity(self, obj_in: dict) -> MedicalRecord:
         """Create a record and automatically anchor its integrity with a checksum."""

@@ -126,7 +126,8 @@ async def login(
     }
 
 @router.post("/send-otp", status_code=status.HTTP_200_OK)
-async def send_otp(req: schemas.OTPRequest):
+@limiter.limit("5/minute")
+async def send_otp(request: Request, req: schemas.OTPRequest):
     """Generates and sends a 6-digit OTP via Twilio SMS or Email."""
     from app.services.twilio_service import send_sms_otp
     import secrets
@@ -157,7 +158,9 @@ async def send_otp(req: schemas.OTPRequest):
     return {"status": "success", "message": f"OTP sent via {req.method}"}
 
 @router.post("/verify-otp")
+@limiter.limit("5/minute")
 async def verify_otp(
+    request: Request,
     email: str, 
     otp: str, 
     db: AsyncSession = Depends(deps.get_db)

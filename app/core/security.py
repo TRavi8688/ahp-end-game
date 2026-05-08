@@ -24,7 +24,8 @@ from typing import Any, List, Optional, Union
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
@@ -179,9 +180,9 @@ _INACTIVE_EXCEPTION = HTTPException(
 )
 
 
-def get_current_user(
+async def get_current_user(
     token: str = Depends(reusable_oauth2),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Primary auth dependency for ALL protected endpoints.
@@ -204,7 +205,8 @@ def get_current_user(
     if not user_id:
         raise _CREDENTIALS_EXCEPTION
 
-    user: Optional[User] = db.query(User).filter(User.id == int(user_id)).first()
+    result = await db.execute(select(User).where(User.id == int(user_id)))
+    user: Optional[User] = result.scalars().first()
     if not user:
         raise _CREDENTIALS_EXCEPTION
 
@@ -235,7 +237,7 @@ def require_roles(*roles: str):
         def admin_view(user = Depends(require_roles("admin", "hospital_admin"))):
             ...
     """
-    def checker(current_user=Depends(get_current_user)):
+    async def checker(current_user=Depends(get_current_user)):
         if current_user.role.value not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -262,7 +264,7 @@ def require_tenant_access(hospital_id: int):
             ...
     Note: Super Admins (role="admin") bypass this check.
     """
-    def checker(current_user=Depends(get_current_user)):
+    async def checker(current_user=Depends(get_current_user)):
         from app.models.models import StaffProfile
         if current_user.role.value == "admin":
             return current_user  # Platform super-admin bypasses tenant check

@@ -66,8 +66,28 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
                 media_type="application/json"
             )
 
-        # Context-aware caching
-        user_id = request.scope.get("user", {}).get("id", "anon")
+        # Context-aware caching (Scoping idempotency to the authenticated user)
+        # We perform a fast JWT decode (no DB lookup) to extract the 'sub' (user_id)
+        user_id = "anon"
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.replace("Bearer ", "")
+            try:
+                from jose import jwt
+                from app.core.config import settings
+                # Verify signature and audience to ensure we only scope to valid tokens
+                payload = jwt.decode(
+                    token, 
+                    settings.JWT_PUBLIC_KEY, 
+                    algorithms=["RS256"], 
+                    audience=settings.JWT_AUDIENCE
+                )
+                user_id = payload.get("sub", "anon")
+            except Exception:
+                # If token is invalid, we fallback to anon. 
+                # The actual auth dependency in the route will handle the 401 error.
+                pass
+
         cache_key = f"idempotency:res:{user_id}:{idempotency_key}"
         lock_key = f"idempotency:lock:{user_id}:{idempotency_key}"
 

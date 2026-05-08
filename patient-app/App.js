@@ -19,6 +19,8 @@ import ProfileSetupScreen from './src/screens/ProfileSetupScreen';
 import MainTabs from './src/navigation/MainTabs';
 import EmergencyScreen from './src/screens/EmergencyScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
+import ClinicalTimelineScreen from './src/screens/ClinicalTimelineScreen';
+import RecordsScreen from './src/screens/RecordsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -114,6 +116,8 @@ function AppContent() {
             <Stack.Screen name="MainTabs" component={MainTabs} />
             <Stack.Screen name="EmergencyMode" component={EmergencyScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            <Stack.Screen name="Timeline" component={ClinicalTimelineScreen} />
+            <Stack.Screen name="Records" component={RecordsScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </SocketProvider>

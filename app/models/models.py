@@ -72,6 +72,19 @@ class MessageRoleEnum(str, enum.Enum):
     user = "user"
     assistant = "assistant"
     system = "system"
+class PrescriptionStatusEnum(str, enum.Enum):
+    pending = "pending"
+    fulfilled = "fulfilled"
+    cancelled = "cancelled"
+    expired = "expired"
+
+class LabOrderStatusEnum(str, enum.Enum):
+    ordered = "ordered"
+    sample_collected = "sample_collected"
+    processing = "processing"
+    completed = "completed"
+    rejected = "rejected"
+
 class Base(DeclarativeBase):
     pass
 
@@ -192,6 +205,7 @@ class MedicalRecord(Base):
     raw_text: Mapped[Optional[str]] = mapped_column(TextEncryptedType)
 
     __mapper_args__ = {"version_id_col": version_id}
+    hospital_id: Mapped[Optional[int]] = mapped_column(ForeignKey("hospitals.id"), index=True, nullable=True)
     ai_extracted: Mapped[Optional[dict]] = mapped_column(JSON_TYPE)
     ai_summary: Mapped[Optional[str]] = mapped_column(TextEncryptedType)
     patient_summary: Mapped[Optional[str]] = mapped_column(TextEncryptedType)
@@ -312,15 +326,18 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
     
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
-    hospital_id: Mapped[Optional[int]] = mapped_column(ForeignKey("hospitals.id"), nullable=True, index=True)
-    action_type: Mapped[str] = mapped_column(String(100), index=True)
-    entity_type: Mapped[str] = mapped_column(String(100), index=True)
-    entity_id: Mapped[int] = mapped_column(Integer, index=True)
-    old_value: Mapped[Optional[dict]] = mapped_column(JSON_TYPE)
-    new_value: Mapped[Optional[dict]] = mapped_column(JSON_TYPE)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), index=True, nullable=True)
+    patient_id: Mapped[Optional[int]] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
+    action: Mapped[str] = mapped_column(String(100), index=True)
+    resource_type: Mapped[str] = mapped_column(String(100), index=True)
+    resource_id: Mapped[Optional[int]] = mapped_column(Integer, index=True, nullable=True)
+    details: Mapped[Optional[dict]] = mapped_column(JSON_TYPE)
+    ip_address: Mapped[Optional[str]] = mapped_column(String(45))
+    user_agent: Mapped[Optional[str]] = mapped_column(String(255))
+    hospital_id: Mapped[Optional[int]] = mapped_column(ForeignKey("hospitals.id"), index=True, nullable=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    signature_hash: Mapped[Optional[str]] = mapped_column(String(255)) # HMAC of content
+    signature: Mapped[str] = mapped_column(String(255)) 
+    prev_hash: Mapped[str] = mapped_column(String(255))
 
 class OutboxEvent(Base):
     __tablename__ = "outbox_events"
@@ -386,3 +403,90 @@ class JobFailure(Base):
     args: Mapped[Optional[dict]] = mapped_column(JSON_TYPE)
     error: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+class DigitalPrescription(Base):
+    __tablename__ = "digital_prescriptions"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    hospital_id: Mapped[int] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    doctor_id: Mapped[int] = mapped_column(ForeignKey("doctors.id"), index=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
+    
+    status: Mapped[PrescriptionStatusEnum] = mapped_column(SQLEnum(PrescriptionStatusEnum), default=PrescriptionStatusEnum.pending)
+    medications: Mapped[dict] = mapped_column(JSON_TYPE) # List of {name, dosage, frequency, duration}
+    notes: Mapped[Optional[str]] = mapped_column(TextEncryptedType)
+    
+    qr_code_id: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    signature_hash: Mapped[str] = mapped_column(String(255)) # Digital signature of the prescription
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    fulfilled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    pharmacist_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id")) # User ID of pharmacist who fulfilled
+
+class LabDiagnosticOrder(Base):
+    __tablename__ = "lab_diagnostic_orders"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    hospital_id: Mapped[int] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    doctor_id: Mapped[int] = mapped_column(ForeignKey("doctors.id"), index=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
+    
+    status: Mapped[LabOrderStatusEnum] = mapped_column(SQLEnum(LabOrderStatusEnum), default=LabOrderStatusEnum.ordered)
+    tests: Mapped[dict] = mapped_column(JSON_TYPE) # List of test names or codes
+    clinical_history: Mapped[Optional[str]] = mapped_column(TextEncryptedType)
+    
+    report_id: Mapped[Optional[int]] = mapped_column(ForeignKey("medical_records.id")) # Link to the OCR'd report
+    ai_risk_level: Mapped[Optional[str]] = mapped_column(String(50))
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    
+    results: Mapped[List["LabResult"]] = relationship(back_populates="order", cascade="all, delete-orphan")
+
+class LabResult(Base):
+    """
+    STRUCTURED OBSERVATIONS: The data engine for AI and Analytics.
+    Stores normalized lab metrics (e.g., Hemoglobin 14.2 g/dL).
+    """
+    __tablename__ = "lab_results"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey("lab_diagnostic_orders.id"), index=True)
+    
+    test_name: Mapped[str] = mapped_column(String(100), index=True) # e.g., Hemoglobin
+    value: Mapped[float] = mapped_column()
+    unit: Mapped[str] = mapped_column(String(20)) # e.g., g/dL
+    
+    reference_range_min: Mapped[Optional[float]] = mapped_column()
+    reference_range_max: Mapped[Optional[float]] = mapped_column()
+    
+    flag: Mapped[Optional[str]] = mapped_column(String(20)) # e.g., LOW, HIGH, CRITICAL
+    interpretation: Mapped[Optional[str]] = mapped_column(Text)
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    
+    order: Mapped["LabDiagnosticOrder"] = relationship(back_populates="results")
+
+class ClinicalEvent(Base):
+    """
+    THE HEART OF AHP: Immutable Clinical Event Stream.
+    Stores every longitudinal action with zero mutation.
+    Used for Timeline reconstruction, AI Context, and Auditing.
+    """
+    __tablename__ = "clinical_events"
+
+    id: Mapped[str] = mapped_column(String(50), primary_key=True, index=True) # UUID
+    tenant_id: Mapped[int] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
+    actor_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True) # Staff/User ID
+    
+    event_type: Mapped[str] = mapped_column(String(100), index=True) # e.g., PRESCRIPTION_CREATED
+    aggregate_type: Mapped[str] = mapped_column(String(100), index=True) # e.g., lab_order
+    aggregate_id: Mapped[str] = mapped_column(String(100), index=True) # Entity ID
+    
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    payload: Mapped[dict] = mapped_column(JSON_TYPE) # Structured clinical data
+    metadata_info: Mapped[dict] = mapped_column(JSON_TYPE) # IP, device, app_version
+    
+    signature: Mapped[str] = mapped_column(String(255)) # Integrity hash
+    version: Mapped[int] = mapped_column(default=1)

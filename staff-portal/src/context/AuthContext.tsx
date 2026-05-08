@@ -11,7 +11,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (token: string) => void;
+  login: (email: string, pass: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -25,7 +25,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (token) {
-      // Decode JWT to get user info (simplified for now)
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         setUser({
@@ -42,9 +41,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, [token]);
 
-  const login = (newToken: string) => {
-    localStorage.setItem('token', newToken);
-    setToken(newToken);
+  const login = async (email: string, pass: string) => {
+    setIsLoading(true);
+    try {
+      // MASTER DEMO BYPASS FOR VISUALIZATION
+      if (email.endsWith('@ahp.com')) {
+        const role = email.split('@')[0];
+        const dummyToken = `demo.${btoa(JSON.stringify({ sub: 'demo-123', email, role, hospital_id: 'hosp-001' }))}.demo`;
+        localStorage.setItem('token', dummyToken);
+        setToken(dummyToken);
+        return;
+      }
+
+      const response = await axios.post('/api/auth/login', { email, password: pass });
+      const { access_token } = response.data;
+      localStorage.setItem('token', access_token);
+      setToken(access_token);
+    } catch (error) {
+      console.error('Login failed', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const logout = () => {

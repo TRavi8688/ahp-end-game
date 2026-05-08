@@ -9,27 +9,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-async def get_db_user(current_user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> User:
+async def get_db_user(user: User = Depends(get_current_user)) -> User:
     """
-    Standard Enterprise Dependency to retrieve the full User model from JWT.
-    Enforces integer-based primary keys for consistent relational integrity.
+    Standard Enterprise Dependency to retrieve the full User model.
+    Reuses the User object already fetched and validated by the security layer.
     """
-    user_id_raw = current_user.get("sub")
-    
-    try:
-        user_id = int(user_id_raw)
-    except (ValueError, TypeError):
-        logger.error(f"AUTH_IDENTITY_ERROR: Expected integer sub claim, got {user_id_raw}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid identity claim in token."
-        )
-
-    repo = UserRepository(User, db)
-    user = await repo.get(user_id)
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User account not found.")
     return user
 
 async def get_current_patient(user: User = Depends(get_db_user), db: AsyncSession = Depends(get_db)) -> Patient:
@@ -55,3 +39,22 @@ async def get_current_doctor(user: User = Depends(get_db_user), db: AsyncSession
     if not doctor:
         raise HTTPException(status_code=404, detail="Doctor profile not found.")
     return doctor
+
+async def get_hospital_id(user: User = Depends(get_db_user)) -> int:
+    """
+    Mandatory Enterprise Dependency to enforce Tenant Isolation.
+    Extracts the hospital_id from the user's staff profile.
+    Prevents cross-hospital data leakage at the query level.
+    """
+    if not user.staff_profile:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Staff profile not found. Access denied."
+        )
+    return user.staff_profile.hospital_id
+
+async def get_current_hospital_admin(user: User = Depends(get_db_user)) -> User:
+    """Gated dependency for Hospital Admin routes."""
+    if user.role not in ["hospital_admin", "admin"]:
+        raise HTTPException(status_code=403, detail="Route requires Hospital Admin privileges.")
+    return user

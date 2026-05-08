@@ -71,10 +71,15 @@ class DashboardService:
         user = patient.user
         
         # Parallel aggregate fetches
-        # Fetching latest 5 records
+        # Fetching latest 5 records (Tenant-Scoped)
         records_stmt = select(MedicalRecord).where(
             MedicalRecord.patient_id == patient_id
-        ).order_by(MedicalRecord.created_at.desc()).limit(5)
+        )
+        if hospital_id != 0:
+            # Enforce strict isolation: Only show records created at THIS hospital
+            records_stmt = records_stmt.where(MedicalRecord.hospital_id == hospital_id)
+            
+        records_stmt = records_stmt.order_by(MedicalRecord.created_at.desc()).limit(5)
         
         # Fetching active conditions
         conditions_stmt = select(Condition).where(

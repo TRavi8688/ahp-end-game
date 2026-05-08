@@ -2,11 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Image, Modal, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import axios from 'axios';
-import { SecurityUtils } from '../utils/security';
-import { Theme, GlobalStyles } from '../theme';
-import { useSocket } from '../contexts/SocketContext';
-import { API_BASE_URL } from '../api';
+import ApiService from '../utils/ApiService';
 
 export default function HomeScreen({ navigation }) {
     const [profile, setProfile] = useState(null);
@@ -18,30 +14,30 @@ export default function HomeScreen({ navigation }) {
     const [consentData, setConsentData] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
 
+    const [timeline, setTimeline] = useState([]);
+
     const fetchData = async () => {
         try {
-            const token = await SecurityUtils.getToken();
-            if (!token) {
-                navigation.replace('Login');
-                return;
-            }
-
-            const [profileRes, summaryRes, pendingRes] = await Promise.all([
-                axios.get(`${API_BASE_URL}/patient/profile`, { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get(`${API_BASE_URL}/patient/clinical-summary`, { headers: { Authorization: `Bearer ${token}` } }),
-                axios.get(`${API_BASE_URL}/patient/pending-access`, { headers: { Authorization: `Bearer ${token}` } })
+            const [profileData, summaryData, pendingAccess, timelineData] = await Promise.all([
+                ApiService.getProfile(),
+                ApiService.getClinicalSummary(),
+                ApiService.getPendingAccess(),
+                ApiService.getTimeline()
             ]);
 
-            setProfile(profileRes.data);
-            setSummary(summaryRes.data);
+            setProfile(profileData);
+            setSummary(summaryData);
+            setTimeline(timelineData.slice(0, 3)); // Only show top 3 on home
             
-            // Auto-trigger consent modal if there's a pending request
-            if (pendingRes.data && pendingRes.data.length > 0) {
-                setConsentData(pendingRes.data[0]);
+            if (pendingAccess && pendingAccess.length > 0) {
+                setConsentData(pendingAccess[0]);
                 setShowConsent(true);
             }
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
+            if (error.response?.status === 401) {
+                navigation.replace('Login');
+            }
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -67,17 +63,15 @@ export default function HomeScreen({ navigation }) {
         if (!consentData) return;
         setActionLoading(true);
         try {
-            const token = await SecurityUtils.getToken();
-            const endpoint = action === 'approve'
-                ? `${API_BASE_URL}/patient/approve-access/${consentData.access_id}`
-                : `${API_BASE_URL}/patient/revoke-access/${consentData.access_id}`;
-
-            await axios.post(endpoint, {}, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            if (action === 'approve') {
+                await ApiService.approveAccess(consentData.access_id);
+            } else {
+                await ApiService.revokeAccess(consentData.access_id);
+            }
 
             setShowConsent(false);
             Alert.alert("Success", `Access ${action === 'approve' ? 'granted' : 'rejected'} successfully.`);
+            fetchData(); // Refresh to clear modal and update state
         } catch (error) {
             console.error('Consent action error:', error);
             Alert.alert("Error", "Failed to process consent request.");
@@ -227,6 +221,34 @@ export default function HomeScreen({ navigation }) {
                     ))}
                 </View>
             )}
+
+            {/* 8. Clinical Journey Preview */}
+            <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Clinical Journey</Text>
+                    <TouchableOpacity onPress={() => navigation.navigate('Timeline')}>
+                        <Text style={styles.viewAll}>Full Timeline</Text>
+                    </TouchableOpacity>
+                </View>
+                
+                {timeline.length > 0 ? (
+                    timeline.map((event, index) => (
+                        <View key={event.id} style={styles.timelinePreviewCard}>
+                            <View style={[styles.timelineDot, { backgroundColor: index === 0 ? '#7c3aed' : '#cbd5e1' }]} />
+                            <View style={styles.timelineContent}>
+                                <Text style={styles.timelineSummary}>{event.summary}</Text>
+                                <Text style={styles.timelineTime}>
+                                    {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </Text>
+                            </View>
+                        </View>
+                    ))
+                ) : (
+                    <View style={styles.emptyTimeline}>
+                        <Text style={styles.emptyTimelineText}>No clinical actions recorded yet.</Text>
+                    </View>
+                )}
+            </View>
 
             {/* 9. Reports Overview */}
             <View style={styles.section}>
@@ -735,6 +757,46 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    timelinePreviewCard: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        marginBottom: 15,
+        paddingLeft: 5,
+    },
+    timelineDot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        marginTop: 6,
+        marginRight: 15,
+    },
+    timelineContent: {
+        flex: 1,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+        paddingBottom: 10,
+    },
+    timelineSummary: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#334155',
+    },
+    timelineTime: {
+        fontSize: 11,
+        color: '#94a3b8',
+        marginTop: 2,
+    },
+    emptyTimeline: {
+        padding: 20,
+        backgroundColor: '#f8fafc',
+        borderRadius: 16,
+        alignItems: 'center',
+    },
+    emptyTimelineText: {
+        fontSize: 12,
+        color: '#94a3b8',
+        fontStyle: 'italic',
     },
     grantBtn: {
         backgroundColor: '#4c1d95',

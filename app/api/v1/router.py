@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import hospital, queue, admission
+from app.api.v1.endpoints import hospital, queue, admission, clinical, timeline
 
 api_router = APIRouter()
 
@@ -7,3 +7,5 @@ api_router = APIRouter()
 api_router.include_router(hospital.router, prefix="/hospital", tags=["Hospital Operations"])
 api_router.include_router(queue.router, prefix="/queue", tags=["Queue Engine"])
 api_router.include_router(admission.router, prefix="/admissions", tags=["Admissions Workflow"])
+api_router.include_router(clinical.router, prefix="/clinical", tags=["Clinical Operations"])
+api_router.include_router(timeline.router, prefix="/clinical", tags=["Clinical Journey"])

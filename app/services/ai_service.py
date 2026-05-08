@@ -412,24 +412,66 @@ class AsyncAIService:
                 ("gemini", self._call_gemini, "gemini-1.5-flash")
             ]
 
+        # --- ADAPTIVE RACING FAILOVER (Enterprise Strategy) ---
+        # Instead of sequential blocking, we use a "staggered start" race.
+        # We start the primary provider, and if it doesn't respond within 2s, 
+        # we start the secondary provider in parallel.
+        
         response_text = "SERVICE_UNAVAILABLE"
-        for p_key, func, model in providers:
-            # Circuit Breaker Check
+        
+        async def _attempt_provider(p_key, func, model):
             if p_key in self.circuits:
                 if await self.circuits[p_key].is_open():
-                    logger.info(f"FALLBACK: Skipping {p_key} (Circuit Open)")
-                    continue
-
+                    return None
             try:
                 res = await func(model, prompt, image_bytes, mime_type, force_json)
                 if res and res not in ["ERROR", "SERVICE_UNAVAILABLE", "MISSING_KEY"] and len(res.strip()) > 5:
-                    response_text = sanitize_ai_output(res.strip())
-                    break # Success!
-                logger.warning(f"PROVIDER_FAILURE: {p_key} returned invalid or empty response.")
-            except Exception as e:
-                logger.error(f"PROVIDER_CRASH: {p_key} attempt failed - {str(e)}")
+                    return sanitize_ai_output(res.strip())
+            except Exception:
+                pass
+            return None
+
+        # 1. Primary Attempt (Priority 1)
+        p1_key, p1_func, p1_model = providers[0]
+        p1_task = asyncio.create_task(_attempt_provider(p1_key, p1_func, p1_model))
+        
+        # 2. Wait for P1 or Timeout for staggered start
+        done, pending = await asyncio.wait([p1_task], timeout=2.0)
+        
+        if p1_task in done and p1_task.result():
+            response_text = p1_task.result()
+        else:
+            # 3. P1 is slow or failed. Start P2 and P3 as a secondary race.
+            logger.info("ADAPTIVE_RACING: Primary slow/failed, starting secondary providers...")
+            secondary_tasks = []
+            for p_key, func, model in providers[1:3]: # Race next 2 providers
+                 secondary_tasks.append(asyncio.create_task(_attempt_provider(p_key, func, model)))
             
-            logger.info(f"FAILOVER: Attempting next provider after {p_key} failure.")
+            # Combine all active tasks
+            all_active = [p1_task] + secondary_tasks
+            
+            # Loop until we get a result or all fail
+            while all_active:
+                done, all_active = await asyncio.wait(all_active, return_when=asyncio.FIRST_COMPLETED)
+                for task in done:
+                    res = task.result()
+                    if res:
+                        response_text = res
+                        # Cancel remaining tasks to save cost/compute
+                        for p in all_active: p.cancel()
+                        all_active = [] # Break outer loop
+                        break
+                if response_text != "SERVICE_UNAVAILABLE":
+                    break
+
+        # Final Fallback (Sequential) for remaining providers if still unavailable
+        if response_text == "SERVICE_UNAVAILABLE" and len(providers) > 3:
+            for p_key, func, model in providers[3:]:
+                 res = await _attempt_provider(p_key, func, model)
+                 if res:
+                     response_text = res
+                     break
+
 
         # --- Regional Language Enhancement (Sarvam) ---
         if response_text != "SERVICE_UNAVAILABLE" and language_code not in ["en", "en-IN"]:
@@ -654,47 +696,43 @@ class AsyncAIService:
         except Exception as e:
             logger.error("SAVE_CHAT_FAILURE", error=str(e))
 
-    async def get_medical_context(self, user_id: str, db: Optional[AsyncSession] = None) -> str:
-        """Fetch a summary of the patient's record for AI awareness."""
+    async def get_medical_context(self, user_id: str, role: str = "patient", db: Optional[AsyncSession] = None) -> str:
+        """Fetch a secure, filtered summary of the patient's record for AI awareness."""
         if not db:
             return "No clinical context available (DB Connection Missing)."
         
         try:
+            from app.services.clinical_context_service import clinical_context_service
+            from app.models.models import Patient
             from sqlalchemy import select
-            from app.models.models import Patient, Condition, Medication, Allergy, MedicalRecord
-
-            # 1. Fetch Patient Profile
+            
+            # Fetch Patient Profile ID first
             res = await db.execute(select(Patient).where(Patient.user_id == int(user_id)))
             patient = res.scalar_one_or_none()
             if not patient:
-                return "No medical profile found for this user."
+                return "No clinical profile found for this user."
 
-            # 2. Fetch Conditions, Meds, Allergies
-            c_res = await db.execute(select(Condition).where(Condition.patient_id == patient.id))
-            m_res = await db.execute(select(Medication).where(Medication.patient_id == patient.id))
-            a_res = await db.execute(select(Allergy).where(Allergy.patient_id == patient.id))
-            r_res = await db.execute(select(MedicalRecord).where(MedicalRecord.patient_id == patient.id).order_by(MedicalRecord.created_at.desc()).limit(3))
-
-            conditions = [c.name for c in c_res.scalars().all()]
-            medications = [f"{m.generic_name} ({m.dosage})" for m in m_res.scalars().all()]
-            allergies = [a.allergen for a in a_res.scalars().all()]
-            records = [f"{r.type}: {r.patient_summary or 'General'}" for r in r_res.scalars().all()]
-
-            context = (
-                f"PATIENT_PROFILE:\n"
-                f"- Name/ID: {patient.ahp_id}\n"
-                f"- Blood Group: {patient.blood_group}\n"
-                f"- Conditions: {', '.join(conditions) or 'None listed'}\n"
-                f"- Medications: {', '.join(medications) or 'None listed'}\n"
-                f"- Allergies: {', '.join(allergies) or 'None listed'}\n"
-                f"- Recent Records: {'; '.join(records) or 'None'}"
+            # Generate Secure, Role-Aware Context via the SHIELD layer
+            context_obj = await clinical_context_service.get_patient_clinical_context(
+                db=db,
+                patient_id=patient.id,
+                requesting_user_role=role
             )
-            return context
-        except Exception as e:
-            logger.error(f"Failed to build medical context: {e}")
-            return "Error retrieving clinical profile."
+            
+            if "error" in context_obj:
+                logger.error(f"AI_CONTEXT_FAILURE: {context_obj['error']}")
+                return "Privacy Shield: Clinical context retrieval restricted."
 
-    async def chat_with_memory(self, user_id: str, conversation_id: str, user_message: str, image_bytes: bytes = None, audio_bytes: bytes = None, language_code: str = "en-IN", db: Optional[AsyncSession] = None) -> str:
+            # Format the secure context for the LLM prompt
+            # We use a structured JSON block to ensure the LLM understands the data boundaries
+            context_str = json.dumps(context_obj, indent=2)
+            return f"SECURE_CLINICAL_CONTEXT_V1:\n{context_str}"
+
+        except Exception as e:
+            logger.error(f"Failed to build secure medical context: {e}")
+            return "Security Guard: Error retrieving clinical profile."
+
+    async def chat_with_memory(self, user_id: str, conversation_id: str, user_message: str, image_bytes: bytes = None, audio_bytes: bytes = None, language_code: str = "en-IN", role: str = "patient", db: Optional[AsyncSession] = None) -> str:
         """Generate a response using clinical context AND conversational memory."""
         
         # 0. Handle Voice if present
@@ -704,8 +742,8 @@ class AsyncAIService:
                 user_message = f"{user_message} (Transcription: {transcription})"
                 logger.info(f"Voice Transcribed: {transcription}")
 
-        # 1. Fetch Medical Context First
-        clinical_context = await self.get_medical_context(user_id, db=db)
+        # 1. Fetch Secure Medical Context First (Role-Aware)
+        clinical_context = await self.get_medical_context(user_id, role=role, db=db)
 
         # 2. Save the user's message
         await self.save_chat_message(user_id, conversation_id, "user", user_message, db=db)
@@ -718,15 +756,15 @@ class AsyncAIService:
             "You are CHITTI, the High-End Personal Healthcare Companion for the AHP 2.0 Platform.\n\n"
             "YOUR UNIQUE IDENTITY:\n"
             "- You are NOT a generic AI. You are a dedicated partner in the patient's health journey.\n"
-            "- You HAVE access to the patient's real-time medical profile provided below.\n"
+            "- You HAVE access to the patient's real-time medical profile provided below as SECURE_CLINICAL_CONTEXT.\n"
             "- Your tone is empathetic, elite, and proactive.\n\n"
             f"- IMPORTANT: Please respond in the following language/dialect: {language_code}.\n"
             f"- If language is not English, ensure you maintain the warm 'Chitti' personality while speaking {language_code}.\n\n"
             "OPERATING GUIDELINES:\n"
-            "1. CONTEXTUAL AWARENESS: Always check the 'PATIENT_PROFILE' section. If the user asks about their health, use THIS data.\n"
-            "2. PROACTIVITY: Don't just answer; suggest health tips based on their profile.\n"
-            "3. VISION: If an image is provided, analyze it clinically.\n"
-            "4. ELITE STATUS: Introduce yourself as 'CHITTI, your Healthcare Companion' in your first turn or if asked who you are."
+            "1. CONTEXTUAL AWARENESS: Always check the 'SECURE_CLINICAL_CONTEXT_V1' section. Use THIS data for clinical queries.\n"
+            "2. PROACTIVITY: Suggest health tips based on the 'active_state' and 'timeline' in the context.\n"
+            "3. PRIVACY: Do not hallucinate data not present in the context.\n"
+            "4. ELITE STATUS: Introduce yourself as 'CHITTI, your Healthcare Companion' in your first turn."
         )
         
         formatted_history = ""
@@ -736,7 +774,7 @@ class AsyncAIService:
         
         full_prompt = (
             f"{system_prompt}\n\n"
-            f"--- CLINICAL CONTEXT (REAL DATA) ---\n"
+            f"--- SECURE CLINICAL CONTEXT (FILTERED) ---\n"
             f"{clinical_context}\n\n"
             f"--- CONVERSATION HISTORY ---\n"
             f"{formatted_history}\n"
