@@ -21,7 +21,7 @@ async def create_prescription(
     db: AsyncSession = Depends(deps.get_db),
     prescription_in: PrescriptionCreate,
     hospital_id: int = Depends(deps.get_hospital_id),
-    current_user = Depends(deps.get_current_active_user)
+    current_user = Depends(deps.get_db_user)
 ):
     """
     Issue a new digital prescription. (Doctor only)
@@ -47,7 +47,7 @@ async def fulfill_prescription(
     db: AsyncSession = Depends(deps.get_db),
     prescription_id: int,
     hospital_id: int = Depends(deps.get_hospital_id),
-    current_user = Depends(deps.get_current_active_user)
+    current_user = Depends(deps.get_db_user)
 ):
     """
     Fulfill a digital prescription. (Pharmacist/Staff only)
@@ -75,7 +75,7 @@ async def create_lab_order(
     db: AsyncSession = Depends(deps.get_db),
     order_in: LabOrderCreate,
     hospital_id: int = Depends(deps.get_hospital_id),
-    current_user = Depends(deps.get_current_active_user)
+    current_user = Depends(deps.get_db_user)
 ):
     """
     Create a new lab diagnostic order. (Doctor only)
@@ -102,7 +102,7 @@ async def update_lab_status(
     order_id: int,
     status_in: LabStatusUpdate,
     hospital_id: int = Depends(deps.get_hospital_id),
-    current_user = Depends(deps.get_current_active_user)
+    current_user = Depends(deps.get_db_user)
 ):
     """
     Update the status of a lab order. (Lab Staff/Doctor only)
@@ -130,7 +130,7 @@ async def record_lab_results(
     order_id: int,
     results_in: List[dict],
     hospital_id: int = Depends(deps.get_hospital_id),
-    current_user = Depends(deps.get_current_active_user)
+    current_user = Depends(deps.get_db_user)
 ):
     """
     Record structured observations for a lab order.
