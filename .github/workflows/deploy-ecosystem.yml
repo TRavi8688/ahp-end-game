@@ -96,8 +96,10 @@ jobs:
 
       - name: Ensure Hosting Sites Exist
         run: |
-          npx firebase-tools hosting:sites:create ahp-patient-app --project ahp2o-495503 || true
-          npx firebase-tools hosting:sites:create ahp-doctor-app --project ahp2o-495503 || true
+          npx firebase-tools hosting:sites:create ahp-patient-app --project ahp2o-495503 --token "${{ secrets.FIREBASE_TOKEN }}" || true
+          npx firebase-tools hosting:sites:create ahp-doctor-app --project ahp2o-495503 --token "${{ secrets.FIREBASE_TOKEN }}" || true
+          npx firebase-tools target:apply hosting patient ahp-patient-app --project ahp2o-495503 --token "${{ secrets.FIREBASE_TOKEN }}"
+          npx firebase-tools target:apply hosting doctor ahp-doctor-app --project ahp2o-495503 --token "${{ secrets.FIREBASE_TOKEN }}"
 
       - name: Deploy Patient App
         run: |
