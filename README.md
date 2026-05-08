@@ -18,14 +18,22 @@ Official Enterprise-Grade Backend for the Nirixa Healthcare Platform.
 
 ```text
 app/
-├── api/             # FastAPI Routers (Auth, Patient, Doctor)
+├── api/             # FastAPI Routers (Auth, Patient, Doctor, Queue)
 ├── core/            # Config, Security, Database, Logging
-├── models/          # SQLAlchemy Table Definitions
+├── models/          # SQLAlchemy Table Definitions (QueueTokens, Outbox)
 ├── repositories/    # Data Access Layer (Repository Pattern)
-├── services/        # Business Logic & AI Orchestration (Service Layer)
+├── services/        # Business Logic (QueueService, AI Orchestration)
 ├── schemas/         # Pydantic V2 Models
-└── workers/         # Celery Task Definitions
+└── workers/         # Celery/ARQ Task Definitions (Outbox Poller)
 ```
+
+## ⚙️ Core Engines
+
+### 1. Transactional Queue Engine
+A priority-scored queuing system for hospital management.
+- **Priority Logic**: Backend-computed scores based on Emergency, VIP, Age, and Follow-up status.
+- **Idempotency**: Guaranteed at-most-once token creation via `X-Idempotency-Key`.
+- **Transactional Outbox**: Ensures clinical events are reliably propagated to dashboards and AI workers without distributed transaction overhead.
 
 ## 🛠️ Tech Stack
 
