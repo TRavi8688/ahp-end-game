@@ -1,3 +1,4 @@
+from typing import Optional
 from sqlalchemy import select
 from app.repositories.base import AsyncBaseRepository
 from app.models.models import MedicalRecord, Condition, Medication, Allergy, DoctorAccess, Notification

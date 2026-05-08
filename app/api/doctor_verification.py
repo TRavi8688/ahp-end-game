@@ -3,7 +3,7 @@ import secrets
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request
 from app.schemas import schemas
 from app.core import security
-from app.api import deps
+import app.api.deps as deps
 from app.core.logging import logger
 from app.core.audit import log_audit_action
 from sqlalchemy.ext.asyncio import AsyncSession

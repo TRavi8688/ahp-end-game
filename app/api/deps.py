@@ -6,6 +6,18 @@ from app.core.security import get_current_user
 from app.models.models import User, Patient, Doctor
 from app.repositories.base import UserRepository, PatientRepository
 import logging
+async def get_hospital_id(user: User = Depends(get_current_user)) -> int:
+    """
+    Mandatory Enterprise Dependency to enforce Tenant Isolation.
+    Extracts the hospital_id from the user's staff profile.
+    Prevents cross-hospital data leakage at the query level.
+    """
+    if not user.staff_profile:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Staff profile not found. Access denied."
+        )
+    return user.staff_profile.hospital_id
 
 logger = logging.getLogger(__name__)
 
@@ -40,18 +52,6 @@ async def get_current_doctor(user: User = Depends(get_db_user), db: AsyncSession
         raise HTTPException(status_code=404, detail="Doctor profile not found.")
     return doctor
 
-async def get_hospital_id(user: User = Depends(get_db_user)) -> int:
-    """
-    Mandatory Enterprise Dependency to enforce Tenant Isolation.
-    Extracts the hospital_id from the user's staff profile.
-    Prevents cross-hospital data leakage at the query level.
-    """
-    if not user.staff_profile:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Staff profile not found. Access denied."
-        )
-    return user.staff_profile.hospital_id
 
 async def get_current_hospital_admin(user: User = Depends(get_db_user)) -> User:
     """Gated dependency for Hospital Admin routes."""

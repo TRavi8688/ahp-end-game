@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Any
 
-from app.api import deps
+import app.api.deps as deps
 from app.core import security
 from app.schemas import schemas
 from app.models import models

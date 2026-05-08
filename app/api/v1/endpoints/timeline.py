@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
-from app.api import deps
+import app.api.deps as deps
 from app.models.models import User, ClinicalEvent
 from sqlalchemy import select, desc
 

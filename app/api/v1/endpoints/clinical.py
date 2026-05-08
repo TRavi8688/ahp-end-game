@@ -1,7 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api import deps
+import app.api.deps as deps
 from app.schemas.clinical import (
     PrescriptionCreate, 
     PrescriptionResponse, 
