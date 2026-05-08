@@ -22,7 +22,13 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_WIF_SERVICE_ACCOUNT }}
+          service_account: github-deployer@ahp2o-495503.iam.gserviceaccount.com
+
+      - name: Debug Identity
+        run: |
+          gcloud auth list
+          gcloud auth print-access-token | cut -c 1-10
+
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
@@ -86,7 +92,7 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_WIF_SERVICE_ACCOUNT }}
+          service_account: github-deployer@ahp2o-495503.iam.gserviceaccount.com
 
       - name: Ensure Hosting Sites Exist
         run: |
