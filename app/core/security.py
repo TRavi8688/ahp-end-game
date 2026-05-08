@@ -205,7 +205,12 @@ async def get_current_user(
     if not user_id:
         raise _CREDENTIALS_EXCEPTION
 
-    result = await db.execute(select(User).where(User.id == int(user_id)))
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(User)
+        .options(selectinload(User.staff_profile))
+        .where(User.id == int(user_id))
+    )
     user: Optional[User] = result.scalars().first()
     if not user:
         raise _CREDENTIALS_EXCEPTION

@@ -10,6 +10,7 @@ async def admit_patient(db: AsyncSession, patient_id: int, user, queue_token_id:
     """
     Creates an admission record. The patient is pending a bed assignment.
     """
+    hospital_id = user.staff_profile.hospital_id if user.staff_profile else None
     async with db.begin():
         # Enforce no duplicate active admissions for the same patient
         result = await db.execute(
@@ -24,7 +25,7 @@ async def admit_patient(db: AsyncSession, patient_id: int, user, queue_token_id:
             raise ValueError("Patient is already admitted or pending admission.")
 
         admission = Admission(
-            hospital_id=user.hospital_id,
+            hospital_id=hospital_id,
             patient_id=patient_id,
             queue_token_id=queue_token_id,
             status=AdmissionStatus.PENDING,
@@ -37,7 +38,7 @@ async def admit_patient(db: AsyncSession, patient_id: int, user, queue_token_id:
         event = {
             "event_type": "ADMISSION.CREATED",
             "event_version": "v1",
-            "tenant_id": user.hospital_id,
+            "tenant_id": hospital_id,
             "occurred_at": datetime.utcnow().isoformat(),
             "payload": {
                 "admission_id": admission.id,
@@ -53,11 +54,12 @@ async def assign_bed(db: AsyncSession, admission_id: int, bed_id: int, user) -> 
     Strict State Transition: AVAILABLE -> TEMP_RESERVED or OCCUPIED.
     Actually, let's transition it to OCCUPIED for a direct assignment.
     """
+    hospital_id = user.staff_profile.hospital_id if user.staff_profile else None
     async with db.begin():
         result = await db.execute(
             select(Admission).where(
                 Admission.id == admission_id,
-                Admission.hospital_id == user.hospital_id
+                Admission.hospital_id == hospital_id
             )
         )
         admission = result.scalar_one_or_none()
@@ -71,7 +73,7 @@ async def assign_bed(db: AsyncSession, admission_id: int, bed_id: int, user) -> 
         result_bed = await db.execute(
             select(Bed).where(
                 Bed.id == bed_id,
-                Bed.hospital_id == user.hospital_id
+                Bed.hospital_id == hospital_id
             )
         )
         bed = result_bed.scalar_one_or_none()
@@ -100,7 +102,7 @@ async def assign_bed(db: AsyncSession, admission_id: int, bed_id: int, user) -> 
         event = {
             "event_type": "BED.ASSIGNED",
             "event_version": "v1",
-            "tenant_id": user.hospital_id,
+            "tenant_id": hospital_id,
             "occurred_at": datetime.utcnow().isoformat(),
             "payload": {
                 "admission_id": admission.id,
@@ -115,11 +117,12 @@ async def discharge_patient(db: AsyncSession, admission_id: int, user) -> Admiss
     """
     Strict State Transition: OCCUPIED -> AVAILABLE
     """
+    hospital_id = user.staff_profile.hospital_id if user.staff_profile else None
     async with db.begin():
         result = await db.execute(
             select(Admission).where(
                 Admission.id == admission_id,
-                Admission.hospital_id == user.hospital_id
+                Admission.hospital_id == hospital_id
             )
         )
         admission = result.scalar_one_or_none()
@@ -143,7 +146,7 @@ async def discharge_patient(db: AsyncSession, admission_id: int, user) -> Admiss
         event = {
             "event_type": "ADMISSION.DISCHARGED",
             "event_version": "v1",
-            "tenant_id": user.hospital_id,
+            "tenant_id": hospital_id,
             "occurred_at": datetime.utcnow().isoformat(),
             "payload": {
                 "admission_id": admission.id,

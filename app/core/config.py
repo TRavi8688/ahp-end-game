@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     VERSION: str = "2.0.0"
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str # production, staging, development
+    DEMO_MODE: bool = True
     CLOUD_PROVIDER: str = "gcp" # gcp, aws
     SENTRY_DSN: Optional[str] = None
     
@@ -27,7 +28,16 @@ class Settings(BaseSettings):
     @field_validator("JWT_PRIVATE_KEY", "JWT_PUBLIC_KEY", mode="before")
     @classmethod
     def decode_base64_keys(cls, v: Any) -> str:
-        if isinstance(v, str) and not v.startswith("-----BEGIN"):
+        if not isinstance(v, str):
+            return v
+            
+        # Strip quotes and whitespace
+        v = v.strip().strip('"').strip("'")
+        
+        # Handle literal \n in environment variables
+        v = v.replace("\\n", "\n")
+        
+        if not v.startswith("-----BEGIN"):
             import base64
             try:
                 return base64.b64decode(v).decode("utf-8")
@@ -47,6 +57,7 @@ class Settings(BaseSettings):
     # --- 3. DATA INTEGRITY ---
     DATABASE_URL: str
     REDIS_URL: str
+    USE_REDIS: bool = True
     
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

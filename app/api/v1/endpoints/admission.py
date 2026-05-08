@@ -13,7 +13,7 @@ router = APIRouter()
 async def create_admission(
     payload: AdmissionCreate,
     db: AsyncSession = Depends(get_db),
-    user = Depends(require_roles("doctor", "admin"))
+    user = Depends(require_roles("doctor", "admin", "hospital_admin"))
 ):
     try:
         return await admit_patient(db, payload.patient_id, user, payload.queue_token_id)
@@ -36,7 +36,7 @@ async def assign_patient_bed(
 async def discharge_patient_record(
     admission_id: int,
     db: AsyncSession = Depends(get_db),
-    user = Depends(require_roles("doctor", "admin"))
+    user = Depends(require_roles("doctor", "admin", "hospital_admin"))
 ):
     try:
         return await discharge_patient(db, admission_id, user)

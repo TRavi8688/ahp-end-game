@@ -60,6 +60,10 @@ app = FastAPI(
     redoc_url=None
 )
 
+@app.get("/")
+async def root():
+    return {"message": "Welcome to AHP 2.0 Enterprise API"}
+
 from app.core.metrics import instrument_request
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
 
@@ -154,6 +158,25 @@ async def value_error_handler(request: Request, exc: ValueError):
     )
     return JSONResponse(status_code=400, content=error.dict())
 
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """Pass-through for specific HTTP exceptions (401, 403, 404, etc.)"""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error_code": "HTTP_ERROR", "message": str(exc.detail)}
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Handle FastAPI validation errors as 400 Bad Request."""
+    return JSONResponse(
+        status_code=400,
+        content={"error_code": "VALIDATION_ERROR", "message": str(exc.errors())}
+    )
+
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
     """Fallback centralized error handler for unhandled exceptions."""
@@ -174,7 +197,7 @@ async def generic_exception_handler(request: Request, exc: Exception):
 
     error = StandardErrorSchema(
         error_code="INTERNAL_SERVER_ERROR",
-        message="An unexpected server error occurred.",
+        message=str(exc) if settings.ENVIRONMENT == "development" else "An unexpected server error occurred.",
         trace_id=request.headers.get("X-Request-ID", "unknown")
     )
     return JSONResponse(status_code=500, content=error.dict())

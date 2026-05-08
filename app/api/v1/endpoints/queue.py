@@ -12,7 +12,7 @@ router = APIRouter()
 async def create_queue_token(
     payload: QueueTokenCreate,
     db: AsyncSession = Depends(get_db),
-    user = Depends(require_roles("doctor", "nurse", "admin")),
+    user = Depends(require_roles("doctor", "nurse", "admin", "hospital_admin")),
     idempotency_key: str = Header(..., description="Idempotency-Key for safe retries"),
 ):
     # Router contains no business logic – delegates to service
@@ -22,9 +22,10 @@ async def create_queue_token(
 async def get_queue_tokens(
     status: str | None = None,
     db: AsyncSession = Depends(get_db),
-    user = Depends(require_roles("doctor", "nurse", "admin")),
+    user = Depends(require_roles("doctor", "nurse", "admin", "hospital_admin")),
 ):
-    return await list_tokens(db, user.hospital_id, status)
+    hospital_id = user.staff_profile.hospital_id if user.staff_profile else None
+    return await list_tokens(db, hospital_id, status)
 
 @router.patch("/{token_id}/status", response_model=QueueTokenRead)
 async def update_queue_status(

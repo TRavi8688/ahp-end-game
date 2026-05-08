@@ -11,7 +11,7 @@ import os
 env = os.environ.get("ENVIRONMENT", "production").lower()
 storage_uri = settings.REDIS_URL
 
-if not storage_uri or storage_uri.startswith("memory://"):
+if not settings.USE_REDIS or not storage_uri or storage_uri.startswith("memory://"):
     if env == "production":
         # Google-grade engineering: Fail fast on unsafe configurations
         logger.critical("PRODUCTION_RATE_LIMITER_FAILURE: Redis is mandatory for distributed rate limiting.")

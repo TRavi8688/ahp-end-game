@@ -12,7 +12,7 @@ def send_sms_otp(phone_number: str, otp: str) -> bool:
     token = settings.TWILIO_AUTH_TOKEN
     from_num = settings.TWILIO_FROM_NUMBER
 
-    if not sid or not token or sid == "your_twilio_sid_here":
+    if not sid or not token or "your_" in sid or "your_" in token:
         if settings.ENVIRONMENT == "production":
             logger.critical("TWILIO_CREDENTIALS_MISSING: SMS delivery failed in production.")
             return False

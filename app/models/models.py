@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import List, Optional
 import enum
 from app.core.encryption import StringEncryptedType, TextEncryptedType
+from app.models.mixins import TenantScopedMixin, VersionedMixin, AuditableMixin, TimestampMixin
 
 # Portable JSON type: JSONB on Postgres, JSON on others (SQLite)
 JSON_TYPE = JSON().with_variant(JSONB, "postgresql")
@@ -164,7 +165,9 @@ class Hospital(Base):
     
     departments: Mapped[List["Department"]] = relationship(back_populates="hospital", cascade="all, delete-orphan")
     staff: Mapped[List["StaffProfile"]] = relationship(back_populates="hospital", cascade="all, delete-orphan")
-    queues: Mapped[List["QueueEntry"]] = relationship(back_populates="hospital")
+    queues: Mapped[List["QueueToken"]] = relationship(back_populates="hospital")
+    queue_entries: Mapped[List["QueueEntry"]] = relationship(back_populates="hospital")
+    beds: Mapped[List["Bed"]] = relationship(back_populates="hospital")
 
     __mapper_args__ = {"version_id_col": version_id}
 
@@ -177,7 +180,9 @@ class Department(Base):
     
     hospital: Mapped["Hospital"] = relationship(back_populates="departments")
     staff: Mapped[List["StaffProfile"]] = relationship(back_populates="department")
-    queues: Mapped[List["QueueEntry"]] = relationship(back_populates="department")
+    queues: Mapped[List["QueueToken"]] = relationship(back_populates="department")
+    queue_entries: Mapped[List["QueueEntry"]] = relationship(back_populates="department")
+    beds: Mapped[List["Bed"]] = relationship(back_populates="department")
 
 class StaffProfile(Base):
     __tablename__ = "staff_profiles"
@@ -391,8 +396,8 @@ class QueueEntry(Base):
     check_in_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     
-    hospital: Mapped["Hospital"] = relationship(back_populates="queues")
-    department: Mapped["Department"] = relationship(back_populates="queues")
+    hospital: Mapped["Hospital"] = relationship(back_populates="queue_entries")
+    department: Mapped["Department"] = relationship(back_populates="queue_entries")
 
 class JobFailure(Base):
     __tablename__ = "job_failures"
@@ -490,3 +495,64 @@ class ClinicalEvent(Base):
     
     signature: Mapped[str] = mapped_column(String(255)) # Integrity hash
     version: Mapped[int] = mapped_column(default=1)
+
+# --- QUEUE & ADMISSION MODELS (Consolidated for Metadata Integrity) ---
+
+class QueueTokenStatus(str, enum.Enum):
+    WAITING = "WAITING"
+    IN_PROGRESS = "IN_PROGRESS"
+    PAUSED = "PAUSED"
+    COMPLETED = "COMPLETED"
+    EMERGENCY_OVERRIDE = "EMERGENCY_OVERRIDE"
+
+class QueueToken(Base, TenantScopedMixin, VersionedMixin, AuditableMixin, TimestampMixin):
+    __tablename__ = "queue_tokens"
+
+    id = mapped_column(Integer, primary_key=True, index=True)
+    hospital_id = mapped_column(Integer, ForeignKey("hospitals.id"), nullable=False, index=True)
+    department_id = mapped_column(Integer, ForeignKey("departments.id"), nullable=True, index=True)
+    patient_id = mapped_column(Integer, nullable=False, index=True)
+    status = mapped_column(SQLEnum(QueueTokenStatus), nullable=False, default=QueueTokenStatus.WAITING)
+    priority_score = mapped_column(Integer, nullable=False, default=0)
+
+    hospital = relationship("Hospital", back_populates="queues")
+    department = relationship("Department", back_populates="queues")
+
+class BedStatus(str, enum.Enum):
+    AVAILABLE = "AVAILABLE"
+    TEMP_RESERVED = "TEMP_RESERVED"
+    OCCUPIED = "OCCUPIED"
+    MAINTENANCE = "MAINTENANCE"
+
+class AdmissionStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    ADMITTED = "ADMITTED"
+    DISCHARGED = "DISCHARGED"
+
+class Bed(Base, TenantScopedMixin, VersionedMixin, AuditableMixin):
+    __tablename__ = "beds"
+
+    id = mapped_column(Integer, primary_key=True, index=True)
+    department_id = mapped_column(Integer, ForeignKey("departments.id"), nullable=True)
+    bed_number = mapped_column(String(50), nullable=False, index=True)
+    status = mapped_column(SQLEnum(BedStatus), nullable=False, default=BedStatus.AVAILABLE)
+
+    hospital = relationship("Hospital", back_populates="beds")
+    department = relationship("Department", back_populates="beds")
+
+class Admission(Base, TenantScopedMixin, VersionedMixin, AuditableMixin):
+    __tablename__ = "admissions"
+
+    id = mapped_column(Integer, primary_key=True, index=True)
+    patient_id = mapped_column(Integer, ForeignKey("patients.id"), nullable=False, index=True)
+    queue_token_id = mapped_column(Integer, ForeignKey("queue_tokens.id"), nullable=True)
+    bed_id = mapped_column(Integer, ForeignKey("beds.id"), nullable=True)
+    status = mapped_column(SQLEnum(AdmissionStatus), nullable=False, default=AdmissionStatus.PENDING)
+    
+    admitted_at = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    discharged_at = mapped_column(DateTime(timezone=True), nullable=True)
+
+    hospital = relationship("Hospital", backref="admissions")
+    patient = relationship("Patient", backref="admissions")
+    queue_token = relationship("QueueToken", backref="admission")
+    bed = relationship("Bed", backref="admissions")

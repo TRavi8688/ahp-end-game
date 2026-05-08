@@ -6,7 +6,7 @@ from httpx import AsyncClient
 import uuid
 
 from app.main import app
-from app.models.models import Base, User, Hospital, StaffProfile, RoleEnum
+from app.models import Base, User, Hospital, StaffProfile, RoleEnum, QueueToken, Bed, Admission
 from app.core.security import get_password_hash, create_access_token
 from app.core.database import get_db
 
@@ -18,7 +18,8 @@ engine = create_async_engine(
     connect_args={"check_same_thread": False},
     poolclass=StaticPool,
 )
-TestingSessionLocal = async_sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
+from sqlalchemy.orm import sessionmaker
+TestingSessionLocal = sessionmaker(engine, autocommit=False, autoflush=False, expire_on_commit=False, class_=AsyncSession)
 
 async def override_get_db():
     async with TestingSessionLocal() as session:
@@ -36,7 +37,8 @@ async def setup_db():
 
 @pytest.fixture
 async def client():
-    async with AsyncClient(app=app, base_url="http://testserver") as ac:
+    from httpx import ASGITransport
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as ac:
         yield ac
 
 @pytest.fixture
@@ -87,7 +89,7 @@ async def test_multi_tenant_isolation(client, setup_data):
     # Our API doesn't take hospital_id in the URL for queue, it infers from JWT.
     # But if User A tries to spoof by creating a Queue token for Hospital B... wait, API doesn't allow overriding hospital_id.
     
-    response = await client.get("/api/v1/queue", headers={"Authorization": f"Bearer {token_a}"})
+    response = await client.get("/api/v1/queue/", headers={"Authorization": f"Bearer {token_a}"})
     assert response.status_code == 200, "Should access own queue"
     
     # We must prove that spoofing fails. Let's try to patch a token that belongs to Hospital B.
@@ -102,7 +104,10 @@ async def test_multi_tenant_isolation(client, setup_data):
     # User A tries to patch Hospital B's token
     response = await client.patch(
         f"/api/v1/queue/{token_b_id}/status",
-        headers={"Authorization": f"Bearer {token_a}"},
+        headers={
+            "Authorization": f"Bearer {token_a}",
+            "X-Idempotency-Key": str(uuid.uuid4())
+        },
         params={"status": QueueTokenStatus.IN_PROGRESS.value}
     )
     assert response.status_code in [400, 403, 404], f"Should fail, got {response.status_code}"
@@ -114,8 +119,8 @@ async def test_queue_stress_concurrency(client, setup_data):
     # Spawn 10 concurrent requests to create queue tokens
     async def create_q(pid):
         return await client.post(
-            "/api/v1/queue",
-            headers={"Authorization": f"Bearer {token_a}", "Idempotency-Key": f"key-{pid}"},
+            "/api/v1/queue/",
+            headers={"Authorization": f"Bearer {token_a}", "X-Idempotency-Key": str(uuid.uuid4())},
             json={"patient_id": pid}
         )
     
