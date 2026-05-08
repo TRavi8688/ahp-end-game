@@ -25,10 +25,20 @@ jobs:
           pip install pytest pytest-asyncio httpx
 
       - name: Execute Pytest
+        env:
+          # Dummy secrets for logic-only testing (Pydantic validation bypass)
+          SECRET_KEY: "ci-test-secret-key-min-32-chars-long"
+          JWT_PRIVATE_KEY: "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA75...\n-----END RSA PRIVATE KEY-----"
+          JWT_PUBLIC_KEY: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A...\n-----END PUBLIC KEY-----"
+          DATABASE_URL: "postgresql+asyncpg://user:pass@localhost/testdb"
+          REDIS_URL: "redis://localhost:6379/0"
+          ENCRYPTION_KEY: "Y2ktdGVzdC1lbmNyeXB0aW9uLWtleS1tdXN0LWJlLTMyLWJ5dGVz" # Base64 for 'ci-test-encryption-key-must-be-32-bytes'
+          ENVIRONMENT: "testing"
         run: |
           # Run core integrity and security tests
           # We ignore frontend directories and skip DB-heavy tests
           pytest -v -m "not needs_db" --ignore=doctor-app --ignore=patient-app
+
 
   auth-and-backend:
     name: Deploy Backend to Cloud Run
