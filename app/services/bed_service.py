@@ -3,6 +3,7 @@ from sqlalchemy import update, select
 from app.models.models import Bed, BedStatusEnum, Admission
 from app.core.realtime import manager
 import uuid
+from typing import Optional
 from datetime import datetime, timezone
 
 class BedService:

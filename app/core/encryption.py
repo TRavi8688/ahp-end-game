@@ -2,6 +2,7 @@ import os
 import json
 import base64
 import hashlib
+from typing import Optional, Any
 from sqlalchemy.types import TypeDecorator, String, Text
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from app.core.config import settings

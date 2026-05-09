@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, DateTime, ForeignKey, JSON, Float, Enum as SQLEnum
+from typing import Optional
 from datetime import datetime, timezone
 from app.models.base import Base
 import enum

@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
+from typing import Optional, List
 from app.models.models import User, HospitalInvite, RoleEnum
 from app.services.onboarding_service import OnboardingService
 import uuid

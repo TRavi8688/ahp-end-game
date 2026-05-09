@@ -87,6 +87,9 @@ async def log_audit_action(
             
             session.add(audit_entry)
             await session.commit()
+        except Exception as e:
+            logger.error(f"AUDIT_LOGGING_FAILURE: {e}")
+            await session.rollback()
             
 async def verify_audit_chain(logs: list[AuditLog]) -> tuple[bool, list[str]]:
     """
