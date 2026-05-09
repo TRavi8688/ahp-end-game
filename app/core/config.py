@@ -31,16 +31,20 @@ class Settings(BaseSettings):
         if not isinstance(v, str):
             return v
             
-        # Strip quotes and whitespace
+        # 1. Strip quotes and surrounding whitespace
         v = v.strip().strip('"').strip("'")
         
-        # Handle literal \n in environment variables
+        # 2. Handle literal \n or mixed whitespace from CI/CD injection
         v = v.replace("\\n", "\n")
         
+        # 3. If it doesn't look like a PEM, assume it's Base64 and STRIP ALL INTERNAL WHITESPACE
         if not v.startswith("-----BEGIN"):
             import base64
+            import re
             try:
-                return base64.b64decode(v).decode("utf-8")
+                # Remove spaces, newlines, and tabs that often corrupt CI secrets
+                v_clean = re.sub(r"\s+", "", v)
+                return base64.b64decode(v_clean).decode("utf-8")
             except Exception:
                 return v
         return v
