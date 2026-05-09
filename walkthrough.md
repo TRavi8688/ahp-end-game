@@ -60,16 +60,26 @@ Following a multi-expert audit, several critical flaws were identified and remed
 - **Redis DOS Prevention**: Reduced Redis retry attempts from 5 to 3 and shortened backoff timers. The system now "fails fast" to memory fallback rather than hanging the request pool.
 - **Job-Preserving Worker Shutdown**: Workers no longer `sys.exit(1)` on Redis loss. They now enter a "Draining" state, completing active jobs while signaling unhealthiness to the orchestrator.
 
-### 🚀 Phase 3: Final Deployment Stabilization
-- **Fixed `hospyn2o-production` Boot Hang**: Identified a critical import-time block in the rate-limiter. Implemented an automatic in-memory failover for `slowapi` when Redis is not detected, reducing startup time by 99% and preventing Railway timeouts.
-- **Port-Agnostic Health Probes**: Refactored the Docker `HEALTHCHECK` to dynamically bind to the Railway `$PORT`, ensuring the load balancer correctly identifies instances as "Healthy."
-- **Resource Optimization**: Scaled down uvicorn workers for the single-container deployment to comfortably fit within 512MB RAM constraints while maintaining high responsiveness.
+## 6. GCP "Zero-Local" Cloud Deployment
+The project has been fully migrated from local prototype to a production-ready Google Cloud ecosystem.
+
+### 🛡️ Cloud-Native Security
+- **Workload Identity Federation (WIF)**: Replaced static Service Account keys with keyless OIDC authentication between GitHub Actions and GCP.
+- **GCP Secret Manager**: All production environment variables (Neon DB, AI Keys, Redis) are now securely managed in Secret Manager, with no local `.env` dependency.
+
+### 🚀 Automated CI/CD
+- **GitHub Actions Pipeline**: Integrated a full 100% cloud deployment flow targeting the `hospyn` GCP project.
+- **Backend (FastAPI)**: Automated container build and deployment to Google Cloud Run with scale-to-zero capabilities.
+- **Frontend (Web Portals)**: Re-aligned all portal deployments to Firebase Hosting under the `hospyn` production ID.
+
+### 🛠️ Final Stabilization & Fixes
+- **Resolved Collection Errors**: Patched a widespread `NameError: Optional` issue across multiple core services (`staff.py`, `encryption.py`, `verification.py`, `bed_service.py`, `staff_service.py`) by ensuring proper `typing` imports.
+- **Audit Integrity**: Fixed a syntax error in the `AuditLog` engine to ensure immutable clinical record chaining works in production.
 
 ## Final Verification Results
-1. **Metrics Speed**: Verified `/metrics` response time < 100ms.
-2. **XSS Payload Test**: Verified `<script>` tags are neutralized by `DOMPurify`.
-3. **Redis Outage**: Verified 3-retry cycle completes in ~1.5s then falls back correctly.
-4. **Railway Connectivity**: Verified `200 OK` on `/health` and successful asset serving for `/doctor` and `/patient`.
+1. **CI/CD Success**: Pipeline validated for full backend and frontend rollout.
+2. **Keyless Auth**: Verified WIF authentication for secure, passwordless GCP access.
+3. **Clinical Integrity**: AST-based linting confirmed zero syntax or import errors in the production codebase.
 
-**Status:** 🟢 **DEPLOYMENT CERTIFIED: LIVE & OPERATIONAL**
+**Status:** 🟢 **CLOUD DEPLOYMENT CERTIFIED: LIVE & OPERATIONAL**
 
