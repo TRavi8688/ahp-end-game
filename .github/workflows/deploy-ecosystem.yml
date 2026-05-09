@@ -76,17 +76,14 @@ jobs:
 
       - name: Build and Push Docker Image
         run: |
-          # Ensure Artifact Registry repo exists
-          gcloud artifacts repositories create ahp-backend-repo --repository-format=docker --location=us-central1 --project=ahp2o-495503 || true
-
-          IMAGE_NAME="us-central1-docker.pkg.dev/ahp2o-495503/ahp-backend-repo/ahp-backend:${{ github.sha }}"
+          IMAGE_NAME="us-central1-docker.pkg.dev/ahp2o-495503/ahp-repo/ahp-backend:${{ github.sha }}"
           docker build -t $IMAGE_NAME .
           docker push $IMAGE_NAME
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "us-central1-docker.pkg.dev/ahp2o-495503/ahp-backend-repo/ahp-backend:${{ github.sha }}"
+          image-ref: "us-central1-docker.pkg.dev/ahp2o-495503/ahp-repo/ahp-backend:${{ github.sha }}"
           format: 'table'
           exit-code: '0'
           ignore-unfixed: true
@@ -95,7 +92,7 @@ jobs:
 
       - name: Deploy API Service
         run: |
-          IMAGE_NAME="us-central1-docker.pkg.dev/ahp2o-495503/ahp-backend-repo/ahp-backend:${{ github.sha }}"
+          IMAGE_NAME="us-central1-docker.pkg.dev/ahp2o-495503/ahp-repo/ahp-backend:${{ github.sha }}"
           gcloud run deploy hospyn-api \
             --image $IMAGE_NAME \
             --region us-central1 \
@@ -107,7 +104,7 @@ jobs:
 
       - name: Deploy Worker Service
         run: |
-          IMAGE_NAME="us-central1-docker.pkg.dev/ahp2o-495503/ahp-backend-repo/ahp-backend:${{ github.sha }}"
+          IMAGE_NAME="us-central1-docker.pkg.dev/ahp2o-495503/ahp-repo/ahp-backend:${{ github.sha }}"
           gcloud run deploy hospyn-worker \
             --image $IMAGE_NAME \
             --region us-central1 \
