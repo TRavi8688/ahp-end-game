@@ -18,7 +18,7 @@ import bcrypt
 import hashlib
 import base64
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, List, Optional, Union
 
 from fastapi import Depends, HTTPException, status
@@ -56,12 +56,12 @@ def create_access_token(
         token_version  : int  — must match DB; increment to revoke
         type           : str  — "access"
     """
-    expire = datetime.utcnow() + (
+    expire = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
     payload = {
         "exp": expire,
-        "iat": datetime.utcnow(),
+        "iat": datetime.now(timezone.utc),
         "sub": str(subject),
         "role": role,
         "tenant_id": tenant_id,
@@ -80,10 +80,10 @@ def create_refresh_token(
     token_version: int = 1,
 ) -> str:
     """Creates a long-lived RS256 refresh token (minimal claims)."""
-    expire = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     payload = {
         "exp": expire,
-        "iat": datetime.utcnow(),
+        "iat": datetime.now(timezone.utc),
         "sub": str(subject),
         "role": role,
         "token_version": token_version,
@@ -205,11 +205,11 @@ async def get_current_user(
     if not user_id:
         raise _CREDENTIALS_EXCEPTION
 
-    from sqlalchemy.orm import selectinload
+    from sqlalchemy import cast, Integer
     result = await db.execute(
         select(User)
         .options(selectinload(User.staff_profile))
-        .where(User.id == int(user_id))
+        .where(User.id == cast(user_id, Integer))
     )
     user: Optional[User] = result.scalars().first()
     if not user:

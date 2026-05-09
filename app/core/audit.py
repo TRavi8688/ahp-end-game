@@ -1,7 +1,7 @@
 import hmac
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
@@ -64,7 +64,7 @@ async def log_audit_action(
                 "details": details,
                 "ip_address": ip_address,
                 "user_agent": user_agent,
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.now(timezone.utc).isoformat()
             }
 
             # 3. Calculate Signature (Immutability Check)
