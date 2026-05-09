@@ -171,5 +171,7 @@ jobs:
           mkdir -p patient-app/web-build/doctor
           cp -r doctor-app/build/* patient-app/web-build/doctor/
           
-          # 4. Unified Deployment
-          npx firebase-tools deploy --only hosting --project ahp2o-495503
+          # 4. Provision and Deploy
+          # Ensure a site exists to deploy to
+          npx firebase-tools hosting:sites:create ahp2o-495503 --project ahp2o-495503 || true
+          npx firebase-tools deploy --only hosting --site ahp2o-495503 --project ahp2o-495503
