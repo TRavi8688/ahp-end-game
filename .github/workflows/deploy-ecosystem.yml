@@ -153,26 +153,23 @@ jobs:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: github-deployer@ahp2o-495503.iam.gserviceaccount.com
 
-      - name: Ensure Hosting Sites Exist
+      - name: Build and Deploy Unified Frontend
         run: |
-          npx firebase-tools hosting:sites:create hospyn-patient-app --project ahp2o-495503 || true
-          npx firebase-tools hosting:sites:create hospyn-doctor-app --project ahp2o-495503 || true
-          npx firebase-tools target:apply hosting patient hospyn-patient-app --project ahp2o-495503
-          npx firebase-tools target:apply hosting doctor hospyn-doctor-app --project ahp2o-495503
-
-      - name: Build and Deploy All Frontends
-        run: |
-          # 1. Build Patient App
+          # 1. Build Patient App (Root)
           cd patient-app
           npm install --legacy-peer-deps
           npm run build
           cd ..
           
-          # 2. Build Doctor App
+          # 2. Build Doctor App (Sub-directory)
           cd doctor-app
           npm install --legacy-peer-deps
           npm run build
           cd ..
           
-          # 3. Unified Deployment
+          # 3. Integrate Doctor App into Patient App's build
+          mkdir -p patient-app/web-build/doctor
+          cp -r doctor-app/build/* patient-app/web-build/doctor/
+          
+          # 4. Unified Deployment
           npx firebase-tools deploy --only hosting --project ahp2o-495503
