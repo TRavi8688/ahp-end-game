@@ -1,16 +1,16 @@
 import { Theme, GlobalStyles } from '../theme';
 
 export default function RegistrationSuccessScreen({ navigation, route }) {
-    const { ahp_id, fullName } = route.params || { ahp_id: 'AHP-IN-XXXX-XXXX-XX', fullName: 'Patient' };
+    const { hospyn_id, fullName } = route.params || { hospyn_id: 'Hospyn-IN-XXXX-XXXX-XX', fullName: 'Patient' };
 
     const copyToClipboard = async () => {
-        await Clipboard.setStringAsync(ahp_id);
+        await Clipboard.setStringAsync(hospyn_id);
     };
 
     const onShare = async () => {
         try {
             await Share.share({
-                message: `My Mulajna Health Passport ID is ${ahp_id}. Scan this to view my medical history.`,
+                message: `My Mulajna Health Passport ID is ${hospyn_id}. Scan this to view my medical history.`,
             });
         } catch (error) {
             console.error(error);
@@ -30,9 +30,9 @@ export default function RegistrationSuccessScreen({ navigation, route }) {
 
             <View style={styles.content}>
                 <View style={[styles.idCard, GlobalStyles.glass]}>
-                    <Text style={styles.idLabel}>YOUR UNIQUE AHP ID</Text>
+                    <Text style={styles.idLabel}>YOUR UNIQUE Hospyn ID</Text>
                     <View style={styles.idRow}>
-                        <Text style={[styles.idValue, { color: '#fff' }]}>{ahp_id}</Text>
+                        <Text style={[styles.idValue, { color: '#fff' }]}>{hospyn_id}</Text>
                         <TouchableOpacity onPress={copyToClipboard} style={styles.copyBtn}>
                             <Ionicons name="copy-outline" size={20} color={Theme.colors.primary} />
                         </TouchableOpacity>
@@ -54,7 +54,7 @@ export default function RegistrationSuccessScreen({ navigation, route }) {
                     </View>
                     <View style={styles.benefitItem}>
                         <Ionicons name="people-outline" size={24} color={Theme.colors.primary} />
-                        <Text style={[styles.benefitText, { color: '#94A3B8' }]}>Share your AHP ID with doctors for instant consultation.</Text>
+                        <Text style={[styles.benefitText, { color: '#94A3B8' }]}>Share your Hospyn ID with doctors for instant consultation.</Text>
                     </View>
                 </View>
 

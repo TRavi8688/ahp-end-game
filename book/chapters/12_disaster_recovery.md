@@ -1,7 +1,7 @@
 # Chapter 12: Disaster Recovery and Self-Healing
 
 ## 12.1 Resilience Philosophy
-AHP 2.0 assumes that **Infrastructure Will Fail**. The platform is designed to detect and repair itself without human intervention.
+Hospyn 2.0 assumes that **Infrastructure Will Fail**. The platform is designed to detect and repair itself without human intervention.
 
 ## 12.2 Automated System Repair (Self-Healing)
 The `recovery_controller.py` acts as a watchdog:
@@ -18,7 +18,7 @@ The `recovery_controller.py` acts as a watchdog:
 3. **Restoration:** Environment is re-initialized; Database migrations are re-synced if necessary.
 
 ## 12.5 Chaos Protection (The Chaos Monkey)
-AHP includes a specialized `chaos_monkey.py` script:
+Hospyn includes a specialized `chaos_monkey.py` script:
 - **Function:** Intentionally kills processes and severs network lines in a controlled staging environment.
 - **Goal:** To prove that the "Self-Healing" logic actually works under real stress.
 
@@ -36,7 +36,7 @@ stateDiagram-v2
 # Chapter 12: Disaster Recovery and Self-Healing
 
 ## 12.1 Resilience Philosophy
-AHP 2.0 assumes that **Infrastructure Will Fail**. The platform is designed to detect and repair itself without human intervention.
+Hospyn 2.0 assumes that **Infrastructure Will Fail**. The platform is designed to detect and repair itself without human intervention.
 
 ## 12.2 Automated System Repair (Self-Healing)
 The `recovery_controller.py` acts as a watchdog:
@@ -53,7 +53,7 @@ The `recovery_controller.py` acts as a watchdog:
 3. **Restoration:** Environment is re-initialized; Database migrations are re-synced if necessary.
 
 ## 12.5 Chaos Protection (The Chaos Monkey)
-AHP includes a specialized `chaos_monkey.py` script:
+Hospyn includes a specialized `chaos_monkey.py` script:
 - **Function:** Intentionally kills processes and severs network lines in a controlled staging environment.
 - **Goal:** To prove that the "Self-Healing" logic actually works under real stress.
 

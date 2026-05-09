@@ -19,7 +19,7 @@ export const useWebSocket = (hospitalId: string | undefined) => {
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      console.log('Connected to AHP WebSocket Engine');
+      console.log('Connected to Hospyn WebSocket Engine');
       setIsConnected(true);
     };
 
@@ -33,7 +33,7 @@ export const useWebSocket = (hospitalId: string | undefined) => {
     };
 
     ws.onclose = () => {
-      console.log('Disconnected from AHP WebSocket Engine');
+      console.log('Disconnected from Hospyn WebSocket Engine');
       setIsConnected(false);
       // Reconnect after 3 seconds
       setTimeout(connect, 3000);

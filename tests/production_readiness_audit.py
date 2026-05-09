@@ -50,7 +50,7 @@ async def audit_system():
     logger.info("PROD_AUDIT_LOG_ENTRY", 
                 user_id=user_id, 
                 apikey="sk-PROD-TESTING-DATA-MASKING", 
-                email="audit-log@ahp-system.co")
+                email="audit-log@hospyn-system.co")
     print("✅ Masking: Logic active. (Check terminal above for JSON output with '****' masking)")
 
     print("\n--- FINAL STATUS: GREEN ---")

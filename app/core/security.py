@@ -1,5 +1,5 @@
 """
-AHP Enterprise Security Layer.
+Hospyn Enterprise Security Layer.
 
 Implements RS256 JWT Authentication with:
   - Minimal JWT payloads (sub, tenant_id, role, dept_scope, token_version)

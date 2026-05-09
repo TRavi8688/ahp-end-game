@@ -35,8 +35,8 @@ async def simulate_s3_bypass():
     from app.services.s3_service import StorageService
     print("\n[ATTACK] Attempting Direct S3 URL Construction...")
     service = StorageService()
-    bucket = "ahp-clinical-vault"
-    key = "reports/AHP-12345/scan.pdf"
+    bucket = "hospyn-clinical-vault"
+    key = "reports/Hospyn-12345/scan.pdf"
     direct_url = f"https://{bucket}.s3.amazonaws.com/{key}"
     print(f"[ATTACK] Crafted Direct URL: {direct_url}")
     try:

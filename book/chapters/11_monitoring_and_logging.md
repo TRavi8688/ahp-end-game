@@ -1,7 +1,7 @@
 # Chapter 11: Monitoring and Logging
 
 ## 11.1 Forensic Visibility
-Monitoring in AHP 2.0 is focused on **Forensic Accountability**. Every action involving medical data must be traceable to a specific actor and point in time.
+Monitoring in Hospyn 2.0 is focused on **Forensic Accountability**. Every action involving medical data must be traceable to a specific actor and point in time.
 
 ## 11.2 Systematic Logging (Structured)
 - **JSON Format:** Logs are emitted as single-line JSON objects to be easily consumed by aggregators (ELK/Graylog).

@@ -26,7 +26,7 @@
         <div class="space-y-6">
             <div>
                 <label class="text-[10px] text-indigo-400 font-bold tracking-widest ml-1 mb-2 block uppercase">Mulajna ID</label>
-                <input type="text" id="ahpId" placeholder="AHP-XXXXXX" class="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-4 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-700">
+                <input type="text" id="hospynId" placeholder="Hospyn-XXXXXX" class="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-4 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-700">
             </div>
             <div>
                 <label class="text-[10px] text-indigo-400 font-bold tracking-widest ml-1 mb-2 block uppercase">Password</label>
@@ -45,7 +45,7 @@
 
     <script>
         async function login() {
-            const ahpId = document.getElementById('ahpId').value;
+            const hospynId = document.getElementById('hospynId').value;
             const password = document.getElementById('password').value;
             const btn = document.getElementById('loginBtn');
             
@@ -53,10 +53,10 @@
             btn.disabled = true;
 
             try {
-                const response = await fetch('http://localhost:8000/api/v1/patient/login-ahp', {
+                const response = await fetch('http://localhost:8000/api/v1/patient/login-hospyn', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ahp_id: ahpId, password: password })
+                    body: JSON.stringify({ hospyn_id: hospynId, password: password })
                 });
 
                 if (response.ok) {

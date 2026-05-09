@@ -77,7 +77,7 @@ def verify_clinical_heart():
         # 3. Verify causal linking
         print(f"    - Causal Link: {retrieved.aggregate_type} -> {retrieved.aggregate_id}")
 
-        print("\n--- (+) INTEGRITY PROVEN: THE HEART OF AHP IS ACTIVE ---")
+        print("\n--- (+) INTEGRITY PROVEN: THE HEART OF Hospyn IS ACTIVE ---")
 
     except Exception as e:
         print(f"(!) PROOF FAILED: {e}")

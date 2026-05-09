@@ -50,7 +50,7 @@ class ConnectionManager:
         try:
             client = redis_service.get_client()
             pubsub = client.pubsub()
-            await pubsub.subscribe("ahp_realtime_events")
+            await pubsub.subscribe("hospyn_realtime_events")
             
             async for message in pubsub.listen():
                 if message['type'] == 'message':
@@ -95,7 +95,7 @@ class ConnectionManager:
                     "target_user_id": user_id,
                     "payload": message.model_dump_json()
                 }
-                await client.publish("ahp_realtime_events", json.dumps(data))
+                await client.publish("hospyn_realtime_events", json.dumps(data))
                 return
             except Exception as e:
                 logger.error(f"Redis Publish failed, falling back to local: {e}")
@@ -123,7 +123,7 @@ class ConnectionManager:
                     "target_user_id": None,
                     "payload": message.model_dump_json()
                 }
-                await client.publish("ahp_realtime_events", json.dumps(data))
+                await client.publish("hospyn_realtime_events", json.dumps(data))
                 return
             except Exception as e:
                 logger.error(f"Redis Broadcast failed, falling back to local: {e}")

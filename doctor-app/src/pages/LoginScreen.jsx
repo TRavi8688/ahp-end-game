@@ -124,7 +124,7 @@ export default function LoginScreen() {
                             <Typography variant="body2" color="#64748b" sx={{ lineHeight: 1.6 }}>Military-grade hardware-backed session encryption.</Typography>
                         </Box>
                         <Box sx={{ p: 3, background: 'rgba(255,255,255,0.02)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)', flex: 1 }}>
-                            <Typography variant="subtitle2" sx={{ color: '#0d9488', fontWeight: 900, mb: 1, letterSpacing: 1 }}>AHP CORE</Typography>
+                            <Typography variant="subtitle2" sx={{ color: '#0d9488', fontWeight: 900, mb: 1, letterSpacing: 1 }}>Hospyn CORE</Typography>
                             <Typography variant="body2" color="#64748b" sx={{ lineHeight: 1.6 }}>Real-time synchronization with the Global Health Network.</Typography>
                         </Box>
                     </Box>

@@ -5,7 +5,7 @@ from app.core.logging import logger
 
 class ClinicalRulesEngine:
     """
-    Enterprise Rules Engine for AHP 2.0.
+    Enterprise Rules Engine for Hospyn 2.0.
     Monitors the Clinical Event Stream to generate Derived Events.
     Powers real-time alerts, trend detection, and AI notifications.
     """

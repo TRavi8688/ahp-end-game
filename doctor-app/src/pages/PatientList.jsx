@@ -72,7 +72,7 @@ export default function PatientList() {
     // Filter logic
     const filteredPatients = patients.filter(p =>
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.ahp_id.toLowerCase().includes(searchQuery.toLowerCase())
+        p.hospyn_id.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const getStatusColor = (status) => {
@@ -110,7 +110,7 @@ export default function PatientList() {
                     }}>
                         <SearchIcon sx={{ color: '#64748b', mr: 2 }} />
                         <InputBase
-                            placeholder="Locate patient by name or AHP identity..."
+                            placeholder="Locate patient by name or Hospyn identity..."
                             sx={{ flex: 1, fontSize: '0.95rem', color: 'white', fontWeight: 500 }}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -130,13 +130,13 @@ export default function PatientList() {
                         </Box>
                     ) : filteredPatients.map((patient) => {
                         const isRevoked = patient.access_level === 'revoked';
-                        const isSelected = selectedPatientId === patient.ahp_id && !isRevoked;
+                        const isSelected = selectedPatientId === patient.hospyn_id && !isRevoked;
 
                         return (
-                            <Tooltip title={isRevoked ? "Restricted: Access revoked by subject" : ""} placement="right" key={patient.ahp_id}>
+                            <Tooltip title={isRevoked ? "Restricted: Access revoked by subject" : ""} placement="right" key={patient.hospyn_id}>
                                 <ListItem
                                     button={!isRevoked}
-                                    onClick={() => !isRevoked && setSelectedPatientId(patient.ahp_id)}
+                                    onClick={() => !isRevoked && setSelectedPatientId(patient.hospyn_id)}
                                     sx={{
                                         mx: 2,
                                         my: 1,
@@ -173,7 +173,7 @@ export default function PatientList() {
                                             {patient.name}
                                         </Typography>
                                         <Typography variant="caption" sx={{ color: '#64748b', display: 'block', fontWeight: 800, mb: 1, letterSpacing: 0.5, fontFamily: 'monospace' }}>
-                                            {patient.ahp_id}
+                                            {patient.hospyn_id}
                                         </Typography>
 
                                         <Box sx={{ display: 'flex', gap: 1.5 }}>
@@ -223,7 +223,7 @@ export default function PatientList() {
                             {isLoadingDetail ? "RETRIVING..." : "SELECT NODE"}
                         </Typography>
                         <Typography variant="body2" sx={{ color: '#64748b', mt: 1.5, fontWeight: 500 }}>
-                            {isLoadingDetail ? "Establishing encrypted link to AHP ledger." : "Choose a valid practitioner link to view deep clinical context."}
+                            {isLoadingDetail ? "Establishing encrypted link to Hospyn ledger." : "Choose a valid practitioner link to view deep clinical context."}
                         </Typography>
                     </Box>
                 ) : (
@@ -251,7 +251,7 @@ export default function PatientList() {
                                 <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 800 }}>{selectedPatientData.profile.gender.toUpperCase()}</Typography>
                             </Box>
                             <Box sx={{ px: 2, py: 0.8, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: '12px', display: 'inline-block', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                <Typography variant="caption" sx={{ fontFamily: 'monospace', color: '#0d9488', fontWeight: 800 }}>{selectedPatientData.profile.ahp_id}</Typography>
+                                <Typography variant="caption" sx={{ fontFamily: 'monospace', color: '#0d9488', fontWeight: 800 }}>{selectedPatientData.profile.hospyn_id}</Typography>
                             </Box>
                         </Box>
 
@@ -284,7 +284,7 @@ export default function PatientList() {
                             <Button
                                 variant="contained"
                                 fullWidth
-                                onClick={() => navigate(`/patient/${selectedPatientData.profile.ahp_id}`)}
+                                onClick={() => navigate(`/patient/${selectedPatientData.profile.hospyn_id}`)}
                                 sx={{ 
                                     bgcolor: '#0d9488', 
                                     transform: 'none',

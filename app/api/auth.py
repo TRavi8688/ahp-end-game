@@ -79,7 +79,7 @@ async def register(
         import uuid
         skeleton_patient = models.Patient(
             user_id=new_user.id,
-            ahp_id=f"AHP-{uuid.uuid4().hex[:8].upper()}",
+            hospyn_id=f"Hospyn-{uuid.uuid4().hex[:8].upper()}",
             phone_number="5550199",
             language_code="en"
         )

@@ -1,7 +1,7 @@
 # Chapter 16: Troubleshooting Guide
 
 ## 16.1 Diagnostics Philosophy
-AHP 2.0 provides deep forensic visibility. Before troubleshooting, always check the `audit_logs` and the `correlation_id` in the system logs.
+Hospyn 2.0 provides deep forensic visibility. Before troubleshooting, always check the `audit_logs` and the `correlation_id` in the system logs.
 
 ## 16.2 Common Issue Matrix
 | Issue | Potential Cause | Verification Command/Step |

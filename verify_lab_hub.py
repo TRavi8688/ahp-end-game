@@ -39,7 +39,7 @@ async def verify_lab_hub():
                 p_user = User(email="lab@patient.com", role="patient", hashed_password="mock", first_name="Lab", last_name="Patient")
                 db.add(p_user)
                 await db.flush()
-                patient = Patient(user_id=p_user.id, ahp_id="AHP-PAT-999", phone_number="9998887776")
+                patient = Patient(user_id=p_user.id, hospyn_id="Hospyn-PAT-999", phone_number="9998887776")
                 db.add(patient)
                 await db.flush()
             
@@ -47,7 +47,7 @@ async def verify_lab_hub():
             doctor = d_res.scalar()
             if not doctor:
                 print("(+) Provisioning Test Doctor...")
-                doctor = User(email="lab_doc@ahp.com", role="doctor", hashed_password="mock", first_name="Lab", last_name="Doctor")
+                doctor = User(email="lab_doc@hospyn.com", role="doctor", hashed_password="mock", first_name="Lab", last_name="Doctor")
                 db.add(doctor)
                 await db.flush()
                 profile = StaffProfile(user_id=doctor.id, hospital_id=hospital.id, department_id=1)

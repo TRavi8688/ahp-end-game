@@ -23,7 +23,7 @@ async def verify_system_integrity():
             hospital = h_res.scalar()
             if not hospital:
                 print("(+) Auto-provisioning Test Hospital...")
-                hospital = Hospital(name="AHP Integrity Hospital", registration_number="AHP-TEST-001")
+                hospital = Hospital(name="Hospyn Integrity Hospital", registration_number="Hospyn-TEST-001")
                 db.add(hospital)
                 await db.flush()
 
@@ -35,7 +35,7 @@ async def verify_system_integrity():
                 p_user = User(email="test@patient.com", role="patient", hashed_password="mock", first_name="Integrity", last_name="Patient")
                 db.add(p_user)
                 await db.flush()
-                patient = Patient(user_id=p_user.id, ahp_id="AHP-PAT-001", phone_number="1234567890")
+                patient = Patient(user_id=p_user.id, hospyn_id="Hospyn-PAT-001", phone_number="1234567890")
                 db.add(patient)
                 await db.flush()
             

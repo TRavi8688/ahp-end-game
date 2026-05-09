@@ -71,7 +71,7 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
           <div className="flex items-center gap-4 mb-12">
             <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center font-black text-white text-xl shadow-[0_0_20px_rgba(37,99,235,0.4)]">A</div>
             <div className="flex flex-col">
-              <span className="text-2xl font-black tracking-tighter uppercase leading-none">AHP 2.0</span>
+              <span className="text-2xl font-black tracking-tighter uppercase leading-none">Hospyn 2.0</span>
               <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest mt-1">Enterprise Core</span>
             </div>
           </div>

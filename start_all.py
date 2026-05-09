@@ -21,7 +21,7 @@ def main():
     patient = start_process("npm run web", os.path.join(root_dir, "patient-app"), "Patient App")
     
     print("\n" + "="*50)
-    print("AHP 2.0 ECOSYSTEM STARTED")
+    print("Hospyn 2.0 ECOSYSTEM STARTED")
     print("="*50)
     print("Backend API:   http://localhost:8000")
     print("Doctor App:    http://localhost:3000")

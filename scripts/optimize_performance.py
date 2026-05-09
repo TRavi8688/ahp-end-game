@@ -2,7 +2,7 @@ import sqlite3
 import os
 
 def optimize_db():
-    db_path = "ahp.db"
+    db_path = "hospyn.db"
     if not os.path.exists(db_path):
         print(f"Error: {db_path} not found.")
         return
@@ -26,7 +26,7 @@ def optimize_db():
         
         # Core Optimization
         "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);",
-        "CREATE INDEX IF NOT EXISTS idx_patients_ahp_id ON patients(ahp_id);",
+        "CREATE INDEX IF NOT EXISTS idx_patients_hospyn_id ON patients(hospyn_id);",
         "CREATE INDEX IF NOT EXISTS idx_queue_hospital_status ON queue_entries(hospital_id, status);"
     ]
 

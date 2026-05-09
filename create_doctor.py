@@ -5,20 +5,20 @@ from sqlalchemy import select
 from app.models.models import User, Doctor
 from app.core import security
 
-DATABASE_URL = "sqlite+aiosqlite:///./ahp.db"
+DATABASE_URL = "sqlite+aiosqlite:///./hospyn.db"
 
 async def main():
     engine = create_async_engine(DATABASE_URL)
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with async_session() as db:
-        result = await db.execute(select(User).where(User.email == "doctor@ahp.local"))
+        result = await db.execute(select(User).where(User.email == "doctor@hospyn.local"))
         user = result.scalar_one_or_none()
         
         if not user:
             pwd = security.get_password_hash("Mulajna@123")
             user = User(
-                email="doctor@ahp.local",
+                email="doctor@hospyn.local",
                 hashed_password=pwd,
                 role="doctor",
                 first_name="Dr.",

@@ -45,7 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       // MASTER DEMO BYPASS FOR VISUALIZATION
-      if (email.endsWith('@ahp.com')) {
+      if (email.endsWith('@hospyn.com')) {
         const role = email.split('@')[0];
         const dummyToken = `demo.${btoa(JSON.stringify({ sub: 'demo-123', email, role, hospital_id: 'hosp-001' }))}.demo`;
         localStorage.setItem('token', dummyToken);

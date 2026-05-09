@@ -107,7 +107,7 @@ export default function Prescriptions() {
 
         setIsSending(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/doctor/patient/${selectedPatient.ahp_id}/prescribe`, {
+            const response = await fetch(`${API_BASE_URL}/doctor/patient/${selectedPatient.hospyn_id}/prescribe`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -151,7 +151,7 @@ export default function Prescriptions() {
             <Box sx={{ mb: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
                     <Typography variant="h3" sx={{ fontWeight: 900, color: '#fff', fontFamily: 'Outfit', letterSpacing: '-1.5px', mb: 1 }}>Clinical Issuance</Typography>
-                    <Typography variant="body1" sx={{ color: '#64748b', fontWeight: 600, letterSpacing: 0.5 }}>SECURE AHP PRESCRIPTION PROTOCOL</Typography>
+                    <Typography variant="body1" sx={{ color: '#64748b', fontWeight: 600, letterSpacing: 0.5 }}>SECURE Hospyn PRESCRIPTION PROTOCOL</Typography>
                 </Box>
             </Box>
 
@@ -173,7 +173,7 @@ export default function Prescriptions() {
                             <Typography variant="overline" sx={{ color: '#475569', fontWeight: 900, mb: 2, display: 'block', letterSpacing: 1.5 }}>TARGET SUBJECT</Typography>
                             <Autocomplete
                                 options={patients}
-                                getOptionLabel={(option) => `${option.name} [${option.ahp_id}]`}
+                                getOptionLabel={(option) => `${option.name} [${option.hospyn_id}]`}
                                 value={selectedPatient}
                                 disabled={!!preSelectedPatient}
                                 onChange={(e, v) => { setSelectedPatient(v); setConflict(null); }}
@@ -368,7 +368,7 @@ export default function Prescriptions() {
                                     transition: 'all 0.2s'
                                 }}
                             >
-                                {isSending ? "ENCRYPTING & DISPATCHING..." : "COMMIT TO AHP LEDGER"}
+                                {isSending ? "ENCRYPTING & DISPATCHING..." : "COMMIT TO Hospyn LEDGER"}
                             </Button>
                             <Button
                                 variant="outlined"

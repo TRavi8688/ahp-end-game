@@ -1,4 +1,4 @@
-# AHP 2.0: Isolated Frontend Development
+# Hospyn 2.0: Isolated Frontend Development
 
 This guide explains how to develop and preview the **Patient App** without running the full backend infrastructure (FastAPI, Postgres, Redis, Celery).
 

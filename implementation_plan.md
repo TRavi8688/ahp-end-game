@@ -1,9 +1,9 @@
-# AHP 2.0 Hardening & Scale Plan
+# Hospyn 2.0 Hardening & Scale Plan
 
 > [!CAUTION]
 > **User Review Required**: Implementing this plan radically alters the hosting model (SPAs move to Vercel/Nginx) and makes Redis mandatory. Review the Railway multi-service configuration and Sentry/PostHog integration requirements before proceeding.
 
-This document outlines the step-by-step code and infrastructure fixes required to bring AHP 2.0 from a "degraded monolith" to a highly scalable, stable, production-ready enterprise application.
+This document outlines the step-by-step code and infrastructure fixes required to bring Hospyn 2.0 from a "degraded monolith" to a highly scalable, stable, production-ready enterprise application.
 
 ---
 

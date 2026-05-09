@@ -1,7 +1,7 @@
 # Chapter 03: Frontend Architecture
 
 ## 3.1 Framework Stack
-AHP 2.0 uses a dual-frontend strategy to ensure native performance on mobiles and high productivity on the web.
+Hospyn 2.0 uses a dual-frontend strategy to ensure native performance on mobiles and high productivity on the web.
 - **Patient App:** React Native with **Expo**. Chosen for "write once, run anywhere" capability and access to native SecureStore and Camera APIs.
 - **Doctor App:** React with **Vite** and **TailwindCSS**. Chosen for extreme build speed and highly responsive UI utility layers.
 

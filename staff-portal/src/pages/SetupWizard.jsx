@@ -88,7 +88,7 @@ export default function SetupWizard() {
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
             </svg>
           </div>
-          <span style={{ fontWeight: 700, fontSize: '0.9375rem' }}>AHP Staff Portal</span>
+          <span style={{ fontWeight: 700, fontSize: '0.9375rem' }}>Hospyn Staff Portal</span>
         </div>
 
         <div className="card" style={styles.card}>

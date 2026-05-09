@@ -3,7 +3,7 @@ import { SecurityUtils } from './security';
 import { API_BASE_URL } from '../api';
 
 /**
- * AHP 2.0 Enterprise API Service (Patient App)
+ * Hospyn 2.0 Enterprise API Service (Patient App)
  * Centralized handler for all production clinical endpoints.
  */
 class ApiService {

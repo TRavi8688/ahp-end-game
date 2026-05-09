@@ -98,15 +98,15 @@ async def get_doctor_profile(
     # Ensure User data is loaded if needed, or return the model if it has attributes
     return current_doctor
 
-@router.get("/patient/{ahp_id}", response_model=schemas.PatientLookupResponse)
+@router.get("/patient/{hospyn_id}", response_model=schemas.PatientLookupResponse)
 async def lookup_patient(
-    ahp_id: str,
+    hospyn_id: str,
     db: AsyncSession = Depends(get_db),
     current_doctor: Doctor = Depends(get_current_doctor)
 ):
-    """Lookup a patient by AHP ID for scanning/clinical entry."""
+    """Lookup a patient by Hospyn ID for scanning/clinical entry."""
     repo = PatientRepository(Patient, db)
-    patient = await repo.get_by_ahp_id(ahp_id)
+    patient = await repo.get_by_hospyn_id(hospyn_id)
     
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
@@ -130,7 +130,7 @@ async def lookup_patient(
         resource_type="PATIENT",
         resource_id=patient.id,
         details={
-            "ahp_id": ahp_id, 
+            "hospyn_id": hospyn_id, 
             "access_already_granted": existing_access is not None,
             "purpose": "clinical_lookup"
         }
@@ -141,7 +141,7 @@ async def lookup_patient(
     result_user = await db.execute(stmt_user)
     user = result_user.scalar_one_or_none()
     
-    name = f"{user.first_name} {user.last_name}" if user else "AHP Patient"
+    name = f"{user.first_name} {user.last_name}" if user else "Hospyn Patient"
     
     # Fetch allergies (public clinical info)
     stmt_allergies = select(Allergy).where(Allergy.patient_id == patient.id)
@@ -149,7 +149,7 @@ async def lookup_patient(
     allergies = result_allergies.scalars().all()
     
     return {
-        "profile": {"ahp_id": patient.ahp_id, "name": name},
+        "profile": {"hospyn_id": patient.hospyn_id, "name": name},
         "allergies": [{"allergen": a.allergen, "severity": a.severity} for a in allergies],
         "status": "granted" if existing_access else "pending_consent"
     }
@@ -160,9 +160,9 @@ async def scan_patient(
     db: AsyncSession = Depends(get_db),
     current_doctor: Doctor = Depends(get_current_doctor)
 ):
-    """Initiate a clinical access request via QR scan/AHP ID."""
+    """Initiate a clinical access request via QR scan/Hospyn ID."""
     repo = PatientRepository(Patient, db)
-    patient = await repo.get_by_ahp_id(request.ahp_id)
+    patient = await repo.get_by_hospyn_id(request.hospyn_id)
     
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
@@ -239,7 +239,7 @@ async def list_patients(
     patients = []
     for access, patient, user in result:
         patients.append({
-            "ahp_id": patient.ahp_id,
+            "hospyn_id": patient.hospyn_id,
             "name": f"{user.first_name} {user.last_name}",
             "access_level": access.access_level,
             "granted_at": access.granted_at
@@ -354,7 +354,7 @@ async def get_access_history(
         history.append({
             "id": access.id,
             "patient_name": f"{user.first_name} {user.last_name}",
-            "ahp_id": patient.ahp_id,
+            "hospyn_id": patient.hospyn_id,
             "type": "Clinical Record",
             "typeRaw": "all",
             "ai_summary": "Access granted to patient longitudinal record.",
@@ -372,7 +372,7 @@ async def join_queue(
 ):
     """Check a patient into the clinical queue."""
     repo = PatientRepository(Patient, db)
-    patient = await repo.get_by_ahp_id(request.ahp_id)
+    patient = await repo.get_by_hospyn_id(request.hospyn_id)
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
 
@@ -403,7 +403,7 @@ async def join_queue(
     return {
         "id": new_entry.id,
         "patient_name": f"{user.first_name} {user.last_name}",
-        "ahp_id": patient.ahp_id,
+        "hospyn_id": patient.hospyn_id,
         "status": new_entry.status,
         "token_number": new_entry.token_number,
         "check_in_time": new_entry.check_in_time
@@ -431,7 +431,7 @@ async def get_queue(
         queue.append({
             "id": entry.id,
             "patient_name": f"{user.first_name} {user.last_name}",
-            "ahp_id": patient.ahp_id,
+            "hospyn_id": patient.hospyn_id,
             "status": entry.status,
             "token_number": entry.token_number,
             "check_in_time": entry.check_in_time
@@ -471,7 +471,7 @@ async def update_queue_status(
     return {
         "id": entry.id,
         "patient_name": f"{user.first_name} {user.last_name}",
-        "ahp_id": patient.ahp_id,
+        "hospyn_id": patient.hospyn_id,
         "status": entry.status,
         "token_number": entry.token_number,
         "check_in_time": entry.check_in_time

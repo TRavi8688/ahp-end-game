@@ -159,12 +159,12 @@ export default function HomeDashboard({ onOpenScan }) {
                             ) : (
                                 patients.slice(0, 5).map((p) => (
                                     <AppointmentRow
-                                        key={p.ahp_id}
+                                        key={p.hospyn_id}
                                         name={p.name}
                                         time={new Date(p.granted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         status={p.access_level === 'full' ? 'Active Access' : 'Restricted'}
                                         statusColor="success"
-                                        id={p.ahp_id}
+                                        id={p.hospyn_id}
                                         condition="Verified Patient"
                                     />
                                 ))
@@ -256,7 +256,7 @@ export default function HomeDashboard({ onOpenScan }) {
                                     Drug Interaction Alert — Rahul Sharma
                                 </Typography>
                                 <Typography variant="body2" sx={{ color: '#7f1d1d', mt: 0.5 }}>
-                                    New prescription includes Amoxicillin. Patient's AHP profile shows a Severe allergy to Penicillin. This requires immediate review.
+                                    New prescription includes Amoxicillin. Patient's Hospyn profile shows a Severe allergy to Penicillin. This requires immediate review.
                                 </Typography>
                             </Box>
                         </Box>
@@ -264,7 +264,7 @@ export default function HomeDashboard({ onOpenScan }) {
                             <Button variant="outlined" color="error" sx={{ bgcolor: 'white' }}>
                                 Flag & Hold
                             </Button>
-                            <Button variant="contained" color="error" onClick={() => navigate('/patient/AHP-IN-9284-7731')}>
+                            <Button variant="contained" color="error" onClick={() => navigate('/patient/Hospyn-IN-9284-7731')}>
                                 View Patient
                             </Button>
                         </Box>

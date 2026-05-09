@@ -119,14 +119,14 @@ class Patient(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     version_id: Mapped[int] = mapped_column(default=1, nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    ahp_id: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    hospyn_id: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     # Encrypt PII Fields
     phone_number: Mapped[str] = mapped_column(StringEncryptedType(255))
     date_of_birth: Mapped[Optional[str]] = mapped_column(StringEncryptedType(255))
     gender: Mapped[Optional[str]] = mapped_column(String(20))
     blood_group: Mapped[Optional[str]] = mapped_column(String(10))
     language_code: Mapped[str] = mapped_column(String(10), default="en")
-    password_hash: Mapped[Optional[str]] = mapped_column(String(255)) # Secondary AHP login
+    password_hash: Mapped[Optional[str]] = mapped_column(String(255)) # Secondary Hospyn login
     
     user: Mapped["User"] = relationship(back_populates="patient_profile")
     records: Mapped[List["MedicalRecord"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
@@ -509,7 +509,7 @@ class PrescriptionItem(Base):
 
 class ClinicalEvent(Base):
     """
-    THE HEART OF AHP: Immutable Clinical Event Stream.
+    THE HEART OF Hospyn: Immutable Clinical Event Stream.
     Stores every longitudinal action with zero mutation.
     Used for Timeline reconstruction, AI Context, and Auditing.
     """

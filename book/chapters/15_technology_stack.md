@@ -1,7 +1,7 @@
 # Chapter 15: Technology Stack
 
 ## 15.1 The Enterprise Stack Rationale
-AHP 2.0 is built using industry-leading technologies chosen for their performance, security, and developer ergonomics.
+Hospyn 2.0 is built using industry-leading technologies chosen for their performance, security, and developer ergonomics.
 
 ## 15.2 Core Stack
 - **Backend:** FastAPI (Python). Chosen for high execution speed, native `asyncio` support, and automatic OpenAPI documentation.

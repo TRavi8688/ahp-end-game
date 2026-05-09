@@ -21,9 +21,9 @@ router = APIRouter(prefix="/patient", tags=["Patient"])
 
 # --- COMPATIBILITY ENDPOINTS for Patient App ---
 
-@router.post("/login-ahp")
-async def patient_login_ahp(
-    req: schemas.LoginAHPRequest,
+@router.post("/login-hospyn")
+async def patient_login_hospyn(
+    req: schemas.LoginHospynRequest,
     db: AsyncSession = Depends(deps.get_db)
 ):
     """
@@ -33,14 +33,14 @@ async def patient_login_ahp(
     from app.core import security
     from app.api.auth import throw_auth_exception
     
-    ahp_id = req.ahp_id.upper().strip()
+    hospyn_id = req.hospyn_id.upper().strip()
 
     # 1. Atomic Search: Local Database is the ONLY Source of Truth
-    result_p = await db.execute(select(models.Patient).where(models.Patient.ahp_id == ahp_id))
+    result_p = await db.execute(select(models.Patient).where(models.Patient.hospyn_id == hospyn_id))
     patient = result_p.scalars().first()
     
     if not patient:
-        await log_audit_action(db, "LOGIN_FAILURE_NOT_FOUND", details={"ahp_id": ahp_id})
+        await log_audit_action(db, "LOGIN_FAILURE_NOT_FOUND", details={"hospyn_id": hospyn_id})
         throw_auth_exception("Invalid Mulajna ID or password")
 
     result_u = await db.execute(select(models.User).where(models.User.id == patient.user_id))
@@ -63,7 +63,7 @@ async def patient_login_ahp(
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
-        "ahp_id": ahp_id
+        "hospyn_id": hospyn_id
     }
 # --- STANDARD PATIENT ENDPOINTS ---
 
@@ -96,7 +96,7 @@ async def upload_report(
              raise HTTPException(status_code=413, detail="File too large")
              
         safe_filename = f"{uuid.uuid4()}{ext}"
-        s3_object_name = f"reports/{current_patient.ahp_id or 'anon'}/{safe_filename}"
+        s3_object_name = f"reports/{current_patient.hospyn_id or 'anon'}/{safe_filename}"
         
         s3_url = await upload_bytes_async(
             content=content, 
@@ -210,9 +210,9 @@ async def get_patient_profile(
         return {
             "id": current_patient.id,
             "full_name": "Valued Patient",
-            "email": "patient@ahp.local",
+            "email": "patient@hospyn.local",
             "phone_number": current_patient.phone_number or "N/A",
-            "ahp_id": current_patient.ahp_id,
+            "hospyn_id": current_patient.hospyn_id,
             "age": current_patient.age,
             "blood_group": current_patient.blood_group,
             "gender": current_patient.gender,
@@ -224,7 +224,7 @@ async def get_patient_profile(
         "full_name": f"{user.first_name} {user.last_name}",
         "email": user.email,
         "phone_number": current_patient.phone_number,
-        "ahp_id": current_patient.ahp_id,
+        "hospyn_id": current_patient.hospyn_id,
         "age": current_patient.age,
         "blood_group": current_patient.blood_group,
         "gender": current_patient.gender,
@@ -293,7 +293,7 @@ async def set_patient_password(
     current_patient: models.Patient = Depends(deps.get_current_patient),
     db: AsyncSession = Depends(deps.get_db)
 ):
-    """Updates the patient's login password and generates an AHP ID if missing."""
+    """Updates the patient's login password and generates an Hospyn ID if missing."""
     from app.core import security
     
     # Update linked User password
@@ -301,12 +301,12 @@ async def set_patient_password(
     user = result.scalar_one()
     user.hashed_password = security.pwd_context.hash(data.password)
     
-    # Ensure AHP ID exists (for new registrations)
-    if not current_patient.ahp_id:
-        current_patient.ahp_id = f"AHP-{uuid.uuid4().hex[:8].upper()}"
+    # Ensure Hospyn ID exists (for new registrations)
+    if not current_patient.hospyn_id:
+        current_patient.hospyn_id = f"Hospyn-{uuid.uuid4().hex[:8].upper()}"
     
     await db.commit()
-    return {"status": "success", "ahp_id": current_patient.ahp_id}
+    return {"status": "success", "hospyn_id": current_patient.hospyn_id}
 
 @router.get("/dashboard")
 async def get_dashboard(

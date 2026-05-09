@@ -118,7 +118,7 @@ export default function HomeScreen({ navigation }) {
                                 Age: {summary?.age || profile?.age || 'N/A'} | {summary?.blood_group || profile?.blood_group || 'N/A'}
                             </Text>
                             <View style={[styles.idBadge, GlobalStyles.glass]}>
-                                <Text style={styles.idText}>MULAJNA ID: {summary?.ahp_id || profile?.ahp_id}</Text>
+                                <Text style={styles.idText}>MULAJNA ID: {summary?.hospyn_id || profile?.hospyn_id}</Text>
                             </View>
                         </View>
                     </View>

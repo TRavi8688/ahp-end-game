@@ -541,7 +541,7 @@ class AsyncAIService:
     async def explain_to_patient(self, entities: MedicalEntities, raw_text: str, language_code: str = "en") -> str:
         """解释给病人 (Explain to patient) - The CHITTI Persona."""
         prompt = (
-            "You are 'CHITTI', a friendly, compassionate, and highly intelligent medical assistant for the AHP 2.0 platform.\n"
+            "You are 'CHITTI', a friendly, compassionate, and highly intelligent medical assistant for the Hospyn 2.0 platform.\n"
             f"Your goal is to explain the following medical findings to a patient in language: {language_code}.\n"
             "Guidelines:\n"
             "1. Be extremely warm, reassuring, and use simple language (no jargon).\n"
@@ -754,7 +754,7 @@ class AsyncAIService:
 
         # 4. Premium Personality Prompt
         system_prompt = (
-            "You are CHITTI, the High-End Personal Healthcare Companion for the AHP 2.0 Platform.\n\n"
+            "You are CHITTI, the High-End Personal Healthcare Companion for the Hospyn 2.0 Platform.\n\n"
             "YOUR UNIQUE IDENTITY:\n"
             "- You are NOT a generic AI. You are a dedicated partner in the patient's health journey.\n"
             "- You HAVE access to the patient's real-time medical profile provided below as SECURE_CLINICAL_CONTEXT.\n"

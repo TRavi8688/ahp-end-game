@@ -53,7 +53,7 @@ class UserResponse(UserBase):
 
 # Patient Schemas
 class PatientBase(BaseModel):
-    ahp_id: str
+    hospyn_id: str
     phone_number: str
     date_of_birth: Optional[str] = None
     gender: Optional[str] = None
@@ -76,8 +76,8 @@ class PatientResponse(PatientBase):
     class Config:
         from_attributes = True
 
-class LoginAHPRequest(BaseModel):
-    ahp_id: str
+class LoginHospynRequest(BaseModel):
+    hospyn_id: str
     password: str
 
 # Medical Record Schemas
@@ -133,7 +133,7 @@ class DoctorVerifyComplete(BaseModel):
 
 # New Doctor-Patient Interaction Schemas
 class DoctorScanRequest(BaseModel):
-    ahp_id: str
+    hospyn_id: str
     clinic_name: str
     access_level: str
 
@@ -143,7 +143,7 @@ class DoctorScanResponse(BaseModel):
     access_id: Optional[int] = None
 
 class PatientPublicProfile(BaseModel):
-    ahp_id: str
+    hospyn_id: str
     name: str
 
 class PatientLookupResponse(BaseModel):
@@ -153,13 +153,13 @@ class PatientLookupResponse(BaseModel):
 
 # Queue Management Schemas
 class QueueEntryBase(BaseModel):
-    ahp_id: str
+    hospyn_id: str
     clinic_name: Optional[str] = None
 
 class QueueEntryResponse(BaseModel):
     id: int
     patient_name: str
-    ahp_id: str
+    hospyn_id: str
     status: str
     token_number: Optional[int]
     check_in_time: datetime
@@ -203,7 +203,7 @@ class PatientProfileResponse(BaseModel):
     full_name: Optional[str] = "Patient"
     email: Optional[EmailStr] = None
     phone_number: Optional[str] = None
-    ahp_id: str
+    hospyn_id: str
     age: Optional[int] = None
     blood_group: Optional[str] = None
     gender: Optional[str] = None

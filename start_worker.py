@@ -4,7 +4,7 @@ import sys
 
 def run_worker():
     """Starts the ARQ worker process."""
-    print("Starting AHP 2.0 ARQ Worker Pool...")
+    print("Starting Hospyn 2.0 ARQ Worker Pool...")
     # arq app.workers.arq_worker.WorkerSettings
     try:
         subprocess.run(["arq", "app.workers.arq_worker.WorkerSettings"], check=True)

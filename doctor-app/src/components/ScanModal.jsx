@@ -13,9 +13,9 @@ import { API_BASE_URL } from '../api';
 
 // Mock Patient lookup for demo
 const DEMO_PATIENTS = {
-    'AHP-IN-9284-7731': { name: 'Rahul Sharma', allergies: ['Penicillin (Severe)', 'Sulfa drugs (Severe)'] },
-    'AHP-IN-3312-9801': { name: 'Ananya Mehta', allergies: ['Latex (Severe)'] },
-    'AHP-IN-5521-4413': { name: 'Vijay Kumar', allergies: [] }
+    'Hospyn-IN-9284-7731': { name: 'Rahul Sharma', allergies: ['Penicillin (Severe)', 'Sulfa drugs (Severe)'] },
+    'Hospyn-IN-3312-9801': { name: 'Ananya Mehta', allergies: ['Latex (Severe)'] },
+    'Hospyn-IN-5521-4413': { name: 'Vijay Kumar', allergies: [] }
 };
 
 export default function ScanModal({ open, onClose }) {
@@ -66,21 +66,21 @@ export default function ScanModal({ open, onClose }) {
             if (response.ok) {
                 const data = await response.json();
                 setPatientData({
-                    name: data.profile?.name || "AHP Patient",
-                    id: data.profile?.ahp_id || manualId,
+                    name: data.profile?.name || "Hospyn Patient",
+                    id: data.profile?.hospyn_id || manualId,
                     allergies: (data.allergies || []).map(a => `${a.allergen} (${a.severity})`)
                 });
                 setStep(2);
             } else if (response.status === 202) {
                 // Access is pending
-                setPatientData({ name: "AHP Patient", id: manualId, allergies: [] });
+                setPatientData({ name: "Hospyn Patient", id: manualId, allergies: [] });
                 setStep(3);
             } else if (response.status === 403) {
                 setErrorMsg("Access denied. Please request access for this patient.");
-                setPatientData({ name: "AHP Patient", id: manualId, allergies: [] });
+                setPatientData({ name: "Hospyn Patient", id: manualId, allergies: [] });
                 setStep(2);
             } else {
-                alert("Patient not found or connection error. Please check the AHP ID.");
+                alert("Patient not found or connection error. Please check the Hospyn ID.");
             }
         } catch (error) {
             console.error("Lookup error:", error);
@@ -100,7 +100,7 @@ export default function ScanModal({ open, onClose }) {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 },
                 body: JSON.stringify({
-                    ahp_id: patientData.id,
+                    hospyn_id: patientData.id,
                     clinic_name: "Nirixa Clinic",
                     access_level: "full"
                 })
@@ -168,7 +168,7 @@ export default function ScanModal({ open, onClose }) {
                         </Box>
 
                         <Typography variant="body2" sx={{ color: '#6b7280', mb: 3 }}>
-                            Ask the patient to open their AHP App and display their connection QR code.
+                            Ask the patient to open their Hospyn App and display their connection QR code.
                         </Typography>
 
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
@@ -181,7 +181,7 @@ export default function ScanModal({ open, onClose }) {
                             <TextField
                                 fullWidth
                                 size="small"
-                                placeholder="AHP-IN-XXXX-XXXX-XX"
+                                placeholder="Hospyn-IN-XXXX-XXXX-XX"
                                 value={manualId}
                                 onChange={(e) => setManualId(e.target.value)}
                             />
@@ -230,7 +230,7 @@ export default function ScanModal({ open, onClose }) {
                             />
                             <FormControlLabel
                                 control={<Checkbox checked={consent2} onChange={e => setConsent2(e.target.checked)} sx={{ color: '#0d9488', '&.Mui-checked': { color: '#0d9488' } }} />}
-                                label={<Typography variant="body2" sx={{ color: '#4b5563' }}>I understand that this access and any actions taken are permanently logged in the patient's AHP app.</Typography>}
+                                label={<Typography variant="body2" sx={{ color: '#4b5563' }}>I understand that this access and any actions taken are permanently logged in the patient's Hospyn app.</Typography>}
                             />
                         </Box>
 

@@ -11,14 +11,14 @@ async def seed():
     print("Tables created.")
 
     async with AsyncSessionLocal() as db:
-        # --- PATIENT: ahp-1234-1234 / ravi1234 ---
+        # --- PATIENT: hospyn-1234-1234 / ravi1234 ---
         from sqlalchemy import select
         
-        res = await db.execute(select(User).where(User.email == "ahp-1234-1234@patient.local"))
+        res = await db.execute(select(User).where(User.email == "hospyn-1234-1234@patient.local"))
         existing = res.scalars().first()
         if not existing:
             patient_user = User(
-                email="ahp-1234-1234@patient.local",
+                email="hospyn-1234-1234@patient.local",
                 hashed_password=get_password_hash("ravi1234"),
                 first_name="Ravi",
                 last_name="Patient",
@@ -30,7 +30,7 @@ async def seed():
 
             patient = Patient(
                 user_id=patient_user.id,
-                ahp_id="AHP-1234-1234",
+                hospyn_id="Hospyn-1234-1234",
                 phone_number="+919999999999",
                 date_of_birth="1995-01-01",
                 gender="Male",
@@ -39,7 +39,7 @@ async def seed():
             )
             db.add(patient)
             await db.commit()
-            print("Patient created: AHP-1234-1234 / ravi1234")
+            print("Patient created: Hospyn-1234-1234 / ravi1234")
         else:
             print("Patient already exists.")
 
@@ -71,7 +71,7 @@ async def seed():
             print("Doctor already exists.")
 
     print("\nDone! You can now login with:")
-    print("  Patient App -> AHP ID: AHP-1234-1234  |  Password: ravi1234")
+    print("  Patient App -> Hospyn ID: Hospyn-1234-1234  |  Password: ravi1234")
     print("  Doctor App  -> Email: ravi@mbs         |  Password: ravi1234")
 
 if __name__ == "__main__":

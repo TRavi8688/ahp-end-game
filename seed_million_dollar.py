@@ -11,11 +11,11 @@ async def seed_data():
     db = AsyncSessionLocal()
     try:
         # 1. Ensure Demo Doctor Exists
-        res_dr = await db.execute(select(User).where(User.email == 'dr.test@ahp.local'))
+        res_dr = await db.execute(select(User).where(User.email == 'dr.test@hospyn.local'))
         dr_user = res_dr.scalars().first()
         if not dr_user:
             dr_user = User(
-                email='dr.test@ahp.local',
+                email='dr.test@hospyn.local',
                 hashed_password=get_password_hash('doctor123'),
                 first_name='Gaurav',
                 last_name='Sharma',
@@ -29,10 +29,10 @@ async def seed_data():
 
         # 2. Create Multiple Patients
         patients_data = [
-            {'email': 'rahul.s@ahp.test', 'fn': 'Rahul', 'ln': 'Sharma', 'ahp': 'AHP-IN-9284-7731', 'dob': '1990-05-15', 'phone': '+919876543210'},
-            {'email': 'priya.k@ahp.test', 'fn': 'Priya', 'ln': 'Kapoor', 'ahp': 'AHP-IN-8222-7215-TP', 'dob': '1995-08-22', 'phone': '+919876543211'},
-            {'email': 'amit.v@ahp.test', 'fn': 'Amit', 'ln': 'Verma', 'ahp': 'AHP-TEST-DRIVE', 'dob': '1978-12-01', 'phone': '+919876543212'},
-            {'email': 'sara.j@ahp.test', 'fn': 'Sara', 'ln': 'Jones', 'ahp': 'AHP-EXT-101', 'dob': '1992-03-30', 'phone': '+919876543213'}
+            {'email': 'rahul.s@hospyn.test', 'fn': 'Rahul', 'ln': 'Sharma', 'hospyn': 'Hospyn-IN-9284-7731', 'dob': '1990-05-15', 'phone': '+919876543210'},
+            {'email': 'priya.k@hospyn.test', 'fn': 'Priya', 'ln': 'Kapoor', 'hospyn': 'Hospyn-IN-8222-7215-TP', 'dob': '1995-08-22', 'phone': '+919876543211'},
+            {'email': 'amit.v@hospyn.test', 'fn': 'Amit', 'ln': 'Verma', 'hospyn': 'Hospyn-TEST-DRIVE', 'dob': '1978-12-01', 'phone': '+919876543212'},
+            {'email': 'sara.j@hospyn.test', 'fn': 'Sara', 'ln': 'Jones', 'hospyn': 'Hospyn-EXT-101', 'dob': '1992-03-30', 'phone': '+919876543213'}
         ]
 
         for p_info in patients_data:
@@ -51,12 +51,12 @@ async def seed_data():
                 await db.commit()
                 await db.refresh(u)
             
-            res_pp = await db.execute(select(Patient).where(Patient.ahp_id == p_info['ahp']))
+            res_pp = await db.execute(select(Patient).where(Patient.hospyn_id == p_info['hospyn']))
             patient = res_pp.scalars().first()
             if not patient:
                 patient = Patient(
                     user_id=u.id,
-                    ahp_id=p_info['ahp'],
+                    hospyn_id=p_info['hospyn'],
                     date_of_birth=p_info['dob'],
                     phone_number=p_info['phone'],
                     blood_group=random.choice(['A+', 'B+', 'O+', 'AB+']),
@@ -100,7 +100,7 @@ async def seed_data():
                     patient_id=patient.id,
                     doctor_user_id=dr_user.id,
                     doctor_name=f"Dr. {dr_user.last_name}",
-                    clinic_name="AHP Clinical Hub",
+                    clinic_name="Hospyn Clinical Hub",
                     access_level="full",
                     status="granted"
                 ))

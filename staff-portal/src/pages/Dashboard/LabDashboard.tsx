@@ -64,7 +64,7 @@ const LabDashboard: React.FC = () => {
             </div>
             <div>
               <h3 className="text-lg font-bold text-white">Bulk Report Upload</h3>
-              <p className="text-xs text-slate-500 mt-2">Drag and drop lab PDFs here.<br />AHP Neural Engine will auto-parse all values.</p>
+              <p className="text-xs text-slate-500 mt-2">Drag and drop lab PDFs here.<br />Hospyn Neural Engine will auto-parse all values.</p>
             </div>
             <button className="mt-4 px-8 py-2 bg-slate-800 text-slate-300 rounded-lg text-xs font-bold hover:bg-slate-700 transition-all border border-slate-700">
               Select Files

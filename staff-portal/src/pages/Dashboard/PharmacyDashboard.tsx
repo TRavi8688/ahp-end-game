@@ -58,7 +58,7 @@ const PharmacyDashboard: React.FC = () => {
             <Package className="text-blue-500" size={32} />
             PHARMACY <span className="text-blue-500/50">OPERATIONS</span>
           </h1>
-          <p className="text-slate-400 font-medium mt-1 uppercase tracking-widest text-xs">AHP Digital Fulfillment Engine</p>
+          <p className="text-slate-400 font-medium mt-1 uppercase tracking-widest text-xs">Hospyn Digital Fulfillment Engine</p>
         </div>
 
         <div className="flex items-center gap-3">

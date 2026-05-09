@@ -1,7 +1,7 @@
 # Chapter 14: DevOps and Deployment
 
 ## 14.1 Continuous Hardening Pipeline
-Deployment in AHP 2.0 is fully automated. No developer has direct SSH access to the production database; all changes are applied via CI/CD.
+Deployment in Hospyn 2.0 is fully automated. No developer has direct SSH access to the production database; all changes are applied via CI/CD.
 
 ## 14.2 The CI/CD Pipeline (GitHub Actions)
 Every Pull Request triggers a series of security and quality gates:
@@ -11,7 +11,7 @@ Every Pull Request triggers a series of security and quality gates:
 4. **Unit & Integration Tests:** `pytest` runs the full test suite against a ephemeral Postgres container.
 
 ## 14.3 Environment Management
-AHP 2.0 maintains absolute consistency using Docker:
+Hospyn 2.0 maintains absolute consistency using Docker:
 - **Development:** Locally hosted containers via `docker-compose`.
 - **Staging:** A "Mirror" of production for chaos testing and final QA.
 - **Production:** High-availability cluster with blue-green deployment windows.

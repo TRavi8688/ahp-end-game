@@ -1,5 +1,5 @@
 /**
- * AHP Staff Portal — API Client
+ * Hospyn Staff Portal — API Client
  *
  * Enterprise-grade Axios instance with:
  *  - Automatic JWT injection from secure token store
@@ -23,7 +23,7 @@ export const apiClient = axios.create({
 // --- Request Interceptor ---
 apiClient.interceptors.request.use((config) => {
   // Inject JWT
-  const token = sessionStorage.getItem('ahp_access_token');
+  const token = sessionStorage.getItem('hospyn_access_token');
   if (token) config.headers['Authorization'] = `Bearer ${token}`;
 
   // Inject Trace ID (propagated through backend → worker → audit log)
@@ -49,8 +49,8 @@ apiClient.interceptors.response.use(
 
     if (status === 401) {
       // Token revoked or expired — clear state and force re-login
-      sessionStorage.removeItem('ahp_access_token');
-      sessionStorage.removeItem('ahp_user');
+      sessionStorage.removeItem('hospyn_access_token');
+      sessionStorage.removeItem('hospyn_user');
       window.location.href = '/login';
     }
 

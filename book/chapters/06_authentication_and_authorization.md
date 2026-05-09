@@ -1,7 +1,7 @@
 # Chapter 06: Authentication and Authorization
 
 ## 6.1 Identity Mesh Architecture
-Identity in AHP 2.0 is not just a login; it is a **Scoped Boundary**. The system uses a **Double-Token JWT Lifecycle** to balance security and performance.
+Identity in Hospyn 2.0 is not just a login; it is a **Scoped Boundary**. The system uses a **Double-Token JWT Lifecycle** to balance security and performance.
 
 ## 6.2 The Login Mechanism
 1. **Frontend:** Secure password capture.
@@ -24,7 +24,7 @@ Identity in AHP 2.0 is not just a login; it is a **Scoped Boundary**. The system
 - **Refresh Token:** 7-day expiry (Stored in secure native storage).
 
 ## 6.4 Role-Based Access Control (RBAC)
-AHP 2.0 uses a **Decorator-led Authorization** model. 
+Hospyn 2.0 uses a **Decorator-led Authorization** model. 
 ```python
 @app.get("/records")
 @require_role("patient")

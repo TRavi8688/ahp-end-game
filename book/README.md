@@ -1,6 +1,6 @@
-# AHP 2.0: EXTREME SYSTEM ARCHITECTURE HANDBOOK
+# Hospyn 2.0: EXTREME SYSTEM ARCHITECTURE HANDBOOK
 
-This directory contains the definitive technical reference for the AHP 2.0 Platform. Built for resilience, privacy, and clinical intelligence.
+This directory contains the definitive technical reference for the Hospyn 2.0 Platform. Built for resilience, privacy, and clinical intelligence.
 
 ## 📚 Book Structure
 - [01 Project Overview](./chapters/01_project_overview.md)

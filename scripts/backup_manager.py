@@ -20,7 +20,7 @@ class BackupManager:
         ENFORCES: No credentials in shell strings.
         """
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{self.backup_dir}/ahp_backup_{timestamp}.sql"
+        filename = f"{self.backup_dir}/hospyn_backup_{timestamp}.sql"
         
         try:
             env = os.environ.copy()
@@ -49,7 +49,7 @@ class BackupManager:
                     raise ValueError("Malformed DATABASE_URL. Could not extract credentials safely.")
             else:
                 # Local SQLite fallback for dev
-                cmd = ["sqlite3", "ahp.db", f".dump > {filename}"]
+                cmd = ["sqlite3", "hospyn.db", f".dump > {filename}"]
             
             # Execute without shell=True to hide from 'ps' secret scanning
             subprocess.run(cmd, env=env, check=True)

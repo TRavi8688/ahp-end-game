@@ -5,7 +5,7 @@ import { Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TOKEN_KEY = 'patient_mulajna_auth_token'; 
-const AHP_ID_KEY = 'patient_mulajna_ahp_id';
+const AHP_ID_KEY = 'patient_mulajna_hospyn_id';
 
 export const SecurityUtils = {
     // --- Secure Token Management ---
@@ -49,7 +49,7 @@ export const SecurityUtils = {
         }
     },
 
-    async saveAhpId(id) {
+    async saveHospynId(id) {
         try {
             if (Platform.OS === 'web') {
                 await AsyncStorage.setItem(AHP_ID_KEY, id);
@@ -62,7 +62,7 @@ export const SecurityUtils = {
         }
     },
 
-    async getAhpId() {
+    async getHospynId() {
         try {
             if (Platform.OS === 'web') {
                 return await AsyncStorage.getItem(AHP_ID_KEY);

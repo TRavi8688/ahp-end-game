@@ -1,7 +1,7 @@
 # Chapter 05: API Architecture
 
 ## 5.1 API Structure & Standards
-AHP 2.0 follows a **RESTful REST-as-a-Platform** standard:
+Hospyn 2.0 follows a **RESTful REST-as-a-Platform** standard:
 - **Versioning:** Path-based versioning (`/api/v1`).
 - **Standardized Responses:** All error responses follow the RFC 7807 (Problem Details) format.
 - **OpenAPI Doc:** Interactive documentation available at `/docs` (Swagger) and `/redoc`.
@@ -11,7 +11,7 @@ AHP 2.0 follows a **RESTful REST-as-a-Platform** standard:
 - **Internal API Keys:** Used for communication between the App and specialized third-party integrations (e.g., Twilio, S3).
 
 ## 5.3 Rate Limiting Mechanism
-AHP implements **Leaky Bucket** rate limiting via `SlowAPI`:
+Hospyn implements **Leaky Bucket** rate limiting via `SlowAPI`:
 - **Unauthenticated:** 5 requests/minute for sensitive routes (Login/Register).
 - **Authenticated:** 100 requests/minute for standard data retrieval.
 - **Strategy:** Redis-backed storage to track usage across multiple API instances.

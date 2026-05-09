@@ -1,5 +1,5 @@
 """
-AHP Enterprise Model Mixins.
+Hospyn Enterprise Model Mixins.
 
 Every mixin in this file encodes a strict architectural guarantee.
 These are composable building blocks that MUST be inherited by all

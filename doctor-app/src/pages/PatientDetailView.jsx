@@ -71,7 +71,7 @@ export default function PatientDetailView() {
     if (isLoading) {
         return (
             <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
-                <Typography variant="h6">Syncing with AHP Network...</Typography>
+                <Typography variant="h6">Syncing with Hospyn Network...</Typography>
             </Box>
         );
     }
@@ -100,7 +100,7 @@ export default function PatientDetailView() {
         formData.append('file', file);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/doctor/patient/${patient.profile.ahp_id}/upload-report`, {
+            const response = await fetch(`${API_BASE_URL}/doctor/patient/${patient.profile.hospyn_id}/upload-report`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -221,8 +221,8 @@ export default function PatientDetailView() {
 
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                             <Box sx={{ px: 2, py: 0.8, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px' }}>
-                                <Typography variant="caption" sx={{ color: '#475569', fontWeight: 800, mr: 1 }}>AHP ID:</Typography>
-                                <Typography component="span" sx={{ color: '#fff', fontFamily: 'monospace', fontWeight: 700 }}>{patient.profile.ahp_id}</Typography>
+                                <Typography variant="caption" sx={{ color: '#475569', fontWeight: 800, mr: 1 }}>Hospyn ID:</Typography>
+                                <Typography component="span" sx={{ color: '#fff', fontFamily: 'monospace', fontWeight: 700 }}>{patient.profile.hospyn_id}</Typography>
                             </Box>
                         </Box>
                     </Box>
@@ -564,7 +564,7 @@ export default function PatientDetailView() {
                                         <Typography variant="caption" sx={{ fontFamily: 'monospace', color: '#0d9488', fontWeight: 800 }}>{h.date.toUpperCase()}</Typography>
                                     </Box>
                                 )) : (
-                                    <Typography variant="body2" sx={{ color: '#64748b' }}>No clinical history found in AHP network.</Typography>
+                                    <Typography variant="body2" sx={{ color: '#64748b' }}>No clinical history found in Hospyn network.</Typography>
                                 )}
                             </Box>
                         </Card>
@@ -596,7 +596,7 @@ export default function PatientDetailView() {
                                     fullWidth
                                     multiline
                                     rows={4}
-                                    placeholder="Annotate this encounter... Encrypted and synced to AHP profile."
+                                    placeholder="Annotate this encounter... Encrypted and synced to Hospyn profile."
                                     value={notes}
                                     onChange={(e) => setNotes(e.target.value)}
                                     sx={{ 
@@ -637,7 +637,7 @@ export default function PatientDetailView() {
 
             <Snackbar open={toastOpen} autoHideDuration={3000} onClose={() => setToastOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
                 <Alert onClose={() => setToastOpen(false)} severity="success" sx={{ width: '100%', fontWeight: 'bold' }}>
-                    Notes saved to patient AHP profile ✓
+                    Notes saved to patient Hospyn profile ✓
                 </Alert>
             </Snackbar>
 

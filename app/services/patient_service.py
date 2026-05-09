@@ -11,8 +11,8 @@ class PatientService(BaseService[Patient]):
     def __init__(self, db: AsyncSession):
         super().__init__(Patient, db)
 
-    async def get_by_ahp_id(self, ahp_id: str) -> Optional[Patient]:
-        stmt = select(Patient).where(Patient.ahp_id == ahp_id.upper())
+    async def get_by_hospyn_id(self, hospyn_id: str) -> Optional[Patient]:
+        stmt = select(Patient).where(Patient.hospyn_id == hospyn_id.upper())
         result = await self.db.execute(stmt)
         return result.scalars().first()
 
@@ -23,7 +23,7 @@ class PatientService(BaseService[Patient]):
         if not patient:
             patient = Patient(
                 user_id=user_id,
-                ahp_id=f"AHP-{uuid.uuid4().hex[:8].upper()}",
+                hospyn_id=f"Hospyn-{uuid.uuid4().hex[:8].upper()}",
                 phone_number=data.phone_number,
                 language_code=data.language_code
             )

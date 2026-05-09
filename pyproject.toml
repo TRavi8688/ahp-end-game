@@ -1,5 +1,5 @@
 [project]
-name = "ahp-2-0"
+name = "hospyn-2-0"
 version = "0.1.0"
 description = "AI Health Passport - Enterprise Grade Backend"
 authors = [{name = "Antigravity", email = "ai@nirixa.com"}]

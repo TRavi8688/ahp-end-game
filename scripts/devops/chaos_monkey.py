@@ -4,7 +4,7 @@ import time
 import random
 
 def crash_system():
-    print("\n--- [CHAOS] AHP Chaos Monkey Unleashed ---")
+    print("\n--- [CHAOS] Hospyn Chaos Monkey Unleashed ---")
     actions = ["KILL_API"]
     action = random.choice(actions)
     

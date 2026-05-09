@@ -25,7 +25,7 @@ async def verify_dashboard():
                 user = User(email="test@example.com", first_name="Test", last_name="User", role="patient")
                 db.add(user)
                 await db.flush()
-                patient = Patient(user_id=user.id, ahp_id="AHP-TEST", blood_group="O+", phone_number="1234567890")
+                patient = Patient(user_id=user.id, hospyn_id="Hospyn-TEST", blood_group="O+", phone_number="1234567890")
                 db.add(patient)
                 await db.commit()
                 await db.refresh(patient)

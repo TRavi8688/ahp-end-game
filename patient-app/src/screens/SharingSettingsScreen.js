@@ -83,7 +83,7 @@ export default function SharingSettings({ navigation }) {
                                 </View>
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.doctorName}>Dr. {item.doctor_name}</Text>
-                                    <Text style={styles.clinicName}>{item.clinic_name || 'AHP Network'}</Text>
+                                    <Text style={styles.clinicName}>{item.clinic_name || 'Hospyn Network'}</Text>
                                     <View style={styles.statusRow}>
                                         <Text style={styles.timeLabel}>Granted: {new Date(item.granted_at).toLocaleDateString()}</Text>
                                         <View style={styles.activeDot} />

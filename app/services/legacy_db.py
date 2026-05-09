@@ -206,7 +206,7 @@ class InsForgeQueryBuilder:
     def _fetch_after_insert(self, url, record):
         """Fetch the just-inserted record back from the DB by matching unique fields."""
         # Priority: try unique-ish fields to find the inserted record
-        priority_keys = ["email", "ahp_id", "access_token", "phone_number",
+        priority_keys = ["email", "hospyn_id", "access_token", "phone_number",
                          "license_number", "connect_id", "allergen", "generic_name"]
         params = []
         for k in priority_keys:

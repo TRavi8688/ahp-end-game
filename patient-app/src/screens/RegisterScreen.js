@@ -106,12 +106,12 @@ export default function RegisterScreen({ navigation }) {
                 headers: { Authorization: `Bearer ${access_token}` }
             });
 
-            const ahp_id = setupResp.data.ahp_id;
+            const hospyn_id = setupResp.data.hospyn_id;
             await SecurityUtils.saveToken(access_token);
-            await SecurityUtils.saveAhpId(ahp_id);
+            await SecurityUtils.saveHospynId(hospyn_id);
 
             // Navigate to Success Screen instead of Main Dashboard
-            navigation.replace('RegistrationSuccess', { ahp_id, fullName: formData.fullName });
+            navigation.replace('RegistrationSuccess', { hospyn_id, fullName: formData.fullName });
 
         } catch (err) {
             console.error(err);

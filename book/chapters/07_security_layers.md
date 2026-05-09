@@ -1,7 +1,7 @@
 # Chapter 07: Security Layers
 
 ## 7.1 Defense-in-Depth Strategy
-AHP 2.0 treats security as a **Primary First-Class Citizen**. The platform is built using a non-trust model where every layer must independently verify the integrity of the data.
+Hospyn 2.0 treats security as a **Primary First-Class Citizen**. The platform is built using a non-trust model where every layer must independently verify the integrity of the data.
 
 ## 7.2 Shield 1: Network & Perimeter
 - **Cloud WAF/Nginx:** Filters SQL injection patterns and cross-site scripting (XSS) at the ingress point.

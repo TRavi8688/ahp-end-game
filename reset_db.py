@@ -16,7 +16,7 @@ async def reset_database():
         print("All tables dropped successfully.")
     
     await engine.dispose()
-    print("Database reset complete. On next startup, AHP 2.0 will recreate all tables with INTEGER primary keys.")
+    print("Database reset complete. On next startup, Hospyn 2.0 will recreate all tables with INTEGER primary keys.")
 
 if __name__ == "__main__":
     asyncio.run(reset_database())

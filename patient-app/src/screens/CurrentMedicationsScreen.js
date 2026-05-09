@@ -43,7 +43,7 @@ export default function CurrentMedicationsScreen({ navigation, route }) {
 
             if (response.data && response.data.access_token) {
                 await SecurityUtils.saveToken(response.data.access_token);
-                await SecurityUtils.saveAhpId(response.data.ahp_id || '');
+                await SecurityUtils.saveHospynId(response.data.hospyn_id || '');
                 navigation.replace('MainTabs');
             } else {
                 Alert.alert("Error", "Registration failed. No token received.");

@@ -18,16 +18,16 @@ const { width, height } = Dimensions.get('window');
 
 export default function AuthScreen({ navigation }) {
     const [loading, setLoading] = useState(false);
-    const [ahpId, setAhpId] = useState('');
+    const [hospynId, setHospynId] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
     const [rememberMe, setRememberMe] = useState(false);
 
-    const handleAhpLogin = async () => {
+    const handleHospynLogin = async () => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        const ahp = ahpId.trim().toUpperCase();
-        if (!ahp.startsWith('AHP-') || ahp.length < 8) {
+        const hospyn = hospynId.trim().toUpperCase();
+        if (!hospyn.startsWith('Hospyn-') || hospyn.length < 8) {
             return Alert.alert('Invalid ID', 'Please enter a valid Mulajna ID.');
         }
         if (password.length < 6) {
@@ -36,10 +36,10 @@ export default function AuthScreen({ navigation }) {
 
         setLoading(true);
         try {
-            const resp = await axios.post(`${API_BASE_URL}/patient/login-ahp`, { ahp_id: ahp, password });
+            const resp = await axios.post(`${API_BASE_URL}/patient/login-hospyn`, { hospyn_id: hospyn, password });
             if (resp.data.access_token) {
                 await SecurityUtils.saveToken(resp.data.access_token);
-                await SecurityUtils.saveAhpId(resp.data.ahp_id || '');
+                await SecurityUtils.saveHospynId(resp.data.hospyn_id || '');
                 if (rememberMe) {
                     await SecurityUtils.saveRememberMe(true);
                 }
@@ -99,10 +99,10 @@ export default function AuthScreen({ navigation }) {
                                     <Ionicons name="person-outline" size={18} color="#94A3B8" style={styles.inputIcon} />
                                     <TextInput
                                         style={styles.input}
-                                        placeholder="AHP-000000-XXX"
+                                        placeholder="Hospyn-000000-XXX"
                                         placeholderTextColor="#475569"
-                                        value={ahpId}
-                                        onChangeText={(t) => setAhpId(t.toUpperCase())}
+                                        value={hospynId}
+                                        onChangeText={(t) => setHospynId(t.toUpperCase())}
                                         autoCapitalize="characters"
                                     />
                                 </View>
@@ -145,7 +145,7 @@ export default function AuthScreen({ navigation }) {
 
                             <TouchableOpacity
                                 style={styles.button}
-                                onPress={handleAhpLogin}
+                                onPress={handleHospynLogin}
                                 disabled={loading}
                             >
                                 <LinearGradient

@@ -87,8 +87,8 @@ class UserRepository(AsyncBaseRepository):
         return result.scalar_one_or_none()
 
 class PatientRepository(AsyncBaseRepository):
-    async def get_by_ahp_id(self, ahp_id: str):
-        stmt = select(self.model).where(self.model.ahp_id == ahp_id)
+    async def get_by_hospyn_id(self, hospyn_id: str):
+        stmt = select(self.model).where(self.model.hospyn_id == hospyn_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 

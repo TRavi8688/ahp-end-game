@@ -17,7 +17,7 @@ async def setup():
         
         # 1. Patient
         user_p = User(
-            email="tester@ahp.local",
+            email="tester@hospyn.local",
             hashed_password=pwd,
             role="patient",
             first_name="Test",
@@ -28,7 +28,7 @@ async def setup():
         
         patient = Patient(
             user_id=user_p.id,
-            ahp_id="AHP-TEST-DRIVE",
+            hospyn_id="Hospyn-TEST-DRIVE",
             phone_number="9999999999",
             language_code="en"
         )
@@ -41,7 +41,7 @@ async def setup():
         
         # 2. Doctor
         user_d = User(
-            email="doctor@ahp.local",
+            email="doctor@hospyn.local",
             hashed_password=pwd,
             role="doctor",
             first_name="Dr.",

@@ -37,7 +37,7 @@ class ClinicalService(BaseService):
         notes: Optional[str] = None
     ) -> DigitalPrescription:
         # 1. Generate unique QR ID for this prescription
-        qr_code_id = f"AHP-PR-{uuid.uuid4().hex[:8].upper()}"
+        qr_code_id = f"Hospyn-PR-{uuid.uuid4().hex[:8].upper()}"
         
         # 2. Generate Digital Signature (HMAC-like hash of payload)
         payload = {

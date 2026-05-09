@@ -1,7 +1,7 @@
 # AI Engine Architecture: The "Neural Pipeline"
 
 ## 1. Unified Intelligence Orchestrator
-The AHP 2.0 Engine is an **Asynchronous Priority-Based Hub**. It doesn't rely on a single LLM; instead, it orchestrates multiple providers to ensure sub-10s latency even during provider outages.
+The Hospyn 2.0 Engine is an **Asynchronous Priority-Based Hub**. It doesn't rely on a single LLM; instead, it orchestrates multiple providers to ensure sub-10s latency even during provider outages.
 
 ### 1.1 The "Unified AI Engine" Logic Flow
 ```mermaid

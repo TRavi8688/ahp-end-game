@@ -1,7 +1,7 @@
 # Chapter 01: Project Overview
 
 ## 1.1 Platform Identity
-AHP 2.0 (Advanced Health Platform) is an Enterprise-Grade Artificial Intelligence ecosystem designed for the medical sector. It operates as a high-throughput processing hub for Protected Health Information (PHI).
+Hospyn 2.0 (Advanced Health Platform) is an Enterprise-Grade Artificial Intelligence ecosystem designed for the medical sector. It operates as a high-throughput processing hub for Protected Health Information (PHI).
 
 ## 1.2 Mission and Strategic Goals
 - **Mission:** To eliminate the manual burden of medical record review through sub-10 second AI summarization.

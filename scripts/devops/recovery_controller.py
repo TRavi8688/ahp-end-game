@@ -69,7 +69,7 @@ async def heal_system():
         log_recovery("ERROR_DURING_HEAL", str(e))
 
 async def main():
-    print(f"--- [HOSPITAL] AHP Self-Healing Controller Started (Interval: {CHECK_INTERVAL}s) ---")
+    print(f"--- [HOSPITAL] Hospyn Self-Healing Controller Started (Interval: {CHECK_INTERVAL}s) ---")
     consecutive_failures = 0
     
     while True:

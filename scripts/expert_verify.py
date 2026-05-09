@@ -41,7 +41,7 @@ async def test_large_file_limit():
     print("ℹ️ Simulation: AI Service will reject 11MB file with error message.")
 
 async def run_suite():
-    print("=== AHP 2.0 EXPERT VERIFICATION SUITE ===")
+    print("=== Hospyn 2.0 EXPERT VERIFICATION SUITE ===")
     await test_metrics_unblocked()
     await test_redis_fail_fast()
     print("\n=== VERIFICATION COMPLETE ===")

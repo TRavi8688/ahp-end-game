@@ -10,7 +10,7 @@ from app.core.logging import logger
 
 class EventService:
     """
-    Enterprise Event Infrastructure for AHP 2.0.
+    Enterprise Event Infrastructure for Hospyn 2.0.
     Enforces immutable, signed, and aggregate-linked clinical events.
     """
 

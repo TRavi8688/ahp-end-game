@@ -43,7 +43,7 @@ const Login: React.FC = () => {
       <div className="w-full max-w-md glass-card p-8 space-y-8 animate-in fade-in zoom-in duration-700">
         <div className="text-center space-y-2">
           <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center font-bold text-white text-2xl mx-auto mb-4">A</div>
-          <h1 className="text-3xl font-black tracking-tight text-white">AHP 2.0</h1>
+          <h1 className="text-3xl font-black tracking-tight text-white">Hospyn 2.0</h1>
           <p className="text-slate-500 text-sm font-medium uppercase tracking-widest">Enterprise Staff Portal</p>
         </div>
 
@@ -101,7 +101,7 @@ const Login: React.FC = () => {
 
         <div className="pt-6 border-t border-slate-800 text-center">
           <p className="text-xs text-slate-500">
-            Protected by **AHP Security Engine (RS256)**
+            Protected by **Hospyn Security Engine (RS256)**
           </p>
         </div>
       </div>

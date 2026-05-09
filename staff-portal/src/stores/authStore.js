@@ -1,5 +1,5 @@
 /**
- * AHP Staff Portal — Auth Store (Zustand)
+ * Hospyn Staff Portal — Auth Store (Zustand)
  *
  * Single source of truth for authentication state.
  * Persists minimal session info to sessionStorage.
@@ -19,9 +19,9 @@ function decodeJwtPayload(token) {
 }
 
 export const useAuthStore = create((set, get) => ({
-  token: sessionStorage.getItem('ahp_access_token') || null,
+  token: sessionStorage.getItem('hospyn_access_token') || null,
   user: (() => {
-    try { return JSON.parse(sessionStorage.getItem('ahp_user')); } catch { return null; }
+    try { return JSON.parse(sessionStorage.getItem('hospyn_user')); } catch { return null; }
   })(),
 
   /** Called after successful login API response. */
@@ -34,14 +34,14 @@ export const useAuthStore = create((set, get) => ({
       deptScope: claims?.dept_scope || [],
       tokenVersion: claims?.token_version,
     };
-    sessionStorage.setItem('ahp_access_token', accessToken);
-    sessionStorage.setItem('ahp_user', JSON.stringify(user));
+    sessionStorage.setItem('hospyn_access_token', accessToken);
+    sessionStorage.setItem('hospyn_user', JSON.stringify(user));
     set({ token: accessToken, user });
   },
 
   logout: () => {
-    sessionStorage.removeItem('ahp_access_token');
-    sessionStorage.removeItem('ahp_user');
+    sessionStorage.removeItem('hospyn_access_token');
+    sessionStorage.removeItem('hospyn_user');
     set({ token: null, user: null });
   },
 

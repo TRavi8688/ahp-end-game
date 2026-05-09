@@ -1,7 +1,7 @@
 # Chapter 17: Future Improvements
 
 ## 17.1 The Scalability Roadmap
-AHP 2.0 is designed for the future. The architecture is ready to transition from a "Modular Monolith" to a "Global Distributed Mesh".
+Hospyn 2.0 is designed for the future. The architecture is ready to transition from a "Modular Monolith" to a "Global Distributed Mesh".
 
 ## 17.2 Near-Term Enhancements (Q3-Q4)
 - **Private Inference:** Deploying localized Llama-3 models within the VPC for zero-cloud latency and absolute privacy.
@@ -14,7 +14,7 @@ AHP 2.0 is designed for the future. The architecture is ready to transition from
 - **Federated Learning:** Training AI models on encrypted data without ever exposing PII.
 
 ## 17.4 Closing Vision Statement
-AHP 2.0 aims to be the **Operating System of the AI-Native Hospital**, providing a secure, resilient, and intelligent foundation for the next generation of patient care.
+Hospyn 2.0 aims to be the **Operating System of the AI-Native Hospital**, providing a secure, resilient, and intelligent foundation for the next generation of patient care.
 
 ---
 *End of Handbook*

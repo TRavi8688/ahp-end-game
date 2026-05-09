@@ -2,7 +2,7 @@ from fastapi import FastAPI, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-app = FastAPI(title="AHP 2.0 Dummy Backend")
+app = FastAPI(title="Hospyn 2.0 Dummy Backend")
 
 # Enable CORS for frontend access
 app.add_middleware(
@@ -16,7 +16,7 @@ app.add_middleware(
 @app.get("/")
 async def root():
     print("[MOCK] Root endpoint hit")
-    return {"message": "AHP 2.0 Dummy Backend is running"}
+    return {"message": "Hospyn 2.0 Dummy Backend is running"}
 
 # --- DOCTOR APP ENDPOINTS ---
 
@@ -64,13 +64,13 @@ async def get_my_patients():
     print("[MOCK] Fetching Patient List")
     return [
         {
-            "ahp_id": "AHP-IN-9284-7731",
+            "hospyn_id": "Hospyn-IN-9284-7731",
             "name": "Rahul Sharma",
             "granted_at": "2026-03-15T09:00:00",
             "access_level": "full"
         },
         {
-            "ahp_id": "AHP-IN-1234-5678",
+            "hospyn_id": "Hospyn-IN-1234-5678",
             "name": "Priya Patel",
             "granted_at": "2026-03-15T10:30:00",
             "access_level": "full"

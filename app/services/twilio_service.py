@@ -26,7 +26,7 @@ def send_sms_otp(phone_number: str, otp: str) -> bool:
         target = phone_number if phone_number.startswith("+") else f"+91{phone_number}"
             
         message = client.messages.create(
-            body=f"Your AHP verification code is: {otp}",
+            body=f"Your Hospyn verification code is: {otp}",
             from_=from_num,
             to=target
         )

@@ -7,7 +7,7 @@ client = TestClient(app)
 def test_root():
     response = client.get("/")
     assert response.status_code == 200
-    assert response.json() == {"message": "Welcome to AHP 2.0 Enterprise API"}
+    assert response.json() == {"message": "Welcome to Hospyn 2.0 Enterprise API"}
 
 def test_send_otp():
     response = client.post(

@@ -1,4 +1,4 @@
-# AHP 2.0 System Hardening & Implementation Tasks
+# Hospyn 2.0 System Hardening & Implementation Tasks
 
 - `[ ]` 1. Extract SPA & Configure Vercel Routing
   - `[ ]` Create `doctor-app/vercel.json`

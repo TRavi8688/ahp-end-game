@@ -1,7 +1,7 @@
 # Chapter 08: Database Architecture
 
 ## 8.1 The Multi-Datastore Mesh
-AHP 2.0 uses a **Polyglot Persistence Layer** to optimize for both consistency and speed:
+Hospyn 2.0 uses a **Polyglot Persistence Layer** to optimize for both consistency and speed:
 - **PostgreSQL 16:** Relational source of truth for all structured data (Users, Records, Clinical insights).
 - **Redis 7.0:** Real-time persistence for sessions, caching, and task queuing.
 
@@ -24,7 +24,7 @@ erDiagram
 - **Record Versioning:** Medical records are immutable. Updates create new summary records, maintaining a historical audit trail.
 
 ## 8.4 Indexing & Query Strategy
-- **Primary Indexes:** On `id` (UUID/Int) and unique clinical identifiers like `ahp_id`.
+- **Primary Indexes:** On `id` (UUID/Int) and unique clinical identifiers like `hospyn_id`.
 - **Compound Indexes:** On `(patient_id, created_at)` for high-speed dashboard aggregation.
 - **Migration Strategy:** Managed via **Alembic**, ensuring zero-downtime schema upgrades.
 

@@ -50,7 +50,7 @@ def upgrade() -> None:
     op.create_table('patients',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
-    sa.Column('ahp_id', sa.String(length=50), nullable=False),
+    sa.Column('hospyn_id', sa.String(length=50), nullable=False),
     sa.Column('phone_number', sa.String(length=20), nullable=False),
     sa.Column('date_of_birth', sa.String(length=20), nullable=True),
     sa.Column('gender', sa.String(length=20), nullable=True),
@@ -60,7 +60,7 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_patients_ahp_id'), 'patients', ['ahp_id'], unique=True)
+    op.create_index(op.f('ix_patients_hospyn_id'), 'patients', ['hospyn_id'], unique=True)
     op.create_index(op.f('ix_patients_id'), 'patients', ['id'], unique=False)
     op.create_table('ai_summaries',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -219,7 +219,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_ai_summaries_id'), table_name='ai_summaries')
     op.drop_table('ai_summaries')
     op.drop_index(op.f('ix_patients_id'), table_name='patients')
-    op.drop_index(op.f('ix_patients_ahp_id'), table_name='patients')
+    op.drop_index(op.f('ix_patients_hospyn_id'), table_name='patients')
     op.drop_table('patients')
     op.drop_index(op.f('ix_doctors_id'), table_name='doctors')
     op.drop_table('doctors')

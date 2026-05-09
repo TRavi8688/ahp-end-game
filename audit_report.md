@@ -1,6 +1,6 @@
-# 🏥 360° Technical Audit Report: AHP 2.0 Enterprise
+# 🏥 360° Technical Audit Report: Hospyn 2.0 Enterprise
 
-This is a comprehensive, deep-dive architectural and technical audit of the **AI Health Passport (AHP) 2.0 Platform**. The analysis assesses the system against enterprise-grade benchmarks (scalability, security, maintainability, performance).
+This is a comprehensive, deep-dive architectural and technical audit of the **AI Health Passport (Hospyn) 2.0 Platform**. The analysis assesses the system against enterprise-grade benchmarks (scalability, security, maintainability, performance).
 
 ---
 

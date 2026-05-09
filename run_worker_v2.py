@@ -25,7 +25,7 @@ def run_health_server():
     server.serve_forever()
 
 if __name__ == "__main__":
-    print("Starting AHP 2.0 ARQ AI Worker (Enterprise Edition)...")
+    print("Starting Hospyn 2.0 ARQ AI Worker (Enterprise Edition)...")
     try:
         # Start the health check server in a background thread
         print(f"Starting Cloud Run health check server on port {os.environ.get('PORT', 8080)}...")

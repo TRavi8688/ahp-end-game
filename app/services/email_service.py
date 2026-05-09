@@ -20,7 +20,7 @@ def send_email_otp(to_email: str, otp: str):
         print(f"[MOCK EMAIL] Real SMTP credentials not set. OTP for {to_email}: {otp}")
         return True
 
-    subject = "Your AHP Verification Code"
+    subject = "Your Hospyn Verification Code"
     
     html_content = f"""
     <html>
@@ -43,7 +43,7 @@ def send_email_otp(to_email: str, otp: str):
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = f"AHP Security <{SMTP_FROM_EMAIL}>"
+    msg["From"] = f"Hospyn Security <{SMTP_FROM_EMAIL}>"
     msg["To"] = to_email
 
     msg.attach(MIMEText(html_content, "html"))

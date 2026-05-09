@@ -22,11 +22,11 @@ def reset_password():
     conn = sqlite3.connect('test.db')
     cursor = conn.cursor()
     
-    # Find user_id for AHP-TEST-DRIVE
-    cursor.execute("SELECT user_id FROM patients WHERE ahp_id = 'AHP-TEST-DRIVE'")
+    # Find user_id for Hospyn-TEST-DRIVE
+    cursor.execute("SELECT user_id FROM patients WHERE hospyn_id = 'Hospyn-TEST-DRIVE'")
     row = cursor.fetchone()
     if not row:
-        print("Error: AHP-TEST-DRIVE not found in patients table")
+        print("Error: Hospyn-TEST-DRIVE not found in patients table")
         return
     
     user_id = row[0]
@@ -34,7 +34,7 @@ def reset_password():
     # Update users table
     cursor.execute("UPDATE users SET hashed_password = ? WHERE id = ?", (hashed, user_id))
     conn.commit()
-    print(f"Successfully reset password for AHP-TEST-DRIVE (User ID: {user_id}) to 'Password123'")
+    print(f"Successfully reset password for Hospyn-TEST-DRIVE (User ID: {user_id}) to 'Password123'")
     conn.close()
 
 if __name__ == "__main__":

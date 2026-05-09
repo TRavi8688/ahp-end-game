@@ -12,7 +12,7 @@ export default function SettingsScreen({ navigation }) {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPw, setShowPw] = useState(false);
     const [isSavingPw, setIsSavingPw] = useState(false);
-    const [ahpId, setAhpId] = useState('');
+    const [hospynId, setHospynId] = useState('');
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -22,8 +22,8 @@ export default function SettingsScreen({ navigation }) {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 setProfile(response.data);
-                const storedAhp = await SecurityUtils.getAhpId();
-                setAhpId(storedAhp || '');
+                const storedHospyn = await SecurityUtils.getHospynId();
+                setHospynId(storedHospyn || '');
             } catch (err) {
                 console.log("Settings fetch error", err);
             }
@@ -56,12 +56,12 @@ export default function SettingsScreen({ navigation }) {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const data = resp.data;
-            await SecurityUtils.saveAhpId(data.ahp_id || '');
-            setAhpId(data.ahp_id || '');
+            await SecurityUtils.saveHospynId(data.hospyn_id || '');
+            setHospynId(data.hospyn_id || '');
             setShowPasswordModal(false);
             setNewPassword('');
             setConfirmPassword('');
-            Alert.alert('✅ Password Set!', `You can now login with:\n\nAHP ID: ${data.ahp_id}\nPassword: your chosen password`);
+            Alert.alert('✅ Password Set!', `You can now login with:\n\nHospyn ID: ${data.hospyn_id}\nPassword: your chosen password`);
         } catch (e) {
             Alert.alert('Error', e.response?.data?.detail || 'Failed to set password.');
         } finally {
@@ -134,13 +134,13 @@ export default function SettingsScreen({ navigation }) {
                 </TouchableOpacity>
             </View>
 
-            {/* AHP ID Display */}
-            {ahpId ? (
-                <View style={styles.ahpBox}>
+            {/* Hospyn ID Display */}
+            {hospynId ? (
+                <View style={styles.hospynBox}>
                     <Ionicons name="shield-checkmark" size={20} color="#7c3aed" />
-                    <View style={styles.ahpBoxText}>
-                        <Text style={styles.ahpLabel}>Your AHP ID (use to login)</Text>
-                        <Text style={styles.ahpValue}>{ahpId}</Text>
+                    <View style={styles.hospynBoxText}>
+                        <Text style={styles.hospynLabel}>Your Hospyn ID (use to login)</Text>
+                        <Text style={styles.hospynValue}>{hospynId}</Text>
                     </View>
                 </View>
             ) : null}
@@ -152,7 +152,7 @@ export default function SettingsScreen({ navigation }) {
                         <Ionicons name="key-outline" size={24} color="#4c1d95" />
                         <View style={{ marginLeft: 15 }}>
                             <Text style={styles.settingText}>Set Login Password</Text>
-                            <Text style={styles.settingSubtext}>Login with AHP ID + password next time</Text>
+                            <Text style={styles.settingSubtext}>Login with Hospyn ID + password next time</Text>
                         </View>
                     </View>
                     <Ionicons name="chevron-forward" size={20} color="#ccc" />
@@ -180,7 +180,7 @@ export default function SettingsScreen({ navigation }) {
                                 <Ionicons name="close" size={24} color="#666" />
                             </TouchableOpacity>
                         </View>
-                        <Text style={styles.modalSubtitle}>After setting a password, you can login with your AHP ID and this password without needing an OTP.</Text>
+                        <Text style={styles.modalSubtitle}>After setting a password, you can login with your Hospyn ID and this password without needing an OTP.</Text>
                         <View style={styles.pwInputRow}>
                             <TextInput
                                 style={styles.pwInput}
@@ -238,10 +238,10 @@ const styles = StyleSheet.create({
     logoutButton: { flexDirection: 'row', alignItems: 'center', padding: 20, marginTop: 10 },
     logoutText: { fontSize: 15, color: '#dc2626', fontWeight: 'bold', marginLeft: 15 },
     version: { textAlign: 'center', color: '#9ca3af', fontSize: 12, marginTop: 20 },
-    ahpBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f3ff', margin: 16, borderRadius: 16, padding: 14, gap: 12 },
-    ahpBoxText: { flex: 1 },
-    ahpLabel: { fontSize: 11, color: '#7c3aed', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-    ahpValue: { fontSize: 16, fontWeight: '900', color: '#4c1d95', fontFamily: 'monospace', marginTop: 2 },
+    hospynBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f5f3ff', margin: 16, borderRadius: 16, padding: 14, gap: 12 },
+    hospynBoxText: { flex: 1 },
+    hospynLabel: { fontSize: 11, color: '#7c3aed', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+    hospynValue: { fontSize: 16, fontWeight: '900', color: '#4c1d95', fontFamily: 'monospace', marginTop: 2 },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
     modalBox: { backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingBottom: 40 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },

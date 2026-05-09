@@ -5,7 +5,7 @@ from sqlalchemy import select
 from app.models.models import User, Patient, Doctor, PatientDashboard
 from app.core import security
 
-DATABASE_URL = "sqlite+aiosqlite:///./ahp.db"
+DATABASE_URL = "sqlite+aiosqlite:///./hospyn.db"
 
 async def setup():
     engine = create_async_engine(DATABASE_URL)
@@ -15,13 +15,13 @@ async def setup():
         pwd = security.get_password_hash("Mulajna@123")
         
         # Check Patient
-        user_p = (await db.execute(select(User).where(User.email == "tester@ahp.local"))).scalar_one_or_none()
+        user_p = (await db.execute(select(User).where(User.email == "tester@hospyn.local"))).scalar_one_or_none()
         if not user_p:
-            user_p = User(email="tester@ahp.local", hashed_password=pwd, role="patient", first_name="Test", last_name="Patient")
+            user_p = User(email="tester@hospyn.local", hashed_password=pwd, role="patient", first_name="Test", last_name="Patient")
             db.add(user_p)
             await db.flush()
             
-            patient = Patient(user_id=user_p.id, ahp_id="AHP-TEST-DRIVE", phone_number="9999999999", language_code="en")
+            patient = Patient(user_id=user_p.id, hospyn_id="Hospyn-TEST-DRIVE", phone_number="9999999999", language_code="en")
             db.add(patient)
             await db.flush()
             
@@ -34,9 +34,9 @@ async def setup():
             user_p.hashed_password = pwd
         
         # Check Doctor
-        user_d = (await db.execute(select(User).where(User.email == "doctor@ahp.local"))).scalar_one_or_none()
+        user_d = (await db.execute(select(User).where(User.email == "doctor@hospyn.local"))).scalar_one_or_none()
         if not user_d:
-            user_d = User(email="doctor@ahp.local", hashed_password=pwd, role="doctor", first_name="Dr.", last_name="Mulajna")
+            user_d = User(email="doctor@hospyn.local", hashed_password=pwd, role="doctor", first_name="Dr.", last_name="Mulajna")
             db.add(user_d)
             await db.flush()
             

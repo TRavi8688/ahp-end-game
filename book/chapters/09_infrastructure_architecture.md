@@ -1,7 +1,7 @@
 # Chapter 09: Infrastructure Architecture
 
 ## 9.1 Containerization & Topology
-AHP 2.0 is a **Cloud-Agnostic Containerized Ecosystem**. It is built to run identically in Development, Staging, and Production.
+Hospyn 2.0 is a **Cloud-Agnostic Containerized Ecosystem**. It is built to run identically in Development, Staging, and Production.
 
 ## 9.2 Core Infrastructure Stack
 - **Ingress Layer:** Nginx acting as a reverse proxy, SSL terminator, and load balancer.

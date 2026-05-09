@@ -1,7 +1,7 @@
 # Chapter 02: High-Level System Architecture
 
 ## 2.1 The Distributed Data Bus
-AHP 2.0 is architected as a **Distributed Micro-Engine**. Unlike a standard monolith, every intensive compute task is offloaded to a non-blocking worker pool.
+Hospyn 2.0 is architected as a **Distributed Micro-Engine**. Unlike a standard monolith, every intensive compute task is offloaded to a non-blocking worker pool.
 
 ## 2.2 Core Components & Relationships
 - **Frontend Layer:** React Native (Patient) & React (Doctor) communicate via REST and WebSockets.

@@ -136,7 +136,7 @@ export default function AccessHistory() {
                                         {/* Patient */}
                                         <TableCell sx={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
                                             <Typography variant="body1" sx={{ color: '#fff', fontWeight: 600, fontFamily: 'Outfit' }}>{row.patient_name}</Typography>
-                                            <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'rgba(255, 255, 255, 0.3)', letterSpacing: 1 }}>{row.ahp_id}</Typography>
+                                            <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'rgba(255, 255, 255, 0.3)', letterSpacing: 1 }}>{row.hospyn_id}</Typography>
                                         </TableCell>
 
                                         {/* Record Type */}

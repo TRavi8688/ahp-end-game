@@ -43,7 +43,7 @@ export default function LoginPage() {
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
             </svg>
           </div>
-          <span style={styles.logoText}>AHP Staff Portal</span>
+          <span style={styles.logoText}>Hospyn Staff Portal</span>
         </div>
 
         <h1 style={styles.title}>Welcome back</h1>

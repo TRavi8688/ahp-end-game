@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "AHP 2.0 Secure (GCP)"
+    PROJECT_NAME: str = "Hospyn 2.0 Secure (GCP)"
     VERSION: str = "2.0.0"
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str # production, staging, development
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     # --- 1. ENTERPRISE AUTHENTICATION (RS256) ---
     JWT_PRIVATE_KEY: str
     JWT_PUBLIC_KEY: str
-    JWT_AUDIENCE: str = "ahp-enterprise-clients"
+    JWT_AUDIENCE: str = "hospyn-enterprise-clients"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     SECRET_KEY: str # For admin probes and internal hashing

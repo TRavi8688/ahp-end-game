@@ -18,10 +18,10 @@ from app.core.config import settings
 from app.core.logging import setup_logging, logger
 import sentry_sdk
 
-logger.info("STARTUP: AHP 2.0 API Enterprise Initialization...")
+logger.info("STARTUP: Hospyn 2.0 API Enterprise Initialization...")
 
 # --- OpenTelemetry REMOVED for RAM optimization ---
-# meter = metrics.get_meter("ahp.api")
+# meter = metrics.get_meter("hospyn.api")
 # http_request_counter = ...
 
 from app.api import auth, patient, profile, doctor, doctor_verification
@@ -62,7 +62,7 @@ app = FastAPI(
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to AHP 2.0 Enterprise API"}
+    return {"message": "Welcome to Hospyn 2.0 Enterprise API"}
 
 from app.core.metrics import instrument_request
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
@@ -241,5 +241,5 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
 # SPAs are now hosted on Vercel/CDN for better scalability
 # Removed StaticFiles mounting and /patient route
 
-logger.info("SYSTEM_READY: AHP 2.0 API is fully initialized.")
+logger.info("SYSTEM_READY: Hospyn 2.0 API is fully initialized.")
 

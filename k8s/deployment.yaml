@@ -1,15 +1,15 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ahp-api
-  namespace: ahp-prod
+  name: hospyn-api
+  namespace: hospyn-prod
   labels:
-    app: ahp-api
+    app: hospyn-api
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: ahp-api
+      app: hospyn-api
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -18,7 +18,7 @@ spec:
   template:
     metadata:
       labels:
-        app: ahp-api
+        app: hospyn-api
     spec:
       # --- ENTERPRISE SECURITY CONTEXT ---
       securityContext:
@@ -32,11 +32,11 @@ spec:
         whenUnsatisfiable: DoNotSchedule
         labelSelector:
           matchLabels:
-            app: ahp-api
+            app: hospyn-api
 
       containers:
       - name: api
-        image: ahp-api:latest
+        image: hospyn-api:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
@@ -66,7 +66,7 @@ spec:
         
         envFrom:
         - secretRef:
-            name: ahp-secrets # Mandatory secrets from Vault/ExternalSecrets
+            name: hospyn-secrets # Mandatory secrets from Vault/ExternalSecrets
         
         env:
         - name: ENVIRONMENT
@@ -74,22 +74,22 @@ spec:
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
-              name: ahp-db-secrets
+              name: hospyn-db-secrets
               key: url
         - name: REDIS_URL
-          value: "redis://redis-master.ahp-prod.svc.cluster.local:6379/0"
+          value: "redis://redis-master.hospyn-prod.svc.cluster.local:6379/0"
 
 ---
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: ahp-api-hpa
-  namespace: ahp-prod
+  name: hospyn-api-hpa
+  namespace: hospyn-prod
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: ahp-api
+    name: hospyn-api
   minReplicas: 3
   maxReplicas: 10
   metrics:
@@ -103,11 +103,11 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: ahp-api-svc
-  namespace: ahp-prod
+  name: hospyn-api-svc
+  namespace: hospyn-prod
 spec:
   selector:
-    app: ahp-api
+    app: hospyn-api
   ports:
   - protocol: TCP
     port: 80

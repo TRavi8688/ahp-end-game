@@ -13,7 +13,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.ahp.mulajna",
+      "bundleIdentifier": "com.hospyn.mulajna",
       "infoPlist": {
         "NSCameraUsageDescription": "Mulajna requires camera access to scan medical reports and profiles.",
         "NSFaceIDUsageDescription": "Mulajna uses FaceID to securely protect your medical data."
@@ -29,7 +29,7 @@
         "android.permission.USE_BIOMETRIC",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.ahp.mulajna"
+      "package": "com.hospyn.mulajna"
     },
     "plugins": [
       "expo-font",

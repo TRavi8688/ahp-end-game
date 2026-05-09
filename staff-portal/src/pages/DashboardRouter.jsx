@@ -43,7 +43,7 @@ export default function DashboardRouter() {
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
             </svg>
           </div>
-          <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>AHP Portal</span>
+          <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>Hospyn Portal</span>
         </div>
 
         <nav style={styles.nav}>

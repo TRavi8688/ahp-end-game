@@ -105,7 +105,7 @@ class DashboardService:
         dashboard_data = {
             "profile": {
                 "full_name": f"{user.first_name} {user.last_name}",
-                "ahp_id": patient.ahp_id,
+                "hospyn_id": patient.hospyn_id,
                 "blood_group": patient.blood_group,
                 "phone": patient.phone_number,
                 "dob": patient.date_of_birth,

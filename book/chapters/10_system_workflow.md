@@ -1,7 +1,7 @@
 # Chapter 10: System Workflow
 
 ## 10.1 Mission-Critical Operation Sequences
-AHP 2.0 is defined by how its components interact under pressure. This chapter breaks down the five core workflows.
+Hospyn 2.0 is defined by how its components interact under pressure. This chapter breaks down the five core workflows.
 
 ## 10.2 Workflow: User Login
 This secure handshake ensures identity and scope.

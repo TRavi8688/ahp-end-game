@@ -1,7 +1,7 @@
 # Chapter 04: Backend Architecture
 
 ## 4.1 Backend Framework: Enterprise FastAPI
-AHP 2.0 uses **FastAPI** for its asynchronous capabilities (uvicorn/gunicorn stack). The architecture is designed for **High-Throughput IO** where the database and AI network calls do not block the request-response cycle.
+Hospyn 2.0 uses **FastAPI** for its asynchronous capabilities (uvicorn/gunicorn stack). The architecture is designed for **High-Throughput IO** where the database and AI network calls do not block the request-response cycle.
 
 ## 4.2 Service Structure (SOA Pattern)
 The code is organized into a **Service-Oriented** structure to prevent a "Big Ball of Mud":
@@ -19,7 +19,7 @@ Every request follows a strict pipeline:
 5. **Response Formatting:** Pydantic models ensure standard JSON output.
 
 ## 4.4 Microservices vs. Monolith
-AHP 2.0 is a **Modular Monolith**. It is distributed in execution (Workers vs. API) but shares a single codebase and database for maintainability. It can be easily split into microservices if needed by deploying the `workers/` and `api/` directories into separate pods.
+Hospyn 2.0 is a **Modular Monolith**. It is distributed in execution (Workers vs. API) but shares a single codebase and database for maintainability. It can be easily split into microservices if needed by deploying the `workers/` and `api/` directories into separate pods.
 
 ## 4.5 Service Communication Flow
 ```mermaid

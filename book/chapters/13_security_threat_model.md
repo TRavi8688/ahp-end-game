@@ -1,7 +1,7 @@
 # Chapter 13: Security Threat Model
 
 ## 13.1 Systematic Threat Analysis
-AHP 2.0 uses a proactive threat model based on the STRIDE methodology. We assume attackers are constantly auditing our endpoints.
+Hospyn 2.0 uses a proactive threat model based on the STRIDE methodology. We assume attackers are constantly auditing our endpoints.
 
 ## 13.2 Attack Vector 1: Injection Attacks
 - **Description:** Attempting to inject SQL or Script through form inputs.

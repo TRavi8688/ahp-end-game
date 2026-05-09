@@ -1,8 +1,8 @@
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: ahp-default-deny
-  namespace: ahp-prod
+  name: hospyn-default-deny
+  namespace: hospyn-prod
 spec:
   podSelector: {}
   policyTypes:
@@ -13,11 +13,11 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: api-allow-ingress
-  namespace: ahp-prod
+  namespace: hospyn-prod
 spec:
   podSelector:
     matchLabels:
-      app: ahp-api
+      app: hospyn-api
   policyTypes:
   - Ingress
   ingress:
@@ -30,11 +30,11 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: api-allow-egress
-  namespace: ahp-prod
+  namespace: hospyn-prod
 spec:
   podSelector:
     matchLabels:
-      app: ahp-api
+      app: hospyn-api
   policyTypes:
   - Egress
   egress:
@@ -58,7 +58,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: worker-allow-egress
-  namespace: ahp-prod
+  namespace: hospyn-prod
 spec:
   podSelector:
     matchLabels:

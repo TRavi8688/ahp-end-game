@@ -56,7 +56,7 @@ export const useStore = create<AppState>()(
       clearAlerts: () => set({ alerts: [] }),
     }),
     {
-      name: 'ahp-staff-storage',
+      name: 'hospyn-staff-storage',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ 
         alerts: state.alerts, 

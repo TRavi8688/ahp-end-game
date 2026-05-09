@@ -1,6 +1,6 @@
-# AHP 2.0 Enterprise Technical Architecture
+# Hospyn 2.0 Enterprise Technical Architecture
 
-This document provides a deep-dive into the hardened backend and database architecture of the AHP 2.0 platform.
+This document provides a deep-dive into the hardened backend and database architecture of the Hospyn 2.0 platform.
 
 ---
 
@@ -63,7 +63,7 @@ erDiagram
 
     PATIENT {
         int id PK
-        string ahp_id UK
+        string hospyn_id UK
         string phone_number "AES-GCM Encrypted"
         string blood_group
         int version_id "OCC Lock"

@@ -6,10 +6,10 @@
     "ahp2o-495503": {
       "hosting": {
         "patient": [
-          "ahp-patient-app"
+          "hospyn-patient-app"
         ],
         "doctor": [
-          "ahp-doctor-app"
+          "hospyn-doctor-app"
         ]
       }
     }
