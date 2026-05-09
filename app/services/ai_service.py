@@ -161,8 +161,9 @@ class AsyncAIService:
 
     async def get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
-            # Aggressive timeout to prevent worker starvation during AI outages
-            self._client = httpx.AsyncClient(timeout=5.0) # Reduced from 12.0s
+            # Enforce strict 10s timeout for production reliability
+            timeout = httpx.Timeout(10.0, connect=10.0, read=10.0)
+            self._client = httpx.AsyncClient(timeout=timeout)
         return self._client
 
     async def optimize_image(self, image_path: str, max_size=(1024, 1024), quality=80) -> bytes:

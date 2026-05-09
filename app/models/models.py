@@ -168,6 +168,7 @@ class Hospital(Base):
     queues: Mapped[List["QueueToken"]] = relationship(back_populates="hospital")
     queue_entries: Mapped[List["QueueEntry"]] = relationship(back_populates="hospital")
     beds: Mapped[List["Bed"]] = relationship(back_populates="hospital")
+    inventory: Mapped[List["PharmacyStock"]] = relationship(back_populates="hospital")
 
     __mapper_args__ = {"version_id_col": version_id}
 
@@ -427,6 +428,8 @@ class DigitalPrescription(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     fulfilled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     pharmacist_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id")) # User ID of pharmacist who fulfilled
+    
+    items: Mapped[List["PrescriptionItem"]] = relationship(back_populates="prescription", cascade="all, delete-orphan")
 
 class LabDiagnosticOrder(Base):
     __tablename__ = "lab_diagnostic_orders"
@@ -471,6 +474,38 @@ class LabResult(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     
     order: Mapped["LabDiagnosticOrder"] = relationship(back_populates="results")
+
+class PharmacyStock(Base, TenantScopedMixin, TimestampMixin):
+    __tablename__ = "pharmacy_stock"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    hospital_id: Mapped[int] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    medication_name: Mapped[str] = mapped_column(String(255), index=True)
+    generic_name: Mapped[Optional[str]] = mapped_column(String(255))
+    quantity: Mapped[int] = mapped_column(default=0)
+    unit: Mapped[str] = mapped_column(String(50)) # e.g., Tablets, Bottles
+    min_stock_level: Mapped[int] = mapped_column(default=10)
+    expiry_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    batch_number: Mapped[Optional[str]] = mapped_column(String(100))
+    
+    hospital: Mapped["Hospital"] = relationship(back_populates="inventory")
+
+class PrescriptionItem(Base):
+    __tablename__ = "prescription_items"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    prescription_id: Mapped[int] = mapped_column(ForeignKey("digital_prescriptions.id"), index=True)
+    medication_id: Mapped[Optional[int]] = mapped_column(ForeignKey("pharmacy_stock.id")) # Link to inventory
+    
+    name: Mapped[str] = mapped_column(String(255))
+    dosage: Mapped[str] = mapped_column(String(100))
+    frequency: Mapped[str] = mapped_column(String(100))
+    duration: Mapped[str] = mapped_column(String(100))
+    instructions: Mapped[Optional[str]] = mapped_column(Text)
+    
+    status: Mapped[str] = mapped_column(String(50), default="pending") # pending, dispensed, out_of_stock
+    
+    prescription: Mapped["DigitalPrescription"] = relationship(back_populates="items")
 
 class ClinicalEvent(Base):
     """
