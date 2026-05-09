@@ -67,7 +67,7 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: github-deployer@ahp2o-495503.iam.gserviceaccount.com
+          service_account: github-deployer@hospyn.iam.gserviceaccount.com
 
       - name: Debug Identity
         run: |
@@ -83,15 +83,15 @@ jobs:
       - name: Build and Push Docker Image
         run: |
           # Ensure Artifact Registry repo exists
-          gcloud artifacts repositories create ahp-repo --repository-format=docker --location=us-central1 || true
+          gcloud artifacts repositories create hospyn-repo --repository-format=docker --location=us-central1 || true
           
-          IMAGE_NAME="us-central1-docker.pkg.dev/ahp2o-495503/ahp-repo/ahp-backend:${{ github.sha }}"
+          IMAGE_NAME="us-central1-docker.pkg.dev/hospyn/hospyn-repo/ahp-backend:${{ github.sha }}"
           docker build -t $IMAGE_NAME .
           
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "us-central1-docker.pkg.dev/ahp2o-495503/ahp-repo/ahp-backend:${{ github.sha }}"
+          image-ref: "us-central1-docker.pkg.dev/hospyn/hospyn-repo/ahp-backend:${{ github.sha }}"
           format: 'table'
           exit-code: '0' # Audit only: don't block deployment for external OS vulnerabilities
           ignore-unfixed: true
@@ -100,40 +100,34 @@ jobs:
 
       - name: Push Docker Image
         run: |
-          IMAGE_NAME="us-central1-docker.pkg.dev/ahp2o-495503/ahp-repo/ahp-backend:${{ github.sha }}"
+          IMAGE_NAME="us-central1-docker.pkg.dev/hospyn/hospyn-repo/ahp-backend:${{ github.sha }}"
           docker push $IMAGE_NAME
 
 
       - name: Deploy API Service
         run: |
-          IMAGE_NAME="us-central1-docker.pkg.dev/ahp2o-495503/ahp-repo/ahp-backend:${{ github.sha }}"
-          gcloud run deploy ahp-api \
+          IMAGE_NAME="us-central1-docker.pkg.dev/hospyn/hospyn-repo/ahp-backend:${{ github.sha }}"
+          gcloud run deploy hospyn-api \
             --image $IMAGE_NAME \
             --region us-central1 \
             --platform managed \
             --allow-unauthenticated \
-            --network ahp-vpc \
-            --subnet ahp-subnet \
-            --vpc-egress private-ranges-only \
-            --set-secrets "DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest,JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest" \
-            --set-env-vars "ENVIRONMENT=production,CLOUD_PROVIDER=gcp,GCP_PROJECT_ID=ahp2o-495503,GCS_BUCKET_NAME=ahp2o-495503-storage"
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest,JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,TWO_FACTOR_API_KEY=TWO_FACTOR_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,SARVAM_KEY=SARVAM_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest" \
+            --set-env-vars "ENVIRONMENT=production,CLOUD_PROVIDER=gcp,GCP_PROJECT_ID=hospyn,GCS_BUCKET_NAME=hospyn-vault"
 
       - name: Deploy Worker Service
         run: |
-          IMAGE_NAME="us-central1-docker.pkg.dev/ahp2o-495503/ahp-repo/ahp-backend:${{ github.sha }}"
-          gcloud run deploy ahp-worker \
+          IMAGE_NAME="us-central1-docker.pkg.dev/hospyn/hospyn-repo/ahp-backend:${{ github.sha }}"
+          gcloud run deploy hospyn-worker \
             --image $IMAGE_NAME \
             --region us-central1 \
             --platform managed \
             --no-allow-unauthenticated \
-            --network ahp-vpc \
-            --subnet ahp-subnet \
-            --vpc-egress private-ranges-only \
-            --min-instances 1 \
+            --min-instances 0 \
             --command "bash" \
             --args "-c,python3 -m http.server \$PORT & arq app.workers.arq_worker.WorkerSettings" \
-            --set-secrets "DATABASE_URL=DATABASE_URL:latest,REDIS_URL=REDIS_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest,JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest" \
-            --set-env-vars "ENVIRONMENT=production,CLOUD_PROVIDER=gcp,GCP_PROJECT_ID=ahp2o-495503,GCS_BUCKET_NAME=ahp2o-495503-storage"
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest,JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,TWO_FACTOR_API_KEY=TWO_FACTOR_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,SARVAM_KEY=SARVAM_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest" \
+            --set-env-vars "ENVIRONMENT=production,CLOUD_PROVIDER=gcp,GCP_PROJECT_ID=hospyn,GCS_BUCKET_NAME=hospyn-vault"
 
   deploy-frontends:
     name: Deploy Frontends to Firebase
@@ -173,5 +167,5 @@ jobs:
           
           # 4. Provision and Deploy
           # Ensure a site exists to deploy to
-          npx firebase-tools hosting:sites:create ahp2o-495503 --project ahp2o-495503 || true
-          npx firebase-tools deploy --only hosting --site ahp2o-495503 --project ahp2o-495503
+          npx firebase-tools hosting:sites:create hospyn --project hospyn || true
+          npx firebase-tools deploy --only hosting --site hospyn --project hospyn

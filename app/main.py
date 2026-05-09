@@ -20,16 +20,14 @@ import sentry_sdk
 
 logger.info("STARTUP: Hospyn 2.0 API Enterprise Initialization...")
 
-# --- OpenTelemetry REMOVED for RAM optimization ---
-# meter = metrics.get_meter("hospyn.api")
-# http_request_counter = ...
+from app.core.telemetry import setup_telemetry
 
-from app.api import auth, patient, profile, doctor, doctor_verification
+from app.api import auth, patient, profile, doctor, doctor_verification, admin, privacy, auth_onboarding, staff, governance
 from app.core.realtime import manager
-from app.core.database import get_db
+from app.core.database import get_db, set_tenant_context
 from app.core.limiter import limiter
 from app.models.models import Base
-from app.core.middleware import IdempotencyMiddleware, RequestIDMiddleware
+from app.core.middleware import IdempotencyMiddleware, RequestIDMiddleware, TenantMiddleware
 from app.schemas.common import StandardErrorSchema
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
@@ -60,6 +58,9 @@ app = FastAPI(
     redoc_url=None
 )
 
+# 1. Observability: OpenTelemetry Initialization
+setup_telemetry(app)
+
 @app.get("/")
 async def root():
     return {"message": "Welcome to Hospyn 2.0 Enterprise API"}
@@ -88,9 +89,18 @@ async def readiness_probe(request: Request, db: AsyncSession = Depends(get_db)):
     try:
         await db.execute(text("SELECT 1"))
     except Exception as e:
-        logger.error(f"READINESS_FAILURE: {e}")
+        logger.error(f"READINESS_FAILURE_DB: {e}")
         status_code = 503
         subsystems["db"] = "down"
+
+    # 2. Redis Check
+    from app.services.redis_service import redis_service
+    if not await redis_service.ping():
+        logger.error("READINESS_FAILURE_REDIS: Cache unreachable")
+        status_code = 503
+        subsystems["redis"] = "down"
+    else:
+        subsystems["redis"] = "up"
 
     response = {
         "status": "ready" if status_code == 200 else "not_ready",
@@ -112,7 +122,10 @@ async def health_check(request: Request, db: AsyncSession = Depends(get_db)):
 # Traceability & Metrics first
 app.add_middleware(RequestIDMiddleware)
 app.middleware("http")(instrument_request())
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+app.add_middleware(
+    ProxyHeadersMiddleware, 
+    trusted_hosts=settings.TRUSTED_PROXIES
+)
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
@@ -134,6 +147,9 @@ app.add_middleware(
 
 # Idempotency (Must be after RequestID for logging correlation)
 app.add_middleware(IdempotencyMiddleware)
+
+# 3. Tenant Isolation: Postgres RLS Context
+app.add_middleware(TenantMiddleware)
 
 
 @app.on_event("shutdown")
@@ -210,6 +226,11 @@ app.include_router(patient.router, prefix=settings.API_V1_STR)
 app.include_router(profile.router, prefix=settings.API_V1_STR)
 app.include_router(doctor.router, prefix=settings.API_V1_STR)
 app.include_router(doctor_verification.router, prefix=settings.API_V1_STR)
+app.include_router(admin.router, prefix=settings.API_V1_STR)
+app.include_router(privacy.router, prefix=settings.API_V1_STR, tags=["Privacy"])
+app.include_router(auth_onboarding.router, prefix=settings.API_V1_STR, tags=["Onboarding"])
+app.include_router(staff.router, prefix=settings.API_V1_STR, tags=["Staff Management"])
+app.include_router(governance.router, prefix=settings.API_V1_STR)
 
 @app.websocket("/ws/{token}")
 async def websocket_endpoint(websocket: WebSocket, token: str):

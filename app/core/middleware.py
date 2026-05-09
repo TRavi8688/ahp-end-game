@@ -155,3 +155,43 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
         finally:
             # Release lock
             await redis_service.delete(lock_key)
+
+class TenantMiddleware(BaseHTTPMiddleware):
+    """
+    ENTERPRISE TENANT BOUNDARY ENFORCEMENT:
+    Extracts and cryptographically verifies the tenant_id from the JWT.
+    Trust is NEVER established on unverified claims to prevent RLS bypass/injection.
+    """
+    async def dispatch(self, request: Request, call_next):
+        auth_header = request.headers.get("Authorization")
+        request.state.tenant_id = None
+
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.replace("Bearer ", "")
+            try:
+                from app.core import security
+                # ENTERPRISE: Perform FULL cryptographic verification (RS256) 
+                # BEFORE trusting any tenant context.
+                payload = security.decode_token(token, token_type="access")
+                
+                if payload:
+                    # Check for hospital_id or fallback to tenant_id
+                    tenant_id_raw = payload.get("hospital_id") or payload.get("tenant_id")
+                    
+                    if tenant_id_raw:
+                        # STRICT VALIDATION: Ensure it's a valid UUID to prevent SQL injection 
+                        # downstream in the RLS session setup.
+                        import uuid as uuid_lib
+                        try:
+                            valid_uuid = str(uuid_lib.UUID(str(tenant_id_raw)))
+                            request.state.tenant_id = valid_uuid
+                            
+                            # Bind to logging context for auditability
+                            structlog.contextvars.bind_contextvars(hospital_id=valid_uuid)
+                        except ValueError:
+                            logger.error("MALFORMED_TENANT_ID_IN_JWT", tenant_id=tenant_id_raw)
+                            return Response(status_code=401, content="Invalid security context")
+            except Exception as e:
+                logger.warning(f"TENANT_EXTRACTION_FAILURE: {e}")
+
+        return await call_next(request)

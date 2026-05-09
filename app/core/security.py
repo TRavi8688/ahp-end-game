@@ -21,9 +21,10 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, List, Optional, Union
 
+import uuid
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy import select, cast, Integer
+from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from jose import jwt, JWTError
@@ -41,8 +42,8 @@ logger = logging.getLogger(__name__)
 def create_access_token(
     subject: Union[str, Any],
     role: str,
-    tenant_id: Optional[int] = None,
-    dept_scope: Optional[List[int]] = None,
+    tenant_id: Optional[uuid.UUID] = None,
+    dept_scope: Optional[List[uuid.UUID]] = None,
     token_version: int = 1,
     expires_delta: Optional[timedelta] = None,
 ) -> str:
@@ -50,10 +51,10 @@ def create_access_token(
     Creates a minimal, signed RS256 access token.
 
     Payload contract:
-        sub            : str  — user ID
+        sub            : str  — user UUID
         role           : str  — RoleEnum value
-        tenant_id      : int  — hospital_id (None for platform admins)
-        dept_scope     : list — department IDs the user can access
+        tenant_id      : UUID — hospital_id (None for platform admins)
+        dept_scope     : list — department UUIDs the user can access
         token_version  : int  — must match DB; increment to revoke
         type           : str  — "access"
     """
@@ -209,7 +210,7 @@ async def get_current_user(
     result = await db.execute(
         select(User)
         .options(selectinload(User.staff_profile))
-        .where(User.id == cast(user_id, Integer))
+        .where(User.id == user_id)
     )
     user: Optional[User] = result.scalars().first()
     if not user:
@@ -255,7 +256,7 @@ def require_roles(*roles: str):
     return checker
 
 
-def require_tenant_access(hospital_id: int):
+def require_tenant_access(hospital_id: uuid.UUID):
     """
     Dependency factory that validates the requesting user belongs to the
     target hospital. Prevents cross-tenant data leakage.

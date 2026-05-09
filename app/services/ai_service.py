@@ -19,17 +19,32 @@ from app.core.logging import logger
 from app.core.insforge_client import insforge
 from app.services.redis_service import redis_service
 import pytesseract
+import bleach
 
 def sanitize_ai_output(text: str) -> str:
-    """Enterprise-grade HTML/XSS sanitization for AI-generated content."""
+    """
+    Enterprise-grade HTML/XSS sanitization for AI-generated content.
+    Uses 'bleach' to allow only a safe subset of tags for clinical reporting.
+    """
     if not text:
         return ""
-    # Remove script tags and dangerous attributes
-    clean = re.sub(r'<script.*?>.*?</script>', '', text, flags=re.DOTALL | re.IGNORECASE)
-    clean = re.sub(r'on\w+=".*?"', '', clean, flags=re.IGNORECASE)
-    clean = re.sub(r'javascript:', '', clean, flags=re.IGNORECASE)
-    # Escape major HTML entities if not explicitly allowed (very strict)
-    # For CHITTI, we allow basic formatting like bold/italics
+        
+    allowed_tags = [
+        'b', 'i', 'u', 'strong', 'em', 'ul', 'ol', 'li', 'p', 'br', 
+        'h1', 'h2', 'h3', 'code', 'pre', 'blockquote'
+    ]
+    allowed_attrs = {
+        '*': ['class'],
+        'a': ['href', 'title', 'target'],
+    }
+    
+    # Bleach performs structural HTML cleaning, preventing nested-tag bypasses
+    clean = bleach.clean(
+        text, 
+        tags=allowed_tags, 
+        attributes=allowed_attrs, 
+        strip=True
+    )
     return clean.strip()
 
 # ... (rest of the file remains similar but with sanitization applied)
@@ -50,6 +65,14 @@ class AIParseError(AIServiceError):
     """Raised when AI response cannot be parsed into the expected format."""
     pass
 
+class AISafetyMetadata(BaseModel):
+    confidence_score: float = Field(..., ge=0, le=1)
+    evidence_sources: List[str] = Field(default_factory=list)
+    uncertainty_reason: Optional[str] = None
+    hallucination_risk: float = Field(default=0.0, ge=0, le=1)
+    clinical_scope_validated: bool = True
+    escalation_required: bool = False
+
 from app.core.encryption import encrypt_value, decrypt_value, DecryptionError
 
 def encrypt_data(data: str) -> str:
@@ -66,64 +89,9 @@ class MedicalEntities(BaseModel):
     medications: List[Dict[str, Any]] = Field(default_factory=list)
     lab_results: List[Dict[str, Any]] = Field(default_factory=list)
 
-class CircuitBreaker:
-    """Redis-backed circuit breaker with local in-memory fallback."""
-    _memory_fails = {} # Survival during Redis outage
+from app.models.models import AISafetyMode, ClinicalAIEvent
 
-    def __init__(self, provider: str, threshold: int = 3, window_seconds: int = 300):
-        self.provider = provider
-        self.failure_threshold = 2 # Reduced from 3 for faster trips
-        self.window = window_seconds
-        self.key = f"circuit_breaker:{provider}"
-
-    async def _get_fails(self) -> int:
-        """Fetch failure count with Redis -> Memory fallback."""
-        try:
-            val = await redis_service.get(self.key)
-            return int(val) if val else self._memory_fails.get(self.provider, 0)
-        except Exception:
-            return self._memory_fails.get(self.provider, 0)
-
-    async def is_open(self) -> bool:
-        """Check if the circuit is open (provider is disabled)."""
-        fails = await self._get_fails()
-        if fails >= self.failure_threshold: # Changed to self.failure_threshold
-            # ULTIMATE RESILIENCE: High-Precision Half-Open Probe
-            probe_key = f"{self.key}:probe"
-            try:
-                # If we can set the probe key, we allow ONE request through to test the provider
-                is_probing = await redis_service.get(probe_key)
-                if not is_probing:
-                    await redis_service.set(probe_key, "1", expire=15) # Probe lock for 15s
-                    logger.info(f"CIRCUIT_PROBE: Attempting discovery probe for {self.provider}.")
-                    return False 
-            except Exception:
-                pass
-
-            logger.warning(f"CIRCUIT_OPEN: {self.provider} disabled. High error rate ({fails} fails).")
-            return True
-        return False
-
-    async def record_failure(self):
-        """Increment failure count for the provider."""
-        current = await self._get_fails()
-        new_val = current + 1
-        self._memory_fails[self.provider] = new_val # Always update memory
-        try:
-            await redis_service.set(self.key, str(new_val), expire=self.window)
-        except Exception:
-            pass # Redis down, memory is primary
-            
-        if new_val >= self.failure_threshold: # Changed to self.failure_threshold
-            logger.critical(f"CIRCUIT_TRIPPED: {self.provider} disabled for {self.window}s.")
-
-    async def record_success(self):
-        """Reset failure count on success."""
-        self._memory_fails[self.provider] = 0
-        try:
-            await redis_service.delete(self.key)
-        except Exception:
-            pass
+from app.core.reliability import DistributedCircuitBreaker, with_retry
 
 class AsyncAIService:
     def __init__(self):
@@ -135,11 +103,12 @@ class AsyncAIService:
         self.anon_key = settings.INSFORGE_ANON_KEY
         self._client: Optional[httpx.AsyncClient] = None
         self.usage_metrics = {"tokens_total": 0, "requests_total": 0, "provider_stats": {}}
+        self.safety_mode = AISafetyMode.clinical_assist
         self.circuits = {
-            "gemini": CircuitBreaker("gemini"),
-            "groq": CircuitBreaker("groq"),
-            "anthropic": CircuitBreaker("anthropic"),
-            "insforge": CircuitBreaker("insforge")
+            "gemini": DistributedCircuitBreaker("gemini", failure_threshold=3),
+            "groq": DistributedCircuitBreaker("groq", failure_threshold=3),
+            "anthropic": DistributedCircuitBreaker("anthropic", failure_threshold=3),
+            "insforge": DistributedCircuitBreaker("insforge", failure_threshold=3)
         }
 
     def _log_usage(self, provider: str, tokens: int = 0, file_size_kb: int = 0, latency_ms: float = 0):
@@ -202,15 +171,15 @@ class AsyncAIService:
         try:
             resp = await client.post(url, json=payload)
             if resp.status_code == 429:
-                await self.circuits[provider].record_failure()
+                await self.circuits[provider]._on_failure(Exception("Rate Limit"))
                 raise AIRateLimitError("Gemini rate limit exceeded")
             resp.raise_for_status()
             data = resp.json()
-            await self.circuits[provider].record_success()
+            await self.circuits[provider]._on_success()
             self._log_usage(provider, tokens=len(prompt) // 4) # Rough estimate
             return data['candidates'][0]['content']['parts'][0]['text'].strip()
         except Exception as e:
-            await self.circuits[provider].record_failure()
+            await self.circuits[provider]._on_failure(e)
             logger.error(f"Gemini API call failed: {e}")
             return "ERROR"
 
@@ -248,11 +217,11 @@ class AsyncAIService:
         try:
             resp = await client.post(url, headers=headers, json=payload)
             resp.raise_for_status()
-            await self.circuits[provider].record_success()
+            await self.circuits[provider]._on_success()
             self._log_usage(provider, tokens=len(prompt) // 4)
             return resp.json()["content"][0]["text"].strip()
         except Exception as e:
-            await self.circuits[provider].record_failure()
+            await self.circuits[provider]._on_failure(e)
             logger.error(f"Anthropic API call failed: {e}")
             return ""
 
@@ -301,14 +270,14 @@ class AsyncAIService:
         try:
             resp = await client.post(url, headers=headers, json=payload)
             if resp.status_code == 429:
-                await self.circuits[provider].record_failure()
+                await self.circuits[provider]._on_failure(Exception("Rate Limit"))
                 raise AIRateLimitError("Groq rate limit exceeded")
             resp.raise_for_status()
-            await self.circuits[provider].record_success()
+            await self.circuits[provider]._on_success()
             self._log_usage(provider, tokens=len(prompt) // 4)
             return resp.json()["choices"][0]["message"]["content"].strip()
         except Exception as e:
-            await self.circuits[provider].record_failure()
+            await self.circuits[provider]._on_failure(e)
             logger.error(f"Groq API call failed: {e}")
             return ""
 
@@ -345,14 +314,14 @@ class AsyncAIService:
             resp = await client.post(url, headers=headers, json=payload)
             resp.raise_for_status()
             data = resp.json()
-            await self.circuits[provider].record_success()
+            await self.circuits[provider]._on_success()
             self._log_usage(provider, tokens=len(prompt) // 4)
             content = data.get("text", "").strip()
             if not content and "choices" in data:
                 content = data["choices"][0]["message"]["content"].strip()
             return sanitize_ai_output(content)
         except Exception as e:
-            await self.circuits[provider].record_failure()
+            await self.circuits[provider]._on_failure(e)
             logger.error(f"InsForge AI call failed: {e}")
             return ""
 
@@ -378,21 +347,44 @@ class AsyncAIService:
             logger.error(f"STT failed: {e}")
             return ""
 
-    async def unified_ai_engine(self, prompt: str, image_bytes: bytes = None, force_json: bool = False, mime_type: str = "image/jpeg", language_code: str = "en") -> str:
+    async def unified_ai_engine(
+        self, 
+        prompt: str, 
+        image_bytes: bytes = None, 
+        force_json: bool = False, 
+        mime_type: str = "image/jpeg", 
+        language_code: str = "en",
+        user_id: Optional[uuid.UUID] = None,
+        hospital_id: Optional[uuid.UUID] = None,
+        prompt_template: str = "generic",
+        db: Optional[AsyncSession] = None
+    ) -> str:
         """
-        AI Engine with multi-provider failover and Regional Language Support.
-        Priority: InsForge (free, reliable) -> Anthropic -> Groq -> Gemini
+        AI Engine with multi-provider failover and Clinical Safety Governance.
+        ENTERPRISE HARDENING: Enforces clinical neutrality and evidence grounding.
         """
+        # Inject Enterprise Clinical Safety Instructions
+        safety_instruction = (
+            "\n\n[CLINICAL SAFETY & GOVERNANCE PROTOCOL]\n"
+            "1. TONE: Maintain strict clinical neutrality. Do NOT use emotional, reassuring, or celebratory language.\n"
+            "2. EVIDENCE: Every clinical claim MUST be grounded in the provided context. List 'evidence_sources' as UUIDs.\n"
+            "3. UNCERTAINTY: If data is missing or ambiguous, explicitly state 'Low Confidence' and reason.\n"
+            "4. SCOPE: Do NOT provide definitive diagnoses. Use 'Findings suggestive of...' or 'Differential includes...'.\n"
+        )
+        if force_json:
+            safety_instruction += "Include a 'safety_metadata' object: {confidence_score: float, evidence_sources: list[uuid], hallucination_risk: float}."
+        
+        prompt += safety_instruction
+
         if os.getenv("DEMO_MODE", "False") == "True":
             logger.info("DEMO_MODE: Bypassing AI Engine with Mock Response.")
             if force_json:
                 return json.dumps({
-                    "conditions": [{"name": "Mild Viral Fever", "severity": "mild"}],
-                    "medications": [{"name": "Paracetamol 500mg", "dosage": "Twice daily"}],
-                    "lab_results": [{"test": "Hemoglobin", "result": "13.5 g/dL"}],
-                    "answer": "I've analyzed your report. Everything looks stable."
+                    "conditions": [{"name": "Stable Vital Signs", "severity": "normal"}],
+                    "safety_metadata": {"confidence_score": 1.0, "evidence_sources": [], "hallucination_risk": 0.0},
+                    "answer": "Clinical findings are within normal physiological ranges."
                 })
-            return "CLINICAL SUMMARY: Patient presents with symptoms of a viral infection. Rest is recommended."
+            return "CLINICAL SUMMARY: Observations consistent with normal baseline. No immediate intervention required."
 
         if image_bytes:
             # Vision-capable models
@@ -422,12 +414,16 @@ class AsyncAIService:
         
         async def _attempt_provider(p_key, func, model):
             if p_key in self.circuits:
-                if await self.circuits[p_key].is_open():
+                if not await self.circuits[p_key].is_available():
                     return None
             try:
+                start_time = time.time()
                 res = await func(model, prompt, image_bytes, mime_type, force_json)
+                latency = int((time.time() - start_time) * 1000)
+                
                 if res and res not in ["ERROR", "SERVICE_UNAVAILABLE", "MISSING_KEY"] and len(res.strip()) > 5:
-                    return sanitize_ai_output(res.strip())
+                    # Forensic Logging would happen here or in the caller
+                    return res.strip(), p_key, model, latency
             except Exception:
                 pass
             return None
@@ -466,12 +462,19 @@ class AsyncAIService:
                     break
 
         # Final Fallback (Sequential) for remaining providers if still unavailable
+        final_p_key, final_model, final_latency = None, None, 0
         if response_text == "SERVICE_UNAVAILABLE" and len(providers) > 3:
             for p_key, func, model in providers[3:]:
-                 res = await _attempt_provider(p_key, func, model)
-                 if res:
-                     response_text = res
+                 res_tuple = await _attempt_provider(p_key, func, model)
+                 if res_tuple:
+                     response_text, final_p_key, final_model, final_latency = res_tuple
                      break
+
+        # Extract Provider Info if available
+        # (This is a bit messy because of the racing logic, but necessary for forensics)
+        actual_provider = final_p_key or "unknown"
+        actual_model = final_model or "unknown"
+        actual_latency = final_latency
 
 
         # --- Regional Language Enhancement (Sarvam) ---
@@ -479,19 +482,40 @@ class AsyncAIService:
             logger.info(f"TRANSLATING: Response to {language_code} via Sarvam...")
             response_text = await self._call_sarvam(response_text, language_code)
 
-        # 4. Demo Mode Fallback (Offline/No Keys)
-        if response_text == "SERVICE_UNAVAILABLE" and os.getenv("DEMO_MODE", "False") == "True":
-            logger.info("DEMO_MODE: Returning mock AI response.")
-            if force_json:
-                return json.dumps({
-                    "conditions": [{"name": "Mild Viral Fever", "severity": "mild"}],
-                    "medications": [{"name": "Paracetamol 500mg", "dosage": "Twice daily"}],
-                    "lab_results": [{"test": "Hemoglobin", "result": "13.5 g/dL"}],
-                    "answer": "I've analyzed your report. Everything looks stable."
-                })
-            return "CLINICAL SUMMARY: Patient presents with symptoms of a viral infection. Rest is recommended."
+        # --- ENTERPRISE AI BLACK BOX RECORDER (Forensics) ---
+        if db and user_id and response_text != "SERVICE_UNAVAILABLE":
+            try:
+                # Extract safety metadata if JSON
+                safety_meta = {"confidence_score": 0.5} # Default
+                if force_json:
+                    try:
+                        data = json.loads(response_text)
+                        safety_meta = data.get("safety_metadata", safety_meta)
+                    except: pass
 
-        return response_text
+                from opentelemetry import trace
+                span_ctx = trace.get_current_span().get_span_context()
+                trace_id = hex(span_ctx.trace_id)[2:] if span_ctx.is_valid else "internal"
+
+                event = ClinicalAIEvent(
+                    hospital_id=hospital_id,
+                    user_id=user_id,
+                    trace_id=trace_id,
+                    prompt_template=prompt_template,
+                    prompt_payload={"prompt_length": len(prompt)}, # Don't store full prompt in basic audit
+                    response_text=response_text[:1000], # Truncate for DB
+                    safety_metadata=safety_meta,
+                    provider=actual_provider,
+                    model_version=actual_model,
+                    latency_ms=actual_latency,
+                    safety_mode=self.safety_mode
+                )
+                db.add(event)
+                # Note: We don't commit here, we rely on the caller's transaction
+            except Exception as e:
+                logger.error(f"AI_FORENSICS_FAILURE: {e}")
+
+        return sanitize_ai_output(response_text)
 
     async def _call_local_ocr(self, image_bytes: bytes) -> str:
         """Local Tesseract fallback for OCR when all cloud AI services are down."""
@@ -539,15 +563,15 @@ class AsyncAIService:
         return await self.unified_ai_engine(prompt)
 
     async def explain_to_patient(self, entities: MedicalEntities, raw_text: str, language_code: str = "en") -> str:
-        """解释给病人 (Explain to patient) - The CHITTI Persona."""
+        """解释给病人 (Explain to patient) - The CHITTI Persona (Hardened)."""
         prompt = (
-            "You are 'CHITTI', a friendly, compassionate, and highly intelligent medical assistant for the Hospyn 2.0 platform.\n"
-            f"Your goal is to explain the following medical findings to a patient in language: {language_code}.\n"
-            "Guidelines:\n"
-            "1. Be extremely warm, reassuring, and use simple language (no jargon).\n"
-            "2. Address their medical doubts with empathy, like a caring family doctor.\n"
-            "3. If the data shows something concerning, be gentle but advise seeing their doctor.\n"
-            "4. If the data is normal, celebrate the good health with them!\n"
+            "You are 'CHITTI', a professional and objective medical assistant.\n"
+            f"Your goal is to explain the following medical findings in language: {language_code}.\n"
+            "Enterprise Safety Guidelines:\n"
+            "1. Be professional and neutral. Do NOT use emotional, reassuring, or celebratory language.\n"
+            "2. Clearly distinguish between normal findings and those requiring clinician review.\n"
+            "3. Use plain language but maintain clinical accuracy.\n"
+            "4. ALWAYS include a disclaimer: 'This is an AI summary. Please consult your physician for medical decisions.'\n"
             f"Entities Found: {entities.model_dump_json()}\n"
             f"Raw Narrative: {raw_text[:500]}\n\n"
             "Return EXCLUSIVELY a JSON object: {\"answer\": \"your explanation here\"}"
@@ -559,11 +583,13 @@ class AsyncAIService:
             if clean_res.startswith("```json"): clean_res = clean_res[7:-3]
             elif clean_res.startswith("```"): clean_res = clean_res[3:-3]
             
-            return sanitize_ai_output(json.loads(clean_res.strip()).get("answer", "I've analyzed your results, and they're ready for your doctor to review."))
+            answer = json.loads(clean_res.strip()).get("answer")
+            if not answer: raise ValueError("No answer field")
+            return sanitize_ai_output(answer)
         except Exception as e:
             logger.error(f"CHITTI_PARSE_ERROR: {e} | Raw: {res}")
-            # Fallback to direct text if translation/JSON failed
-            return sanitize_ai_output(res) if len(res) > 20 else "I'm Chitti! I've analyzed your reports. Please check with your doctor for the next steps."
+            # Fallback to professional disclaimer
+            return "I have processed your medical findings. The results are available for your physician to review. This is an AI summary; please consult your doctor for all medical decisions."
 
     async def _get_file_bytes(self, source: str) -> bytes:
         """Helper to get file bytes from either a local path or GCP Cloud Storage."""
@@ -666,7 +692,7 @@ class AsyncAIService:
         from sqlalchemy import select
         from app.models import models
         stmt = select(models.Message).where(
-            models.Message.user_id == int(user_id), 
+            models.Message.user_id == user_id, 
             models.Message.conversation_id == conversation_id
         ).order_by(models.Message.created_at.asc())
         
@@ -687,7 +713,7 @@ class AsyncAIService:
         try:
             from app.models import models
             msg = models.Message(
-                user_id=int(user_id), 
+                user_id=user_id, 
                 conversation_id=conversation_id, 
                 role=role, 
                 content=content
@@ -708,7 +734,7 @@ class AsyncAIService:
             from sqlalchemy import select
             
             # Fetch Patient Profile ID first
-            res = await db.execute(select(Patient).where(Patient.user_id == int(user_id)))
+            res = await db.execute(select(Patient).where(Patient.user_id == user_id))
             patient = res.scalar_one_or_none()
             if not patient:
                 return "No clinical profile found for this user."

@@ -77,10 +77,11 @@ class Settings(BaseSettings):
 
     # --- 4. INFRASTRUCTURE & COMPLIANCE ---
     ALLOWED_ORIGINS: List[str] = []
+    TRUSTED_PROXIES: List[str] = ["127.0.0.1"] # Whitelist of trusted proxy IPs
     
-    @field_validator("ALLOWED_ORIGINS", mode="before")
+    @field_validator("ALLOWED_ORIGINS", "TRUSTED_PROXIES", mode="before")
     @classmethod
-    def assemble_cors_origins(cls, v: Any) -> Any:
+    def assemble_list(cls, v: Any) -> Any:
         import json
         if isinstance(v, str):
             try:
@@ -93,6 +94,8 @@ class Settings(BaseSettings):
     TWILIO_ACCOUNT_SID: Optional[str] = None
     TWILIO_AUTH_TOKEN: Optional[str] = None
     TWILIO_FROM_NUMBER: Optional[str] = None
+    
+    TWO_FACTOR_API_KEY: Optional[str] = None
     
     # --- 6. AI ENGINE (Multi-Provider) ---
     GEMINI_API_KEY: Optional[str] = None
@@ -136,14 +139,35 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_lockdown(self) -> "Settings":
-        """Fail-fast check for zero-trust compliance on GCP/AWS."""
+        """Fail-fast check for zero-trust compliance and production safety."""
         if self.ENVIRONMENT == "production":
+            # Infrastructure Checks
             if "localhost" in self.DATABASE_URL or "127.0.0.1" in self.DATABASE_URL:
                 raise ValueError("PRODUCTION_FAIL: Managed database must be used in production.")
             
             if not self.REDIS_URL or "localhost" in self.REDIS_URL:
                 raise ValueError("PRODUCTION_FAIL: Managed cache (Redis) is mandatory.")
+
+            # Network Security Checks
+            if "*" in self.TRUSTED_PROXIES:
+                raise ValueError("PRODUCTION_FAIL: trusted_hosts wildcard '*' is strictly forbidden in production.")
             
+            if "*" in self.ALLOWED_ORIGINS:
+                 raise ValueError("PRODUCTION_FAIL: CORS wildcard '*' is strictly forbidden in production.")
+
+            # Feature/Mode Checks
+            if self.DEMO_MODE:
+                raise ValueError("PRODUCTION_FAIL: DEMO_MODE must be disabled in production.")
+
+            # Secret Entropy Checks
+            if len(self.SECRET_KEY) < 32:
+                 raise ValueError("PRODUCTION_FAIL: SECRET_KEY is too weak (min 32 chars).")
+
+            # Communication Checks
+            if not self.TWO_FACTOR_API_KEY:
+                raise ValueError("PRODUCTION_FAIL: TWO_FACTOR_API_KEY is mandatory for production SMS.")
+
+            # Cloud Provider Specifics
             if self.CLOUD_PROVIDER == "gcp":
                 if not self.GCP_PROJECT_ID:
                     raise ValueError("PRODUCTION_FAIL: GCP_PROJECT_ID is mandatory for GCP.")

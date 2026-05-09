@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.core.database import get_db
 from app.schemas import schemas
-from app.models.models import Doctor, User, Patient, DoctorAccess, Allergy, QueueEntry
+from app.models.models import Doctor, User, Patient, DoctorAccess, Allergy, QueueEntry, ClinicalAIEvent, ClinicianOverride
 from app.api.deps import get_current_doctor
 from app.repositories.base import PatientRepository
 from typing import List
@@ -140,18 +140,85 @@ async def lookup_patient(
     stmt_user = select(User).where(User.id == patient.user_id)
     result_user = await db.execute(stmt_user)
     user = result_user.scalar_one_or_none()
-    
     name = f"{user.first_name} {user.last_name}" if user else "Hospyn Patient"
     
-    # Fetch allergies (public clinical info)
+    # Fetch allergies
     stmt_allergies = select(Allergy).where(Allergy.patient_id == patient.id)
     result_allergies = await db.execute(stmt_allergies)
     allergies = result_allergies.scalars().all()
+
+    # Masking Logic: Only reveal PII/PHI if access is GRANTED
+    if not existing_access:
+        # Mask name: "Rahul Sharma" -> "R**** S****"
+        name_parts = name.split()
+        masked_name = " ".join([n[0] + "*" * (len(n) - 1) if len(n) > 1 else n for n in name_parts])
+        
+        return {
+            "profile": {
+                "hospyn_id": patient.hospyn_id, 
+                "name": masked_name
+            },
+            "allergies": [], # Hide PHI until consent
+            "status": "pending_consent",
+            "consent_required": True
+        }
     
     return {
         "profile": {"hospyn_id": patient.hospyn_id, "name": name},
         "allergies": [{"allergen": a.allergen, "severity": a.severity} for a in allergies],
-        "status": "granted" if existing_access else "pending_consent"
+        "status": "granted"
+    }
+
+@router.post("/emergency-access", response_model=schemas.DoctorScanResponse)
+async def emergency_break_glass(
+    request: schemas.DoctorScanRequest,
+    db: AsyncSession = Depends(get_db),
+    current_doctor: Doctor = Depends(get_current_doctor)
+):
+    """
+    CRITICAL: Bypasses patient consent for life-threatening emergencies.
+    Triggers immediate high-priority audit alerts and forensic logging.
+    """
+    from app.core.audit import log_audit_action
+    
+    repo = PatientRepository(Patient, db)
+    patient = await repo.get_by_hospyn_id(request.hospyn_id)
+    
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+        
+    # 1. Create Break-Glass Access Record
+    new_access = DoctorAccess(
+        patient_id=patient.id,
+        doctor_user_id=current_doctor.user_id,
+        doctor_name="EMERGENCY_OVERRIDE",
+        clinic_name=request.clinic_name,
+        access_level="read", # Emergency is usually read-only for history
+        status="granted",
+        granted_at=func.now()
+    )
+    db.add(new_access)
+    
+    # 2. Forensic Audit Log (High Priority)
+    await log_audit_action(
+        db=db,
+        action="EMERGENCY_BREAK_GLASS_ACCESS",
+        user_id=current_doctor.user_id,
+        resource_type="PATIENT_PHI",
+        resource_id=patient.id,
+        details={
+            "justification": "Emergency Clinical Override",
+            "hospyn_id": request.hospyn_id,
+            "clinic": request.clinic_name
+        }
+    )
+    
+    await db.commit()
+    
+    return {
+        "status": "success",
+        "message": "EMERGENCY ACCESS GRANTED. This action has been logged and reported to the compliance department.",
+        "access_id": new_access.id
     }
 
 @router.post("/scan-patient", response_model=schemas.DoctorScanResponse)
@@ -476,3 +543,53 @@ async def update_queue_status(
         "token_number": entry.token_number,
         "check_in_time": entry.check_in_time
     }
+
+# --- AI GOVERNANCE: CLINICIAN SUPREMACY ---
+
+@router.post("/ai/override", status_code=201)
+async def override_ai_recommendation(
+    override: schemas.AIOverrideRequest,
+    db: AsyncSession = Depends(get_db),
+    current_doctor: Doctor = Depends(get_current_doctor)
+):
+    """
+    Clinician Override: Allows formal correction of AI findings.
+    Mandatory for medical-legal accountability.
+    """
+    # 1. Verify AI Event exists
+    result = await db.execute(select(ClinicalAIEvent).where(ClinicalAIEvent.id == override.ai_event_id))
+    ai_event = result.scalars().first()
+    if not ai_event:
+        raise HTTPException(status_code=404, detail="AI Event not found for forensics replay.")
+
+    # 2. Record the Override
+    new_override = ClinicianOverride(
+        hospital_id=current_doctor.hospital_id,
+        ai_event_id=override.ai_event_id,
+        doctor_user_id=current_doctor.user_id,
+        override_type=override.override_type,
+        justification=override.justification,
+        correction_text=override.correction_text,
+        severity_impact=override.severity_impact
+    )
+    
+    # 3. Mark the AI event as overridden
+    ai_event.overridden = True
+    
+    db.add(new_override)
+    await db.commit()
+    
+    # 4. Trigger Retraining/Alerting Pipeline
+    # (In a real system, this would push to a specialized queue for safety engineers)
+    from app.core.audit import log_audit_action
+    await log_audit_action(
+        db, 
+        action="AI_CLINICAL_OVERRIDE", 
+        user_id=current_doctor.user_id,
+        resource_type="AI_EVENT",
+        resource_id=ai_event.id,
+        details={"type": override.override_type, "severity": override.severity_impact}
+    )
+    
+    return {"status": "overridden", "audit_id": str(new_override.id)}
+

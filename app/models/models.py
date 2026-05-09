@@ -4,6 +4,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from datetime import datetime
 from typing import List, Optional
 import enum
+import uuid
 from app.core.encryption import StringEncryptedType, TextEncryptedType
 from app.models.mixins import TenantScopedMixin, VersionedMixin, AuditableMixin, TimestampMixin
 
@@ -29,6 +30,13 @@ class VerificationStatusEnum(str, enum.Enum):
     identity_verified = "identity_verified"
     otp_verified = "otp_verified"
     completed = "completed"
+
+class BedStatusEnum(str, enum.Enum):
+    available = "available"
+    reserved = "reserved"
+    occupied = "occupied"
+    cleaning = "cleaning"
+    maintenance = "maintenance"
 
 class QueueStatusEnum(str, enum.Enum):
     checked_in = "checked_in"
@@ -86,18 +94,26 @@ class LabOrderStatusEnum(str, enum.Enum):
     completed = "completed"
     rejected = "rejected"
 
+class AISafetyMode(str, enum.Enum):
+    informational = "informational"
+    clinical_assist = "clinical_assist"
+    restricted = "restricted"
+    emergency = "emergency"
+    human_only = "human_only"
+
 class Base(DeclarativeBase):
     pass
 
 class User(Base):
     __tablename__ = "users"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
     version_id: Mapped[int] = mapped_column(default=1, nullable=False)  # Optimistic Locking
     insforge_id: Mapped[Optional[str]] = mapped_column(String(100), unique=True, index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
     role: Mapped[RoleEnum] = mapped_column(SQLEnum(RoleEnum), default=RoleEnum.patient)
+    hospyn_id: Mapped[Optional[str]] = mapped_column(String(50), index=True) # Tenant lock
     first_name: Mapped[Optional[str]] = mapped_column(String(100))
     last_name: Mapped[Optional[str]] = mapped_column(String(100))
     is_active: Mapped[bool] = mapped_column(default=True)
@@ -113,12 +129,12 @@ class User(Base):
 
     __mapper_args__ = {"version_id_col": version_id}
 
-class Patient(Base):
+class Patient(Base, TenantScopedMixin, TimestampMixin):
     __tablename__ = "patients"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
     version_id: Mapped[int] = mapped_column(default=1, nullable=False)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     hospyn_id: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     # Encrypt PII Fields
     phone_number: Mapped[str] = mapped_column(StringEncryptedType(255))
@@ -140,9 +156,9 @@ class Patient(Base):
 class Doctor(Base):
     __tablename__ = "doctors"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
     version_id: Mapped[int] = mapped_column(default=1, nullable=False)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     specialty: Mapped[Optional[str]] = mapped_column(String(100))
     license_number: Mapped[str] = mapped_column(String(100), unique=True)
     license_status: Mapped[LicenseStatusEnum] = mapped_column(SQLEnum(LicenseStatusEnum), default=LicenseStatusEnum.pending)
@@ -153,10 +169,18 @@ class Doctor(Base):
 
     __mapper_args__ = {"version_id_col": version_id}
 
+class OrganizationTypeEnum(str, enum.Enum):
+    hospital = "hospital"
+    pharmacy = "pharmacy"
+    lab = "lab"
+
 class Hospital(Base):
     __tablename__ = "hospitals"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    hospyn_id: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    short_code: Mapped[str] = mapped_column(String(10), unique=True, index=True) # For manual patient entry
+    org_type: Mapped[OrganizationTypeEnum] = mapped_column(SQLEnum(OrganizationTypeEnum), default=OrganizationTypeEnum.hospital)
     version_id: Mapped[int] = mapped_column(default=1, nullable=False)
     name: Mapped[str] = mapped_column(String(255), index=True)
     registration_number: Mapped[str] = mapped_column(String(100), unique=True, index=True)
@@ -175,8 +199,8 @@ class Hospital(Base):
 class Department(Base):
     __tablename__ = "departments"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    hospital_id: Mapped[int] = mapped_column(ForeignKey("hospitals.id"))
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"))
     name: Mapped[str] = mapped_column(String(100))
     
     hospital: Mapped["Hospital"] = relationship(back_populates="departments")
@@ -188,11 +212,11 @@ class Department(Base):
 class StaffProfile(Base):
     __tablename__ = "staff_profiles"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
     version_id: Mapped[int] = mapped_column(default=1, nullable=False)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    hospital_id: Mapped[int] = mapped_column(ForeignKey("hospitals.id"))
-    department_id: Mapped[Optional[int]] = mapped_column(ForeignKey("departments.id"))
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"))
+    department_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("departments.id"))
     
     user: Mapped["User"] = relationship(back_populates="staff_profile")
     hospital: Mapped["Hospital"] = relationship(back_populates="staff")
@@ -200,18 +224,18 @@ class StaffProfile(Base):
     
     __mapper_args__ = {"version_id_col": version_id}
 
-class MedicalRecord(Base):
+class MedicalRecord(Base, TenantScopedMixin):
     __tablename__ = "medical_records"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
     version_id: Mapped[int] = mapped_column(default=1, nullable=False)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"))
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"))
     type: Mapped[RecordTypeEnum] = mapped_column(SQLEnum(RecordTypeEnum), default=RecordTypeEnum.document)
     file_url: Mapped[str] = mapped_column(String(255))
     raw_text: Mapped[Optional[str]] = mapped_column(TextEncryptedType)
 
     __mapper_args__ = {"version_id_col": version_id}
-    hospital_id: Mapped[Optional[int]] = mapped_column(ForeignKey("hospitals.id"), index=True, nullable=True)
+    # hospital_id now provided by TenantScopedMixin
     ai_extracted: Mapped[Optional[dict]] = mapped_column(JSON_TYPE)
     ai_summary: Mapped[Optional[str]] = mapped_column(TextEncryptedType)
     patient_summary: Mapped[Optional[str]] = mapped_column(TextEncryptedType)
@@ -223,24 +247,24 @@ class MedicalRecord(Base):
     
     patient: Mapped["Patient"] = relationship(back_populates="records")
 
-class Condition(Base):
+class Condition(Base, TenantScopedMixin, TimestampMixin):
     __tablename__ = "conditions"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"))
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"))
     name: Mapped[str] = mapped_column(StringEncryptedType(255))
     added_by: Mapped[AddedByEnum] = mapped_column(SQLEnum(AddedByEnum), default=AddedByEnum.patient)
     confirmed_by_patient: Mapped[bool] = mapped_column(default=False)
     hidden_by_patient: Mapped[bool] = mapped_column(default=False)
-    source_record_id: Mapped[Optional[int]] = mapped_column(ForeignKey("medical_records.id"))
+    source_record_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("medical_records.id"))
     
     patient: Mapped["Patient"] = relationship(back_populates="conditions")
 
-class Medication(Base):
+class Medication(Base, TenantScopedMixin, TimestampMixin):
     __tablename__ = "medications"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"))
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"))
     generic_name: Mapped[str] = mapped_column(StringEncryptedType(255))
     dosage: Mapped[str] = mapped_column(String(100))
     frequency: Mapped[Optional[str]] = mapped_column(String(100))
@@ -248,15 +272,15 @@ class Medication(Base):
     added_by: Mapped[AddedByEnum] = mapped_column(SQLEnum(AddedByEnum), default=AddedByEnum.patient)
     confirmed_by_patient: Mapped[bool] = mapped_column(default=False)
     hidden_by_patient: Mapped[bool] = mapped_column(default=False)
-    source_record_id: Mapped[Optional[int]] = mapped_column(ForeignKey("medical_records.id"))
+    source_record_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("medical_records.id"))
     
     patient: Mapped["Patient"] = relationship(back_populates="medications")
 
-class Allergy(Base):
+class Allergy(Base, TenantScopedMixin, TimestampMixin):
     __tablename__ = "allergies"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"))
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"))
     allergen: Mapped[str] = mapped_column(String(255))
     severity: Mapped[str] = mapped_column(String(50), default="Moderate")
     added_by: Mapped[AddedByEnum] = mapped_column(SQLEnum(AddedByEnum), default=AddedByEnum.patient)
@@ -268,9 +292,9 @@ class Allergy(Base):
 class DoctorAccess(Base):
     __tablename__ = "doctor_access"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"))
-    doctor_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"))
+    doctor_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     doctor_name: Mapped[str] = mapped_column(String(255))
     clinic_name: Mapped[Optional[str]] = mapped_column(String(255))
     access_level: Mapped[AccessLevelEnum] = mapped_column(SQLEnum(AccessLevelEnum), default=AccessLevelEnum.read)
@@ -283,11 +307,11 @@ class RecordShare(Base):
     """Granular per-record sharing from Chitti AI chat."""
     __tablename__ = "record_shares"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
-    record_id: Mapped[int] = mapped_column(ForeignKey("medical_records.id"), index=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    record_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("medical_records.id"), index=True)
     doctor_query: Mapped[str] = mapped_column(String(255))  # name or MUL-DOC-xxx
-    doctor_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    doctor_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), nullable=True)
     share_token: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     accessed: Mapped[bool] = mapped_column(default=False)
@@ -297,9 +321,9 @@ class RecordShare(Base):
 class Notification(Base):
     __tablename__ = "notifications"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    patient_id: Mapped[Optional[int]] = mapped_column(ForeignKey("patients.id"))
-    doctor_user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"))
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    patient_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("patients.id"))
+    doctor_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"))
     type: Mapped[NotificationTypeEnum] = mapped_column(SQLEnum(NotificationTypeEnum), default=NotificationTypeEnum.alert)
     title: Mapped[str] = mapped_column(String(255))
     body: Mapped[str] = mapped_column(Text)
@@ -310,7 +334,7 @@ class AISummary(Base):
     __tablename__ = "ai_summaries"
     
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"))
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"))
     one_page_summary: Mapped[str] = mapped_column(TextEncryptedType)
     patient_summary: Mapped[str] = mapped_column(TextEncryptedType)
     doctor_summary: Mapped[str] = mapped_column(TextEncryptedType)
@@ -320,37 +344,37 @@ class AISummary(Base):
 class PatientDashboard(Base):
     __tablename__ = "patient_dashboards"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
-    hospital_id: Mapped[Optional[int]] = mapped_column(ForeignKey("hospitals.id"), index=True, nullable=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    hospital_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("hospitals.id"), index=True, nullable=True)
     data: Mapped[dict] = mapped_column(JSON_TYPE)  # Aggregated dashboard data
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     patient: Mapped["Patient"] = relationship(back_populates="dashboard")
 
-class AuditLog(Base):
+class AuditLog(Base, TenantScopedMixin):
     __tablename__ = "audit_logs"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), index=True, nullable=True)
-    patient_id: Mapped[Optional[int]] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), index=True, nullable=True)
+    patient_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
     action: Mapped[str] = mapped_column(String(100), index=True)
     resource_type: Mapped[str] = mapped_column(String(100), index=True)
-    resource_id: Mapped[Optional[int]] = mapped_column(Integer, index=True, nullable=True)
+    resource_id: Mapped[Optional[uuid.UUID]] = mapped_column(index=True, nullable=True)
     details: Mapped[Optional[dict]] = mapped_column(JSON_TYPE)
     ip_address: Mapped[Optional[str]] = mapped_column(String(45))
     user_agent: Mapped[Optional[str]] = mapped_column(String(255))
-    hospital_id: Mapped[Optional[int]] = mapped_column(ForeignKey("hospitals.id"), index=True, nullable=True)
+    # hospital_id now provided by TenantScopedMixin
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     signature: Mapped[str] = mapped_column(String(255)) 
     prev_hash: Mapped[str] = mapped_column(String(255))
 
 class OutboxEvent(Base):
     __tablename__ = "outbox_events"
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
     event_type: Mapped[str] = mapped_column(String(100), index=True)
     event_version: Mapped[str] = mapped_column(String(20))
-    tenant_id: Mapped[Optional[int]] = mapped_column(ForeignKey("hospitals.id"), index=True, nullable=True)
+    tenant_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("hospitals.id"), index=True, nullable=True)
     trace_id: Mapped[Optional[str]] = mapped_column(String(100), index=True)
     payload: Mapped[dict] = mapped_column(JSON_TYPE)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -373,24 +397,26 @@ class DoctorVerificationSession(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-class Message(Base):
+class Message(Base, TenantScopedMixin):
     __tablename__ = "messages"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
     conversation_id: Mapped[str] = mapped_column(String(50), index=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
     role: Mapped[MessageRoleEnum] = mapped_column(SQLEnum(MessageRoleEnum), default=MessageRoleEnum.user)
     content: Mapped[str] = mapped_column(Text)
+    # AI Safety Metadata (Confidence, Evidence, Traceability)
+    safety_metadata: Mapped[Optional[dict]] = mapped_column(JSON_TYPE)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-class QueueEntry(Base):
+class QueueEntry(Base, TenantScopedMixin, TimestampMixin):
     __tablename__ = "queue_entries"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    hospital_id: Mapped[Optional[int]] = mapped_column(ForeignKey("hospitals.id"))
-    department_id: Mapped[Optional[int]] = mapped_column(ForeignKey("departments.id"))
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"))
-    doctor_id: Mapped[Optional[int]] = mapped_column(ForeignKey("doctors.id"))
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    # hospital_id now provided by TenantScopedMixin
+    department_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("departments.id"))
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"))
+    doctor_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("doctors.id"))
     clinic_name: Mapped[Optional[str]] = mapped_column(String(255))
     status: Mapped[QueueStatusEnum] = mapped_column(SQLEnum(QueueStatusEnum), default=QueueStatusEnum.checked_in)
     token_number: Mapped[Optional[int]] = mapped_column()
@@ -410,13 +436,63 @@ class JobFailure(Base):
     error: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+class ClinicalAIEvent(Base, TenantScopedMixin, TimestampMixin):
+    """
+    ENTERPRISE AI BLACK BOX RECORDER:
+    Stores every LLM interaction with full context for forensic replay.
+    """
+    __tablename__ = "clinical_ai_events"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    hospital_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    trace_id: Mapped[str] = mapped_column(String(100), index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    
+    # Prompt Provenance
+    prompt_template: Mapped[str] = mapped_column(String(255))
+    prompt_payload: Mapped[dict] = mapped_column(JSON_TYPE) # Masked/Encrypted
+    
+    # Response Data
+    response_text: Mapped[str] = mapped_column(Text)
+    safety_metadata: Mapped[dict] = mapped_column(JSON_TYPE) # {confidence, evidence, risk_score}
+    
+    # Provider Diagnostics
+    provider: Mapped[str] = mapped_column(String(50))
+    model_version: Mapped[str] = mapped_column(String(50))
+    latency_ms: Mapped[int] = mapped_column()
+    
+    # Safety Governance
+    safety_mode: Mapped[AISafetyMode] = mapped_column(SQLEnum(AISafetyMode), default=AISafetyMode.informational)
+    policy_filters_applied: Mapped[Optional[List[str]]] = mapped_column(JSON_TYPE)
+    
+    overridden: Mapped[bool] = mapped_column(default=False)
+
+class ClinicianOverride(Base, TenantScopedMixin, TimestampMixin):
+    """
+    CLINICIAN SUPREMACY LAYER:
+    Allows doctors to formally dismiss or correct AI recommendations.
+    """
+    __tablename__ = "clinician_overrides"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    ai_event_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("clinical_ai_events.id"), index=True)
+    doctor_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True)
+    
+    override_type: Mapped[str] = mapped_column(String(50)) # e.g., DISMISS, CORRECT, ESCALATE
+    justification: Mapped[str] = mapped_column(Text)
+    correction_text: Mapped[Optional[str]] = mapped_column(Text)
+    
+    # Retraining feedback
+    severity_impact: Mapped[str] = mapped_column(String(50)) # e.g., LOW, MEDIUM, CRITICAL_SAFETY_RISK
+
 class DigitalPrescription(Base):
     __tablename__ = "digital_prescriptions"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    hospital_id: Mapped[int] = mapped_column(ForeignKey("hospitals.id"), index=True)
-    doctor_id: Mapped[int] = mapped_column(ForeignKey("doctors.id"), index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    doctor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("doctors.id"), index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
     
     status: Mapped[PrescriptionStatusEnum] = mapped_column(SQLEnum(PrescriptionStatusEnum), default=PrescriptionStatusEnum.pending)
     medications: Mapped[dict] = mapped_column(JSON_TYPE) # List of {name, dosage, frequency, duration}
@@ -427,23 +503,23 @@ class DigitalPrescription(Base):
     
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     fulfilled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    pharmacist_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id")) # User ID of pharmacist who fulfilled
+    pharmacist_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id")) # User ID of pharmacist who fulfilled
     
     items: Mapped[List["PrescriptionItem"]] = relationship(back_populates="prescription", cascade="all, delete-orphan")
 
 class LabDiagnosticOrder(Base):
     __tablename__ = "lab_diagnostic_orders"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    hospital_id: Mapped[int] = mapped_column(ForeignKey("hospitals.id"), index=True)
-    doctor_id: Mapped[int] = mapped_column(ForeignKey("doctors.id"), index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    doctor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("doctors.id"), index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
     
     status: Mapped[LabOrderStatusEnum] = mapped_column(SQLEnum(LabOrderStatusEnum), default=LabOrderStatusEnum.ordered)
     tests: Mapped[dict] = mapped_column(JSON_TYPE) # List of test names or codes
     clinical_history: Mapped[Optional[str]] = mapped_column(TextEncryptedType)
     
-    report_id: Mapped[Optional[int]] = mapped_column(ForeignKey("medical_records.id")) # Link to the OCR'd report
+    report_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("medical_records.id")) # Link to the OCR'd report
     ai_risk_level: Mapped[Optional[str]] = mapped_column(String(50))
     
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -457,9 +533,8 @@ class LabResult(Base):
     Stores normalized lab metrics (e.g., Hemoglobin 14.2 g/dL).
     """
     __tablename__ = "lab_results"
-
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    order_id: Mapped[int] = mapped_column(ForeignKey("lab_diagnostic_orders.id"), index=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    order_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("lab_diagnostic_orders.id"), index=True)
     
     test_name: Mapped[str] = mapped_column(String(100), index=True) # e.g., Hemoglobin
     value: Mapped[float] = mapped_column()
@@ -478,8 +553,8 @@ class LabResult(Base):
 class PharmacyStock(Base, TenantScopedMixin, TimestampMixin):
     __tablename__ = "pharmacy_stock"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    hospital_id: Mapped[int] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
     medication_name: Mapped[str] = mapped_column(String(255), index=True)
     generic_name: Mapped[Optional[str]] = mapped_column(String(255))
     quantity: Mapped[int] = mapped_column(default=0)
@@ -493,9 +568,9 @@ class PharmacyStock(Base, TenantScopedMixin, TimestampMixin):
 class PrescriptionItem(Base):
     __tablename__ = "prescription_items"
     
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    prescription_id: Mapped[int] = mapped_column(ForeignKey("digital_prescriptions.id"), index=True)
-    medication_id: Mapped[Optional[int]] = mapped_column(ForeignKey("pharmacy_stock.id")) # Link to inventory
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    prescription_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("digital_prescriptions.id"), index=True)
+    medication_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("pharmacy_stock.id")) # Link to inventory
     
     name: Mapped[str] = mapped_column(String(255))
     dosage: Mapped[str] = mapped_column(String(100))
@@ -514,11 +589,10 @@ class ClinicalEvent(Base):
     Used for Timeline reconstruction, AI Context, and Auditing.
     """
     __tablename__ = "clinical_events"
-
-    id: Mapped[str] = mapped_column(String(50), primary_key=True, index=True) # UUID
-    tenant_id: Mapped[int] = mapped_column(ForeignKey("hospitals.id"), index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), index=True)
-    actor_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True) # Staff/User ID
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    actor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), index=True) # Staff/User ID
     
     event_type: Mapped[str] = mapped_column(String(100), index=True) # e.g., PRESCRIPTION_CREATED
     aggregate_type: Mapped[str] = mapped_column(String(100), index=True) # e.g., lab_order
@@ -542,13 +616,12 @@ class QueueTokenStatus(str, enum.Enum):
 
 class QueueToken(Base, TenantScopedMixin, VersionedMixin, AuditableMixin, TimestampMixin):
     __tablename__ = "queue_tokens"
-
-    id = mapped_column(Integer, primary_key=True, index=True)
-    hospital_id = mapped_column(Integer, ForeignKey("hospitals.id"), nullable=False, index=True)
-    department_id = mapped_column(Integer, ForeignKey("departments.id"), nullable=True, index=True)
-    patient_id = mapped_column(Integer, nullable=False, index=True)
-    status = mapped_column(SQLEnum(QueueTokenStatus), nullable=False, default=QueueTokenStatus.WAITING)
-    priority_score = mapped_column(Integer, nullable=False, default=0)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), nullable=False, index=True)
+    department_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("departments.id"), nullable=True, index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
+    status: Mapped[QueueTokenStatus] = mapped_column(SQLEnum(QueueTokenStatus), nullable=False, default=QueueTokenStatus.WAITING)
+    priority_score: Mapped[int] = mapped_column(nullable=False, default=0)
 
     hospital = relationship("Hospital", back_populates="queues")
     department = relationship("Department", back_populates="queues")
@@ -567,27 +640,27 @@ class AdmissionStatus(str, enum.Enum):
 class Bed(Base, TenantScopedMixin, VersionedMixin, AuditableMixin):
     __tablename__ = "beds"
 
-    id = mapped_column(Integer, primary_key=True, index=True)
-    department_id = mapped_column(Integer, ForeignKey("departments.id"), nullable=True)
-    bed_number = mapped_column(String(50), nullable=False, index=True)
-    status = mapped_column(SQLEnum(BedStatus), nullable=False, default=BedStatus.AVAILABLE)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    department_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("departments.id"), nullable=True)
+    bed_number: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    status: Mapped[BedStatusEnum] = mapped_column(SQLEnum(BedStatusEnum), nullable=False, default=BedStatusEnum.available)
 
-    hospital = relationship("Hospital", back_populates="beds")
-    department = relationship("Department", back_populates="beds")
+    hospital: Mapped["Hospital"] = relationship(back_populates="beds")
+    department: Mapped[Optional["Department"]] = relationship(back_populates="beds")
 
 class Admission(Base, TenantScopedMixin, VersionedMixin, AuditableMixin):
     __tablename__ = "admissions"
-
-    id = mapped_column(Integer, primary_key=True, index=True)
-    patient_id = mapped_column(Integer, ForeignKey("patients.id"), nullable=False, index=True)
-    queue_token_id = mapped_column(Integer, ForeignKey("queue_tokens.id"), nullable=True)
-    bed_id = mapped_column(Integer, ForeignKey("beds.id"), nullable=True)
-    status = mapped_column(SQLEnum(AdmissionStatus), nullable=False, default=AdmissionStatus.PENDING)
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
+    queue_token_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("queue_tokens.id"), nullable=True)
+    bed_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("beds.id"), nullable=True)
+    status: Mapped[str] = mapped_column(String(50), default="admitted")
     
-    admitted_at = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    discharged_at = mapped_column(DateTime(timezone=True), nullable=True)
+    admitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    discharged_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    hospital = relationship("Hospital", backref="admissions")
-    patient = relationship("Patient", backref="admissions")
-    queue_token = relationship("QueueToken", backref="admission")
-    bed = relationship("Bed", backref="admissions")
+    hospital: Mapped["Hospital"] = relationship(backref="admissions")
+    patient: Mapped["Patient"] = relationship(backref="admissions")
+    bed: Mapped[Optional["Bed"]] = relationship(backref="admissions")

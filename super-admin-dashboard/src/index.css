@@ -1,0 +1,91 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@400;600;800&display=swap');
+
+:root {
+  --bg: #020617;
+  --panel: #0F172A;
+  --accent: #F59E0B; /* Gold for authority */
+  --danger: #EF4444;
+  --success: #10B981;
+  --text: #F8FAFC;
+  --border: rgba(255, 255, 255, 0.05);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  overflow-x: hidden;
+}
+
+.terminal-font {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.control-panel {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 32px;
+}
+
+.main-view {
+  padding: 48px;
+  background: radial-gradient(circle at top right, rgba(245, 158, 11, 0.03), transparent);
+}
+
+.stat-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 30px rgba(245, 158, 11, 0.1);
+}
+
+.invite-btn {
+  background: var(--accent);
+  color: var(--bg);
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: transform 0.2s;
+}
+
+.invite-btn:hover {
+  transform: scale(1.02);
+}
+
+.log-stream {
+  background: #000;
+  border-radius: 12px;
+  padding: 20px;
+  font-size: 13px;
+  height: 300px;
+  overflow-y: auto;
+  border: 1px solid #1E293B;
+}
+
+.log-entry {
+  padding: 4px 0;
+  border-bottom: 1px solid #111;
+}

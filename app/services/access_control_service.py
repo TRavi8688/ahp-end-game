@@ -3,53 +3,47 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models import models
 from app.core.logging import logger
+import uuid
 
 class AccessControlService:
     """
-    Google-Grade ABAC (Attribute-Based Access Control).
+    Enterprise-Grade ABAC (Attribute-Based Access Control).
     Ensures that access to clinical records is granted based on 
-    dynamic relationships (e.g., active appointments, emergency overrides).
+    permanent tenant locks (hospyn_id) and explicit clinical grants.
     """
     
     @staticmethod
     async def can_doctor_access_patient(
         db: AsyncSession, 
-        doctor_id: int, 
-        patient_id: int
+        doctor_id: uuid.UUID, 
+        patient_id: uuid.UUID,
+        hospyn_id: str
     ) -> bool:
         """
-        Verify if a doctor has a legitimate clinical reason to access a patient's data.
+        Verify if a doctor has a legitimate clinical reason to access a patient's data
+        within the current hospital tenant.
         """
-        # 1. Check for active appointment relationship
-        # (Assuming an 'Appointment' model exists or similar junction)
-        # For now, we implement a strict relationship check
-        # stmt = select(models.Appointment).where(...)
-        
-        # 2. EMERGENCY_OVERRIDE (Logged as critical event)
-        # In a real enterprise system, a doctor might 'break the glass'
-        
-        # 3. Explicit Grant
-        # Check if patient has explicitly granted access to this doctor
+        # 1. Strict Tenant Check: Are they in the same organization?
+        # 2. Check for explicit access grant
         stmt = select(models.AccessGrant).where(
             models.AccessGrant.doctor_id == doctor_id,
             models.AccessGrant.patient_id == patient_id,
-            models.AccessGrant.status == models.AccessStatusEnum.granted
+            models.AccessGrant.status == models.AccessStatusEnum.granted,
+            models.AccessGrant.hospyn_id == hospyn_id
         )
         result = await db.execute(stmt)
-        if result.scalars().first():
-            return True
-            
-        return False
+        return result.scalars().first() is not None
 
     @staticmethod
     async def log_access_attempt(
         db: AsyncSession,
-        user_id: int,
-        resource_id: int,
+        user_id: uuid.UUID,
+        resource_id: uuid.UUID,
         granted: bool,
-        reason: str
+        reason: str,
+        hospyn_id: str
     ):
-        """Forensic logging of clinical data access attempts."""
+        """Forensic logging of clinical data access attempts for regulatory compliance."""
         from app.core.audit import log_audit_action
         action = "DATA_ACCESS_GRANTED" if granted else "DATA_ACCESS_DENIED"
         await log_audit_action(
@@ -58,5 +52,6 @@ class AccessControlService:
             user_id=user_id,
             resource_type="MEDICAL_RECORD",
             resource_id=resource_id,
+            hospyn_id=hospyn_id,
             details={"granted": granted, "reason": reason}
         )

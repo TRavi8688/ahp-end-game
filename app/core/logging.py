@@ -6,6 +6,7 @@ import os
 import uuid
 from typing import List
 from structlog.types import Processor
+from opentelemetry import trace
 
 # Clinical PII and Secrets to mask in logs
 SENSITIVE_KEYS = {
@@ -42,6 +43,19 @@ def mask_sensitive_data(logger, method_name, event_dict):
     
     return event_dict
 
+def inject_trace_context(logger, method_name, event_dict):
+    """
+    ENTERPRISE CORRELATION:
+    Injects OpenTelemetry trace_id and span_id into every log line.
+    Allows Grafana Tempo/Loki to cross-link logs and traces instantly.
+    """
+    span = trace.get_current_span()
+    if span and span.get_span_context().is_valid:
+        ctx = span.get_span_context()
+        event_dict["trace_id"] = hex(ctx.trace_id)[2:]
+        event_dict["span_id"] = hex(ctx.span_id)[2:]
+    return event_dict
+
 def inject_request_id(logger, method_name, event_dict):
     """Ensures every log line in a request has a traceable ID."""
     return event_dict
@@ -56,6 +70,7 @@ def setup_logging():
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
+        inject_trace_context, # Correlate logs with OTel spans
         inject_request_id,
         mask_sensitive_data,
     ]

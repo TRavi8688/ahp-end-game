@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field, field_validator
 import re
+import uuid
 from typing import List, Optional
 from datetime import datetime
 
@@ -46,7 +47,7 @@ class UserLogin(BaseModel):
     password: str
 
 class UserResponse(UserBase):
-    id: int
+    id: uuid.UUID
     created_at: datetime
     class Config:
         from_attributes = True
@@ -72,7 +73,7 @@ class PatientCreate(BaseModel):
     medications: List[str] = []
 
 class PatientResponse(PatientBase):
-    id: int
+    id: uuid.UUID
     class Config:
         from_attributes = True
 
@@ -86,7 +87,7 @@ class MedicalRecordBase(BaseModel):
     file_url: str
 
 class MedicalRecordResponse(MedicalRecordBase):
-    id: int
+    id: uuid.UUID
     ai_summary: Optional[str] = None
     patient_summary: Optional[str] = None
     doctor_summary: Optional[str] = None
@@ -100,7 +101,7 @@ class DoctorBase(BaseModel):
     license_number: str
 
 class DoctorResponse(DoctorBase):
-    id: int
+    id: uuid.UUID
     license_status: str
     class Config:
         from_attributes = True
@@ -140,7 +141,7 @@ class DoctorScanRequest(BaseModel):
 class DoctorScanResponse(BaseModel):
     status: str
     message: str
-    access_id: Optional[int] = None
+    access_id: Optional[uuid.UUID] = None
 
 class PatientPublicProfile(BaseModel):
     hospyn_id: str
@@ -157,7 +158,7 @@ class QueueEntryBase(BaseModel):
     clinic_name: Optional[str] = None
 
 class QueueEntryResponse(BaseModel):
-    id: int
+    id: uuid.UUID
     patient_name: str
     hospyn_id: str
     status: str
@@ -199,7 +200,7 @@ class ReportConfirmSave(BaseModel):
     update_profile: bool = False
 
 class PatientProfileResponse(BaseModel):
-    id: int
+    id: uuid.UUID
     full_name: Optional[str] = "Patient"
     email: Optional[EmailStr] = None
     phone_number: Optional[str] = None
@@ -219,6 +220,24 @@ class SetPasswordRequest(BaseModel):
     password: str
 
 class ShareRecordRequest(BaseModel):
-    record_id: int
+    record_id: uuid.UUID
     doctor_query: str = Field(..., description="Doctor name or Mulajna ID")
     expires_hours: int = 24
+
+# --- AI Clinical Safety Governance ---
+
+class AIOverrideRequest(BaseModel):
+    ai_event_id: uuid.UUID
+    override_type: str = Field(..., description="DISMISS, CORRECT, or ESCALATE")
+    justification: str = Field(..., min_length=10)
+    correction_text: Optional[str] = None
+    severity_impact: str = "LOW"
+
+class AISafetyResponse(BaseModel):
+    confidence_score: float
+    evidence_sources: List[str]
+    uncertainty_reason: Optional[str] = None
+    hallucination_risk: float
+    trace_id: str
+    provider_info: str
+

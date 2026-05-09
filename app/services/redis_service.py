@@ -11,102 +11,96 @@ class RedisService:
     NO IN-MEMORY FALLBACKS. This service enforces distributed state consistency.
     If Redis is unavailable, the system fails fast to prevent split-brain scenarios.
     """
+class RedisConnectionError(Exception):
+    """Raised when Redis is unreachable in a production environment."""
+    pass
+
+class RedisService:
+    """
+    ENTERPRISE RESILIENCE REDIS SERVICE.
+    NO IN-MEMORY FALLBACKS for critical distributed state (Idempotency, Locks).
+    Failure to connect to Redis triggers a hard failure to maintain data integrity
+    and prevent 'double-action' clinical errors.
+    """
     def __init__(self):
         self._client: Optional[redis.Redis] = None
         self.redis_url = settings.REDIS_URL
-        self._memory_storage: Dict[str, Any] = {} # Fallback for dev/test
 
     def get_client(self) -> Optional[redis.Redis]:
-        # Check if Redis is explicitly disabled for local dev/test
         if not settings.USE_REDIS:
             return None
 
         if self._client is None:
             if not self.redis_url:
                 if settings.ENVIRONMENT == "production":
-                    logger.critical("REDIS_CONFIG_MISSING: REDIS_URL must be set in production.")
-                    raise RuntimeError("CRITICAL: Redis configuration missing.")
-                return None # Signal fallback
+                    logger.critical("REDIS_CONFIG_MISSING")
+                    raise RedisConnectionError("Redis URL required in production.")
+                return None
             
             try:
-                # Optimized for fast failure in non-production
                 self._client = redis.from_url(
                     self.redis_url, 
                     decode_responses=True,
-                    socket_timeout=1, 
-                    socket_connect_timeout=1,
-                    retry_on_timeout=False
+                    socket_timeout=2, 
+                    socket_connect_timeout=2,
+                    retry_on_timeout=True,
+                    health_check_interval=30
                 )
             except Exception as e:
-                logger.warning(f"REDIS_CLIENT_INIT_FAILURE: {e}")
+                logger.error(f"REDIS_CONNECTION_FAILURE: {e}")
                 if settings.ENVIRONMENT == "production":
-                    raise
+                    raise RedisConnectionError(f"Could not connect to Redis: {e}")
                 return None
 
         return self._client
 
     async def set(self, key: str, value: str, expire: int = 600):
-        """Standard Redis SETEX operation with in-memory fallback."""
         client = self.get_client()
-        if client:
-            try:
-                await client.setex(key, expire, value)
-                logger.info(f"REDIS_SET_SUCCESS: {key}")
-                return
-            except Exception as e:
-                if settings.ENVIRONMENT == "production": 
-                    logger.error(f"REDIS_SET_CRITICAL_FAILURE: {e}")
-                    raise
-                logger.warning(f"REDIS_SET_FALLBACK_TRIGGERED: {e}")
-        
-        # Fallback for Dev/Test
-        self._memory_storage[key] = value
-        logger.debug(f"REDIS_FALLBACK_SET: {key}")
+        if not client: return
+        try:
+            await client.setex(key, expire, value)
+        except Exception as e:
+            logger.error(f"REDIS_WRITE_ERROR: {e}")
+            if settings.ENVIRONMENT == "production": raise RedisConnectionError(e)
 
     async def get(self, key: str) -> Optional[str]:
-        """Standard Redis GET operation with in-memory fallback."""
         client = self.get_client()
-        if client:
-            try:
-                val = await client.get(key)
-                logger.info(f"REDIS_GET_SUCCESS: {key}")
-                return val
-            except Exception as e:
-                if settings.ENVIRONMENT == "production":
-                    logger.error(f"REDIS_GET_CRITICAL_FAILURE: {e}")
-                    raise
-                logger.warning(f"REDIS_GET_FALLBACK_TRIGGERED: {e}")
-        
-        # Fallback for Dev/Test
-        val = self._memory_storage.get(key)
-        logger.debug(f"REDIS_FALLBACK_GET: {key} -> {val}")
-        return val
+        if not client: return None
+        try:
+            return await client.get(key)
+        except Exception as e:
+            logger.error(f"REDIS_READ_ERROR: {e}")
+            if settings.ENVIRONMENT == "production": raise RedisConnectionError(e)
+            return None
 
     async def delete(self, key: str):
-        """Standard Redis DEL operation with in-memory fallback."""
         client = self.get_client()
         if client:
             try:
                 await client.delete(key)
-                return
             except Exception:
                 if settings.ENVIRONMENT == "production": raise
-        
-        self._memory_storage.pop(key, None)
 
     async def set_nx(self, key: str, value: str, expire: int = 30) -> bool:
-        """Atomic SET if Not Exists with in-memory fallback."""
+        """STRICTLY ATOMIC SET-IF-NOT-EXISTS."""
         client = self.get_client()
-        if client:
-            try:
-                return await client.set(key, value, ex=expire, nx=True)
-            except Exception:
-                if settings.ENVIRONMENT == "production": raise
+        if not client:
+            # If Redis is down, we MUST NOT allow the action to proceed 
+            # if it relies on idempotency/locking.
+            if settings.ENVIRONMENT == "production":
+                raise RedisConnectionError("Redis unavailable for atomic lock.")
+            return True # In dev, we allow it.
         
-        if key in self._memory_storage:
-            return False
-        self._memory_storage[key] = value
-        return True
+        try:
+            return await client.set(key, value, ex=expire, nx=True)
+        except Exception:
+            if settings.ENVIRONMENT == "production": raise RedisConnectionError("Redis lock failed.")
+            return True
+
+    async def incr(self, key: str) -> int:
+        client = self.get_client()
+        if not client: return 0
+        return await client.incr(key)
 
     async def set_otp(self, identifier: str, otp: str, expire_seconds: int = 600):
         await self.set(f"otp:{identifier}", otp, expire_seconds)

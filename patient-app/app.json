@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Mulajna",
-    "slug": "patient-app",
+    "name": "Hospyn Patient",
+    "slug": "hospyn-patient",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,7 +13,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.hospyn.mulajna",
+      "bundleIdentifier": "com.hospyn.patient",
       "infoPlist": {
         "NSCameraUsageDescription": "Mulajna requires camera access to scan medical reports and profiles.",
         "NSFaceIDUsageDescription": "Mulajna uses FaceID to securely protect your medical data."

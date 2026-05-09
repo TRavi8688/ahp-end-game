@@ -14,8 +14,9 @@ Mixin Catalogue:
 """
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import DateTime, ForeignKey, Integer, String, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, func, UUID
 from sqlalchemy.orm import Mapped, mapped_column, declared_attr
+import uuid
 
 
 class TimestampMixin:
@@ -73,9 +74,9 @@ class TenantScopedMixin:
     filter in hospital-scoped endpoints are a security violation.
     """
     @declared_attr
-    def hospital_id(cls) -> Mapped[int]:
+    def hospital_id(cls) -> Mapped[uuid.UUID]:
         return mapped_column(
-            Integer,
+            UUID(as_uuid=True),
             ForeignKey("hospitals.id", ondelete="RESTRICT"),
             nullable=False,
             index=True,
@@ -87,6 +88,6 @@ class AuditableMixin:
     Tracks which user performed the last write operation on a record.
     Works in conjunction with the immutable AuditLog table for full history.
     """
-    last_modified_by_id: Mapped[Optional[int]] = mapped_column(
-        Integer, nullable=True, default=None
+    last_modified_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True, default=None
     )

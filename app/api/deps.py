@@ -53,8 +53,15 @@ async def get_current_doctor(user: User = Depends(get_db_user), db: AsyncSession
     return doctor
 
 
-async def get_current_hospital_admin(user: User = Depends(get_db_user)) -> User:
-    """Gated dependency for Hospital Admin routes."""
-    if user.role not in ["hospital_admin", "admin"]:
-        raise HTTPException(status_code=403, detail="Route requires Hospital Admin privileges.")
+async def get_super_admin(user: User = Depends(get_db_user)) -> User:
+    """Strictly Gated dependency for Platform-level Super Admin routes."""
+    if user.role.value != "admin":
+        logger.warning(f"UNAUTHORIZED_ADMIN_ACCESS_ATTEMPT: user_id={user.id}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail={
+                "error_code": "INSUFFICIENT_PERMISSIONS",
+                "message": "Platform SuperAdmin privileges are required for this action."
+            }
+        )
     return user

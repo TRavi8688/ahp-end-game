@@ -129,7 +129,7 @@ async def login(
 @limiter.limit("5/minute")
 async def send_otp(request: Request, req: schemas.OTPRequest):
     """Generates and sends a 6-digit OTP via Twilio SMS or Email."""
-    from app.services.twilio_service import send_sms_otp
+    from app.services.two_factor_service import send_sms_otp
     import secrets
 
     otp = "".join([str(secrets.randbelow(10)) for _ in range(6)])
@@ -145,7 +145,7 @@ async def send_otp(request: Request, req: schemas.OTPRequest):
     # --- Delivery ---
     if req.method == "sms":
         # we assume identifier contains phone number for SMS method
-        success = send_sms_otp(req.identifier, otp)
+        success = await send_sms_otp(req.identifier, otp)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to deliver SMS. Check phone number.")
     else:
