@@ -183,7 +183,7 @@ async def generic_exception_handler(request: Request, exc: Exception):
     logger.error(f"UNHANDLED_EXCEPTION: {str(exc)}", exc_info=True)
     
     # Capture exception in Sentry with contextual tagging
-    with sentry_sdk.configure_scope() as scope:
+    with sentry_sdk.isolation_scope() as scope:
         # Assuming user might be attached to request.state by auth middleware
         if hasattr(request.state, "user"):
             scope.set_user({"id": request.state.user.id})
@@ -200,7 +200,7 @@ async def generic_exception_handler(request: Request, exc: Exception):
         message=str(exc) if settings.ENVIRONMENT == "development" else "An unexpected server error occurred.",
         trace_id=request.headers.get("X-Request-ID", "unknown")
     )
-    return JSONResponse(status_code=500, content=error.dict())
+    return JSONResponse(status_code=500, content=error.model_dump())
 
 from app.api.v1.router import api_router as enterprise_v1_router
 app.include_router(enterprise_v1_router, prefix=settings.API_V1_STR)
