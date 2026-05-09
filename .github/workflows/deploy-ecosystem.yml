@@ -160,16 +160,19 @@ jobs:
           npx firebase-tools target:apply hosting patient ahp-patient-app --project ahp2o-495503 --token "${{ secrets.FIREBASE_TOKEN }}"
           npx firebase-tools target:apply hosting doctor ahp-doctor-app --project ahp2o-495503 --token "${{ secrets.FIREBASE_TOKEN }}"
 
-      - name: Deploy Patient App
+      - name: Build and Deploy All Frontends
         run: |
+          # 1. Build Patient App
           cd patient-app
           npm install --legacy-peer-deps
           npm run build
-          npx firebase-tools deploy --only hosting --project ahp2o-495503 --token ${{ secrets.FIREBASE_TOKEN }}
-
-      - name: Deploy Doctor App
-        run: |
+          cd ..
+          
+          # 2. Build Doctor App
           cd doctor-app
           npm install --legacy-peer-deps
           npm run build
+          cd ..
+          
+          # 3. Unified Deployment
           npx firebase-tools deploy --only hosting --project ahp2o-495503 --token ${{ secrets.FIREBASE_TOKEN }}
