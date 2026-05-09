@@ -165,11 +165,11 @@ jobs:
           cd patient-app
           npm install --legacy-peer-deps
           npm run build
-          npx firebase-tools deploy --only hosting --project ${{ secrets.FIREBASE_PROJECT_ID }} --token "${{ secrets.FIREBASE_TOKEN }}"
+          npx firebase-tools deploy --only hosting --project ahp2o-495503 --token ${{ secrets.FIREBASE_TOKEN }}
 
       - name: Deploy Doctor App
         run: |
           cd doctor-app
           npm install --legacy-peer-deps
           npm run build
-          npx firebase-tools deploy --only hosting --project ${{ secrets.FIREBASE_PROJECT_ID }} --token "${{ secrets.FIREBASE_TOKEN }}"
+          npx firebase-tools deploy --only hosting --project ahp2o-495503 --token ${{ secrets.FIREBASE_TOKEN }}
