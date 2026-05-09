@@ -38,9 +38,13 @@ def update_db_metrics():
     if primary_engine:
         pool = primary_engine.pool
         # Note: Accessing sync pool status on async engine is safe for metrics
-        DB_POOL_SIZE.set(pool.size())
-        DB_POOL_CHECKED_OUT.set(pool.checkedout())
-        DB_POOL_OVERFLOW.set(pool.overflow())
+        # StaticPool (used in SQLite :memory: testing) doesn't have size/checkedout/overflow
+        if hasattr(pool, "size"):
+            DB_POOL_SIZE.set(pool.size())
+        if hasattr(pool, "checkedout"):
+            DB_POOL_CHECKED_OUT.set(pool.checkedout())
+        if hasattr(pool, "overflow"):
+            DB_POOL_OVERFLOW.set(pool.overflow())
 
 def instrument_request():
     """Middleware-style instrumentation for SLIs."""
