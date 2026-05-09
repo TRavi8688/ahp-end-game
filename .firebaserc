@@ -1,12 +1,12 @@
 {
   "projects": {
-    "default": "hospyn"
+    "default": "ahp2o-495503"
   },
   "targets": {
-    "hospyn": {
+    "ahp2o-495503": {
       "hosting": {
         "patient": [
-          "hospyn"
+          "ahp2o-495503"
         ]
       }
     }
