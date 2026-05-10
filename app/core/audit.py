@@ -1,6 +1,7 @@
 import hmac
 import hashlib
 import json
+import uuid
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
