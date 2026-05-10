@@ -6,6 +6,7 @@ import base64
 import hashlib
 import io
 import re
+import uuid
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
