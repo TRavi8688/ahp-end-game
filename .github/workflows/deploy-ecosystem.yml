@@ -1,4 +1,4 @@
-name: Deploy Hospyn 2.0 Ecosystem
+name: Deploy hospyn-495906 2.0 Ecosystem
 
 on:
   push:
@@ -49,4 +49,115 @@ jobs:
           pytest -v --tb=short -m "not needs_db" --ignore=doctor-app --ignore=patient-app || echo "::warning::Tests failed - deployment continues."
 
 
+  auth-and-backend:
+    name: Deploy Backend to Cloud Run
+    needs: run-tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
 
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4.2.2
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: github-deployer@hospyn-495906.iam.gserviceaccount.com
+          token_format: access_token
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Login to Artifact Registry
+        uses: docker/login-action@v3
+        with:
+          registry: us-central1-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Build and Push Docker Image
+        run: |
+          IMAGE_NAME="us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-backend:${{ github.sha }}"
+          docker build -t $IMAGE_NAME .
+          docker push $IMAGE_NAME
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-backend:${{ github.sha }}"
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Deploy API Service
+        run: |
+          IMAGE_NAME="us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-backend:${{ github.sha }}"
+          gcloud run deploy hospyn-495906-api \
+            --image $IMAGE_NAME \
+            --region us-central1 \
+            --project hospyn-495906 \
+            --platform managed \
+            --allow-unauthenticated \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest,JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,TWO_FACTOR_API_KEY=TWO_FACTOR_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,SARVAM_KEY=SARVAM_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest" \
+            --set-env-vars "ENVIRONMENT=production,CLOUD_PROVIDER=gcp,GCP_PROJECT_ID=hospyn-495906,GCS_BUCKET_NAME=hospyn-495906-vault"
+
+      - name: Deploy Worker Service
+        run: |
+          IMAGE_NAME="us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-backend:${{ github.sha }}"
+          gcloud run deploy hospyn-495906-worker \
+            --image $IMAGE_NAME \
+            --region us-central1 \
+            --project hospyn-495906 \
+            --platform managed \
+            --no-allow-unauthenticated \
+            --min-instances 0 \
+            --command "bash" \
+            --args "-c,python3 -m http.server \$PORT & arq app.workers.arq_worker.WorkerSettings" \
+            --set-secrets "DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest,JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,TWO_FACTOR_API_KEY=TWO_FACTOR_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,SARVAM_KEY=SARVAM_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest" \
+            --set-env-vars "ENVIRONMENT=production,CLOUD_PROVIDER=gcp,GCP_PROJECT_ID=hospyn-495906,GCS_BUCKET_NAME=hospyn-495906-vault"
+
+  deploy-frontends:
+    name: Deploy Frontends to Firebase
+    needs: auth-and-backend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4.2.2
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: github-deployer@hospyn-495906.iam.gserviceaccount.com
+
+      - name: Build and Deploy Unified Frontend
+        run: |
+          # 1. Build Patient App
+          cd patient-app
+          npm install --legacy-peer-deps
+          npm run build
+          cd ..
+
+          # 2. Build Doctor App
+          cd doctor-app
+          npm install --legacy-peer-deps
+          npm run build
+          cd ..
+
+          # 3. Integrate Doctor App into Patient App's build
+          mkdir -p patient-app/web-build/doctor
+          cp -r doctor-app/build/* patient-app/web-build/doctor/
+
+          # 4. Deploy to Firebase (hospyn-495906 project)
+          npx firebase-tools hosting:sites:create ahp2o --project hospyn-495906 || true
+          npx firebase-tools deploy --only hosting --project hospyn-495906
