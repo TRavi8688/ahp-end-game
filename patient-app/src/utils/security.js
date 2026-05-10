@@ -59,4 +59,5 @@ const HospynSecurity = {
   }
 };
 
+export const SecurityUtils = HospynSecurity;
 export default HospynSecurity;
