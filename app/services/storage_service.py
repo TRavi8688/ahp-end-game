@@ -27,6 +27,11 @@ class StorageService:
                 aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
                 region_name=settings.AWS_REGION
             )
+        elif self.provider in ["railway", "local"]:
+            self.bucket_name = "local_storage"
+            # Railway doesn't have a native blob store, so we mock it for now
+            # Later this can be connected to AWS S3 or Cloudinary
+            logger.info("Using local/ephemeral storage (Railway/Local mode)")
         else:
             raise ValueError(f"Unsupported storage provider: {self.provider}")
 
@@ -35,13 +40,19 @@ class StorageService:
             if self.provider == "gcp":
                 blob = self.bucket.blob(object_name)
                 blob.upload_from_string(content, content_type=mime_type)
-            else:
+            elif self.provider == "aws":
                 self.s3_client.put_object(
                     Bucket=self.bucket_name,
                     Key=object_name,
                     Body=content,
                     ContentType=mime_type
                 )
+            else:
+                # Railway/Local fallback
+                import os
+                os.makedirs("uploads", exist_ok=True)
+                with open(os.path.join("uploads", object_name), "wb") as f:
+                    f.write(content)
             logger.info(f"{self.provider.upper()}_UPLOAD_SUCCESS", object=object_name)
             return object_name
         except Exception as e:
@@ -57,12 +68,15 @@ class StorageService:
                     expiration=datetime.timedelta(seconds=expires_in),
                     method="GET",
                 )
-            else:
+            elif self.provider == "aws":
                 return self.s3_client.generate_presigned_url(
                     'get_object',
                     Params={'Bucket': self.bucket_name, 'Key': object_name},
                     ExpiresIn=expires_in
                 )
+            else:
+                # Mock URL for local/Railway
+                return f"https://your-railway-app.up.railway.app/uploads/{object_name}"
         except Exception as e:
             logger.error(f"{self.provider.upper()}_SIGNED_URL_FAILURE", error=str(e))
             raise RuntimeError(f"Failed to generate secure link: {e}")

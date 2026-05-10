@@ -49,42 +49,4 @@ jobs:
           pytest -v --tb=short -m "not needs_db" --ignore=doctor-app --ignore=patient-app || echo "::warning::Tests failed - deployment continues."
 
 
-  deploy-frontends:
-    name: Deploy Frontends to Firebase
-    needs: run-tests
-    runs-on: ubuntu-latest
-    permissions:
-      contents: 'read'
-      id-token: 'write'
 
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4.2.2
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: github-deployer@hospyn.iam.gserviceaccount.com
-
-      - name: Build and Deploy Unified Frontend
-        run: |
-          # 1. Build Patient App
-          cd patient-app
-          npm install --legacy-peer-deps
-          npm run build
-          cd ..
-
-          # 2. Build Doctor App
-          cd doctor-app
-          npm install --legacy-peer-deps
-          npm run build
-          cd ..
-
-          # 3. Integrate Doctor App into Patient App's build
-          mkdir -p patient-app/web-build/doctor
-          cp -r doctor-app/build/* patient-app/web-build/doctor/
-
-          # 4. Deploy to Firebase (hospyn project)
-          npx firebase-tools hosting:sites:create ahp2o --project hospyn || true
-          npx firebase-tools deploy --only hosting --project hospyn
