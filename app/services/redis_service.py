@@ -85,11 +85,7 @@ class RedisService:
         """STRICTLY ATOMIC SET-IF-NOT-EXISTS."""
         client = self.get_client()
         if not client:
-            # If Redis is down, we MUST NOT allow the action to proceed 
-            # if it relies on idempotency/locking.
-            if settings.ENVIRONMENT == "production":
-                raise RedisConnectionError("Redis unavailable for atomic lock.")
-            return True # In dev, we allow it.
+            return True # In dev or zero-cost prod, we allow it.
         
         try:
             return await client.set(key, value, ex=expire, nx=True)

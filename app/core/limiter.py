@@ -12,13 +12,9 @@ env = os.environ.get("ENVIRONMENT", "production").lower()
 storage_uri = settings.REDIS_URL
 
 if not settings.USE_REDIS or not storage_uri or storage_uri.startswith("memory://"):
+    storage_uri = "memory://"
     if env == "production":
-        # Google-grade engineering: Fail fast on unsafe configurations
-        logger.critical("PRODUCTION_RATE_LIMITER_FAILURE: Redis is mandatory for distributed rate limiting.")
-        raise RuntimeError("CRITICAL: Redis is mandatory for distributed rate limiting in production.")
-    else:
-        # Development fallback allowed only if ENVIRONMENT is NOT production
-        storage_uri = "memory://"
+        logger.warning("PRODUCTION_RATE_LIMITER_WARNING: Using in-memory rate limiting (Redis disabled).")
 
 async def check_ip_blacklist(ip: str) -> bool:
     """Enterprise Breach Containment: Blocks suspicious IPs in Redis."""
