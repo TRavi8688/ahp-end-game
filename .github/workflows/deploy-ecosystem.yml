@@ -134,33 +134,33 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4.2.2
 
-      - name: Authenticate to Google Cloud
-        id: auth
-        uses: google-github-actions/auth@v2
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: github-deployer@hospyn-495906.iam.gserviceaccount.com
-          project_id: hospyn-495906
-          token_format: access_token
+          node-version: 20
 
-      - name: Build and Deploy Unified Frontend
+      - name: Build Patient App
         run: |
-          # 1. Build Patient App
           cd patient-app
           npm install --legacy-peer-deps
           npm run build
-          cd ..
 
-          # 2. Build Doctor App
+      - name: Build Doctor App
+        run: |
           cd doctor-app
           npm install --legacy-peer-deps
           npm run build
-          cd ..
 
-          # 3. Integrate Doctor App into Patient App's build
+      - name: Integrate Frontends
+        run: |
           mkdir -p patient-app/web-build/doctor
           cp -r doctor-app/build/* patient-app/web-build/doctor/
 
-          # 4. Deploy to Firebase (hospyn-495906 project)
-          export GOOGLE_CLOUD_QUOTA_PROJECT=hospyn-495906
-          npx firebase-tools deploy --only hosting:main-site --project hospyn-495906
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HOSPYN }}
+          channelId: live
+          projectId: hospyn-495906
+          target: main-site
