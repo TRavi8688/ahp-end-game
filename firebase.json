@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "ahp2o",
     "public": "patient-app/web-build",
     "ignore": [
       "firebase.json",
