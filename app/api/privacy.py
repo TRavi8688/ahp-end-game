@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 @router.delete("/account", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user_account(
-    current_user: User = Depends(deps.get_current_active_user),
+    current_user: User = Depends(deps.get_db_user),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """

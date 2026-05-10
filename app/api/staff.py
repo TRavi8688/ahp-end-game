@@ -17,7 +17,7 @@ class StaffInviteCreate(BaseModel):
 @router.post("/invites", status_code=status.HTTP_201_CREATED)
 async def invite_staff(
     invite_data: StaffInviteCreate,
-    current_user: User = Depends(deps.get_current_active_user),
+    current_user: User = Depends(deps.get_db_user),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """
@@ -43,7 +43,7 @@ async def invite_staff(
 
 @router.get("/members")
 async def list_staff(
-    current_user: User = Depends(deps.get_current_active_user),
+    current_user: User = Depends(deps.get_db_user),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """
