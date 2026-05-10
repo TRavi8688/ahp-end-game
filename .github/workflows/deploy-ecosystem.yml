@@ -159,5 +159,4 @@ jobs:
           cp -r doctor-app/build/* patient-app/web-build/doctor/
 
           # 4. Deploy to Firebase (hospyn-495906 project)
-          npx firebase-tools hosting:sites:create ahp2o --project hospyn-495906 || true
           npx firebase-tools deploy --only hosting --project hospyn-495906

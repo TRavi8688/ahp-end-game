@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "ahp2o",
+    "site": "hospyn-495906",
     "public": "patient-app/web-build",
     "ignore": [
       "firebase.json",
