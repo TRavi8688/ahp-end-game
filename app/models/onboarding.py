@@ -2,7 +2,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, DateTime, ForeignKey, Boolean
 from datetime import datetime, timezone
 from typing import Optional
-from app.models.base import Base
+from app.models.models import Base
 import uuid
 
 class HospitalInvite(Base):
