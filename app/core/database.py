@@ -61,7 +61,7 @@ async def set_tenant_context(session: AsyncSession, tenant_id: str):
     )
 
 # --- ENTERPRISE DB DEPENDENCY ---
-async def get_db(request: Optional[Request] = None):
+async def get_db(request: Request):
     """
     Standard FastAPI dependency for database sessions.
     Automatically sets the Postgres RLS tenant context if present in request.
