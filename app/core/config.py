@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str # production, staging, development
     DEMO_MODE: bool = True
-    CLOUD_PROVIDER: str = "railway" # gcp, aws, railway, local
+    CLOUD_PROVIDER: str = "gcp" # gcp, aws
     SENTRY_DSN: Optional[str] = None
     
     # --- 1. ENTERPRISE AUTHENTICATION (RS256) ---
@@ -60,8 +60,8 @@ class Settings(BaseSettings):
     
     # --- 3. DATA INTEGRITY ---
     DATABASE_URL: str
-    REDIS_URL: str
-    USE_REDIS: bool = True
+    REDIS_URL: Optional[str] = None
+    USE_REDIS: bool = False
     
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
@@ -145,8 +145,7 @@ class Settings(BaseSettings):
             if "localhost" in self.DATABASE_URL or "127.0.0.1" in self.DATABASE_URL:
                 raise ValueError("PRODUCTION_FAIL: Managed database must be used in production.")
             
-            if not self.REDIS_URL or "localhost" in self.REDIS_URL:
-                raise ValueError("PRODUCTION_FAIL: Managed cache (Redis) is mandatory.")
+            # Redis check removed to allow zero-cost deployments
 
             # Network Security Checks
             if "*" in self.TRUSTED_PROXIES:
@@ -178,8 +177,6 @@ class Settings(BaseSettings):
                     raise ValueError("PRODUCTION_FAIL: AWS_S3_BUCKET is mandatory for AWS.")
                 if not self.AWS_REGION:
                     raise ValueError("PRODUCTION_FAIL: AWS_REGION is mandatory for AWS.")
-            elif self.CLOUD_PROVIDER == "railway":
-                pass # Railway handles ephemeral/local storage differently for now
         
         return self
 
