@@ -135,10 +135,13 @@ jobs:
         uses: actions/checkout@v4.2.2
 
       - name: Authenticate to Google Cloud
+        id: auth
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: github-deployer@hospyn-495906.iam.gserviceaccount.com
+          project_id: hospyn-495906
+          token_format: access_token
 
       - name: Build and Deploy Unified Frontend
         run: |
@@ -160,4 +163,4 @@ jobs:
 
           # 4. Deploy to Firebase (hospyn-495906 project)
           export GOOGLE_CLOUD_QUOTA_PROJECT=hospyn-495906
-          npx firebase-tools deploy --only hosting:main-site --project hospyn-495906
+          npx firebase-tools deploy --only hosting:main-site --project hospyn-495906 --token ${{ steps.auth.outputs.access_token }}
