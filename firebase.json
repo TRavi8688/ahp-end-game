@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "hospyn-495906-19cb7",
+    "target": "main-site",
     "public": "patient-app/web-build",
     "ignore": [
       "firebase.json",

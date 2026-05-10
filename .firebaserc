@@ -1,5 +1,14 @@
 {
   "projects": {
     "default": "hospyn-495906"
+  },
+  "targets": {
+    "hospyn-495906": {
+      "hosting": {
+        "main-site": [
+          "hospyn-495906-19cb7"
+        ]
+      }
+    }
   }
 }
