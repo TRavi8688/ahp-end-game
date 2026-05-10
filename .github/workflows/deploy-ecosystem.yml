@@ -134,16 +134,26 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4.2.2
 
-      - name: Authenticate to Google Cloud
-        id: auth
+      # ─── FIX: Use service account key (not deprecated --token) ───────────────
+      - name: Write GCP Service Account Key to disk
+        run: |
+          echo '${{ secrets.GCP_SA_KEY_JSON }}' > /tmp/sa_key.json
+
+      - name: Authenticate to Google Cloud via Service Account Key
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: github-deployer@hospyn-495906.iam.gserviceaccount.com
+          credentials_json: ${{ secrets.GCP_SA_KEY_JSON }}
           project_id: hospyn-495906
-          token_format: access_token
+      # ─────────────────────────────────────────────────────────────────────────
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
 
       - name: Build and Deploy Unified Frontend
+        env:
+          # Required by Firebase CLI instead of --token
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa_key.json
+          GOOGLE_CLOUD_QUOTA_PROJECT: hospyn-495906
         run: |
           # 1. Build Patient App
           cd patient-app
@@ -161,6 +171,8 @@ jobs:
           mkdir -p patient-app/web-build/doctor
           cp -r doctor-app/build/* patient-app/web-build/doctor/
 
-          # 4. Deploy to Firebase (hospyn-495906 project)
-          export GOOGLE_CLOUD_QUOTA_PROJECT=hospyn-495906
-          npx firebase-tools deploy --only hosting:main-site --project hospyn-495906 --token ${{ steps.auth.outputs.access_token }}
+          # 4. Deploy to Firebase using Service Account credentials (no --token)
+          npx firebase-tools@latest deploy \
+            --only hosting:main-site \
+            --project hospyn-495906 \
+            --non-interactive
