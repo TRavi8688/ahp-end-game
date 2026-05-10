@@ -162,4 +162,5 @@ jobs:
           cp -r doctor-app/build/* patient-app/web-build/doctor/
 
           # 4. Deploy to Firebase (hospyn-495906 project)
-          npx firebase-tools deploy --only hosting:main-site
+          export GOOGLE_CLOUD_QUOTA_PROJECT=hospyn-495906
+          npx firebase-tools deploy --only hosting:main-site --project hospyn-495906
