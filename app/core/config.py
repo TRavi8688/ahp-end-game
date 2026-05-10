@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     VERSION: str = "2.0.0"
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str # production, staging, development
-    DEMO_MODE: bool = True
+    DEMO_MODE: bool = False
     CLOUD_PROVIDER: str = "gcp" # gcp, aws
     SENTRY_DSN: Optional[str] = None
     
