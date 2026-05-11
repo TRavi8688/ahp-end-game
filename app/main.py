@@ -63,7 +63,7 @@ setup_telemetry(app)
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to Hospyn 2.0 Enterprise API"}
+    return {"message": "Welcome to Hospyn 2.0 Enterprise API - PATCHED-V1"}
 
 from app.core.metrics import instrument_request
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
