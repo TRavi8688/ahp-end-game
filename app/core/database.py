@@ -24,7 +24,6 @@ def get_ssl_context():
 # Create engine with high-concurrency settings
 primary_engine = create_async_engine(
     settings.async_database_url,
-    poolclass=QueuePool,
     pool_size=20,
     max_overflow=10,
     pool_timeout=30,
