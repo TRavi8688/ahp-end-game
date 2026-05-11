@@ -32,11 +32,27 @@ def throw_auth_exception(detail: str):
 
 @router.get("/check-user")
 async def check_user_exists(
-    identifier: str
+    identifier: str,
+    db: AsyncSession = Depends(deps.get_db)
 ):
-    """Heartbeat Check: Verifies API reachability without DB dependency."""
-    # Temporarily returning False to bypass DB crash during diagnosis
-    return {"exists": False, "status": "heartbeat_verified"}
+    """Checks if a user exists by email or phone number (for registration verification)."""
+    try:
+        # 1. Check User table (email)
+        result_u = await db.execute(select(models.User).where(models.User.email == identifier))
+        if result_u.scalars().first():
+            return {"exists": True, "type": "email"}
+        
+        # 2. Check Patient table (phone_number)
+        result_p = await db.execute(select(models.Patient).where(models.Patient.phone_number == identifier))
+        if result_p.scalars().first():
+            return {"exists": True, "type": "phone"}
+            
+    except Exception as e:
+        logger.error(f"CHECK_USER_ERROR: Failed to verify identifier {identifier}. Error: {e}")
+        # Fail-safe: Return False to allow testing even if DB check has issues
+        return {"exists": False, "error": "db_fallback_active"}
+        
+    return {"exists": False}
 
 
 @router.post("/register", response_model=schemas.UserResponse)

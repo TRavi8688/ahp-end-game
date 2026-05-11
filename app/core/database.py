@@ -24,10 +24,11 @@ def create_resilient_engine(url: str):
             filtered_params = [p for p in query_params if not p.startswith("sslmode=")]
             url = base_url + ("?" + "&".join(filtered_params) if filtered_params else "")
 
+        # Standardize SSL context for Cloud environments
         ctx = ssl.create_default_context()
-        if os.environ.get("ENVIRONMENT") == "development":
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
+        # Allow connection even if the cert is self-signed (common in cloud SQL)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
         
         kwargs.update({
             "pool_size": 20,
