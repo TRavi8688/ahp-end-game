@@ -82,12 +82,16 @@ class Settings(BaseSettings):
     @field_validator("ALLOWED_ORIGINS", "TRUSTED_PROXIES", mode="before")
     @classmethod
     def assemble_list(cls, v: Any) -> Any:
-        import json
         if isinstance(v, str):
-            try:
-                return json.loads(v)
-            except:
-                return [i.strip() for i in v.split(",")]
+            # If it looks like a JSON list, try to parse it
+            if v.startswith("[") and v.endswith("]"):
+                try:
+                    import json
+                    return json.loads(v)
+                except Exception:
+                    pass
+            # Fallback to comma-separated list
+            return [i.strip() for i in v.split(",") if i.strip()]
         return v
     
     # --- 5. SECURE COMMUNICATIONS ---
