@@ -1,31 +1,17 @@
 import os
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
+import logging
 
-from fastapi import FastAPI, WebSocket, Depends, status, Request, Response
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
-from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.config import settings
 from app.core.logging import setup_logging, logger
-import sentry_sdk
 
-# 1. Initialize Structured Logging early
+# 1. Standard Logging Initialization
 setup_logging()
-
-# Initialize Sentry
-if settings.SENTRY_DSN:
-    from sentry_sdk.integrations.fastapi import FastApiIntegration
-    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
-    sentry_sdk.init(
-        dsn=settings.SENTRY_DSN,
-        environment=settings.ENVIRONMENT,
-        integrations=[FastApiIntegration(), SqlalchemyIntegration()],
-        traces_sample_rate=0.2,
-    )
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -35,25 +21,25 @@ app = FastAPI(
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to Hospyn 2.0 Enterprise API - STABLE-V1"}
+    return {"message": "Welcome to Hospyn 2.0 Enterprise API - RESILIENT-V1"}
 
 @app.get("/health")
 @app.get("/readyz")
 async def health_check():
-    return {"status": "ready", "version": "STABLE-V1", "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "ready", "version": "RESILIENT-V1", "timestamp": datetime.utcnow().isoformat()}
 
-# --- MIDDLEWARE STACK (ORDER IS CRITICAL) ---
+# --- MIDDLEWARE STACK ---
 
-# 1. Proxy Headers (Internal)
+# 1. Proxy Headers
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 
-# 2. Custom Security Logic (BaseHTTPMiddleware based)
+# 2. Custom Security Logic
 from app.core.middleware import IdempotencyMiddleware, RequestIDMiddleware, TenantMiddleware
 app.add_middleware(TenantMiddleware)
 app.add_middleware(IdempotencyMiddleware)
 app.add_middleware(RequestIDMiddleware)
 
-# 3. CORS (OUTERMOST - Added Last in Starlette)
+# 3. CORS (OUTERMOST)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -65,6 +51,8 @@ app.add_middleware(
         "http://localhost:5173",
         "http://localhost:19006",
         "http://localhost:8081",
+        "http://localhost:19000",
+        "http://localhost:19001",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -92,16 +80,12 @@ from app.schemas.common import StandardErrorSchema
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
-    logger.error(f"UNHANDLED_EXCEPTION: {str(exc)}", exc_info=True)
+    logging.exception("UNHANDLED_EXCEPTION")
     error = StandardErrorSchema(
         error_code="INTERNAL_SERVER_ERROR",
         message="An unexpected server error occurred.",
         trace_id=request.headers.get("X-Request-ID", "unknown")
     )
     return JSONResponse(status_code=500, content=error.model_dump())
-
-@app.exception_handler(StarletteHTTPException)
-async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    return JSONResponse(status_code=exc.status_code, content={"error_code": "HTTP_ERROR", "message": exc.detail})
 
 logger.info("SYSTEM_READY: Hospyn 2.0 API is fully initialized.")

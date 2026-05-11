@@ -5,8 +5,7 @@ from app.core.logging import logger
 from app.core.config import settings
 import json
 import uuid
-import structlog
-import asyncio
+import logging
 
 # --- CENTRALIZED PUBLIC ROUTES ---
 PUBLIC_ROUTES = {
@@ -22,25 +21,20 @@ PUBLIC_ROUTES = {
 
 class RequestIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # 1. IMMEDIATE OPTIONS BYPASS
         if request.method == "OPTIONS":
             return await call_next(request)
 
         request_id = request.headers.get("X-Request-ID") or request.headers.get("X-Trace-ID") or str(uuid.uuid4())
-        structlog.contextvars.clear_contextvars()
-        structlog.contextvars.bind_contextvars(request_id=request_id, client_ip=request.client.host)
-        
+        # We use standard logging for now to ensure startup stability
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
         return response
 
 class IdempotencyMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # 1. IMMEDIATE OPTIONS BYPASS
         if request.method == "OPTIONS":
             return await call_next(request)
 
-        # 2. PUBLIC ROUTE EXCLUSION
         path = request.url.path.lower()
         if any(x in path for x in ["/auth/", "/login", "/register", "/check-user"]):
             return await call_next(request)
@@ -60,7 +54,6 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
 
 class TenantMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # 1. IMMEDIATE OPTIONS BYPASS
         if request.method == "OPTIONS":
             return await call_next(request)
 
