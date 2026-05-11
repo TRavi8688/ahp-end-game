@@ -1,9 +1,9 @@
 {
   "projects": {
-    "default": "hospyn-495906"
+    "default": "hospyn-495906-96438"
   },
   "targets": {
-    "hospyn-495906": {
+    "hospyn-495906-96438": {
       "hosting": {
         "main-site": [
           "hospyn-495906-96438"
