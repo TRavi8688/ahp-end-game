@@ -45,3 +45,7 @@ old-hospyn/
 
 # Railway
 .railway/
+
+key.json
+fresh_deploy_key.json
+error_logs.txt
