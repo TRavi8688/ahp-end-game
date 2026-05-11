@@ -422,9 +422,7 @@ export default function AiAssistScreen() {
             <View style={[styles.msgRow, isUser ? styles.msgRowUser : styles.msgRowAi]}>
                 {!isUser && (
                     <View style={styles.chittiAvatarSmall}>
-                        <LinearGradient colors={['#4c1d95', '#7c3aed']} style={styles.chittiAvatarGrad}>
-                            <Text style={{ fontSize: 12 }}>🤖</Text>
-                        </LinearGradient>
+                        <Image source={require('../../assets/chitti_avatar.png')} style={styles.avatarImgSmall} />
                     </View>
                 )}
                 <View style={styles.msgColumn}>
@@ -461,9 +459,7 @@ export default function AiAssistScreen() {
             <LinearGradient colors={['#050810', '#1E1B4B', '#2d1b69']} style={styles.header}>
                 <View style={styles.headerContent}>
                     <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-                        <LinearGradient colors={['#7c3aed', '#4c1d95']} style={styles.chittiTopAvatar}>
-                            <Text style={{ fontSize: 24 }}>🤖</Text>
-                        </LinearGradient>
+                        <Image source={require('../../assets/chitti_avatar.png')} style={styles.chittiTopAvatar} />
                     </Animated.View>
 
                     <View style={styles.headerText}>
@@ -538,9 +534,7 @@ export default function AiAssistScreen() {
                 {isTyping && (
                     <View style={styles.typingRow}>
                         <View style={styles.chittiAvatarSmall}>
-                            <LinearGradient colors={['#4c1d95', '#7c3aed']} style={styles.chittiAvatarGrad}>
-                                <Text style={{ fontSize: 12 }}>🤖</Text>
-                            </LinearGradient>
+                            <Image source={require('../../assets/chitti_avatar.png')} style={styles.avatarImgSmall} />
                         </View>
                         <View style={[styles.bubble, styles.bubbleAi, { paddingVertical: 12, paddingHorizontal: 16 }]}>
                             <TypingDots />
@@ -721,7 +715,10 @@ export default function AiAssistScreen() {
                             {/* Chitti's summary */}
                             {healthContext?.summary && (
                                 <View style={[styles.ctxSection, { backgroundColor: '#f5f3ff', borderRadius: 16, padding: 16 }]}>
-                                    <Text style={styles.ctxSectionLabel}>🤖 CHITTI'S CLINICAL INSIGHT</Text>
+                                <View style={{flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8}}>
+                                    <Image source={require('../../assets/chitti_avatar.png')} style={{width: 18, height: 18, borderRadius: 9}} />
+                                    <Text style={styles.ctxSectionLabel}>CHITTI'S CLINICAL INSIGHT</Text>
+                                </View>
                                     <Text style={styles.ctxSummaryText}>{healthContext.summary}</Text>
                                 </View>
                             )}
@@ -1584,4 +1581,14 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#94a3b8',
     },
+    chittiTopAvatar: {
+        width: 54,
+        height: 54,
+        borderRadius: 27,
+    },
+    avatarImgSmall: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+    }
 });

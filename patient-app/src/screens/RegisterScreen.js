@@ -126,7 +126,7 @@ export default function RegisterScreen({ navigation }) {
                 <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
                     <View style={styles.welcomeContainer}>
-                        <Image source={require('../../assets/icon.png')} style={styles.logoImage} resizeMode="contain" />
+                        <Image source={require('../../assets/hospyn_logo.png')} style={styles.logoImage} resizeMode="contain" />
                         <Text style={styles.title}>Join Hospyn</Text>
                         <Text style={styles.subtitle}>Create your AI Health Passport in seconds.</Text>
                     </View>
@@ -334,13 +334,9 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     logoImage: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        marginBottom: 15,
-        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-        borderWidth: 1,
-        borderColor: 'rgba(99, 102, 241, 0.2)',
+        width: 120,
+        height: 120,
+        marginBottom: 10,
     },
     title: {
         color: '#FFFFFF',

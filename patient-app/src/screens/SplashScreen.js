@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { SecurityUtils } from '../utils/security';
 
 // Import the cinematic splash to let Expo/Webpack handle the path bundling
-import logo from '../../assets/splash.png';
+import logo from '../../assets/hospyn_logo.png';
 
 const SplashScreen = () => {
   const navigation = useNavigation();

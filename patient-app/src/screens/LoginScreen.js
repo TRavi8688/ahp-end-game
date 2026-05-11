@@ -3,7 +3,7 @@ import {
     View, Text, StyleSheet, TextInput,
     TouchableOpacity, ActivityIndicator, Alert,
     KeyboardAvoidingView, Platform, ScrollView, Dimensions,
-    ImageBackground
+    ImageBackground, Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
@@ -92,9 +92,7 @@ export default function AuthScreen({ navigation }) {
                     showsVerticalScrollIndicator={false}
                 >
                     <View style={styles.header}>
-                        <View style={styles.logoCircle}>
-                            <Ionicons name="shield-checkmark" size={40} color="#6366F1" />
-                        </View>
+                        <Image source={require('../../assets/hospyn_logo.png')} style={styles.logoImage} />
                         <Text style={styles.brandName}>Hospyn</Text>
                         <Text style={styles.tagline}>Where Life Meets Intelligence</Text>
                     </View>
@@ -386,5 +384,11 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 14,
         fontFamily: Theme.fonts.headingSemi,
+    },
+    logoImage: {
+        width: 120,
+        height: 120,
+        resizeMode: 'contain',
+        marginBottom: 10,
     }
 });

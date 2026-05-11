@@ -59,10 +59,21 @@ export default function RecordsScreen({ navigation }) {
             let result;
             if (type === 'camera') {
                 const permission = await ImagePicker.requestCameraPermissionsAsync();
-                if (!permission.granted) return Alert.alert('Permission Denied', 'Camera access is required.');
-                result = await ImagePicker.launchCameraAsync({ quality: 0.7, allowsEditing: true });
+                if (!permission.granted) {
+                    return Alert.alert('Permission Denied', 'Camera access is required to scan reports.');
+                }
+                // Forced Hardware Trigger for Camera
+                result = await ImagePicker.launchCameraAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    allowsEditing: true,
+                    quality: 0.8,
+                    aspect: [4, 3],
+                });
             } else if (type === 'gallery') {
-                result = await ImagePicker.launchImageLibraryAsync({ quality: 0.7 });
+                result = await ImagePicker.launchImageLibraryAsync({
+                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                    quality: 0.7,
+                });
             } else {
                 result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf' });
             }
@@ -72,7 +83,7 @@ export default function RecordsScreen({ navigation }) {
             const file = result.assets[0];
             processFile(file);
         } catch (error) {
-            Alert.alert('Upload Error', 'Failed to select file.');
+            Alert.alert('Upload Error', 'Failed to trigger hardware camera.');
         }
     };
 
@@ -303,7 +314,7 @@ export default function RecordsScreen({ navigation }) {
                         {selectedRecord.ai_summary ? (
                             <View style={styles.summaryCard}>
                                 <View style={styles.summaryHeader}>
-                                    <Text style={{ fontSize: 20 }}>🤖</Text>
+                                    <Image source={require('../../assets/chitti_avatar.png')} style={styles.chittiAvatarSmall} />
                                     <Text style={styles.summaryTitle}>Chitti's Summary</Text>
                                 </View>
                                 <Text style={styles.summaryText}>{selectedRecord.ai_summary}</Text>
@@ -341,7 +352,6 @@ export default function RecordsScreen({ navigation }) {
                             </View>
                         )}
 
-                        {/* Hospital details */}
                         {extracted.hospital && extracted.hospital.name && (
                             <View style={styles.sectionCard}>
                                 <Text style={styles.sectionLabel}>🏥 HOSPITAL / CLINIC</Text>
@@ -413,7 +423,7 @@ export default function RecordsScreen({ navigation }) {
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContainer}>
                         <LinearGradient colors={['#4c1d95', '#7c3aed']} style={styles.modalHeader}>
-                            <Ionicons name="sparkles" size={24} color="#fff" style={{ marginRight: 10 }} />
+                            <Image source={require('../../assets/chitti_avatar.png')} style={[styles.chittiAvatarSmall, {marginRight: 10}]} />
                             <Text style={styles.modalHeaderTitle}>Chitti's Analysis</Text>
                             <TouchableOpacity onPress={() => setShowAnalysis(false)} style={styles.closeModal}>
                                 <Ionicons name="close" size={24} color="#fff" />
@@ -422,9 +432,7 @@ export default function RecordsScreen({ navigation }) {
 
                         <ScrollView style={styles.modalContent}>
                             <View style={styles.chittiBox}>
-                                <View style={styles.chittiAvatar}>
-                                    <Text style={{ fontSize: 20 }}>🤖</Text>
-                                </View>
+                                    <Image source={require('../../assets/chitti_avatar.png')} style={styles.chittiAvatarLarge} />
                                 <View style={styles.chittiBubble}>
                                     <Text style={styles.chittiText}>{analysisData?.summary}</Text>
                                 </View>
@@ -912,5 +920,15 @@ const styles = StyleSheet.create({
     progressFill: {
         height: '100%',
         backgroundColor: '#4c1d95',
+    },
+    chittiAvatarSmall: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+    },
+    chittiAvatarLarge: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
     },
 });
