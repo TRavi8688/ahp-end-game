@@ -10,7 +10,7 @@ load_dotenv()
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Hospyn 2.0 Secure (GCP)"
-    VERSION: str = "2.0.0"
+    VERSION: str = "2.0.1-PATCHED"
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str # production, staging, development
     DEMO_MODE: bool = False
