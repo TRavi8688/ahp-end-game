@@ -18,7 +18,7 @@ const getBaseUrl = () => {
     }
 
     // 3. Native: use localhost for dev, override via env var for production
-    return 'http://localhost:8000';
+    return 'https://hospyn-495906-api-7ixs2fhkna-uc.a.run.app';
 };
 
 const BASE = getBaseUrl();
