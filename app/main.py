@@ -118,15 +118,12 @@ async def health_check(request: Request, db: AsyncSession = Depends(get_db)):
     """Public health check: Alias for readiness but minimal exposure."""
     return await readiness_probe(request, db)
 
-# 2. MIDDLEWARE CHAIN (Order is Critical)
-# Traceability & Metrics first
-app.add_middleware(RequestIDMiddleware)
-app.middleware("http")(instrument_request())
-app.add_middleware(
-    ProxyHeadersMiddleware, 
-    trusted_hosts=settings.TRUSTED_PROXIES
-)
+# 2. MIDDLEWARE CHAIN (Order is Critical: LAST = OUTERMOST)
 
+# a. Metrics & Internal Instrumentation (Innermost)
+app.middleware("http")(instrument_request())
+
+# b. Security Headers (Non-CORS)
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
@@ -134,33 +131,38 @@ async def add_security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    
-    # --- BRUTE FORCE CORS (For Mission Success) ---
-    # Manually ensuring headers are present even if the default middleware misses them
-    origin = request.headers.get("origin")
-    if origin:
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-        response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, Accept, X-Request-ID, X-Idempotency-Key"
-    
+    # PHASE 2: REMOVED MANUAL CORS INJECTION. CORSMiddleware is the single source of truth.
     return response
 
-# CORS
+# c. Infrastructure Handling
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept", "X-Request-ID", "X-Idempotency-Key"],
+    ProxyHeadersMiddleware, 
+    trusted_hosts=settings.TRUSTED_PROXIES
 )
+app.add_middleware(RequestIDMiddleware)
 
-# Idempotency (Must be after RequestID for logging correlation)
+# d. Enterprise Security Logic
 app.add_middleware(IdempotencyMiddleware)
-
-# 3. Tenant Isolation: Postgres RLS Context
 app.add_middleware(TenantMiddleware)
 
+# e. PHASE 1: CORSMiddleware (OUTERMOST LAYER)
+# Handling preflights and origin validation before any other middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://hospyn-495906-96438.web.app",
+        "https://app.hospyn.com",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:19006",
+        "http://localhost:8081",
+        "http://localhost:19000",
+        "http://localhost:19001",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.on_event("shutdown")
 async def on_shutdown():
@@ -176,7 +178,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.exception_handler(ValueError)
 async def value_error_handler(request: Request, exc: ValueError):
-    """Centralized handler for domain validation errors (ValueErrors from services)."""
+    """Centralized handler for domain validation errors."""
     error = StandardErrorSchema(
         error_code="VALIDATION_ERROR",
         message=str(exc),
@@ -184,12 +186,8 @@ async def value_error_handler(request: Request, exc: ValueError):
     )
     return JSONResponse(status_code=400, content=error.dict())
 
-from fastapi.exceptions import RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
-
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    """Pass-through for specific HTTP exceptions (401, 403, 404, etc.)"""
     return JSONResponse(
         status_code=exc.status_code,
         content={"error_code": "HTTP_ERROR", "message": str(exc.detail)}
@@ -197,7 +195,6 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Handle FastAPI validation errors as 400 Bad Request."""
     return JSONResponse(
         status_code=400,
         content={"error_code": "VALIDATION_ERROR", "message": str(exc.errors())}
@@ -205,22 +202,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(Exception)
 async def generic_exception_handler(request: Request, exc: Exception):
-    """Fallback centralized error handler for unhandled exceptions."""
     logger.error(f"UNHANDLED_EXCEPTION: {str(exc)}", exc_info=True)
-    
-    # Capture exception in Sentry with contextual tagging
-    with sentry_sdk.isolation_scope() as scope:
-        # Assuming user might be attached to request.state by auth middleware
-        if hasattr(request.state, "user"):
-            scope.set_user({"id": request.state.user.id})
-            if hasattr(request.state.user, "hospital_id"):
-                scope.set_tag("hospital_id", request.state.user.hospital_id)
-        
-        # Tag traces
-        trace_id = request.headers.get("X-Request-ID", "unknown")
-        scope.set_tag("trace_id", trace_id)
-        sentry_sdk.capture_exception(exc)
-
     error = StandardErrorSchema(
         error_code="INTERNAL_SERVER_ERROR",
         message=str(exc) if settings.ENVIRONMENT == "development" else "An unexpected server error occurred.",
@@ -244,33 +226,23 @@ app.include_router(governance.router, prefix=settings.API_V1_STR)
 
 @app.websocket("/ws/{token}")
 async def websocket_endpoint(websocket: WebSocket, token: str):
-    """Secure WebSocket Bridge for Real-time Notifications & Chat."""
     from app.core import security
     from fastapi import WebSocketDisconnect
-    
     try:
         payload = security.decode_token(token, token_type="access")
         if not payload:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
-
         user_id = int(payload.get("sub"))
         await manager.connect(user_id, websocket)
-        
         while True:
             data = await websocket.receive_text()
             if data == "ping":
                 await websocket.send_text('{"type": "pong"}')
-                
     except WebSocketDisconnect:
         manager.disconnect(user_id, websocket)
     except Exception as e:
         logger.error(f"WS_ERROR: {str(e)}")
         manager.disconnect(user_id, websocket)
 
-# --- STABILITY BRIDGES ---
-# SPAs are now hosted on Vercel/CDN for better scalability
-# Removed StaticFiles mounting and /patient route
-
 logger.info("SYSTEM_READY: Hospyn 2.0 API is fully initialized.")
-
