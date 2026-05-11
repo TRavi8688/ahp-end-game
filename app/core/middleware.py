@@ -49,14 +49,20 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
     Prevents duplicate clinical record creation and thundering herd scenarios.
     """
     async def dispatch(self, request: Request, call_next):
+        # 1. Exempt non-mutating methods
         if request.method not in ["POST", "PATCH", "PUT"]:
+            return await call_next(request)
+
+        # 2. Exempt Authentication & Onboarding (Prevent 400 errors for new users)
+        path = request.url.path
+        if "/auth/" in path or "/onboarding/" in path:
             return await call_next(request)
 
         idempotency_key = request.headers.get("X-Idempotency-Key")
         
-        # --- STRICT ENFORCEMENT ---
+        # --- STRICT ENFORCEMENT for everything else ---
         if not idempotency_key:
-            logger.warning("MISSING_IDEMPOTENCY_KEY", method=request.method, path=request.url.path)
+            logger.warning("MISSING_IDEMPOTENCY_KEY", method=request.method, path=path)
             return Response(
                 status_code=400, 
                 content=json.dumps({
