@@ -1,14 +1,11 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { WS_BASE_URL } from '../api';
+import { SecurityUtils } from '../utils/security';
 
 const SocketContext = createContext();
 
 export const useSocket = () => useContext(SocketContext);
-
-// Must match the key used in SecurityUtils
-const TOKEN_KEY = 'mulajna_auth_token';
 
 export const SocketProvider = ({ children }) => {
     const [socket, setSocket] = useState(null);
@@ -18,12 +15,12 @@ export const SocketProvider = ({ children }) => {
     const reconnectTimer = useRef(null);
     const MAX_RETRIES = 5;
 
-    // Watch for token changes in AsyncStorage using the correct key
+    // Watch for token changes in Secure Storage
     useEffect(() => {
         const checkToken = async () => {
-            const storedToken = await AsyncStorage.getItem(TOKEN_KEY);
+            const storedToken = await SecurityUtils.getToken();
             if (storedToken !== token) {
-                console.log('[Socket] Token changed:', storedToken ? 'Present' : 'Cleared');
+                console.log('[Socket] Token updated:', storedToken ? 'Active' : 'Empty');
                 setToken(storedToken);
                 setRetryCount(0); // Reset retries when token changes
             }
@@ -34,30 +31,29 @@ export const SocketProvider = ({ children }) => {
     }, [token]);
 
     const connect = async () => {
-        const latestToken = await AsyncStorage.getItem(TOKEN_KEY);
+        const latestToken = await SecurityUtils.getToken();
 
         if (!latestToken) {
-            console.log('[Socket] No token found, skipping connection.');
+            console.log('[Socket] No session token, skipping connection.');
             return;
         }
 
         if (socket && socket.readyState <= 1) {
-            console.log('[Socket] Already connected or connecting.');
             return;
         }
 
         if (retryCount >= MAX_RETRIES) {
-            console.warn('[Socket] Max retries reached. Please re-login.');
+            console.warn('[Socket] Max retries reached.');
             return;
         }
 
-        console.log(`[Socket] Connecting... (Attempt ${retryCount + 1})`);
+        console.log(`[Socket] Connecting to bridge... (Attempt ${retryCount + 1})`);
 
         try {
             const ws = new WebSocket(`${WS_BASE_URL}/ws/${latestToken}`);
 
             ws.onopen = () => {
-                console.log('[Socket] Patient WebSocket Connected ✅');
+                console.log('[Socket] Hospyn WebSocket Connected ✅');
                 setSocket(ws);
                 setRetryCount(0);
             };
@@ -65,18 +61,18 @@ export const SocketProvider = ({ children }) => {
             ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
-                    console.log('[Socket] Message received:', data.type);
+                    console.log('[Socket] Event:', data.type);
                     if (data.type === 'consent_request') {
                         Alert.alert('New Access Request', data.message);
                     }
                     setLastMessage(data);
                 } catch (e) {
-                    console.error('[Socket] Parse Error:', e);
+                    console.error('[Socket] Data Error:', e);
                 }
             };
 
             ws.onclose = (e) => {
-                console.log(`[Socket] Closed. Code: ${e.code}`);
+                console.log(`[Socket] Bridge closed. Code: ${e.code}`);
                 setSocket(null);
                 const delay = e.code === 1008 ? 30000 : 5000;
                 if (latestToken) {
@@ -86,10 +82,10 @@ export const SocketProvider = ({ children }) => {
             };
 
             ws.onerror = (err) => {
-                console.error('[Socket] Error:', err.message || err);
+                console.error('[Socket] Bridge Error:', err.message || err);
             };
         } catch (err) {
-            console.error('[Socket] Initialization Error:', err);
+            console.error('[Socket] Init Error:', err);
         }
     };
 
@@ -97,7 +93,6 @@ export const SocketProvider = ({ children }) => {
         if (token) {
             connect();
         } else {
-            console.log('[Socket] No token — closing socket.');
             if (socket) {
                 socket.close();
                 setSocket(null);

@@ -1,14 +1,14 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
+const TOKEN_KEY = 'hospyn_auth_token';
+const ID_KEY = 'hospyn_id';
+
 /**
  * Hospyn Secure Storage Utility
  * Ensures medical session tokens are stored in the hardware-backed Secure Enclave/Keystore.
  */
 const HospynSecurity = {
-  /**
-   * Save a sensitive value
-   */
   save: async (key, value) => {
     try {
       if (Platform.OS === 'web') {
@@ -25,9 +25,6 @@ const HospynSecurity = {
     }
   },
 
-  /**
-   * Retrieve a sensitive value
-   */
   get: async (key) => {
     try {
       if (Platform.OS === 'web') {
@@ -41,9 +38,6 @@ const HospynSecurity = {
     }
   },
 
-  /**
-   * Remove a sensitive value (Used for Logout/Data Deletion)
-   */
   remove: async (key) => {
     try {
       if (Platform.OS === 'web') {
@@ -56,6 +50,28 @@ const HospynSecurity = {
       console.error('HOSPYN_SECURE_STORAGE_ERROR: Failed to delete key', key, error);
       return false;
     }
+  },
+
+  // --- Convenience Methods ---
+
+  getToken: async () => {
+    return await HospynSecurity.get(TOKEN_KEY);
+  },
+
+  saveToken: async (token) => {
+    return await HospynSecurity.save(TOKEN_KEY, token);
+  },
+
+  deleteToken: async () => {
+    return await HospynSecurity.remove(TOKEN_KEY);
+  },
+
+  getHospynId: async () => {
+    return await HospynSecurity.get(ID_KEY);
+  },
+
+  saveHospynId: async (id) => {
+    return await HospynSecurity.save(ID_KEY, id);
   }
 };
 

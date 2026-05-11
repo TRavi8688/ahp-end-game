@@ -3,6 +3,7 @@ import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from 'rea
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SecurityUtils } from './src/utils/security';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Core
@@ -68,7 +69,7 @@ function AppContent() {
     const init = async () => {
       try {
         console.log('[App] Booting system...');
-        const token = await AsyncStorage.getItem('mulajna_auth_token');
+        const token = await SecurityUtils.getToken();
         console.log('[App] Token check:', token ? 'Session found' : 'No session');
         setInitialRoute(token ? 'MainTabs' : 'Login');
         
