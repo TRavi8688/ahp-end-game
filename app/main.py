@@ -151,7 +151,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://hospyn-495906-96438.web.app",
+        "https://hospyn-495906-96438.web.app/",
         "https://app.hospyn.com",
+        "https://app.hospyn.com/",
         "http://localhost:3000",
         "http://localhost:5173",
         "http://localhost:19006",
