@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, I
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import ApiService from '../utils/ApiService';
+import { useSocket } from '../contexts/SocketContext';
+import { Theme, GlobalStyles } from '../theme';
 
 export default function HomeScreen({ navigation }) {
     const [profile, setProfile] = useState(null);
