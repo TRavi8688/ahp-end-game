@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 // --- API CONFIGURATION ---
 // Priority: Env Variable > Local Dev (port 8000) > Production Fallback
 
+const getBaseUrl = () => {
     // Always use the production cloud API for consistency during testing
     return 'https://hospyn-495906-api-7ixs2fhkna-uc.a.run.app';
 };
