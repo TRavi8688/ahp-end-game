@@ -35,6 +35,8 @@ class ApiService {
             return config;
         });
 
+        this.onAuthFailure = null;
+
         // Global Error Handler with Retry Logic
         this.client.interceptors.response.use(
             (response) => response,
@@ -55,10 +57,19 @@ class ApiService {
 
                 if (response?.status === 401) {
                     console.error("AUTH_FAILURE: Session expired.");
+                    if (this.onAuthFailure) {
+                        this.onAuthFailure();
+                    }
+                    // Prevent further retries on auth failure
+                    return Promise.reject(error);
                 }
                 return Promise.reject(error);
             }
         );
+    }
+
+    setAuthFailureCallback(callback) {
+        this.onAuthFailure = callback;
     }
 
     // --- Clinical Endpoints ---

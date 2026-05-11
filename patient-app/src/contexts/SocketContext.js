@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { Alert } from 'react-native';
 import { WS_BASE_URL } from '../api';
+import { useAuth } from './AuthContext';
 import { SecurityUtils } from '../utils/security';
 
 const SocketContext = createContext();
@@ -8,27 +9,27 @@ const SocketContext = createContext();
 export const useSocket = () => useContext(SocketContext);
 
 export const SocketProvider = ({ children }) => {
+    const { isAuthenticated } = useAuth();
     const [socket, setSocket] = useState(null);
     const [lastMessage, setLastMessage] = useState(null);
-    const [token, setToken] = useState(null);
     const [retryCount, setRetryCount] = useState(0);
     const reconnectTimer = useRef(null);
     const MAX_RETRIES = 5;
 
-    // Watch for token changes in Secure Storage
+    // Connect/Disconnect based on global Auth State
     useEffect(() => {
-        const checkToken = async () => {
-            const storedToken = await SecurityUtils.getToken();
-            if (storedToken !== token) {
-                console.log('[Socket] Token updated:', storedToken ? 'Active' : 'Empty');
-                setToken(storedToken);
-                setRetryCount(0); // Reset retries when token changes
+        if (isAuthenticated) {
+            connect();
+        } else {
+            if (socket) {
+                socket.close();
+                setSocket(null);
             }
+        }
+        return () => {
+            if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
         };
-        const interval = setInterval(checkToken, 2000);
-        checkToken();
-        return () => clearInterval(interval);
-    }, [token]);
+    }, [isAuthenticated]);
 
     const connect = async () => {
         const latestToken = await SecurityUtils.getToken();
@@ -89,19 +90,6 @@ export const SocketProvider = ({ children }) => {
         }
     };
 
-    useEffect(() => {
-        if (token) {
-            connect();
-        } else {
-            if (socket) {
-                socket.close();
-                setSocket(null);
-            }
-        }
-        return () => {
-            if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-        };
-    }, [token]);
 
     return (
         <SocketContext.Provider value={{ socket, lastMessage }}>

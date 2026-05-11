@@ -3,10 +3,12 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, I
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import ApiService from '../utils/ApiService';
+import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
 import { Theme, GlobalStyles } from '../theme';
 
 export default function HomeScreen({ navigation }) {
+    const { isAuthenticated, logout } = useAuth();
     const [profile, setProfile] = useState(null);
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -19,7 +21,10 @@ export default function HomeScreen({ navigation }) {
     const [timeline, setTimeline] = useState([]);
 
     const fetchData = async () => {
+        if (!isAuthenticated) return;
+        
         try {
+            console.log('[Home] Refreshing clinical snapshot...');
             const [profileData, summaryData, pendingAccess, timelineData] = await Promise.all([
                 ApiService.getProfile(),
                 ApiService.getClinicalSummary(),
@@ -29,7 +34,7 @@ export default function HomeScreen({ navigation }) {
 
             setProfile(profileData);
             setSummary(summaryData);
-            setTimeline(timelineData.slice(0, 3)); // Only show top 3 on home
+            setTimeline(timelineData.slice(0, 3)); 
             
             if (pendingAccess && pendingAccess.length > 0) {
                 setConsentData(pendingAccess[0]);
@@ -37,9 +42,7 @@ export default function HomeScreen({ navigation }) {
             }
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
-            if (error.response?.status === 401) {
-                navigation.replace('Login');
-            }
+            // 401 is handled by ApiService global interceptor now
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -47,19 +50,10 @@ export default function HomeScreen({ navigation }) {
     };
 
     useEffect(() => {
-        fetchData();
-    }, []);
-
-    useEffect(() => {
-        if (lastMessage?.type === 'patient_update') {
-            console.log('Real-time sync triggered by socket:', lastMessage);
+        if (isAuthenticated) {
             fetchData();
         }
-        if (lastMessage?.type === 'consent_request') {
-            setConsentData(lastMessage.payload);
-            setShowConsent(true);
-        }
-    }, [lastMessage]);
+    }, [isAuthenticated]);
 
     const handleConsentAction = async (action) => {
         if (!consentData) return;
@@ -118,9 +112,14 @@ export default function HomeScreen({ navigation }) {
                             </View>
                         </View>
                     </View>
-                    <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
-                        <Ionicons name="notifications-outline" size={28} color="#fff" />
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 15 }}>
+                        <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
+                            <Ionicons name="notifications-outline" size={28} color="#fff" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => logout()}>
+                            <Ionicons name="log-out-outline" size={28} color="#fff" />
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 {/* 1b. AI Health Summary */}

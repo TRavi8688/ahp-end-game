@@ -7,7 +7,9 @@ import { SecurityUtils } from './src/utils/security';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 // Core
+import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { SocketProvider } from './src/contexts/SocketContext';
+import ApiService from './src/utils/ApiService';
 import { useFonts } from 'expo-font';
 import { Syne_800ExtraBold, Syne_700Bold } from '@expo-google-fonts/syne';
 import { SpaceMono_400Regular } from '@expo-google-fonts/space-mono';
@@ -55,6 +57,7 @@ class ErrorBoundary extends React.Component {
 }
 
 function AppContent() {
+  const { isAuthenticated, isLoading, logout } = useAuth();
   const [fontsLoaded] = useFonts({
     Syne_800ExtraBold,
     Syne_700Bold,
@@ -62,38 +65,24 @@ function AppContent() {
     DMSans_400Regular,
   });
 
-  const [initialRoute, setInitialRoute] = useState(null);
   const [bootReady, setBootReady] = useState(false);
 
   useEffect(() => {
-    const init = async () => {
-      try {
-        console.log('[App] Booting system...');
-        const token = await SecurityUtils.getToken();
-        console.log('[App] Token check:', token ? 'Session found' : 'No session');
-        setInitialRoute(token ? 'MainTabs' : 'Login');
-        
-        // Force ready after a delay even if fonts take too long, to avoid blank screen
-        const timer = setTimeout(() => {
-          console.log('[App] Forced boot ready (timeout)');
-          setBootReady(true);
-        }, 3000);
+    // Register global auth failure listener
+    ApiService.setAuthFailureCallback(() => {
+      console.warn('[App] Automatic logout triggered by API failure');
+      logout();
+    });
+  }, [logout]);
 
-        if (fontsLoaded) {
-          console.log('[App] Fonts loaded, system ready');
-          setBootReady(true);
-          clearTimeout(timer);
-        }
-      } catch (e) {
-        console.error('[App] Boot error:', e);
-        setInitialRoute('Login');
-        setBootReady(true);
-      }
-    };
-    init();
-  }, [fontsLoaded]);
+  useEffect(() => {
+    if (fontsLoaded && !isLoading) {
+      console.log('[App] Fonts loaded and Auth initialized, system ready');
+      setBootReady(true);
+    }
+  }, [fontsLoaded, isLoading]);
 
-  if (!bootReady || !initialRoute) {
+  if (!bootReady) {
     return (
       <View style={{ flex: 1, backgroundColor: '#050810', justifyContent: 'center', alignItems: 'center' }}>
         <Text style={{ color: '#6366F1', fontSize: 42, letterSpacing: 10, fontWeight: '900' }}>HOSPYN</Text>
@@ -109,16 +98,22 @@ function AppContent() {
         <NavigationContainer>
           <Stack.Navigator 
             screenOptions={{ headerShown: false, animation: 'fade' }} 
-            initialRouteName={initialRoute}
           >
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
-            <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
-            <Stack.Screen name="MainTabs" component={MainTabs} />
-            <Stack.Screen name="EmergencyMode" component={EmergencyModeScreen} />
-            <Stack.Screen name="Notifications" component={NotificationsScreen} />
-            <Stack.Screen name="Timeline" component={ClinicalTimelineScreen} />
-            <Stack.Screen name="Records" component={RecordsScreen} />
+            {!isAuthenticated ? (
+              <>
+                <Stack.Screen name="Login" component={LoginScreen} />
+                <Stack.Screen name="Register" component={RegisterScreen} />
+              </>
+            ) : (
+              <>
+                <Stack.Screen name="MainTabs" component={MainTabs} />
+                <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+                <Stack.Screen name="EmergencyMode" component={EmergencyModeScreen} />
+                <Stack.Screen name="Notifications" component={NotificationsScreen} />
+                <Stack.Screen name="Timeline" component={ClinicalTimelineScreen} />
+                <Stack.Screen name="Records" component={RecordsScreen} />
+              </>
+            )}
           </Stack.Navigator>
         </NavigationContainer>
       </SocketProvider>
@@ -129,7 +124,9 @@ function AppContent() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

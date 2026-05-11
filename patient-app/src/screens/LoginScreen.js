@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 import { SecurityUtils } from '../utils/security';
 import { Theme, GlobalStyles } from '../theme';
 import { API_BASE_URL } from '../api';
@@ -17,6 +18,7 @@ import { HapticUtils } from '../utils/haptics';
 const { width, height } = Dimensions.get('window');
 
 export default function AuthScreen({ navigation }) {
+    const { login } = useAuth();
     const [loading, setLoading] = useState(false);
     const [hospynId, setHospynId] = useState('');
     const [password, setPassword] = useState('');
@@ -35,9 +37,11 @@ export default function AuthScreen({ navigation }) {
         if (hospynUpper === 'HOSPYN-000000-TEST' || hospyn.toLowerCase() === 'admin@hospyn.com') {
             if (password === 'Hospyn123!') {
                 console.log("[Login] Master Bypass Triggered");
-                await SecurityUtils.saveToken('master_test_token_2026');
-                await SecurityUtils.saveHospynId('Hospyn-000000-TEST');
-                return navigation.replace('MainTabs');
+                const success = await login('master_test_token_2026', 'Hospyn-000000-TEST');
+                if (!success) {
+                    Alert.alert('Login Error', 'Failed to initialize session.');
+                }
+                return;
             }
         }
 
@@ -49,12 +53,10 @@ export default function AuthScreen({ navigation }) {
         try {
             const resp = await axios.post(`${API_BASE_URL}/patient/login-hospyn`, { hospyn_id: hospyn, password });
             if (resp.data.access_token) {
-                await SecurityUtils.saveToken(resp.data.access_token);
-                await SecurityUtils.saveHospynId(resp.data.hospyn_id || '');
-                if (rememberMe) {
-                    await SecurityUtils.saveRememberMe(true);
+                const success = await login(resp.data.access_token, resp.data.hospyn_id || hospyn);
+                if (!success) {
+                    Alert.alert('Login Error', 'Failed to save session securely.');
                 }
-                navigation.replace('MainTabs');
             }
         } catch (e) {
             const errorMsg = e.response?.data?.detail || 'Invalid credentials.';
