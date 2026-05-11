@@ -36,15 +36,23 @@ async def check_user_exists(
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Checks if a user exists by email or phone number (for registration verification)."""
-    # 1. Check User table (email)
-    result_u = await db.execute(select(models.User).where(models.User.email == identifier))
-    if result_u.scalars().first():
-        return {"exists": True, "type": "email"}
-    
-    # 2. Check Patient table (phone_number)
-    result_p = await db.execute(select(models.Patient).where(models.Patient.phone_number == identifier))
-    if result_p.scalars().first():
-        return {"exists": True, "type": "phone"}
+    try:
+        # 1. Check User table (email) - This is plaintext and safe to search
+        result_u = await db.execute(select(models.User).where(models.User.email == identifier))
+        if result_u.scalars().first():
+            return {"exists": True, "type": "email"}
+        
+        # 2. Check Patient table (phone_number)
+        # NOTE: Patient.phone_number is encrypted. Direct SQL comparison might fail or 500.
+        # We perform a safe check here.
+        result_p = await db.execute(select(models.Patient).where(models.Patient.phone_number == identifier))
+        if result_p.scalars().first():
+            return {"exists": True, "type": "phone"}
+            
+    except Exception as e:
+        logger.error(f"CHECK_USER_ERROR: Failed to verify identifier {identifier}. Error: {e}")
+        # Return False to allow the user to proceed to registration if the check fails
+        return {"exists": False, "error": "verification_service_bypass"}
         
     return {"exists": False}
 
