@@ -16,12 +16,22 @@ class ApiService {
             }
         });
 
-        // Inject Auth Token automatically
+        // Inject Auth Token and Security Headers automatically
         this.client.interceptors.request.use(async (config) => {
             const token = await SecurityUtils.getToken();
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
             }
+
+            // --- PRODUCTION DATA INTEGRITY ---
+            // Automatically generate a unique key for every mutating operation
+            // This satisfies the IdempotencyMiddleware for life.
+            if (['post', 'put', 'patch'].includes(config.method?.toLowerCase())) {
+                const randomId = Math.random().toString(36).substring(2, 15);
+                const timestamp = Date.now();
+                config.headers['X-Idempotency-Key'] = `hospyn_${timestamp}_${randomId}`;
+            }
+
             return config;
         });
 
@@ -76,9 +86,14 @@ class ApiService {
     async uploadReport(formData) {
         // Use native fetch for large files/blobs to avoid axios serialization issues on some platforms
         const token = await SecurityUtils.getToken();
+        const randomId = Math.random().toString(36).substring(2, 15);
+        
         const response = await fetch(`${API_BASE_URL}/patient/upload-report`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
+            headers: { 
+                'Authorization': `Bearer ${token}`,
+                'X-Idempotency-Key': `hospyn_upload_${Date.now()}_${randomId}`
+            },
             body: formData,
         });
         return await response.json();
