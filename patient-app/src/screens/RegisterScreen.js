@@ -237,7 +237,27 @@ export default function RegisterScreen({ navigation }) {
                                         secureTextEntry={!showPassword}
                                         placeholderTextColor="#aaa"
                                     />
+                                    {formData.confirmPassword.length > 0 && (
+                                        <Ionicons 
+                                            name={formData.password === formData.confirmPassword ? "checkmark-circle" : "close-circle"} 
+                                            size={20} 
+                                            color={formData.password === formData.confirmPassword ? "#10b981" : "#ef4444"} 
+                                            style={{ marginRight: 10 }}
+                                        />
+                                    )}
                                 </View>
+                                {formData.confirmPassword.length > 0 && (
+                                    <Text style={{ 
+                                        color: formData.password === formData.confirmPassword ? "#10b981" : "#ef4444", 
+                                        fontSize: 12, 
+                                        marginTop: -10, 
+                                        marginBottom: 10,
+                                        marginLeft: 10,
+                                        fontWeight: 'bold'
+                                    }}>
+                                        {formData.password === formData.confirmPassword ? "✓ Passwords match" : "✗ Passwords do not match"}
+                                    </Text>
+                                )}
                             </>
                         ) : (
                             <View>
