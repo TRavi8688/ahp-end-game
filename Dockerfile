@@ -26,4 +26,6 @@ RUN adduser --disabled-password --gecos "" appuser && \
 USER appuser
 
 EXPOSE 8000
-CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT
+# Use shell form of CMD to ensure $PORT expansion, but use 'exec' to handle signals properly
+CMD exec uvicorn app.main:app --host 0.0.0.0 --port $PORT
+

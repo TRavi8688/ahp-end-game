@@ -12,7 +12,7 @@ class HospitalInvite(Base):
     hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
     email: Mapped[str] = mapped_column(String(255), index=True)
     token_hash: Mapped[str] = mapped_column(String(255), unique=True) # Hashed token for verification
-    role: Mapped[str] = mapped_column(String(50), default="OWNER")
+    role: Mapped[str] = mapped_column(String(50), default="hospital_admin")
     is_used: Mapped[bool] = mapped_column(Boolean, default=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))

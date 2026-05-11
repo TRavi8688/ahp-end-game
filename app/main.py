@@ -16,7 +16,13 @@ app = FastAPI(title="Hospyn 2.0 Enterprise", version="2.0.3-PROD")
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to Hospyn 2.0 - PRODUCTION-STABLE", "version": "2.0.3"}
+    return {
+        "status": "online",
+        "service": "Hospyn 2.0 Enterprise API",
+        "version": "2.0.3-STABLE",
+        "environment": settings.ENVIRONMENT
+    }
+
 
 @app.get("/health")
 @app.get("/readyz")

@@ -24,7 +24,7 @@ async def invite_staff(
     Hospital-side invitation endpoint. Only Owners and HR can invite staff.
     """
     # 1. Permission Check
-    if current_user.role not in [RoleEnum.OWNER, RoleEnum.ADMIN]:
+    if current_user.role not in [RoleEnum.hospital_admin, RoleEnum.admin]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only Owners or HR Managers can invite staff."

@@ -22,7 +22,7 @@ class OnboardingService:
         hospyn_id: str,
         created_by: uuid.UUID,
         ip_address: Optional[str] = None,
-        role: str = "OWNER",
+        role: str = "hospital_admin",
         expires_in_hours: int = 24
     ) -> Tuple[str, str]:
         """
