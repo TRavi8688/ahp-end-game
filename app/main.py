@@ -164,7 +164,7 @@ async def value_error_handler(request: Request, exc: ValueError):
         message=str(exc),
         trace_id=request.headers.get("X-Request-ID", "unknown")
     )
-    return JSONResponse(status_code=400, content=error.dict())
+    return JSONResponse(status_code=400, content=error.model_dump())
 
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
@@ -177,7 +177,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     return JSONResponse(
         status_code=400,
-        content={"error_code": "VALIDATION_ERROR", "message": str(exc.errors())}
+        content={"error_code": "VALIDATION_ERROR", "details": exc.errors()}
     )
 
 @app.exception_handler(Exception)
