@@ -1,33 +1,38 @@
-# Hospyn 2.0 System Hardening & Expansion Roadmap
+# Hospyn 2.0: Master Production Roadmap
 
-## Phase 1: Security & Architecture Hardening (CRITICAL)
-- `[ ]` 1. Extract SPA & Configure Vercel Routing
-  - `[ ]` Create `doctor-app/vercel.json`
-  - `[ ]` Create `patient-app/vercel.json`
-- `[ ]` 2. Multi-Service Infrastructure Setup
-  - `[ ]` Create `railway.toml` for dedicated Worker/API scaling
-  - `[ ]` Delete old `railway.json`
-  - `[ ]` Optimize `Dockerfile` (multi-stage, non-root)
-- `[ ]` 3. API Security & Routing Cleanup
-  - `[ ]` Remove SPA static serving (`app/main.py`)
-  - `[x]` Fix Admin Invite protection (`app/api/admin.py`)
-  - `[ ]` Fix `trusted_hosts=["*"]` wildcard vulnerability
-  - `[ ]` Secure `/health` endpoint to prevent info leakage
-- `[ ]` 4. Authentication Hardening
-  - `[ ]` Remove `_otp_memory_store` RAM vulnerability
-  - `[ ]` Mandate Redis usage for OTPs
-- `[ ]` 5. Database Integrity
-  - `[ ]` Convert string models to PostgreSQL ENUMs
-  - `[ ]` Convert JSON columns to JSONB
+## PHASE 1: Security & Decoupling (CRITICAL)
+- `[ ]` **Task 1: SPA Extraction**
+  - `[ ]` Create `vercel.json` for `doctor-app` and `patient-app`
+  - `[ ]` Remove `StaticFiles` and catch-all routes from `app/main.py`
+- `[ ]` **Task 2: Network Lockdown**
+  - `[ ]` Replace `trusted_hosts=["*"]` with explicit environment config
+  - `[ ]` Secure `/health` and `/readyz` endpoints
+- `[ ]` **Task 3: Auth Hardening**
+  - `[ ]` Migrate OTP/Session store to Redis
+  - `[x]` Secure Hospital Invite endpoints (`app/api/admin.py`)
+- `[ ]` **Task 4: DB Schema Hardening**
+  - `[ ]` Convert critical fields to PostgreSQL ENUMs and JSONB
 
-## Phase 2: Future Expansions (Strategic)
-- `[ ]` 6. Pharmacy & Lab Ecosystem
-  - `[ ]` Implement `PharmacyOrder` and `LabRequest` models
+## PHASE 2: Functional Expansion (Pharmacy & Lab)
+- `[ ]` **Task 5: Hub Implementation**
+  - `[ ]` Deploy `PharmacyOrder` and `LabRequest` models
   - `[ ]` Integrate AI-Prescription OCR pipeline
-  - `[ ]` Build Staff Portal dashboards for Pharm/Lab
-- `[ ]` 7. Partner Mobile App
-  - `[ ]` Configure Expo EAS build pipeline
-  - `[ ]` Implement QR-based Patient Rounds
-- `[ ]` 8. Global Governance
-  - `[ ]` Finalize Super Admin multi-tenant dashboard
-  - `[ ]` Add real-time performance monitoring (Sentry/Posthog)
+- `[ ]` **Task 6: Staff Portals**
+  - `[ ]` Build specialized dashboards for Pharmacy/Lab technicians
+
+## PHASE 3: Scaling & Real-time
+- `[ ]` **Task 7: Multi-Service Infrastructure**
+  - `[ ]` Configure `railway.toml` for independent API/Worker scaling
+  - `[ ]` Optimize Dockerfile for production layers
+- `[ ]` **Task 8: Observability**
+  - `[ ]` Integrate Sentry and PostHog for production monitoring
+
+## PHASE 4: App Store Readiness
+- `[ ]` **Task 9: Mobile Deployment**
+  - `[ ]` Configure Expo EAS build pipeline for Android/iOS
+  - `[ ]` Final App Store submission for Patient and Partner apps
+
+## PHASE 5: Go-Live & Operations
+- `[ ]` **Task 10: Institutional Onboarding**
+  - `[ ]` Finalize Super Admin dashboard for tenant management
+  - `[ ]` Onboard first 10 pilot hospitals

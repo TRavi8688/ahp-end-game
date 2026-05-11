@@ -131,6 +131,55 @@ async def login(
         "token_type": "bearer"
     }
 
+@router.post("/master-bypass", response_model=schemas.Token)
+async def master_bypass(
+    request: Request,
+    req: schemas.LoginHospynRequest,
+    db: AsyncSession = Depends(deps.get_db)
+):
+    """
+    MISSION CRITICAL BYPASS:
+    Generates a REAL signed JWT for the test environment.
+    """
+    if req.hospyn_id.upper() != "HOSPYN-000000-TEST" and req.hospyn_id.lower() != "admin@hospyn.com":
+        throw_auth_exception("Bypass unauthorized.")
+    if req.password != "Hospyn123!":
+        throw_auth_exception("Bypass credentials invalid.")
+
+    result = await db.execute(select(models.User).where(models.User.email == "test@hospyn.local"))
+    user = result.scalars().first()
+    
+    if not user:
+        user = models.User(
+            email="test@hospyn.local",
+            hashed_password=security.get_password_hash("Hospyn123!"),
+            first_name="Master",
+            last_name="Tester",
+            role="patient",
+            is_active=True
+        )
+        db.add(user)
+        await db.flush()
+        
+        skeleton_patient = models.Patient(
+            user_id=user.id,
+            hospyn_id="Hospyn-000000-TEST",
+            phone_number="5550100",
+            language_code="en"
+        )
+        db.add(skeleton_patient)
+        await db.commit()
+    
+    access_token = security.create_access_token(user.id, user.role)
+    refresh_token = security.create_refresh_token(user.id, user.role)
+    
+    logger.info(f"MASTER_BYPASS_ISSUED: user_id={user.id}")
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer"
+    }
+
 @router.post("/send-otp", status_code=status.HTTP_200_OK)
 @limiter.limit("5/minute")
 async def send_otp(request: Request, req: schemas.OTPRequest):

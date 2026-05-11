@@ -37,9 +37,26 @@ export default function AuthScreen({ navigation }) {
         if (hospynUpper === 'HOSPYN-000000-TEST' || hospyn.toLowerCase() === 'admin@hospyn.com') {
             if (password === 'Hospyn123!') {
                 console.log("[Login] Master Bypass Triggered");
-                const success = await login('master_test_token_2026', 'Hospyn-000000-TEST');
-                if (!success) {
-                    Alert.alert('Login Error', 'Failed to initialize session.');
+                setLoading(true);
+                try {
+                    const bypassResp = await axios.post(`${API_BASE_URL}/auth/master-bypass`, { 
+                        hospyn_id: hospynUpper, 
+                        password: password 
+                    });
+                    
+                    if (bypassResp.data.access_token) {
+                        const success = await login(bypassResp.data.access_token, "HOSPYN-000000-TEST");
+                        if (!success) {
+                            Alert.alert('Login Error', 'Failed to initialize master session.');
+                        }
+                        return;
+                    }
+                } catch (bypassErr) {
+                    console.error("[Login] Bypass Endpoint Failed:", bypassErr);
+                    // Fallback to old behavior only if in dev, but strictly alert in prod
+                    Alert.alert('Bypass Failed', 'The secure bypass service is currently unavailable.');
+                } finally {
+                    setLoading(false);
                 }
                 return;
             }

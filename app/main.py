@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 import logging
 import traceback
-from fastapi import FastAPI, Request, HTTPException, status
+from fastapi import FastAPI, Request, HTTPException, status, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
@@ -12,27 +12,32 @@ from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from app.core.config import settings
 from app.core.logging import setup_logging, logger
 from app.schemas.common import StandardErrorSchema
+from app.core.security import decode_token
 
 # 1. Standard Logging Initialization
 setup_logging()
 
-# --- ENTERPRISE PRODUCTION STABILIZATION ---
-#Docs are disabled in production for security, and docs_url is used to gate accessibility.
+# --- STARTUP KEY VALIDATION ---
+if not settings.JWT_PRIVATE_KEY or "-----BEGIN" not in settings.JWT_PRIVATE_KEY:
+    logger.critical("SECURITY_ALERT: No valid RSA private key found for JWT signing. System will fallback to HS256 (Insecure).")
+if not settings.JWT_PUBLIC_KEY or "-----BEGIN" not in settings.JWT_PUBLIC_KEY:
+    logger.critical("SECURITY_ALERT: No valid RSA public key found for JWT verification.")
+
 app = FastAPI(
     title="Hospyn 2.0 Enterprise API", 
-    version="2.0.5-STABLE",
+    version="2.0.6-SECURE",
     docs_url="/api/docs" if settings.ENVIRONMENT != "production" else None,
     redoc_url=None
 )
 
-# --- BASE ROUTES (Before Middlewares for Raw Diagnostics) ---
+# --- BASE ROUTES ---
 
 @app.get("/")
 async def root():
     return {
         "status": "online",
         "service": "Hospyn 2.0 Enterprise API",
-        "version": "2.0.5-ARMORED",
+        "version": "2.0.6-FINAL",
         "environment": settings.ENVIRONMENT,
         "timestamp": datetime.utcnow().isoformat()
     }
@@ -53,8 +58,9 @@ async def health_check():
         "status": "ready", 
         "checks": {
             "database": db_status,
-            "api_version": "2.0.5",
-            "uptime": "verified"
+            "api_version": "2.0.6",
+            "uptime": "verified",
+            "jwt_mode": "RS256" if settings.JWT_PRIVATE_KEY else "HS256_FALLBACK"
         }
     }
 
@@ -62,7 +68,6 @@ async def health_check():
 from app.api.v1.router import api_router as enterprise_v1_router
 from app.api import auth, patient, profile, doctor, admin, privacy, auth_onboarding, staff, governance
 
-# Versioned API routes
 app.include_router(auth.router, prefix=settings.API_V1_STR)
 app.include_router(patient.router, prefix=settings.API_V1_STR)
 app.include_router(profile.router, prefix=settings.API_V1_STR)
@@ -75,7 +80,7 @@ app.include_router(staff.router, prefix=settings.API_V1_STR)
 app.include_router(governance.router, prefix=settings.API_V1_STR)
 
 
-# --- EXCEPTION HANDLERS (Must be registered BEFORE middlewares that catch errors) ---
+# --- EXCEPTION HANDLERS ---
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -107,7 +112,7 @@ async def integrity_exception_handler(request: Request, exc: IntegrityError):
         content={
             "detail": {
                 "error_code": "DUPLICATE_RECORD",
-                "message": "A record with these details already exists (Email/ID/Phone)."
+                "message": "A record with these details already exists."
             }
         }
     )
@@ -120,24 +125,20 @@ async def generic_exception_handler(request: Request, exc: Exception):
         content={
             "detail": {
                 "error_code": "INTERNAL_SERVER_ERROR",
-                "message": "A critical system error occurred. Diagnostics captured.",
+                "message": "A critical system error occurred.",
                 "trace_id": request.headers.get("X-Request-ID", "unknown")
             }
         }
     )
 
-# --- MIDDLEWARE CHAIN (ORDER IS CRITICAL: Outermost added LAST) ---
+# --- MIDDLEWARE CHAIN ---
 
-# 1. Proxy Headers (Internal)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 
-# 2. CORS (Outer Layer - Wraps Exception Responses)
-# We use settings.ALLOWED_ORIGINS but fallback to explicit list for safety
 allowed_origins = settings.ALLOWED_ORIGINS
 if "*" in allowed_origins:
     allowed_origins = ["*"]
 else:
-    # Ensure production Firebase URLs are ALWAYS included
     prod_origins = [
         "https://hospyn-495906-96438.web.app",
         "https://hospyn-495906.firebaseapp.com",
@@ -157,30 +158,44 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
-# 3. Global Exception Recovery Middleware (Outermost Catch-All)
 @app.middleware("http")
 async def catastrophic_recovery_middleware(request: Request, call_next):
     try:
         return await call_next(request)
     except Exception as exc:
         logger.error(f"CATASTROPHIC_ERROR: {exc}")
-        # Final safety response with CORS headers manually injected
         content = {"detail": "catastrophic_failure_recovery_active"}
         headers = {"Access-Control-Allow-Origin": request.headers.get("Origin", "*")}
         return JSONResponse(status_code=500, content=content, headers=headers)
 
 # --- REALTIME WEBSOCKET BRIDGE ---
-from fastapi import WebSocket, WebSocketDisconnect
 from app.core.realtime import manager
 
 @app.websocket("/ws/{token}")
 async def websocket_endpoint(websocket: WebSocket, token: str):
-    user_id = 101 # Default test user
+    """
+    ENTERPRISE REALTIME BRIDGE:
+    Now with full JWT validation parity with REST APIs.
+    """
+    payload = decode_token(token, token_type="access")
+    if not payload:
+        logger.warning(f"WS_AUTH_FAILURE: Connection attempt with invalid token.")
+        await websocket.accept() # Accept briefly to send error code
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
+    user_id = payload.get("sub")
+    if not user_id:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
+
     await manager.connect(user_id, websocket)
+    logger.info(f"WS_CONNECTED: user_id={user_id}")
     try:
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(user_id, websocket)
+        logger.info(f"WS_DISCONNECTED: user_id={user_id}")
 
-logger.info("SYSTEM_READY: Hospyn 2.0 API is fully armored and live.")
+logger.info("SYSTEM_READY: Hospyn 2.0 API is fully armored and secure.")

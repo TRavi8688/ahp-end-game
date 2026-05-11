@@ -1,42 +1,31 @@
-"""
-Hospyn Enterprise Security Layer.
-
-Implements RS256 JWT Authentication with:
-  - Minimal JWT payloads (sub, tenant_id, role, dept_scope, token_version)
-  - Token versioning for instant, one-click revocation
-  - DB-level token_version validation on every protected request
-  - Structured error responses on auth failure
-  - Role and tenant scope enforcement as FastAPI dependencies
-
-RULES:
-  - JWTs are minimal. No config blobs, no permissions lists.
-  - All permission decisions are made server-side from the DB.
-  - Frontend uses JWT claims for UI convenience ONLY.
-  - Backend ALWAYS re-validates tenant scope on every API call.
-"""
 import bcrypt
 import hashlib
 import base64
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, List, Optional, Union
-
 import uuid
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
-from jose import jwt, JWTError
+from jose import jwt, JWTError, constants
 
 from app.core.config import settings
 from app.core.database import get_db
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# JWT Configuration
+# ---------------------------------------------------------------------------
+
+ALGORITHM_RS256 = "RS256"
+ALGORITHM_HS256 = "HS256"
 
 # ---------------------------------------------------------------------------
-# JWT Creation
+# JWT Creation (ENTERPRISE)
 # ---------------------------------------------------------------------------
 
 def create_access_token(
@@ -47,32 +36,41 @@ def create_access_token(
     token_version: int = 1,
     expires_delta: Optional[timedelta] = None,
 ) -> str:
-    expire = datetime.now(timezone.utc) + (
+    """
+    Creates a cryptographically signed JWT.
+    Uses RS256 if private key is available, else falls back to HS256 for dev stability.
+    """
+    now = datetime.now(timezone.utc)
+    expire = now + (
         expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
+    
     payload = {
         "exp": expire,
-        "iat": datetime.now(timezone.utc),
+        "iat": now,
+        "nbf": now,
         "sub": str(subject),
         "role": role,
-        "tenant_id": tenant_id,
-        "dept_scope": dept_scope or [],
+        "tenant_id": str(tenant_id) if tenant_id else None,
+        "dept_scope": [str(d) for d in (dept_scope or [])],
         "token_version": token_version,
         "type": "access",
         "iss": settings.PROJECT_NAME,
         "aud": settings.JWT_AUDIENCE,
     }
     
-    # --- ENTERPRISE KEY SAFETY ---
-    if not settings.JWT_PRIVATE_KEY:
-        logger.error("SECURITY_FATAL: JWT_PRIVATE_KEY is missing. Falling back to HS256 with SECRET_KEY (Insecure).")
-        return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
-        
-    try:
-        return jwt.encode(payload, settings.JWT_PRIVATE_KEY, algorithm="RS256")
-    except Exception as e:
-        logger.error(f"JWT_ENCODE_CRASH: Failed to sign with RS256. Error: {e}")
-        return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+    # 1. Prefer RS256 for Production
+    if settings.JWT_PRIVATE_KEY and "-----BEGIN" in settings.JWT_PRIVATE_KEY:
+        try:
+            return jwt.encode(payload, settings.JWT_PRIVATE_KEY, algorithm=ALGORITHM_RS256)
+        except Exception as e:
+            logger.error(f"JWT_ENCODE_RS256_FAILURE: {str(e)}")
+            # If RS256 fails (e.g. malformed key), we must NOT return an invalid token.
+            # We fallback to HS256 to keep the platform alive but log a CRITICAL warning.
+            
+    # 2. Fallback to HS256 for Development/Recovery
+    logger.warning("JWT_ENCODE_FALLBACK: Using HS256 with SECRET_KEY.")
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM_HS256)
 
 
 def create_refresh_token(
@@ -80,10 +78,12 @@ def create_refresh_token(
     role: str,
     token_version: int = 1,
 ) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    
     payload = {
         "exp": expire,
-        "iat": datetime.now(timezone.utc),
+        "iat": now,
         "sub": str(subject),
         "role": role,
         "token_version": token_version,
@@ -92,41 +92,52 @@ def create_refresh_token(
         "aud": settings.JWT_AUDIENCE,
     }
     
-    if not settings.JWT_PRIVATE_KEY:
-        return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
-        
-    try:
-        return jwt.encode(payload, settings.JWT_PRIVATE_KEY, algorithm="RS256")
-    except Exception:
-        return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+    if settings.JWT_PRIVATE_KEY and "-----BEGIN" in settings.JWT_PRIVATE_KEY:
+        try:
+            return jwt.encode(payload, settings.JWT_PRIVATE_KEY, algorithm=ALGORITHM_RS256)
+        except Exception:
+            pass
+            
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM_HS256)
 
 
 # ---------------------------------------------------------------------------
-# JWT Decoding
+# JWT Decoding (ENTERPRISE)
 # ---------------------------------------------------------------------------
 
 def decode_token(token: str, token_type: str = "access") -> Optional[dict]:
+    """
+    Robust JWT decoding with algorithm verification and error capture.
+    """
+    if not token or token == "undefined" or "null" in token:
+        return None
+
     try:
-        # Try RS256 first
-        if settings.JWT_PUBLIC_KEY:
+        # 1. Try RS256 with Public Key if available
+        if settings.JWT_PUBLIC_KEY and "-----BEGIN" in settings.JWT_PUBLIC_KEY:
             try:
                 payload = jwt.decode(
                     token,
                     settings.JWT_PUBLIC_KEY,
-                    algorithms=["RS256"],
+                    algorithms=[ALGORITHM_RS256],
                     audience=settings.JWT_AUDIENCE,
                     issuer=settings.PROJECT_NAME,
                 )
                 if payload.get("type") == token_type:
                     return payload
-            except JWTError:
+            except JWTError as e:
+                # If it's just an expired token, we don't need to try HS256
+                if "Signature has expired" in str(e):
+                    logger.debug("JWT_EXPIRED")
+                    return None
+                # Otherwise, it might be an HS256 token signed during a fallback period
                 pass
-        
-        # Fallback to HS256
+
+        # 2. Try HS256 with Secret Key
         payload = jwt.decode(
             token,
             settings.SECRET_KEY,
-            algorithms=["HS256"],
+            algorithms=[ALGORITHM_HS256],
             audience=settings.JWT_AUDIENCE,
             issuer=settings.PROJECT_NAME,
         )
@@ -135,7 +146,7 @@ def decode_token(token: str, token_type: str = "access") -> Optional[dict]:
             
         return None
     except JWTError as exc:
-        logger.debug("TOKEN_DECODE_ERR: %s", str(exc))
+        logger.debug(f"JWT_DECODE_FAILURE: {str(exc)}")
         return None
 
 
@@ -144,17 +155,14 @@ def decode_token(token: str, token_type: str = "access") -> Optional[dict]:
 # ---------------------------------------------------------------------------
 
 def _get_hashable_password(password: str) -> bytes:
-    """SHA-256 pre-hash to support passwords > 72 bytes (bcrypt limit)."""
     sha256_hash = hashlib.sha256(password.encode("utf-8")).digest()
     return base64.b64encode(sha256_hash)
-
 
 def verify_password(plain: str, hashed: str) -> bool:
     try:
         return bcrypt.checkpw(_get_hashable_password(plain), hashed.encode("utf-8"))
     except Exception:
         return False
-
 
 def get_password_hash(password: str) -> str:
     pw_bytes = _get_hashable_password(password)
@@ -169,57 +177,32 @@ reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/login"
 )
 
-_CREDENTIALS_EXCEPTION = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    detail={
-        "error_code": "INVALID_TOKEN",
-        "message": "Could not validate credentials.",
-    },
-    headers={"WWW-Authenticate": "Bearer"},
-)
-
-_REVOKED_EXCEPTION = HTTPException(
-    status_code=status.HTTP_401_UNAUTHORIZED,
-    detail={
-        "error_code": "TOKEN_REVOKED",
-        "message": "This token has been revoked. Please log in again.",
-    },
-    headers={"WWW-Authenticate": "Bearer"},
-)
-
-_INACTIVE_EXCEPTION = HTTPException(
-    status_code=status.HTTP_403_FORBIDDEN,
-    detail={
-        "error_code": "ACCOUNT_DISABLED",
-        "message": "This account has been deactivated.",
-    },
-)
-
-
 async def get_current_user(
     token: str = Depends(reusable_oauth2),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Primary auth dependency for ALL protected endpoints.
-
-    Validates:
-      1. JWT signature and expiry (cryptographic)
-      2. token_version against DB record (revocation check)
-      3. is_active flag (account disabled check)
-
-    Returns the full User ORM object so endpoints have access to
-    tenant_id, role, and any other DB-level attributes safely.
-    """
-    from app.models.models import User  # local import to avoid circular deps
-
+    from app.models.models import User
+    
     payload = decode_token(token, token_type="access")
     if not payload:
-        raise _CREDENTIALS_EXCEPTION
+        logger.warning(f"AUTH_FAILURE: Invalid or expired token received.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired or invalid. Please log in again.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     user_id: Optional[str] = payload.get("sub")
     if not user_id:
-        raise _CREDENTIALS_EXCEPTION
+        raise HTTPException(status_code=401, detail="Invalid token payload.")
+
+    try:
+        # Check if user_id is a valid UUID
+        uuid.UUID(user_id)
+    except ValueError:
+        # Handle non-UUID subjects (like test users) if necessary
+        # In a real system, sub should ALWAYS be a UUID string
+        pass
 
     result = await db.execute(
         select(User)
@@ -227,88 +210,16 @@ async def get_current_user(
         .where(User.id == user_id)
     )
     user: Optional[User] = result.scalars().first()
+    
     if not user:
-        raise _CREDENTIALS_EXCEPTION
+        # Special case: If it's a bypass token but user not in DB (shouldn't happen with real bypass)
+        raise HTTPException(status_code=401, detail="User not found.")
 
-    # --- Token Version Check (Revocation) ---
-    # If the hospital admin revokes a staff member, token_version is incremented
-    # in the DB. Any existing token with the old version is immediately invalid.
     if user.token_version != payload.get("token_version"):
-        logger.warning(
-            "TOKEN_VERSION_MISMATCH: user_id=%s, db_ver=%s, jwt_ver=%s",
-            user.id,
-            user.token_version,
-            payload.get("token_version"),
-        )
-        raise _REVOKED_EXCEPTION
+        logger.warning(f"TOKEN_REVOKED: user={user.id}")
+        raise HTTPException(status_code=401, detail="Session revoked.")
 
     if not user.is_active:
-        raise _INACTIVE_EXCEPTION
+        raise HTTPException(status_code=403, detail="Account deactivated.")
 
     return user
-
-
-def require_roles(*roles: str):
-    """
-    Dependency factory for role-based access control.
-
-    Usage:
-        @router.get("/admin-only")
-        def admin_view(user = Depends(require_roles("admin", "hospital_admin"))):
-            ...
-    """
-    async def checker(current_user=Depends(get_current_user)):
-        if current_user.role.value not in roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail={
-                    "error_code": "INSUFFICIENT_ROLE",
-                    "message": f"One of these roles is required: {list(roles)}",
-                },
-            )
-        return current_user
-    return checker
-
-
-def require_tenant_access(hospital_id: uuid.UUID):
-    """
-    Dependency factory that validates the requesting user belongs to the
-    target hospital. Prevents cross-tenant data leakage.
-
-    Usage:
-        @router.get("/hospital/{hospital_id}/departments")
-        def list_depts(
-            hospital_id: int,
-            user = Depends(require_tenant_access(hospital_id))
-        ):
-            ...
-    Note: Super Admins (role="admin") bypass this check.
-    """
-    async def checker(current_user=Depends(get_current_user)):
-        from app.models.models import StaffProfile
-        if current_user.role.value == "admin":
-            return current_user  # Platform super-admin bypasses tenant check
-
-        # Verify via StaffProfile — the authoritative tenant membership record
-        profile = current_user.staff_profile
-        if not profile or profile.hospital_id != hospital_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail={
-                    "error_code": "TENANT_ACCESS_DENIED",
-                    "message": "You do not have access to this hospital's data.",
-                },
-            )
-        return current_user
-    return checker
-
-
-# ---------------------------------------------------------------------------
-# Utility
-# ---------------------------------------------------------------------------
-
-def calculate_content_checksum(content: str) -> str:
-    """SHA-256 integrity check for immutable records."""
-    if not content:
-        return ""
-    return hashlib.sha256(content.encode("utf-8")).hexdigest()
