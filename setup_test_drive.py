@@ -13,7 +13,7 @@ async def setup():
 
     async with async_session() as db:
         # Create Patient Test Account
-        pwd = security.get_password_hash("Mulajna@123")
+        pwd = security.get_password_hash("Hospyn@123")
         
         # 1. Patient
         user_p = User(
@@ -36,7 +36,7 @@ async def setup():
         await db.flush()
         
         # Add basic dashboard
-        dashboard = PatientDashboard(patient_id=patient.id, data={"summary": "Welcome to your Mulajna Test Drive!"})
+        dashboard = PatientDashboard(patient_id=patient.id, data={"summary": "Welcome to your Hospyn Test Drive!"})
         db.add(dashboard)
         
         # 2. Doctor
@@ -45,7 +45,7 @@ async def setup():
             hashed_password=pwd,
             role="doctor",
             first_name="Dr.",
-            last_name="Mulajna"
+            last_name="Hospyn"
         )
         db.add(user_d)
         await db.flush()

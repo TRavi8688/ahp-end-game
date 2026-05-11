@@ -28,7 +28,7 @@ const theme = createTheme({
         secondary: { main: '#6366F1' }, // Indigo Glow (AI)
         warning: { main: '#F59E0B' }, 
         background: {
-            default: '#050810', // Mulajna Luxury Deep Black
+            default: '#050810', // Hospyn Luxury Deep Black
             paper: '#0A0E1A' // Slightly lighter for layering
         },
         text: {

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mulajna Patient Portal (Stability Mode)</title>
+    <title>Hospyn Patient Portal (Stability Mode)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <style>
@@ -19,13 +19,13 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
                 </svg>
             </div>
-            <h1 class="syne text-4xl tracking-widest font-extrabold mb-2">MULAJNA</h1>
+            <h1 class="syne text-4xl tracking-widest font-extrabold mb-2">Hospyn</h1>
             <p class="text-slate-400 text-sm tracking-wide">STABILITY PORTAL ACTIVE</p>
         </div>
 
         <div class="space-y-6">
             <div>
-                <label class="text-[10px] text-indigo-400 font-bold tracking-widest ml-1 mb-2 block uppercase">Mulajna ID</label>
+                <label class="text-[10px] text-indigo-400 font-bold tracking-widest ml-1 mb-2 block uppercase">Hospyn ID</label>
                 <input type="text" id="hospynId" placeholder="Hospyn-XXXXXX" class="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-4 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-700">
             </div>
             <div>
@@ -39,7 +39,7 @@
         </div>
 
         <div class="mt-10 text-center">
-            <p class="text-slate-500 text-sm">New to Mulajna? <a href="#" class="text-indigo-400 font-semibold">Create Account</a></p>
+            <p class="text-slate-500 text-sm">New to Hospyn? <a href="#" class="text-indigo-400 font-semibold">Create Account</a></p>
         </div>
     </div>
 
@@ -68,7 +68,7 @@
                     alert('FAILURE: ' + (err.detail || 'Access Denied'));
                 }
             } catch (e) {
-                alert('NETWORK_ERROR: Unable to reach Mulajna Security Gateway.');
+                alert('NETWORK_ERROR: Unable to reach Hospyn Security Gateway.');
             } finally {
                 btn.innerText = 'SECURE LOGIN';
                 btn.disabled = false;

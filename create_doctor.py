@@ -16,13 +16,13 @@ async def main():
         user = result.scalar_one_or_none()
         
         if not user:
-            pwd = security.get_password_hash("Mulajna@123")
+            pwd = security.get_password_hash("Hospyn@123")
             user = User(
                 email="doctor@hospyn.local",
                 hashed_password=pwd,
                 role="doctor",
                 first_name="Dr.",
-                last_name="Mulajna"
+                last_name="Hospyn"
             )
             db.add(user)
             await db.flush()

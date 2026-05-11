@@ -221,7 +221,7 @@ class SetPasswordRequest(BaseModel):
 
 class ShareRecordRequest(BaseModel):
     record_id: uuid.UUID
-    doctor_query: str = Field(..., description="Doctor name or Mulajna ID")
+    doctor_query: str = Field(..., description="Doctor name or Hospyn ID")
     expires_hours: int = 24
 
 # --- AI Clinical Safety Governance ---

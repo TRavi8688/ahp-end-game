@@ -12,7 +12,7 @@ async def setup():
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with async_session() as db:
-        pwd = security.get_password_hash("Mulajna@123")
+        pwd = security.get_password_hash("Hospyn@123")
         
         # Check Patient
         user_p = (await db.execute(select(User).where(User.email == "tester@hospyn.local"))).scalar_one_or_none()
@@ -25,7 +25,7 @@ async def setup():
             db.add(patient)
             await db.flush()
             
-            dashboard = PatientDashboard(patient_id=patient.id, data={"summary": "Welcome to your Mulajna Test Drive!"})
+            dashboard = PatientDashboard(patient_id=patient.id, data={"summary": "Welcome to your Hospyn Test Drive!"})
             db.add(dashboard)
             print("Patient created.")
         else:
@@ -36,7 +36,7 @@ async def setup():
         # Check Doctor
         user_d = (await db.execute(select(User).where(User.email == "doctor@hospyn.local"))).scalar_one_or_none()
         if not user_d:
-            user_d = User(email="doctor@hospyn.local", hashed_password=pwd, role="doctor", first_name="Dr.", last_name="Mulajna")
+            user_d = User(email="doctor@hospyn.local", hashed_password=pwd, role="doctor", first_name="Dr.", last_name="Hospyn")
             db.add(user_d)
             await db.flush()
             

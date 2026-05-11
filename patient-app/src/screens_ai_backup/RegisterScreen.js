@@ -126,7 +126,7 @@ export default function RegisterScreen({ navigation }) {
 
                     <View style={styles.welcomeContainer}>
                         <Image source={require('../../assets/icon.png')} style={styles.logoImage} resizeMode="contain" />
-                        <Text style={styles.title}>Join Mulajna</Text>
+                        <Text style={styles.title}>Join Hospyn</Text>
                         <Text style={styles.subtitle}>Create your AI Health Passport in seconds.</Text>
                     </View>
 
@@ -293,7 +293,7 @@ export default function RegisterScreen({ navigation }) {
                         </View>
                     </View>
 
-                    <Text style={styles.footerText}>Secure • Private • Mulajna</Text>
+                    <Text style={styles.footerText}>Secure • Private • Hospyn</Text>
                 </ScrollView>
             </KeyboardAvoidingView>
         </LinearGradient>

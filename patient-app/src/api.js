@@ -29,4 +29,4 @@ export const WS_BASE_URL = BASE.startsWith('https')
     ? BASE.replace('https', 'wss')
     : BASE.replace('http', 'ws');
 
-// console.log(`[Mulajna Network] Core Endpoint: ${API_BASE_URL}`);
+// console.log(`[Hospyn Network] Core Endpoint: ${API_BASE_URL}`);

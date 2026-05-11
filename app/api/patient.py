@@ -41,7 +41,7 @@ async def patient_login_hospyn(
     
     if not patient:
         await log_audit_action(db, "LOGIN_FAILURE_NOT_FOUND", details={"hospyn_id": hospyn_id})
-        throw_auth_exception("Invalid Mulajna ID or password")
+        throw_auth_exception("Invalid Hospyn ID or password")
 
     result_u = await db.execute(select(models.User).where(models.User.id == patient.user_id))
     user = result_u.scalars().first()
@@ -49,7 +49,7 @@ async def patient_login_hospyn(
     # 2. Strict Credential Verification
     if not user or not security.verify_password(req.password, user.hashed_password):
         await log_audit_action(db, "LOGIN_FAILURE_AUTH", user_id=user.id if user else None)
-        throw_auth_exception("Invalid Mulajna ID or password")
+        throw_auth_exception("Invalid Hospyn ID or password")
     
     # 3. Session Issuance
     access_token = security.create_access_token(user.id, user.role)

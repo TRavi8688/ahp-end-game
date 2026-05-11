@@ -110,7 +110,7 @@ export default function LoginScreen() {
                             <img src="/logo.png" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </Box>
                         <Box>
-                            <Typography variant="h2" sx={{ fontWeight: 900, fontFamily: 'Outfit', letterSpacing: '-2px', lineHeight: 1 }}>Mulajna</Typography>
+                            <Typography variant="h2" sx={{ fontWeight: 900, fontFamily: 'Outfit', letterSpacing: '-2px', lineHeight: 1 }}>Hospyn</Typography>
                             <Typography variant="h6" sx={{ fontWeight: 800, color: '#0d9488', fontFamily: 'Outfit', letterSpacing: '4px', textTransform: 'uppercase', mt: 0.5 }}>Clinical Terminal</Typography>
                         </Box>
                     </Box>
@@ -144,7 +144,8 @@ export default function LoginScreen() {
                         }}>
                             <Typography variant="h4" sx={{ fontWeight: 800, mb: 1, color: '#FFFFFF', fontFamily: 'Outfit' }}>Personnel Login</Typography>
                             <Typography variant="body1" sx={{ mb: 5, color: '#64748b', fontWeight: 500 }}>
-                                Initialize secure clinical session.
+                                Initialize secure clinical session.{" "}
+                                <span style={{ color: '#0d9488', fontWeight: 700 }}>Demo: doctor@hospyn.com / Hospyn123!</span>
                             </Typography>
 
                             <Tabs

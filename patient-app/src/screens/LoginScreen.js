@@ -28,7 +28,7 @@ export default function AuthScreen({ navigation }) {
         HapticUtils.notificationAsync(HapticUtils.NotificationFeedbackType.Success);
         const hospyn = hospynId.trim().toUpperCase();
         if (!hospyn.startsWith('Hospyn-') || hospyn.length < 8) {
-            return Alert.alert('Invalid ID', 'Please enter a valid Mulajna ID.');
+            return Alert.alert('Invalid ID', 'Please enter a valid Hospyn ID.');
         }
         if (password.length < 6) {
             return Alert.alert('Password too short', 'Minimum 6 characters.');
@@ -84,17 +84,20 @@ export default function AuthScreen({ navigation }) {
                         <View style={styles.logoCircle}>
                             <Ionicons name="shield-checkmark" size={40} color="#6366F1" />
                         </View>
-                        <Text style={styles.brandName}>MULAJNA</Text>
+                        <Text style={styles.brandName}>Hospyn</Text>
                         <Text style={styles.tagline}>Where Life Meets Intelligence</Text>
                     </View>
 
                     <View style={styles.card}>
                         <Text style={styles.loginTitle}>Welcome Back</Text>
-                        <Text style={styles.loginSubtitle}>Securely access your health records</Text>
+                        <Text style={styles.loginSubtitle}>
+                            Securely access your health records{"\n"}
+                            <Text style={{ color: '#6366F1', fontWeight: 'bold' }}>Demo: Hospyn-000000-TEST / Hospyn123!</Text>
+                        </Text>
 
                         <View style={styles.inputArea}>
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>MULAJNA ID</Text>
+                                <Text style={styles.label}>Hospyn ID</Text>
                                 <View style={styles.inputWrapper}>
                                     <Ionicons name="person-outline" size={18} color="#94A3B8" style={styles.inputIcon} />
                                     <TextInput
@@ -171,15 +174,11 @@ export default function AuthScreen({ navigation }) {
                             <View style={styles.socialContainer}>
                                 <TouchableOpacity style={styles.socialBtn} onPress={() => handleSocialLogin('Google')}>
                                     <Ionicons name="logo-google" size={24} color="#EA4335" />
-                                    <Text style={styles.socialBtnText}>Login with Google</Text>
+                                    <Text style={styles.socialBtnText}>Continue with Google</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.socialBtn} onPress={() => handleSocialLogin('Facebook')}>
                                     <Ionicons name="logo-facebook" size={24} color="#1877F2" />
-                                    <Text style={styles.socialBtnText}>Login with Facebook</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity style={styles.socialBtn} onPress={() => handleSocialLogin('LinkedIn')}>
-                                    <Ionicons name="logo-linkedin" size={24} color="#0A66C2" />
-                                    <Text style={styles.socialBtnText}>Login with LinkedIn</Text>
+                                    <Text style={styles.socialBtnText}>Continue with Facebook</Text>
                                 </TouchableOpacity>
                             </View>
                         </View>

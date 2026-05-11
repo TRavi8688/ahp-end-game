@@ -171,7 +171,7 @@ export default function VerificationScreen() {
                                     Clinical Credentials
                                 </Typography>
                                 <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.5)', maxWidth: 600, mx: 'auto' }}>
-                                    To ensure the integrity of the Mulajna ecosystem, we verify all clinicians against global medical registries. This is a one-time secure protocol.
+                                    To ensure the integrity of the Hospyn ecosystem, we verify all clinicians against global medical registries. This is a one-time secure protocol.
                                 </Typography>
                             </Box>
 

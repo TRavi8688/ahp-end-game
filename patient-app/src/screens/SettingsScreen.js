@@ -35,7 +35,7 @@ export default function SettingsScreen({ navigation }) {
 
     const handleLogout = async () => {
         HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Heavy);
-        Alert.alert('Logout', 'Are you sure you want to logout from Mulajna?', [
+        Alert.alert('Logout', 'Are you sure you want to logout from Hospyn?', [
             { text: 'Cancel', style: 'cancel' },
             {
                 text: 'Logout',
@@ -216,7 +216,7 @@ export default function SettingsScreen({ navigation }) {
                 <Text style={styles.logoutText}>Logout from Passport</Text>
             </TouchableOpacity>
 
-            <Text style={styles.version}>Mulajna V4.0.1 — ENCRYPTED</Text>
+            <Text style={styles.version}>Hospyn V4.0.1 — ENCRYPTED</Text>
             <View style={{ height: 40 }} />
         </ScrollView>
     );

@@ -42,7 +42,7 @@ export default function MainTabs() {
     >
       <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Dashboard' }} />
       <Tab.Screen name="Records" component={RecordsScreen} options={{ title: 'Vault' }} />
-      <Tab.Screen name="AI Assist" component={AiAssistScreen} options={{ title: 'Mulajna AI' }} />
+      <Tab.Screen name="AI Assist" component={AiAssistScreen} options={{ title: 'Hospyn AI' }} />
       <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: 'More' }} />
     </Tab.Navigator>
   );

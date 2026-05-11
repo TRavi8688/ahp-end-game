@@ -10,7 +10,7 @@ export default function RegistrationSuccessScreen({ navigation, route }) {
     const onShare = async () => {
         try {
             await Share.share({
-                message: `My Mulajna Health Passport ID is ${hospyn_id}. Scan this to view my medical history.`,
+                message: `My Hospyn Health Passport ID is ${hospyn_id}. Scan this to view my medical history.`,
             });
         } catch (error) {
             console.error(error);
@@ -23,7 +23,7 @@ export default function RegistrationSuccessScreen({ navigation, route }) {
                 <View style={styles.successIcon}>
                     <Ionicons name="checkmark-circle" size={80} color={Theme.colors.primary} />
                 </View>
-                <Text style={styles.welcomeText}>Welcome to Mulajna,</Text>
+                <Text style={styles.welcomeText}>Welcome to Hospyn,</Text>
                 <Text style={[styles.nameText, GlobalStyles.heading]}>{fullName}!</Text>
                 <Text style={styles.subtitle}>Your AI Health Passport is ready.</Text>
             </LinearGradient>

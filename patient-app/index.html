@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-    <title>Mulajna Security Portal</title>
+    <title>Hospyn Security Portal</title>
     <style>
       html, body {
         height: 100%;
@@ -47,7 +47,7 @@
         navigator.serviceWorker.getRegistrations().then(function(registrations) {
           for(let registration of registrations) {
             registration.unregister();
-            console.log('[Mulajna] ServiceWorker Unregistered');
+            console.log('[Hospyn] ServiceWorker Unregistered');
           }
         });
       }

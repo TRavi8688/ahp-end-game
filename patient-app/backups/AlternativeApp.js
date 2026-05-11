@@ -16,10 +16,10 @@ const styles = StyleSheet.create({
 });
 
 export default function AlternativeApp() {
-  console.log('[Mulajna] V12 Bypass Diagnostic Mounting...');
+  console.log('[Hospyn] V12 Bypass Diagnostic Mounting...');
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>MULAJNA SYSTEM ONLINE</Text>
+      <Text style={styles.text}>Hospyn SYSTEM ONLINE</Text>
       <Text style={{ color: 'white', marginTop: 20 }}>V12 Total Bypass Success</Text>
     </View>
   );
