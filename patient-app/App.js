@@ -17,7 +17,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import ProfileSetupScreen from './src/screens/ProfileSetupScreen';
 import MainTabs from './src/navigation/MainTabs';
-import EmergencyScreen from './src/screens/EmergencyScreen';
+import EmergencyModeScreen from './src/screens/EmergencyModeScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import ClinicalTimelineScreen from './src/screens/ClinicalTimelineScreen';
 import RecordsScreen from './src/screens/RecordsScreen';
@@ -95,7 +95,7 @@ function AppContent() {
   if (!bootReady || !initialRoute) {
     return (
       <View style={{ flex: 1, backgroundColor: '#050810', justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: '#6366F1', fontSize: 42, letterSpacing: 10, fontWeight: '900' }}>MULAJNA</Text>
+        <Text style={{ color: '#6366F1', fontSize: 42, letterSpacing: 10, fontWeight: '900' }}>HOSPYN</Text>
         <ActivityIndicator size="large" color="#6366F1" style={{ marginTop: 20 }} />
         <Text style={{ color: '#94A3B8', marginTop: 20, letterSpacing: 2 }}>SECURE BOOT INITIALIZING...</Text>
       </View>
@@ -114,7 +114,7 @@ function AppContent() {
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
             <Stack.Screen name="MainTabs" component={MainTabs} />
-            <Stack.Screen name="EmergencyMode" component={EmergencyScreen} />
+            <Stack.Screen name="EmergencyMode" component={EmergencyModeScreen} />
             <Stack.Screen name="Notifications" component={NotificationsScreen} />
             <Stack.Screen name="Timeline" component={ClinicalTimelineScreen} />
             <Stack.Screen name="Records" component={RecordsScreen} />
