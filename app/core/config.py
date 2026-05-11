@@ -74,6 +74,19 @@ class Settings(BaseSettings):
     TWO_FACTOR_API_KEY: Optional[str] = None
     ENCRYPTION_KEY: Optional[str] = "placeholder-key-for-booting-only-32chars!"
     
+    # --- AI PROVIDERS & EXTERNAL SERVICES ---
+    GEMINI_API_KEY: Optional[str] = None
+    GROQ_API_KEY: Optional[str] = None
+    ANTHROPIC_API_KEY: Optional[str] = None
+    SARVAM_KEY: Optional[str] = None
+    INSFORGE_BASE_URL: str = "https://api.insforge.com"
+    INSFORGE_ANON_KEY: Optional[str] = None
+    
+    MSG91_AUTH_KEY: Optional[str] = None
+    MSG91_SENDER_ID: Optional[str] = None
+    MSG91_OTP_TEMPLATE_ID: Optional[str] = None
+
+    
     @property
     def async_database_url(self) -> str:
         url = self.DATABASE_URL
