@@ -54,8 +54,8 @@ class IdempotencyMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # 2. Exempt Authentication & Onboarding (Prevent 400 errors for new users)
-        path = request.url.path
-        if "/auth/" in path or "/onboarding/" in path:
+        path = request.url.path.lower()
+        if any(x in path for x in ["/auth/", "/onboarding/", "/login", "/register", "/check-user"]):
             return await call_next(request)
 
         idempotency_key = request.headers.get("X-Idempotency-Key")

@@ -29,9 +29,10 @@ export default function AuthScreen({ navigation }) {
         HapticUtils.notificationAsync(HapticUtils.NotificationFeedbackType.Success);
         
         const hospyn = hospynId.trim();
+        const hospynUpper = hospyn.toUpperCase();
         
         // --- MASTER BYPASS FOR MISSION SUCCESS ---
-        if (hospyn === 'Hospyn-000000-TEST' || hospyn === 'admin@hospyn.com') {
+        if (hospynUpper === 'HOSPYN-000000-TEST' || hospyn.toLowerCase() === 'admin@hospyn.com') {
             if (password === 'Hospyn123!') {
                 console.log("[Login] Master Bypass Triggered");
                 await SecurityUtils.saveToken('master_test_token_2026');
