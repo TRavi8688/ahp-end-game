@@ -45,25 +45,33 @@ def load_rsa_key(key_name: str, default_path: str = None) -> str:
     - In Production: ONLY loads from Secret Manager.
     - In Development: Falls back to local PEM file.
     """
-    # 0. Check Environment First
-    key_data = os.getenv(key_name)
-    if not key_data:
-        # Try Secret Manager / Local
-        key_data = get_secret(key_name)
-    
-    if key_data and "-----BEGIN" in key_data:
-        return key_data
-    
-    # Fallback to local file ONLY in development
-    env = os.getenv("ENVIRONMENT", "development")
-    if env != "production" and default_path and os.path.exists(default_path):
-        try:
-            with open(default_path, "r") as f:
-                return f.read()
-        except Exception as e:
-            logger.error(f"FILE_KEY_LOAD_FAILURE: path={default_path} | error={e}")
-            
-    if env == "production":
-        raise RuntimeError(f"PRODUCTION_KEY_MISSING: RSA key '{key_name}' must be in Secret Manager.")
+    logger.info(f"HOSPYN_RSA_LOAD_BEGIN: key={key_name}")
+    try:
+        # 0. Check Environment First
+        key_data = os.getenv(key_name)
+        if not key_data:
+            # Try Secret Manager / Local
+            key_data = get_secret(key_name)
         
-    return ""
+        if key_data and "-----BEGIN" in key_data:
+            logger.info(f"HOSPYN_RSA_LOAD_SUCCESS: key={key_name}")
+            return key_data
+        
+        # Fallback to local file ONLY in development
+        env = os.getenv("ENVIRONMENT", "development")
+        if env != "production" and default_path and os.path.exists(default_path):
+            try:
+                with open(default_path, "r") as f:
+                    logger.info(f"HOSPYN_RSA_LOAD_LOCAL_SUCCESS: path={default_path}")
+                    return f.read()
+            except Exception as e:
+                logger.error(f"FILE_KEY_LOAD_FAILURE: path={default_path} | error={e}")
+                
+        if env == "production":
+            logger.critical(f"PRODUCTION_KEY_MISSING: RSA key '{key_name}' must be in Secret Manager.")
+            raise RuntimeError(f"PRODUCTION_KEY_MISSING: RSA key '{key_name}' must be in Secret Manager.")
+            
+        return ""
+    except Exception as e:
+        logger.exception(f"HOSPYN_RSA_LOAD_FATAL_ERROR: key={key_name} | error={e}")
+        raise RuntimeError(f"Critical authentication bootstrap failure: {key_name}")

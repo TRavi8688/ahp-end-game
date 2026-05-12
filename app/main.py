@@ -14,12 +14,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
 # Import core infrastructure
+print(">>> HOSPYN_IMPORT_BEGIN")
 from app.core.config import settings
 from app.core.logging import setup_logging, logger
 import app.api.deps as deps
 
 # Initialize structured logging instantly
 setup_logging()
+print(">>> HOSPYN_IMPORT_COMPLETE")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
