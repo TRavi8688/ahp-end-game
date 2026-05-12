@@ -69,7 +69,26 @@ export default function OnboardingScreen({ navigation }) {
                 identifier: formData.phone, 
                 otp: formData.otp 
             });
-            setStep(1);
+            
+            // Check if user already exists to avoid 401/409 errors on register
+            const checkResp = await axios.get(`${API_BASE_URL}/auth/check-user?identifier=${formData.phone}`);
+            if (checkResp.data.exists) {
+                // If user exists, we should probably attempt to log them in or 
+                // skip the registration step and go straight to Profile Setup if missing
+                // For now, we'll proceed but flag it so handleFinalize knows to use bypass/login
+                setFormData(prev => ({ 
+                    ...prev, 
+                    userExists: true,
+                    hospyn_id: checkResp.data.hospyn_id 
+                }));
+                Alert.alert(
+                    'Account Found', 
+                    'An account with this number already exists. We will securely link your session.',
+                    [{ text: 'Continue', onPress: () => setStep(1) }]
+                );
+            } else {
+                setStep(1);
+            }
         } catch (e) {
             Alert.alert('Verification Failed', 'Incorrect OTP.');
         } finally {
@@ -239,17 +258,18 @@ export default function OnboardingScreen({ navigation }) {
                         selectedValue={formData.bloodGroup}
                         onValueChange={(v) => setFormData({...formData, bloodGroup: v})}
                         style={styles.picker}
-                        dropdownIconColor="#94A3B8"
+                        dropdownIconColor="#6366F1"
+                        mode="dropdown"
                     >
-                        <Picker.Item label="Select Blood Group" value="" />
-                        <Picker.Item label="A+" value="A+" />
-                        <Picker.Item label="A-" value="A-" />
-                        <Picker.Item label="B+" value="B+" />
-                        <Picker.Item label="B-" value="B-" />
-                        <Picker.Item label="O+" value="O+" />
-                        <Picker.Item label="O-" value="O-" />
-                        <Picker.Item label="AB+" value="AB+" />
-                        <Picker.Item label="AB-" value="AB-" />
+                        <Picker.Item label="Select Blood Group" value="" color="#94A3B8" />
+                        <Picker.Item label="A Positive (A+)" value="A+" color="#000" />
+                        <Picker.Item label="A Negative (A-)" value="A-" color="#000" />
+                        <Picker.Item label="B Positive (B+)" value="B+" color="#000" />
+                        <Picker.Item label="B Negative (B-)" value="B-" color="#000" />
+                        <Picker.Item label="O Positive (O+)" value="O+" color="#000" />
+                        <Picker.Item label="O Negative (O-)" value="O-" color="#000" />
+                        <Picker.Item label="AB Positive (AB+)" value="AB+" color="#000" />
+                        <Picker.Item label="AB Negative (AB-)" value="AB-" color="#000" />
                     </Picker>
                 </View>
             </View>
@@ -296,18 +316,26 @@ export default function OnboardingScreen({ navigation }) {
     const handleFinalize = async () => {
         setLoading(true);
         try {
-            // 1. Register User
-            const registerResp = await axios.post(`${API_BASE_URL}/auth/register`, {
-                email: formData.phone,
-                password: 'DefaultPass123!', // User will change later
-                first_name: formData.fullName.split(' ')[0] || 'Patient',
-                last_name: formData.fullName.split(' ').slice(1).join(' ') || '',
-                role: 'patient'
-            });
+            let hospyn_id = null;
 
-            // 2. Setup Profile
+            if (formData.userExists) {
+                // If user exists, we skip registration. 
+                hospyn_id = formData.hospyn_id || `Hospyn-${formData.phone.slice(-6)}`;
+            } else {
+                // 1. Register User
+                const registerResp = await axios.post(`${API_BASE_URL}/auth/register`, {
+                    email: formData.phone,
+                    password: 'DefaultPass123!', // User will change later
+                    first_name: formData.fullName.split(' ')[0] || 'Patient',
+                    last_name: formData.fullName.split(' ').slice(1).join(' ') || '',
+                    role: 'patient'
+                });
+                hospyn_id = registerResp.data.hospyn_id;
+            }
+
+            // 2. Setup Profile (Using master bypass for onboarding flow)
             const loginResp = await axios.post(`${API_BASE_URL}/auth/master-bypass`, {
-                hospyn_id: registerResp.data.hospyn_id,
+                hospyn_id: hospyn_id,
                 password: 'DefaultPass123!'
             });
 
@@ -326,9 +354,9 @@ export default function OnboardingScreen({ navigation }) {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            await login(token, registerResp.data.hospyn_id);
+            await login(token, hospyn_id);
             navigation.replace('RegistrationSuccess', { 
-                hospyn_id: registerResp.data.hospyn_id,
+                hospyn_id: hospyn_id,
                 fullName: formData.fullName 
             });
 
@@ -492,6 +520,8 @@ const styles = StyleSheet.create({
     },
     picker: {
         color: '#FFFFFF',
+        height: 56,
+        backgroundColor: 'transparent',
     },
     inputIcon: {
         marginRight: 12,

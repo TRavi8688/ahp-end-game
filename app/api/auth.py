@@ -40,17 +40,18 @@ async def check_user_exists(
     try:
         # 1. Check User table (email)
         result_u = await db.execute(select(models.User).where(models.User.email == identifier))
-        if result_u.scalars().first():
-            return {"exists": True, "type": "email"}
+        user = result_u.scalars().first()
+        if user:
+            return {"exists": True, "type": "email", "hospyn_id": user.hospyn_id}
         
         # 2. Check Patient table (phone_number)
         result_p = await db.execute(select(models.Patient).where(models.Patient.phone_number == identifier))
-        if result_p.scalars().first():
-            return {"exists": True, "type": "phone"}
+        patient = result_p.scalars().first()
+        if patient:
+            return {"exists": True, "type": "phone", "hospyn_id": patient.hospyn_id}
             
     except Exception as e:
         logger.error(f"CHECK_USER_ERROR: Failed to verify identifier {identifier}. Error: {e}")
-        # Fail-safe: Return False to allow testing even if DB check has issues
         return {"exists": False, "error": "db_fallback_active"}
         
     return {"exists": False}
