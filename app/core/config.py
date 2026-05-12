@@ -52,12 +52,20 @@ class Settings(BaseSettings):
             
         return url
 
-    ALLOWED_ORIGINS: List[str] = ["*"] # Temporarily open for rollout verification
+    ALLOWED_ORIGINS: List[str] = [
+        "https://hospyn-495906.web.app",
+        "https://app.hospyn.com"
+    ]
     TRUSTED_PROXIES: List[str] = ["*"]
     
-    @field_validator("ALLOWED_ORIGINS", "TRUSTED_PROXIES", mode="before")
+    @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
-    def assemble_list(cls, v: Any) -> Any:
+    def assemble_origins(cls, v: Any) -> Any:
+        # Load from Secret Manager if available
+        sm_val = get_secret("ALLOWED_ORIGINS")
+        if sm_val:
+            return [i.strip() for i in sm_val.split(",") if i.strip()]
+            
         if isinstance(v, str):
             return [i.strip() for i in v.split(",") if i.strip()]
         return v
