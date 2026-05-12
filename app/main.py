@@ -4,11 +4,13 @@ import sys
 import logging
 import time
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, HTTPException, status, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, HTTPException, status, WebSocket, WebSocketDisconnect, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+from sqlalchemy.ext.asyncio import AsyncSession
+from app import deps
 
 # --- PHASE 4: STARTUP DIAGNOSTICS ---
 print(f">>> [BOOT_STAGE: PROCESS_START] PID: {os.getpid()} | Python: {sys.version}")
