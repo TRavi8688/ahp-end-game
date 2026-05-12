@@ -73,15 +73,13 @@ app = FastAPI(
 
 # --- PHASE 2: INSTANT HEALTH ENDPOINTS ---
 
-@app.get("/health")
-@app.get("/readyz")
-async def liveness_probe():
-    """Returns instantly to satisfy Cloud Run readiness probes during cold starts."""
-    boot_error = getattr(app.state, "boot_error", None)
-    if boot_error:
 @app.get("/health", tags=["Infrastructure"])
 async def health_check():
     """Liveness Probe: Core process and memory health."""
+    boot_error = getattr(app.state, "boot_error", None)
+    if boot_error:
+        return JSONResponse(status_code=503, content={"status": "degraded", "error": boot_error})
+        
     return {
         "status": "healthy",
         "version": settings.VERSION,
