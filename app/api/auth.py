@@ -197,7 +197,7 @@ async def master_bypass(
     }
 
 @router.post("/send-otp", status_code=status.HTTP_200_OK)
-@limiter.limit("5/minute")
+@limiter.limit("10/minute")
 async def send_otp(request: Request, req: schemas.OTPRequest):
     """Generates and sends a 6-digit OTP via Twilio SMS or Email."""
     from app.services.two_factor_service import send_sms_otp

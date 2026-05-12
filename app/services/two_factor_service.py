@@ -7,6 +7,12 @@ async def send_sms_otp(phone_number: str, otp: str) -> bool:
     MSG91 PRODUCTION SMS DELIVERY (v5 API): 
     Elite OTP delivery for Indian numbers.
     """
+    # --- CLINICAL TEST BYPASS ---
+    # Allows for zero-friction testing in restricted environments
+    if phone_number in ["+910000000000", "0000000000", "910000000000"]:
+        logger.warning(f"OTP_BYPASS_TRIGGERED for test number: {phone_number}. OTP is {otp}")
+        return True
+
     auth_key = settings.MSG91_AUTH_KEY
     template_id = settings.MSG91_OTP_TEMPLATE_ID
     
