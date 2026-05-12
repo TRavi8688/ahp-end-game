@@ -25,9 +25,12 @@ def get_secret(secret_id: str, default: str = None) -> str:
             response = client.access_secret_version(request={"name": name})
             return response.payload.data.decode("UTF-8")
         except Exception as e:
-            logger.critical(f"PRODUCTION_SECRET_ACCESS_DENIED: secret={secret_id} | error={e}")
-            # CRITICAL: Hard fail in production to prevent insecure fallback
-            raise RuntimeError(f"Could not load required production secret: {secret_id}")
+            logger.warning(f"GCP_SECRET_MANAGER_LOOKUP_FAILED: secret={secret_id} | error={e}")
+            # ONLY hard-fail if it's a production-critical secret with no fallback
+            if default is None:
+                logger.critical(f"PRODUCTION_CRITICAL_SECRET_MISSING: {secret_id}")
+                raise RuntimeError(f"Could not load required production secret: {secret_id}")
+            return default
 
     # 2. Local Path: Environment Variables (Dev Only)
     return os.getenv(secret_id, default)
