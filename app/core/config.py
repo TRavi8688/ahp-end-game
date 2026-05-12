@@ -48,8 +48,22 @@ class Settings(BaseSettings):
     
     # --- DATABASE ISOLATION (Priority 1) ---
     @property
-    def DATABASE_URL(self) -> Optional[str]:
-        return get_secret("DATABASE_URL")
+    def DATABASE_URL(self) -> str:
+        v = get_secret("DATABASE_URL")
+        if not v:
+            return "sqlite+aiosqlite:///:memory:"
+        url = str(v)
+        # Transform for asyncpg compatibility
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgresql://") and "+asyncpg" not in url:
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        
+        # Strip sslmode if present
+        if "sslmode=" in url:
+            import re
+            url = re.sub(r"[?&]sslmode=[^&]*", "", url)
+        return url
 
     @property
     def DATABASE_READER_URL(self) -> Optional[str]:
@@ -58,25 +72,8 @@ class Settings(BaseSettings):
     @property
     def REDIS_URL(self) -> Optional[str]:
         return get_secret("REDIS_URL")
-    USE_REDIS: bool = False
-    
-    @field_validator("DATABASE_URL", mode="before")
-    @classmethod
-    def validate_db_url(cls, v: Any) -> str:
-        if not v:
-            return "sqlite+aiosqlite:///:memory:"
-        url = str(v)
-        if url.startswith("postgres://"):
-            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
-        elif url.startswith("postgresql://") and "+asyncpg" not in url:
-            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
         
-        # Strip sslmode if present, as it conflicts with our manual SSL context configuration
-        if "sslmode=" in url:
-            import re
-            url = re.sub(r"[?&]sslmode=[^&]*", "", url)
-            
-        return url
+    USE_REDIS: bool = False
 
     ALLOWED_ORIGINS: List[str] = [
         "https://hospyn-495906.web.app",
