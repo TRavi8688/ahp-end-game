@@ -81,9 +81,10 @@ async def liveness_probe():
 async def deep_health_check():
     """Separated active connectivity check."""
     from app.core.database import primary_engine
+    from sqlalchemy import text
     try:
         async with primary_engine.connect() as conn:
-            await conn.execute("SELECT 1")
+            await conn.execute(text("SELECT 1"))
             return {"status": "connected", "database": "verified"}
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "disconnected", "error": str(e)})

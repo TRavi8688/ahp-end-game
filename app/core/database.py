@@ -49,5 +49,6 @@ async def set_tenant_context(session: AsyncSession, tenant_id: str):
     """Sets the PostgreSQL RLS context for the current session."""
     if not tenant_id:
         return
+    from sqlalchemy import text
     # Sanitized via UUID validation in middleware already
-    await session.execute(f"SET app.current_tenant = '{tenant_id}'")
+    await session.execute(text(f"SET app.current_tenant = '{tenant_id}'"))

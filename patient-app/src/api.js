@@ -5,7 +5,7 @@ import { Platform } from 'react-native';
 
 const getBaseUrl = () => {
     // Always use the production cloud API for consistency during testing
-    return 'https://hospyn-495906-api-7ixs2fhkna-uc.a.run.app';
+    return 'https://hospyn-495906-api-625745217419.us-central1.run.app';
 };
 
 const BASE = getBaseUrl();
