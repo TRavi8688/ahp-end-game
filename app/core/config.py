@@ -84,14 +84,15 @@ class Settings(BaseSettings):
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
     def assemble_origins(cls, v: Any) -> Any:
-        # Load from Secret Manager if available
-        sm_val = get_secret("ALLOWED_ORIGINS")
+        # Load from Secret Manager if available (Optional Resilience Patch)
+        sm_val = get_secret("ALLOWED_ORIGINS", default="")
         if sm_val:
             return [i.strip() for i in sm_val.split(",") if i.strip()]
             
         if isinstance(v, str):
             return [i.strip() for i in v.split(",") if i.strip()]
         return v
+
     
     TWILIO_ACCOUNT_SID: Optional[str] = None
     TWILIO_AUTH_TOKEN: Optional[str] = None

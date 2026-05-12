@@ -2,18 +2,33 @@ import os
 import functools
 from app.core.logging import logger
 
+# --- SECRET CLASSIFICATION (Resilience Shield V5.1) ---
+CRITICAL_SECRETS = {
+    "DATABASE_URL",
+    "SECRET_KEY",
+    "JWT_PRIVATE_KEY",
+    "JWT_PUBLIC_KEY",
+    "GCP_PROJECT_ID",
+    "ENCRYPTION_KEY"
+}
+
 @functools.lru_cache()
 def get_secret(secret_id: str, default: str = None) -> str:
     """
-    ENTERPRISE SECRET MANAGER (SHIELD V5):
+    ENTERPRISE SECRET MANAGER (SHIELD V5.1):
     Retrieves secrets from GCP Secret Manager in Production.
     Falls back to Environment Variables in Local/Development.
+    
+    RESILIENCE RULES:
+    1. CRITICAL secrets hard-fail startup if missing.
+    2. OPTIONAL secrets log a warning and use defaults.
     """
     env = os.getenv("ENVIRONMENT", "development")
     
     # 0. Check Environment First (Cloud Run mounts secrets as env vars)
-    if os.getenv(secret_id):
-        return os.getenv(secret_id)
+    val = os.getenv(secret_id)
+    if val:
+        return val
 
     # 1. Production Path: GCP Secret Manager (SDK Fallback)
     if env == "production":
@@ -22,22 +37,26 @@ def get_secret(secret_id: str, default: str = None) -> str:
             client = secretmanager.SecretManagerServiceClient()
             project_id = os.getenv("GCP_PROJECT_ID")
             if not project_id:
-                # CRITICAL: Production MUST have project ID
+                if secret_id == "GCP_PROJECT_ID":
+                     return "" # Prevent circular death
+                logger.critical("GCP_PROJECT_ID_MISSING: Production MUST have project ID.")
                 raise RuntimeError("GCP_PROJECT_ID MUST be set in production.")
 
             name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
             response = client.access_secret_version(request={"name": name})
             return response.payload.data.decode("UTF-8")
         except Exception as e:
-            logger.warning(f"GCP_SECRET_MANAGER_LOOKUP_FAILED: secret={secret_id} | error={e}")
-            # ONLY hard-fail if it's a production-critical secret with no fallback
-            if default is None:
-                logger.critical(f"PRODUCTION_CRITICAL_SECRET_MISSING: {secret_id}")
-                raise RuntimeError(f"Could not load required production secret: {secret_id}")
-            return default
+            if secret_id in CRITICAL_SECRETS and default is None:
+                logger.critical(f"PRODUCTION_CRITICAL_SECRET_MISSING: {secret_id} | error={e}")
+                raise RuntimeError(f"CRITICAL STARTUP FAILURE: Required secret '{secret_id}' could not be loaded.")
+            
+            # Optional secret or default provided
+            logger.warning(f"HOSPYN_OPTIONAL_SECRET_MISSING: {secret_id} | error={e}")
+            return default if default is not None else ""
 
     # 2. Local Path: Environment Variables (Dev Only)
-    return os.getenv(secret_id, default)
+    return os.getenv(secret_id, default if default is not None else "")
+
 
 def load_rsa_key(key_name: str, default_path: str = None) -> str:
     """
