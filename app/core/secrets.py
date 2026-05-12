@@ -11,7 +11,11 @@ def get_secret(secret_id: str, default: str = None) -> str:
     """
     env = os.getenv("ENVIRONMENT", "development")
     
-    # 1. Production Path: GCP Secret Manager
+    # 0. Check Environment First (Cloud Run mounts secrets as env vars)
+    if os.getenv(secret_id):
+        return os.getenv(secret_id)
+
+    # 1. Production Path: GCP Secret Manager (SDK Fallback)
     if env == "production":
         try:
             from google.cloud import secretmanager
@@ -41,10 +45,12 @@ def load_rsa_key(key_name: str, default_path: str = None) -> str:
     - In Production: ONLY loads from Secret Manager.
     - In Development: Falls back to local PEM file.
     """
-    env = os.getenv("ENVIRONMENT", "development")
+    # 0. Check Environment First
+    key_data = os.getenv(key_name)
+    if not key_data:
+        # Try Secret Manager / Local
+        key_data = get_secret(key_name)
     
-    # Try Secret Manager first
-    key_data = get_secret(key_name)
     if key_data and "-----BEGIN" in key_data:
         return key_data
     
