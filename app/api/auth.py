@@ -232,12 +232,11 @@ async def send_otp(request: Request, req: schemas.OTPRequest):
 @limiter.limit("5/minute")
 async def verify_otp(
     request: Request,
-    email: str, 
-    otp: str, 
+    req: schemas.OTPVerify, 
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Verifies a 6-digit OTP from Redis cache."""
-    cache_key = f"otp:{email}"
+    cache_key = f"otp:{req.identifier}"
     stored_otp = None
     try:
         stored_otp = await redis_service.get(cache_key)

@@ -64,11 +64,12 @@ export default function OnboardingScreen({ navigation }) {
         if (formData.otp.length < 6) return Alert.alert('Invalid OTP', 'Enter the 6-digit code.');
         setLoading(true);
         try {
-            // In a real flow, this would return a temp token or mark the phone as verified
-            // For now, we move to next step if 000000 or real verify
-            if (formData.otp === '000000' || true) {
-                setStep(1);
-            }
+            // Strictly enforce real OTP verification
+            await axios.post(`${API_BASE_URL}/auth/verify-otp`, { 
+                identifier: formData.phone, 
+                otp: formData.otp 
+            });
+            setStep(1);
         } catch (e) {
             Alert.alert('Verification Failed', 'Incorrect OTP.');
         } finally {
@@ -129,7 +130,6 @@ export default function OnboardingScreen({ navigation }) {
                         onChangeText={(v) => setFormData({...formData, otp: v})}
                     />
                 </View>
-                <Text style={styles.hint}>Hint: Use 000000 for instant access</Text>
             </View>
 
             <TouchableOpacity style={styles.nextBtn} onPress={handleVerifyOTP} disabled={loading}>
@@ -167,25 +167,34 @@ export default function OnboardingScreen({ navigation }) {
                             style={styles.input}
                             placeholder="YYYY-MM-DD"
                             placeholderTextColor="#475569"
+                            keyboardType="numeric"
+                            maxLength={10}
                             value={formData.dob}
-                            onChangeText={(v) => setFormData({...formData, dob: v})}
+                            onChangeText={(v) => {
+                                // Simple Auto-formatter for YYYY-MM-DD
+                                let cleaned = v.replace(/\D/g, '');
+                                if (cleaned.length > 4 && cleaned.length <= 6) {
+                                    cleaned = `${cleaned.slice(0, 4)}-${cleaned.slice(4)}`;
+                                } else if (cleaned.length > 6) {
+                                    cleaned = `${cleaned.slice(0, 4)}-${cleaned.slice(4, 6)}-${cleaned.slice(6, 8)}`;
+                                }
+                                setFormData({...formData, dob: cleaned});
+                            }}
                         />
                     </View>
                 </View>
-                <View style={[styles.inputGroup, { flex: 0.8 }]}>
+                <View style={[styles.inputGroup, { flex: 1 }]}>
                     <Text style={styles.label}>GENDER</Text>
-                    <View style={styles.pickerWrapper}>
-                        <Picker
-                            selectedValue={formData.gender}
-                            onValueChange={(v) => setFormData({...formData, gender: v})}
-                            style={styles.picker}
-                            dropdownIconColor="#94A3B8"
-                        >
-                            <Picker.Item label="Select" value="" />
-                            <Picker.Item label="Male" value="Male" />
-                            <Picker.Item label="Female" value="Female" />
-                            <Picker.Item label="Other" value="Other" />
-                        </Picker>
+                    <View style={styles.genderContainer}>
+                        {['Male', 'Female', 'Other'].map(g => (
+                            <TouchableOpacity 
+                                key={g}
+                                style={[styles.genderBtn, formData.gender === g && styles.genderBtnActive]}
+                                onPress={() => setFormData({...formData, gender: g})}
+                            >
+                                <Text style={[styles.genderBtnText, formData.gender === g && styles.genderBtnTextActive]}>{g}</Text>
+                            </TouchableOpacity>
+                        ))}
                     </View>
                 </View>
             </View>
@@ -506,6 +515,33 @@ const styles = StyleSheet.create({
     row: {
         flexDirection: 'row',
         gap: 16,
+        alignItems: 'flex-start',
+    },
+    genderContainer: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    genderBtn: {
+        flex: 1,
+        height: 56,
+        borderRadius: 16,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    genderBtnActive: {
+        backgroundColor: '#6366F1',
+        borderColor: '#6366F1',
+    },
+    genderBtnText: {
+        color: '#94A3B8',
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    genderBtnTextActive: {
+        color: '#FFFFFF',
     },
     consentArea: {
         marginVertical: 20,
