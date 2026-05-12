@@ -244,21 +244,22 @@ async def verify_otp(
         logger.error(f"OTP_VERIFY_CACHE_FAILURE: Redis required. Error: {e}")
         throw_auth_exception("Authentication system (Redis) is temporarily unavailable.")
 
-    if not stored_otp or stored_otp != otp:
+    if not stored_otp or stored_otp != req.otp:
         await log_audit_action(
             db, 
             "OTP_VERIFY_FAILURE", 
-            resource_type="USER",
-            details={"email": email, "reason": "invalid_or_expired_otp"}
+            identifier=req.identifier,
+            status="REJECTED"
         )
-        throw_auth_exception("Invalid or expired OTP")
+        raise HTTPException(status_code=400, detail="Invalid or expired verification code. Please try again.")
         
     # 2. Retrieve & Activate User
-    result = await db.execute(select(models.User).where(models.User.email == email))
+    result = await db.execute(select(models.User).where(models.User.email == req.identifier))
     user = result.scalars().first()
     
     if not user:
-        throw_auth_exception("User record not found")
+        # For initial registration, we just confirm verification success
+        return {"status": "success", "message": "Identity verified. Please complete your profile."}
 
     user.is_active = True
     # Clean up OTP from Redis after successful verification
@@ -276,5 +277,6 @@ async def verify_otp(
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "status": "success"
     }
