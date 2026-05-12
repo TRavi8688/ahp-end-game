@@ -47,17 +47,23 @@ def setup_logging():
 
     # 3. Add JSON handler for Production (Cloud Run)
     if os.getenv("ENVIRONMENT") == "production":
-        config["handlers"].append({
-            "sink": sys.stdout,
-            "format": lambda record: json.dumps({
-                "time": record["time"].isoformat(),
+        def serialize(record):
+            subset = {
+                "timestamp": record["time"].isoformat(),
                 "level": record["level"].name,
                 "message": record["message"],
                 "module": record["name"],
                 "function": record["function"],
                 "line": record["line"],
-                "extra": record["extra"]
-            }),
+            }
+            if record["extra"]:
+                # Safe string conversion for extra data
+                subset["extra"] = {k: str(v) for k, v in record["extra"].items()}
+            return json.dumps(subset) + "\n"
+
+        config["handlers"].append({
+            "sink": lambda msg: sys.stdout.write(msg),
+            "format": serialize,
             "level": "INFO"
         })
 
