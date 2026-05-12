@@ -30,6 +30,14 @@ async def lifespan(app: FastAPI):
         from app.api.v1.router import api_router as enterprise_v1_router
         from app.api import auth, patient, profile, doctor, admin, privacy, auth_onboarding, staff, governance
         
+        # --- AUTO-SYNC DATABASE SCHEMA ---
+        from app.models.models import Base
+        from app.core.database import primary_engine
+        async with primary_engine.begin() as conn:
+            # We use checkfirst=True (default) to skip tables that already exist
+            await conn.run_sync(Base.metadata.create_all)
+            print(">>> [BOOT_STAGE: DB_SYNC_COMPLETE] All tables verified/created.")
+
         # Router registration after port binding
         app.include_router(auth.router, prefix=settings.API_V1_STR)
         app.include_router(patient.router, prefix=settings.API_V1_STR)

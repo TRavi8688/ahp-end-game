@@ -6,6 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Any
+from datetime import datetime, timezone
 
 import app.api.deps as deps
 from app.core import security
@@ -205,13 +206,29 @@ async def send_otp(request: Request, req: schemas.OTPRequest):
 
     otp = "123456" if req.identifier in ["+910000000000", "0000000000", "910000000000"] else "".join([str(secrets.randbelow(10)) for _ in range(6)])
     
-    # --- Persistence (Redis Only) ---
-    cache_key = f"otp:{req.identifier}"
+    # --- Persistence (DB Fallback for Zero-Infra Setup) ---
     try:
-        await redis_service.set(cache_key, otp, expire=300)
+        from datetime import timedelta
+        # Try Redis first if enabled
+        if settings.USE_REDIS:
+            try:
+                await redis_service.set(f"otp:{req.identifier}", otp, expire=300)
+            except Exception:
+                logger.warning("REDIS_PERSISTENCE_FAILED: Falling back to Database.")
+        
+        # Always store in DB as a robust secondary/primary fallback
+        # This ensures the user NEVER gets a 500 even if Redis is down.
+        new_otp = models.OTPVerification(
+            identifier=req.identifier,
+            otp=otp,
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=5)
+        )
+        db.add(new_otp)
+        await db.commit()
     except Exception as e:
-        logger.error(f"OTP_CACHE_FAILURE: Redis is required for production scaling. Error: {e}")
-        raise HTTPException(status_code=500, detail="Secure Persistence Layer (Redis) Unavailable.")
+        logger.error(f"OTP_STORAGE_FAILURE: {e}")
+        # We don't fail here if delivery can still happen, but for security we should
+        raise HTTPException(status_code=500, detail="Secure Persistence Layer Unavailable.")
 
     # --- Delivery ---
     try:
@@ -254,14 +271,27 @@ async def verify_otp(
     req: schemas.OTPVerify, 
     db: AsyncSession = Depends(deps.get_db)
 ):
-    """Verifies a 6-digit OTP from Redis cache."""
-    cache_key = f"otp:{req.identifier}"
+    # --- 1. Verify OTP ---
     stored_otp = None
-    try:
-        stored_otp = await redis_service.get(cache_key)
-    except Exception as e:
-        logger.error(f"OTP_VERIFY_CACHE_FAILURE: Redis required. Error: {e}")
-        throw_auth_exception("Authentication system (Redis) is temporarily unavailable.")
+    
+    # Try Redis first
+    if settings.USE_REDIS:
+        try:
+            stored_otp = await redis_service.get(f"otp:{req.identifier}")
+        except Exception:
+            logger.warning("REDIS_READ_FAILED: Checking Database.")
+
+    # Fallback to Database
+    if not stored_otp:
+        result = await db.execute(
+            select(models.OTPVerification)
+            .where(models.OTPVerification.identifier == req.identifier)
+            .where(models.OTPVerification.expires_at > datetime.now(timezone.utc))
+            .order_by(models.OTPVerification.created_at.desc())
+        )
+        otp_record = result.scalars().first()
+        if otp_record:
+            stored_otp = otp_record.otp
 
     if not stored_otp or stored_otp != req.otp:
         await log_audit_action(
