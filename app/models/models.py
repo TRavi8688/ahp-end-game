@@ -1,7 +1,7 @@
 from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey, JSON, Text, func, Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 import enum
 import uuid
