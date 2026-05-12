@@ -88,7 +88,7 @@ function App() {
         localStorage.removeItem('isAuthenticated');
         localStorage.removeItem('isVerified');
         localStorage.removeItem('token');
-        window.location.href = '/login';
+        window.location.href = './login';
     };
 
     // Enable 15-minute idle logout if authenticated

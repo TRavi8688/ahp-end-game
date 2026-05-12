@@ -111,7 +111,7 @@ export default function AuthScreen({ navigation }) {
                     showsVerticalScrollIndicator={false}
                 >
                     <View style={styles.header}>
-                        <Image source={require('../../assets/hospyn_logo.png')} style={styles.logoImage} />
+                        <Image source={require('../../assets/hospyn_logo.png')} style={styles.logoImage} resizeMode="contain" />
                         <Text style={styles.brandName}>Hospyn</Text>
                         <Text style={styles.tagline}>Where Life Meets Intelligence</Text>
                     </View>
@@ -407,7 +407,6 @@ const styles = StyleSheet.create({
     logoImage: {
         width: 120,
         height: 120,
-        resizeMode: 'contain',
         marginBottom: 10,
     }
 });

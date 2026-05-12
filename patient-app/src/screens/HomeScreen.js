@@ -25,24 +25,25 @@ export default function HomeScreen({ navigation }) {
         
         try {
             console.log('[Home] Refreshing clinical snapshot...');
-            const [profileData, summaryData, pendingAccess, timelineData] = await Promise.all([
+            
+            // Fetch profile and summary in parallel but handle individually to avoid cascading failures
+            const [profileRes, summaryRes, accessRes, timelineRes] = await Promise.allSettled([
                 ApiService.getProfile(),
                 ApiService.getClinicalSummary(),
                 ApiService.getPendingAccess(),
                 ApiService.getTimeline()
             ]);
 
-            setProfile(profileData);
-            setSummary(summaryData);
-            setTimeline(timelineData.slice(0, 3)); 
+            if (profileRes.status === 'fulfilled') setProfile(profileRes.value);
+            if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value);
+            if (timelineRes.status === 'fulfilled') setTimeline(timelineRes.value.slice(0, 3));
             
-            if (pendingAccess && pendingAccess.length > 0) {
-                setConsentData(pendingAccess[0]);
+            if (accessRes.status === 'fulfilled' && accessRes.value?.length > 0) {
+                setConsentData(accessRes.value[0]);
                 setShowConsent(true);
             }
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
-            // 401 is handled by ApiService global interceptor now
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -54,6 +55,14 @@ export default function HomeScreen({ navigation }) {
             fetchData();
         }
     }, [isAuthenticated]);
+
+    // Handle Real-time Updates (Analysis Complete, etc.)
+    useEffect(() => {
+        if (lastMessage && lastMessage.type === 'ANALYSIS_COMPLETE') {
+            console.log('[Home] Analysis complete event received, refreshing...');
+            fetchData();
+        }
+    }, [lastMessage]);
 
     const handleConsentAction = async (action) => {
         if (!consentData) return;

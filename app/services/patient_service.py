@@ -16,7 +16,7 @@ class PatientService(BaseService[Patient]):
         result = await self.db.execute(stmt)
         return result.scalars().first()
 
-    async def setup_profile(self, data: schemas.PatientCreate, user_id: int) -> Patient:
+    async def setup_profile(self, data: schemas.PatientCreate, user_id: uuid.UUID) -> Patient:
         """Upsert onboarding logic for patients."""
         patient = await self.get_by_user_id(user_id)
         
@@ -47,7 +47,7 @@ class PatientService(BaseService[Patient]):
         await self.db.flush()
         return patient
 
-    async def get_by_user_id(self, user_id: int) -> Optional[Patient]:
+    async def get_by_user_id(self, user_id: uuid.UUID) -> Optional[Patient]:
         stmt = select(Patient).where(Patient.user_id == user_id)
         result = await self.db.execute(stmt)
         return result.scalars().first()

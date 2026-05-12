@@ -8,6 +8,7 @@ import { Audio } from 'expo-av';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
+import { SecurityUtils } from '../utils/security';
 
 import { API_BASE_URL } from '../api';
 

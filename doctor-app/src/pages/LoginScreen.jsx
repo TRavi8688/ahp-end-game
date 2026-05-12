@@ -107,7 +107,7 @@ export default function LoginScreen() {
                             border: '1px solid rgba(255, 255, 255, 0.1)',
                             boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
                         }}>
-                            <img src="/logo.png" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img src="./logo.png" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </Box>
                         <Box>
                             <Typography variant="h2" sx={{ fontWeight: 900, fontFamily: 'Outfit', letterSpacing: '-2px', lineHeight: 1 }}>Hospyn</Typography>

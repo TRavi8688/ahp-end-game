@@ -18,7 +18,9 @@ class StaffService:
     async def invite_staff_member(
         cls,
         db: AsyncSession,
-        inviter_hospyn_id: str,
+        inviter_user_id: uuid.UUID,
+        hospital_id: uuid.UUID,
+        hospital_hospyn_id: str,
         email: str,
         role: str,
         department_id: Optional[uuid.UUID] = None
@@ -26,31 +28,37 @@ class StaffService:
         """
         Creates a secure invitation for a new staff member (Doctor, Nurse, Pharmacist).
         """
-        # 1. Generate a unique activation token
-        # 2. Store the invite with the role lock
-        invite = await OnboardingService.create_invite(
+        # Call OnboardingService with CORRECT ARGUMENTS and ORDER
+        raw_token, onboarding_url = await OnboardingService.create_invite(
             db,
+            hospital_id=hospital_id,
             email=email,
-            role=role,
-            hospyn_id=inviter_hospyn_id
+            hospyn_id=hospital_hospyn_id,
+            created_by=inviter_user_id,
+            role=role
         )
         
-        logger.info(f"STAFFING: New {role} invited to {inviter_hospyn_id} | Email: {email}")
-        
-        # In production: Trigger EmailService.send_staff_invite_email(email, invite.token)
-        
+        # Retrieval of the invite object for the return (since create_invite returns strings)
+        from app.models.onboarding import HospitalInvite
+        from app.services.onboarding_service import OnboardingService
+        token_hash = OnboardingService._hash_token(raw_token)
+        stmt = select(HospitalInvite).where(HospitalInvite.token_hash == token_hash)
+        invite = (await db.execute(stmt)).scalar_one()
+
+        logger.info(f"STAFFING: New {role} invited to {hospital_hospyn_id} | Email: {email}")
         return invite
 
     @classmethod
     async def get_hospital_staff(
         cls,
         db: AsyncSession,
-        hospyn_id: str
+        hospital_id: uuid.UUID
     ):
         """
-        Retrieves the full list of staff for a hospital, including verification status.
+        Retrieves the full list of staff for a hospital via StaffProfile join.
         """
-        stmt = select(User).where(User.hospyn_id == hospyn_id)
+        from app.models.models import StaffProfile
+        stmt = select(User).join(StaffProfile).where(StaffProfile.hospital_id == hospital_id)
         result = await db.execute(stmt)
         return result.scalars().all()
 
@@ -59,15 +67,18 @@ class StaffService:
         cls,
         db: AsyncSession,
         user_id: uuid.UUID,
-        hospyn_id: str
+        hospital_id: uuid.UUID
     ) -> bool:
         """
         Instantly revokes access for a staff member (Emergency Deactivation).
         """
-        result = await db.execute(
-            update(User)
-            .where(User.id == user_id, User.hospyn_id == hospyn_id)
-            .values(is_active=False)
-        )
+        from app.models.models import StaffProfile
+        # Atomic subquery to ensure they belong to this hospital
+        stmt = update(User).where(
+            User.id == user_id,
+            User.id.in_(select(StaffProfile.user_id).where(StaffProfile.hospital_id == hospital_id))
+        ).values(is_active=False)
+        
+        result = await db.execute(stmt)
         await db.commit()
         return result.rowcount > 0

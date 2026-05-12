@@ -10,10 +10,12 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiService from '../utils/ApiService';
+import { useSocket } from '../contexts/SocketContext';
 import { Theme, GlobalStyles } from '../theme';
 import { HapticUtils as Haptics } from '../utils/haptics';
 
 export default function RecordsScreen({ navigation }) {
+    const { lastMessage } = useSocket();
     const [records, setRecords] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -54,19 +56,21 @@ export default function RecordsScreen({ navigation }) {
     };
 
     const handleUpload = async (type) => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         try {
             let result;
             if (type === 'camera') {
                 const permission = await ImagePicker.requestCameraPermissionsAsync();
                 if (!permission.granted) {
-                    return Alert.alert('Permission Denied', 'Camera access is required to scan reports.');
+                    return Alert.alert(
+                        'Permission Denied', 
+                        'Camera access is required to scan reports. Please enable it in your device settings.'
+                    );
                 }
-                // Forced Hardware Trigger for Camera
+                
                 result = await ImagePicker.launchCameraAsync({
                     mediaTypes: ImagePicker.MediaTypeOptions.Images,
                     allowsEditing: true,
-                    quality: 0.8,
+                    quality: 0.7,
                     aspect: [4, 3],
                 });
             } else if (type === 'gallery') {
@@ -86,6 +90,24 @@ export default function RecordsScreen({ navigation }) {
             Alert.alert('Upload Error', 'Failed to trigger hardware camera.');
         }
     };
+
+    // Listen for Real-time Analysis Completion
+    useEffect(() => {
+        if (lastMessage && lastMessage.type === 'ANALYSIS_COMPLETE') {
+            console.log('[Records] Report analysis finished!', lastMessage.payload);
+            setAnalysisData({
+                status: 'success',
+                summary: lastMessage.payload.summary,
+                extracted_data: lastMessage.payload.dashboard?.ai_extracted || {},
+                url: lastMessage.payload.url || selectedRecord?.file_url,
+                type: lastMessage.payload.type || 'Document'
+            });
+            setIsProcessing(false);
+            setUploadProgress(0);
+            setShowAnalysis(true);
+            fetchRecords();
+        }
+    }, [lastMessage]);
 
     const processFile = async (file) => {
         setIsProcessing(true);

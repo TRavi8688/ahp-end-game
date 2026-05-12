@@ -299,7 +299,7 @@ async def set_patient_password(
     # Update linked User password
     result = await db.execute(select(models.User).where(models.User.id == current_patient.user_id))
     user = result.scalar_one()
-    user.hashed_password = security.pwd_context.hash(data.password)
+    user.hashed_password = security.get_password_hash(data.password)
     
     # Ensure Hospyn ID exists (for new registrations)
     if not current_patient.hospyn_id:

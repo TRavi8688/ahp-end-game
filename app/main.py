@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import sys
 import logging
@@ -50,7 +51,7 @@ async def lifespan(app: FastAPI):
     yield
     print(f">>> [BOOT_STAGE: SHUTDOWN_INITIATED]")
 
-from datetime import datetime
+
 from app.core.logging import setup_logging, logger
 
 # Immediate setup

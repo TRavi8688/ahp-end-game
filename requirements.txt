@@ -19,8 +19,7 @@ pytesseract>=0.3.10
 cryptography>=42.0.0
 psutil>=5.9.0
 sentry-sdk[fastapi]>=1.40.0
-boto3>=1.28.0
-aioboto3>=11.2.0
+aioboto3[boto3]==13.1.1
 psycopg2-binary>=2.9.0
 google-cloud-storage>=2.10.0
 prometheus-client (>=0.25.0,<0.26.0)

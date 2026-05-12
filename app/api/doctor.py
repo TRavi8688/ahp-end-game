@@ -564,7 +564,7 @@ async def override_ai_recommendation(
 
     # 2. Record the Override
     new_override = ClinicianOverride(
-        hospital_id=current_doctor.hospital_id,
+        hospital_id=current_doctor.user.staff_profile.hospital_id,
         ai_event_id=override.ai_event_id,
         doctor_user_id=current_doctor.user_id,
         override_type=override.override_type,

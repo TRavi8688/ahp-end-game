@@ -31,15 +31,19 @@ export const SocketProvider = ({ children }) => {
             }
         };
 
-        ws.onclose = () => {
-            console.log('WebSocket Disconnected. Retrying in 3s...');
-            setSocket(null);
-            reconnectTimer.current = setTimeout(connect, 3000);
-        };
-
         ws.onerror = (err) => {
             console.error('WebSocket Error:', err);
             ws.close();
+        };
+
+        ws.onclose = (event) => {
+            if (event.code === 1008) {
+                console.error('WebSocket Authentication Failed (1008). Stopping retry.');
+                return;
+            }
+            console.log('WebSocket Disconnected. Retrying in 3s...');
+            setSocket(null);
+            reconnectTimer.current = setTimeout(connect, 3000);
         };
     };
 

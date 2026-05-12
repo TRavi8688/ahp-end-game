@@ -177,6 +177,56 @@ reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/login"
 )
 
+def require_roles(*roles: Union[str, List[str]]):
+    """
+    Role-Based Access Control (RBAC) Dependency.
+    Ensures the current authenticated user has one of the required roles.
+    Supports both require_roles(["admin"]) and require_roles("admin", "doctor").
+    """
+    allowed_roles = []
+    for r in roles:
+        if isinstance(r, list):
+            allowed_roles.extend(r)
+        else:
+            allowed_roles.append(r)
+            
+    async def role_checker(current_user=Depends(get_current_user)):
+        if current_user.role not in allowed_roles:
+            logger.warning(f"RBAC_DENIED: user={current_user.id} | role={current_user.role} | required={allowed_roles}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Required roles: {', '.join(allowed_roles)}"
+            )
+        return current_user
+    return role_checker
+
+def require_tenant_access(hospital_id: Optional[Union[str, uuid.UUID]] = None):
+    """
+    Enterprise Tenant Dependency.
+    Ensures the user belongs to the requested hospital or has platform-level access.
+    """
+    async def tenant_checker(current_user=Depends(get_current_user)):
+        # Platform Admins can access any tenant
+        if current_user.role == "admin":
+            return current_user
+        
+        # Check staff profile
+        staff_profile = getattr(current_user, "staff_profile", None)
+        if not staff_profile:
+            logger.warning(f"TENANT_ACCESS_DENIED: user={current_user.id} has no staff profile")
+            raise HTTPException(status_code=403, detail="Staff profile required for tenant access.")
+            
+        user_hosp_id = str(staff_profile.hospital_id)
+        
+        if hospital_id is not None:
+            req_hosp_id = str(hospital_id)
+            if user_hosp_id != req_hosp_id:
+                logger.warning(f"TENANT_VIOLATION: user={current_user.id} | user_hosp={user_hosp_id} | req_hosp={req_hosp_id}")
+                raise HTTPException(status_code=403, detail="Cross-tenant access denied.")
+        
+        return current_user
+    return tenant_checker
+
 async def get_current_user(
     token: str = Depends(reusable_oauth2),
     db: AsyncSession = Depends(get_db),

@@ -6,7 +6,8 @@ from app.core.security import get_current_user
 from app.models.models import User, Patient, Doctor
 from app.repositories.base import UserRepository, PatientRepository
 import logging
-async def get_hospital_id(user: User = Depends(get_current_user)) -> int:
+import uuid
+async def get_hospital_id(user: User = Depends(get_current_user)) -> uuid.UUID:
     """
     Mandatory Enterprise Dependency to enforce Tenant Isolation.
     Extracts the hospital_id from the user's staff profile.
@@ -44,7 +45,8 @@ async def get_current_doctor(user: User = Depends(get_db_user), db: AsyncSession
     if user.role != "doctor":
         raise HTTPException(status_code=403, detail="Route requires Doctor role.")
     
-    stmt = select(Doctor).where(Doctor.user_id == user.id)
+    from sqlalchemy.orm import selectinload
+    stmt = select(Doctor).options(selectinload(Doctor.user).selectinload(User.staff_profile)).where(Doctor.user_id == user.id)
     result = await db.execute(stmt)
     doctor = result.scalar_one_or_none()
     

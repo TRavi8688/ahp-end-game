@@ -57,6 +57,12 @@ class Settings(BaseSettings):
             url = url.replace("postgres://", "postgresql+asyncpg://", 1)
         elif url.startswith("postgresql://") and "+asyncpg" not in url:
             url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        
+        # Strip sslmode if present, as it conflicts with our manual SSL context configuration
+        if "sslmode=" in url:
+            import re
+            url = re.sub(r"[?&]sslmode=[^&]*", "", url)
+            
         return url
 
     ALLOWED_ORIGINS: List[str] = ["*"] # Temporarily open for rollout verification

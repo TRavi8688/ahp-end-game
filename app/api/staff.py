@@ -31,9 +31,15 @@ async def invite_staff(
         )
     
     # 2. Trigger Invitation
+    # Get Hospital ID from Staff Profile
+    if not current_user.staff_profile:
+         raise HTTPException(status_code=400, detail="Inviter has no linked hospital profile.")
+
     invite = await StaffService.invite_staff_member(
         db,
-        inviter_hospyn_id=current_user.hospyn_id,
+        inviter_user_id=current_user.id,
+        hospital_id=current_user.staff_profile.hospital_id,
+        hospital_hospyn_id=current_user.hospyn_id or "HOSPYN-GENERIC",
         email=invite_data.email,
         role=invite_data.role,
         department_id=invite_data.department_id
@@ -49,4 +55,6 @@ async def list_staff(
     """
     Returns the list of all staff members in the hospital.
     """
-    return await StaffService.get_hospital_staff(db, current_user.hospyn_id)
+    if not current_user.staff_profile:
+        return []
+    return await StaffService.get_hospital_staff(db, current_user.staff_profile.hospital_id)
