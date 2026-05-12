@@ -214,19 +214,38 @@ async def send_otp(request: Request, req: schemas.OTPRequest):
         raise HTTPException(status_code=500, detail="Secure Persistence Layer (Redis) Unavailable.")
 
     # --- Delivery ---
-    if req.method == "sms":
-        # we assume identifier contains phone number for SMS method
-        success = await send_sms_otp(req.identifier, otp)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to deliver SMS. Check phone number.")
-    else:
-        # Email OTP logic
-        from app.services.email_service import send_email_otp
-        success = send_email_otp(req.identifier, otp)
-        if not success:
-            raise HTTPException(status_code=500, detail="Failed to deliver Email. Check address.")
+    try:
+        if req.method == "sms":
+            success = await send_sms_otp(req.identifier, otp)
+            if not success:
+                raise HTTPException(status_code=500, detail="SMS_PROVIDER_FAILURE: Twilio rejected the message. Check credentials.")
+        else:
+            from app.services.email_service import send_email_otp
+            success = send_email_otp(req.identifier, otp)
+            if not success:
+                raise HTTPException(status_code=500, detail="EMAIL_PROVIDER_FAILURE: Check SMTP settings.")
+    except Exception as e:
+        logger.error(f"OTP_DELIVERY_CRASH: {e}")
+        raise HTTPException(status_code=500, detail=f"COMMUNICATION_FAULT: {str(e)}")
     
     return {"status": "success", "message": f"OTP sent via {req.method}"}
+
+@router.get("/diag")
+async def auth_diagnostics():
+    """Hidden endpoint to verify infrastructure health."""
+    results = {"redis": "unknown", "twilio": "unknown"}
+    try:
+        client = redis_service.get_client()
+        if client:
+            await client.ping()
+            results["redis"] = "connected"
+        else:
+            results["redis"] = "disabled_by_config"
+    except Exception as e:
+        results["redis"] = f"error: {str(e)}"
+
+    results["twilio"] = "configured" if settings.TWILIO_ACCOUNT_SID and "your_" not in settings.TWILIO_ACCOUNT_SID else "missing"
+    return results
 
 @router.post("/verify-otp")
 @limiter.limit("5/minute")
