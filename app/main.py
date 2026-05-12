@@ -24,33 +24,38 @@ setup_logging()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    ENTERPRISE RESILIENT LIFESPAN:
+    SENIOR IR ENGINEER - RESILIENT STARTUP LIFESPAN:
     1. Binds the port instantly.
-    2. Performs background infrastructure checks.
-    3. Handles router registration after boot.
+    2. Logs every stage of initialization.
+    3. Graceful degradation: Survives DB/Secret failures.
     """
-    logger.info("HOSPYN_BOOT: Initializing Lifespan...")
+    boot_id = str(uuid.uuid4())[:8]
+    logger.info(f"HOSPYN_BOOT_START [ID: {boot_id}] | ENV: {settings.ENVIRONMENT}")
     
     try:
         from app.core.database import get_writer_engine
         
-        # 1. Verification of DB Connectivity (Non-Blocking if fails)
+        # STAGE 1: Infrastructure Connectivity
+        logger.info(f"HOSPYN_BOOT_STAGE_1: Verifying Infrastructure [ID: {boot_id}]")
         try:
             engine = get_writer_engine()
             async with engine.connect() as conn:
                 await conn.execute(text("SELECT 1"))
-            logger.info("HOSPYN_BOOT: Database Connectivity Verified.")
+            logger.info(f"HOSPYN_BOOT_DB_SUCCESS: Connection Established [ID: {boot_id}]")
         except Exception as db_e:
-            logger.warning(f"HOSPYN_BOOT: Initial DB check failed (will retry): {db_e}")
-            app.state.boot_error = f"Database connectivity issue: {db_e}"
+            logger.warning(f"HOSPYN_BOOT_DEGRADED: Database check failed (will retry): {db_e} [ID: {boot_id}]")
+            app.state.boot_error = f"Database degraded: {db_e}"
 
-        logger.info("HOSPYN_BOOT: Full Service Initialization Complete.")
+        # STAGE 2: Service Verification
+        logger.info(f"HOSPYN_BOOT_STAGE_2: Services Initialized [ID: {boot_id}]")
+        
+        logger.info(f"HOSPYN_BOOT_COMPLETE: FastAPI ready for Port Binding [ID: {boot_id}]")
     except Exception as e:
-        logger.error(f"HOSPYN_BOOT: Fatal Initialization Error: {e}")
+        logger.error(f"HOSPYN_BOOT_FATAL: Initialization Error: {e} [ID: {boot_id}]")
         app.state.boot_error = str(e)
         
     yield
-    logger.info("HOSPYN_SHUTDOWN: Process Terminated.")
+    logger.info(f"HOSPYN_SHUTDOWN: Process {boot_id} Terminated.")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

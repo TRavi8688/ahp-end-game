@@ -820,8 +820,11 @@ class AsyncAIService:
             
         return response_text
 
-_ai_service_instance = AsyncAIService()
+_ai_service_instance = None
 
 async def get_ai_service() -> AsyncAIService:
-    """Dependency injection wrapper for the AI Service allowing mock overrides during tests."""
+    """Lazy-loaded AI Service to prevent import-time Secret Manager calls."""
+    global _ai_service_instance
+    if _ai_service_instance is None:
+        _ai_service_instance = AsyncAIService()
     return _ai_service_instance
