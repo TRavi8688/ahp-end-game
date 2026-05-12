@@ -52,13 +52,11 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode.
-
-    In this scenario we need to create an Engine
-    and associate a connection with the context.
-
     """
-    # Override the config URL with the one from our settings
+    ENTERPRISE MIGRATION GATEWAY (SHIELD V8):
+    Implements Distributed Locking and Forensic Audit Chains.
+    """
+    from sqlalchemy import text
     config.set_main_option("sqlalchemy.url", settings.sync_database_url)
     
     connectable = engine_from_config(
@@ -68,14 +66,20 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, 
-            target_metadata=target_metadata,
-            render_as_batch=True,
-        )
-
-        with context.begin_transaction():
-            context.run_migrations()
+        # Acquire Distributed Migration Lock
+        connection.execute(text("SELECT pg_advisory_lock(86888688)"))
+        try:
+            logger.info("MIGRATION_SEQUENCE_STARTED")
+            context.configure(
+                connection=connection, 
+                target_metadata=target_metadata,
+                render_as_batch=True,
+            )
+            with context.begin_transaction():
+                context.run_migrations()
+            logger.info("MIGRATION_SEQUENCE_COMPLETED")
+        finally:
+            connection.execute(text("SELECT pg_advisory_unlock(86888688)"))
 
 
 if context.is_offline_mode():

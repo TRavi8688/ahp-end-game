@@ -133,7 +133,11 @@ def decode_token(token: str, token_type: str = "access") -> Optional[dict]:
                 # Otherwise, it might be an HS256 token signed during a fallback period
                 pass
 
-        # 2. Try HS256 with Secret Key
+        # 2. Try HS256 with Secret Key (ONLY in non-production)
+        if settings.ENVIRONMENT == "production":
+            logger.error("HS256_TOKEN_REJECTED: HS256 is strictly prohibited in production.")
+            return None
+
         payload = jwt.decode(
             token,
             settings.SECRET_KEY,

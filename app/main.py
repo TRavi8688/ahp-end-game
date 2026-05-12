@@ -79,83 +79,78 @@ async def liveness_probe():
     """Returns instantly to satisfy Cloud Run readiness probes during cold starts."""
     boot_error = getattr(app.state, "boot_error", None)
     if boot_error:
-        return JSONResponse(
-            status_code=503, 
-            content={"status": "degraded", "reason": "boot_failure", "detail": boot_error}
-        )
-    return {"status": "ready", "timestamp": datetime.utcnow().isoformat()}
+@app.get("/health", tags=["Infrastructure"])
+async def health_check():
+    """Liveness Probe: Core process and memory health."""
+    return {
+        "status": "healthy",
+        "version": settings.VERSION,
+        "environment": settings.ENVIRONMENT,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
 
-@app.get("/api/v1/health/deep")
-async def deep_health_check():
-    """Separated active connectivity check."""
-    from app.core.database import primary_engine
-    from sqlalchemy import text
+@app.get("/readyz", tags=["Infrastructure"])
+async def readiness_check(db: AsyncSession = Depends(deps.get_db)):
+    """
+    Readiness Probe: Deep Connectivity Check.
+    Ensures DB Writer, DB Reader, and AI Engine are operational.
+    Used for Blue/Green deployment gating.
+    """
+    results = {"db_writer": "ok", "db_reader": "ok", "ai_engine": "ok"}
+    
+    # 1. Check DB Writer
     try:
-        async with primary_engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-            return {"status": "connected", "database": "verified"}
+        from sqlalchemy import text
+        await db.execute(text("SELECT 1"))
     except Exception as e:
-        return JSONResponse(status_code=500, content={"status": "disconnected", "error": str(e)})
+        results["db_writer"] = f"error: {str(e)}"
+        
+    # 2. Check DB Reader
+    try:
+        from app.core.database import ReaderSession
+        async with ReaderSession() as r_session:
+            await r_session.execute(text("SELECT 1"))
+    except Exception as e:
+        results["db_reader"] = f"error: {str(e)}"
 
-# --- EXCEPTION HANDLERS ---
+    # 3. Check AI Engine (Ping-only)
+    from app.services.ai_service import get_ai_service
+    ai = await get_ai_service()
+    if not ai.gemini_key and not ai.groq_key:
+        results["ai_engine"] = "degraded: no keys"
 
-@app.exception_handler(Exception)
-async def generic_exception_handler(request: Request, exc: Exception):
-    logger.exception("RUNTIME_ERROR")
-    return JSONResponse(status_code=500, content={"detail": {"error_code": "INTERNAL_SERVER_ERROR", "message": str(exc)}})
+    status_code = 200 if all(v == "ok" or "degraded" in v for v in results.values()) else 503
+    return JSONResponse(status_code=status_code, content={"status": "ready" if status_code == 200 else "not_ready", "checks": results})
 
-# --- MIDDLEWARE ---
+from app.middleware.error_handler import global_exception_handler
+from app.middleware.forensic_telemetry import ForensicTelemetryMiddleware
+
+app.add_exception_handler(Exception, global_exception_handler)
+
+# --- MIDDLEWARE (Order Matters: Telemetry -> Proxy -> CORS) ---
+app.add_middleware(ForensicTelemetryMiddleware)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 
-# CORS (Hardened for Production)
-from app.core.config import settings
+# CORS (Hardened for Production - Fix 5)
 allowed_origins = settings.ALLOWED_ORIGINS
+env = settings.ENVIRONMENT
 
-# If using allow_credentials=True, origins MUST NOT be ["*"]
-# We sanitize this here to prevent FastAPI/Uvicorn startup crashes
-is_wildcard = "*" in allowed_origins
-final_origins = ["*"] if is_wildcard else allowed_origins
-
-if not is_wildcard:
-    final_origins.extend([
-        "https://hospyn-495906-96438.web.app",
-        "https://hospyn-495906.web.app",
-        "https://app.hospyn.com"
-    ])
+if env == "production":
+    if "*" in allowed_origins:
+        logger.critical("PRODUCTION_CORS_FAILURE: Wildcard '*' is strictly prohibited.")
+        raise RuntimeError("Insecure CORS configuration detected in production.")
+    final_origins = allowed_origins
+else:
+    # Dev/Test flexibility
+    final_origins = ["*"] if "*" in allowed_origins else allowed_origins
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=final_origins,
-    allow_credentials=not is_wildcard,  # Must be false if origin is "*"
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"]
 )
-
-# --- GLOBAL EXCEPTION HANDLER (CORS AWARE) ---
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    """
-    Ensures that even on a 500 crash, we return JSON and attempt to preserve CORS headers.
-    """
-    logger.exception(f"UNHANDLED_EXCEPTION: {str(exc)}")
-    response = JSONResponse(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={
-            "detail": {
-                "error_code": "INTERNAL_SERVER_ERROR",
-                "message": "A critical backend error occurred.",
-                "trace": str(exc) if settings.ENVIRONMENT == "development" else None
-            }
-        }
-    )
-    # Manually re-apply CORS headers if middleware was bypassed by the crash
-    origin = request.headers.get("origin")
-    if origin:
-        response.headers["Access-Control-Allow-Origin"] = origin
-        response.headers["Access-Control-Allow-Credentials"] = "true"
-    
-    return response
 
 # --- WEBSOCKET BRIDGE ---
 

@@ -111,102 +111,54 @@ async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(deps.get_db)
 ):
-    result = await db.execute(select(models.User).where(models.User.email == form_data.username))
+    """
+    PRODUCTION AUTHENTICATION: 
+    Supports Email, Phone Number, or Hospyn ID as the primary identifier.
+    """
+    identifier = form_data.username.strip()
+    
+    # 1. ATOMIC LOOKUP (Email, Phone, or Hospyn ID)
+    # This ensures we find the user regardless of how they identify
+    from sqlalchemy import or_
+    from app.models.models import User, Patient
+    
+    stmt = select(User).join(Patient, isouter=True).where(
+        or_(
+            User.email == identifier,
+            Patient.phone_number == identifier,
+            Patient.hospyn_id == identifier.upper()
+        )
+    )
+    
+    result = await db.execute(stmt)
     user = result.scalars().first()
     
+    # 2. STRICT VERIFICATION
     if not user or not security.verify_password(form_data.password, user.hashed_password):
         await log_audit_action(
             db, 
             "LOGIN_FAILURE", 
             resource_type="USER",
-            details={"email": form_data.username}
+            details={"identifier": identifier}
         )
-        throw_auth_exception("Invalid email or password")
+        throw_auth_exception("Invalid credentials provided.")
     
+    if not user.is_active:
+        throw_auth_exception("Account is deactivated. Please contact support.")
+
+    # 3. SESSION ISSUANCE
     access_token = security.create_access_token(user.id, user.role)
     refresh_token = security.create_refresh_token(user.id, user.role)
     
     await log_audit_action(db, "LOGIN_SUCCESS", user_id=user.id, resource_type="USER")
+    
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer"
     }
 
-@router.post("/master-bypass", response_model=schemas.Token)
-async def master_bypass(
-    request: Request,
-    req: schemas.LoginHospynRequest,
-    db: AsyncSession = Depends(deps.get_db)
-):
-    """
-    MISSION CRITICAL BYPASS:
-    Generates a REAL signed JWT for the test environment.
-    """
-    if req.hospyn_id.upper() != "HOSPYN-000000-TEST" and req.hospyn_id.lower() != "admin@hospyn.com" and not req.hospyn_id.upper().startswith("HOSPYN-"):
-        throw_auth_exception("Bypass unauthorized.")
-    if req.password != "DefaultPass123!" and req.password != "Hospyn123!":
-        throw_auth_exception("Bypass credentials invalid.")
-
-    # Find user by hospyn_id or identifier
-    identifier = req.hospyn_id.upper().strip()
-    result = await db.execute(select(models.User).where(
-        or_(
-            models.User.hospyn_id == identifier,
-            models.User.email == req.hospyn_id.lower()
-        )
-    ))
-    user = result.scalars().first()
-    
-    if not user:
-        # Fallback for fresh test accounts (if explicitly requested via TEST ID)
-        if identifier == "HOSPYN-000000-TEST":
-            # 1. Ensure a Master Hospital exists for the tester
-            res_h = await db.execute(select(models.Hospital).where(models.Hospital.short_code == "MASTER"))
-            master_hospital = res_h.scalars().first()
-            if not master_hospital:
-                master_hospital = models.Hospital(
-                    hospyn_id="MASTER-TENANT",
-                    short_code="MASTER",
-                    name="Hospyn Master Testing Lab",
-                    registration_number="REG-MASTER-001"
-                )
-                db.add(master_hospital)
-                await db.flush()
-
-            # 2. Create the Master User
-            user = models.User(
-                email="test@hospyn.local",
-                hashed_password=security.get_password_hash("DefaultPass123!"),
-                first_name="Master",
-                last_name="Tester",
-                role="patient",
-                is_active=True,
-                hospyn_id="HOSPYN-000000-TEST"
-            )
-            db.add(user)
-            await db.flush()
-        else:
-            throw_auth_exception(f"No user found for {identifier}")
-        skeleton_patient = models.Patient(
-            user_id=user.id,
-            hospital_id=master_hospital.id,  # FIXED: Mandatory field
-            hospyn_id="Hospyn-000000-TEST",
-            phone_number="5550100",
-            language_code="en"
-        )
-        db.add(skeleton_patient)
-        await db.commit()
-    
-    access_token = security.create_access_token(user.id, user.role)
-    refresh_token = security.create_refresh_token(user.id, user.role)
-    
-    logger.info(f"MASTER_BYPASS_ISSUED: user_id={user.id}")
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer"
-    }
+# --- MASTER BYPASS AND DEMO LOGIC REMOVED PER ARCHITECTURAL DIRECTIVE ---
 
 @router.post("/send-otp", status_code=status.HTTP_200_OK)
 @limiter.limit("10/minute")

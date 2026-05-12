@@ -29,25 +29,24 @@ export default function AuthScreen({ navigation }) {
         if (!hospynId || !password) return Alert.alert('Missing Info', 'Please enter your Hospyn ID and Password.');
         setLoading(true);
         try {
-            const hospyn = hospynId.trim().toUpperCase();
-            // Master Bypass logic preserved
-            if (hospyn === 'HOSPYN-000000-TEST' && password === 'Hospyn123!') {
-                const bypassResp = await axios.post(`${API_BASE_URL}/auth/master-bypass`, { 
-                    hospyn_id: hospyn, 
-                    password: password 
-                });
-                if (bypassResp.data.access_token) {
-                    await login(bypassResp.data.access_token, "HOSPYN-000000-TEST");
-                    return;
-                }
-            }
+            const identifier = hospynId.trim();
+            
+            // PRODUCTION AUTHENTICATION
+            // We use the standard OAuth2 flow which now supports Hospyn ID, Email, or Phone
+            const formData = new FormData();
+            formData.append('username', identifier);
+            formData.append('password', password);
 
-            const resp = await axios.post(`${API_BASE_URL}/patient/login-hospyn`, { hospyn_id: hospyn, password });
+            const resp = await axios.post(`${API_BASE_URL}/auth/login`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+
             if (resp.data.access_token) {
-                await login(resp.data.access_token, resp.data.hospyn_id || hospyn);
+                await login(resp.data.access_token, identifier);
             }
         } catch (e) {
-            Alert.alert('Login Failed', e.response?.data?.detail || 'Invalid credentials.');
+            const errorMsg = e.response?.data?.message || e.response?.data?.detail || 'Invalid credentials.';
+            Alert.alert('Login Failed', errorMsg);
         } finally {
             setLoading(false);
         }

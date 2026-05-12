@@ -8,50 +8,30 @@ from dotenv import load_dotenv
 # Production-grade configuration loader
 load_dotenv()
 
+from app.core.secrets import get_secret, load_rsa_key
+
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Hospyn 2.0 Secure (GCP)"
     VERSION: str = "2.0.2-RESILIENT"
     API_V1_STR: str = "/api/v1"
-    ENVIRONMENT: str = "production" # Default to production to avoid missing env error
+    ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     DEMO_MODE: bool = False
-    CLOUD_PROVIDER: str = "gcp"
-    SENTRY_DSN: Optional[str] = None
     
-    # --- ALL SETTINGS MADE OPTIONAL TO PREVENT STARTUP CRASHES ---
-    JWT_PRIVATE_KEY: Optional[str] = None
-    JWT_PUBLIC_KEY: Optional[str] = None
-    JWT_AUDIENCE: str = "hospyn-enterprise-clients"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
-    SECRET_KEY: Optional[str] = "placeholder-for-debug-only-change-in-production"
+    # --- SECURITY (Hardened via Shield V5) ---
+    JWT_PRIVATE_KEY: Optional[str] = load_rsa_key("JWT_PRIVATE_KEY", "priv.pem")
+    JWT_PUBLIC_KEY: Optional[str] = load_rsa_key("JWT_PUBLIC_KEY", "pub.pem")
+    JWT_AUDIENCE: str = get_secret("JWT_AUDIENCE", "hospyn-enterprise-clients")
     
-    @field_validator("JWT_PRIVATE_KEY", "JWT_PUBLIC_KEY", mode="before")
-    @classmethod
-    def decode_base64_keys(cls, v: Any) -> Any:
-        if not v or not isinstance(v, str):
-            return v
-        
-        # Handle literal \n and multi-line strings from env
-        v = v.replace("\\n", "\n").replace("\\ ", " ")
-        v = v.strip().strip('"').strip("'")
-        
-        if "-----BEGIN" in v:
-            return v
-            
-        import base64
-        import re
-        try:
-            # Try to decode if it looks like base64
-            v_clean = re.sub(r"\s+", "", v)
-            return base64.b64decode(v_clean).decode("utf-8")
-        except Exception:
-            return v
-        return v
+    SECRET_KEY: Optional[str] = get_secret("SECRET_KEY", "placeholder-for-debug-only-change-in-production")
+    ENCRYPTION_KEY: Optional[str] = get_secret("ENCRYPTION_KEY")
+
+    GCP_PROJECT_ID: Optional[str] = get_secret("GCP_PROJECT_ID")
+    GCS_BUCKET_NAME: Optional[str] = get_secret("GCS_BUCKET_NAME")
     
-    GCP_PROJECT_ID: Optional[str] = None
-    GCS_BUCKET_NAME: Optional[str] = None
-    DATABASE_URL: Optional[str] = "sqlite+aiosqlite:///:memory:" # Default to memory if missing
-    REDIS_URL: Optional[str] = None
+    # --- DATABASE ISOLATION (Priority 1) ---
+    DATABASE_URL: Optional[str] = get_secret("DATABASE_URL")
+    DATABASE_READER_URL: Optional[str] = get_secret("DATABASE_READER_URL") # For Read Replicas
+    REDIS_URL: Optional[str] = get_secret("REDIS_URL")
     USE_REDIS: bool = False
     
     @field_validator("DATABASE_URL", mode="before")

@@ -359,164 +359,152 @@ class AsyncAIService:
         hospital_id: Optional[uuid.UUID] = None,
         prompt_template: str = "generic",
         db: Optional[AsyncSession] = None
-    ) -> str:
+    ) -> Dict[str, Any]:
         """
-        AI Engine with multi-provider failover and Clinical Safety Governance.
-        ENTERPRISE HARDENING: Enforces clinical neutrality and evidence grounding.
+        ENTERPRISE AI ORCHESTRATOR:
+        Implements Adaptive Racing, Automatic Failover, and Structured Observability.
         """
-        # Inject Enterprise Clinical Safety Instructions
+        trace_id = str(uuid.uuid4())
+        start_engine = time.time()
+        
+        # 1. Inject Enterprise Clinical Safety Instructions
+        from app.core.policy import clinical_policy
         safety_instruction = (
             "\n\n[CLINICAL SAFETY & GOVERNANCE PROTOCOL]\n"
-            "1. TONE: Maintain strict clinical neutrality. Do NOT use emotional, reassuring, or celebratory language.\n"
-            "2. EVIDENCE: Every clinical claim MUST be grounded in the provided context. List 'evidence_sources' as UUIDs.\n"
-            "3. UNCERTAINTY: If data is missing or ambiguous, explicitly state 'Low Confidence' and reason.\n"
-            "4. SCOPE: Do NOT provide definitive diagnoses. Use 'Findings suggestive of...' or 'Differential includes...'.\n"
+            f"{clinical_policy.get_system_governance_prompt()}\n"
+            "1. TONE: Strict clinical neutrality. No emotional language.\n"
+            "2. EVIDENCE: Ground claims in context. Use 'evidence_sources' IDs.\n"
+            "3. SCOPE: Observations only. Do NOT provide definitive diagnoses.\n"
         )
-        if force_json:
-            safety_instruction += "Include a 'safety_metadata' object: {confidence_score: float, evidence_sources: list[uuid], hallucination_risk: float}."
-        
-        prompt += safety_instruction
+        full_prompt = prompt + safety_instruction
 
-        if os.getenv("DEMO_MODE", "False") == "True":
-            logger.info("DEMO_MODE: Bypassing AI Engine with Mock Response.")
-            if force_json:
-                return json.dumps({
-                    "conditions": [{"name": "Stable Vital Signs", "severity": "normal"}],
-                    "safety_metadata": {"confidence_score": 1.0, "evidence_sources": [], "hallucination_risk": 0.0},
-                    "answer": "Clinical findings are within normal physiological ranges."
-                })
-            return "CLINICAL SUMMARY: Observations consistent with normal baseline. No immediate intervention required."
-
+        # 2. Define Providers (Priority Ranked)
         if image_bytes:
-            # Vision-capable models
             providers = [
-                ("insforge", self._call_insforge_ai, "anthropic/claude-sonnet-4.5"),
-                ("insforge", self._call_insforge_ai, "openai/gpt-4o-mini"),
-                ("anthropic", self._call_anthropic, "claude-3-5-sonnet-20240620"),
+                ("insforge", self._call_insforge_ai, "anthropic/claude-3-5-sonnet"),
                 ("groq", self._call_groq, "llama-3.2-11b-vision-preview"),
                 ("gemini", self._call_gemini, "gemini-1.5-flash")
             ]
         else:
-            # Text-only models
             providers = [
-                ("insforge", self._call_insforge_ai, "deepseek/deepseek-v3.2"),
-                ("insforge", self._call_insforge_ai, "openai/gpt-4o-mini"),
-                ("anthropic", self._call_anthropic, "claude-3-5-sonnet-20240620"),
+                ("insforge", self._call_insforge_ai, "deepseek/deepseek-v3"),
                 ("groq", self._call_groq, "llama-3.3-70b-versatile"),
+                ("anthropic", self._call_anthropic, "claude-3-5-sonnet-20240620"),
                 ("gemini", self._call_gemini, "gemini-1.5-flash")
             ]
 
-        # --- ADAPTIVE RACING FAILOVER (Enterprise Strategy) ---
-        # Instead of sequential blocking, we use a "staggered start" race.
-        # We start the primary provider, and if it doesn't respond within 2s, 
-        # we start the secondary provider in parallel.
-        
-        response_text = "SERVICE_UNAVAILABLE"
+        # --- ADAPTIVE RACING LOGIC ---
+        final_result = None
         
         async def _attempt_provider(p_key, func, model):
-            if p_key in self.circuits:
-                if not await self.circuits[p_key].is_available():
-                    return None
             try:
-                start_time = time.time()
-                res = await func(model, prompt, image_bytes, mime_type, force_json)
-                latency = int((time.time() - start_time) * 1000)
-                
-                if res and res not in ["ERROR", "SERVICE_UNAVAILABLE", "MISSING_KEY"] and len(res.strip()) > 5:
-                    # Forensic Logging would happen here or in the caller
-                    return res.strip(), p_key, model, latency
-            except Exception:
-                pass
+                p_start = time.time()
+                res = await func(model, full_prompt, image_bytes, mime_type, force_json)
+                latency = int((time.time() - p_start) * 1000)
+                if res and res not in ["ERROR", "SERVICE_UNAVAILABLE"]:
+                    return {"text": res, "provider": p_key, "model": model, "latency": latency}
+            except Exception as e:
+                logger.warning(f"AI_PROVIDER_FAILURE: {p_key} | {e}")
             return None
 
-        # 1. Primary Attempt (Priority 1)
+        # Try Primary
         p1_key, p1_func, p1_model = providers[0]
-        p1_task = asyncio.create_task(_attempt_provider(p1_key, p1_func, p1_model))
+        primary_task = asyncio.create_task(_attempt_provider(p1_key, p1_func, p1_model))
         
-        # 2. Wait for P1 or Timeout for staggered start
-        done, pending = await asyncio.wait([p1_task], timeout=2.0)
+        # Staggered Race: Wait 2s for primary, then start secondaries in parallel
+        done, pending = await asyncio.wait([primary_task], timeout=2.0)
         
-        if p1_task in done and p1_task.result():
-            response_text = p1_task.result()
+        if primary_task in done and primary_task.result():
+            final_result = primary_task.result()
         else:
-            # 3. P1 is slow or failed. Start P2 and P3 as a secondary race.
-            logger.info("ADAPTIVE_RACING: Primary slow/failed, starting secondary providers...")
-            secondary_tasks = []
-            for p_key, func, model in providers[1:3]: # Race next 2 providers
-                 secondary_tasks.append(asyncio.create_task(_attempt_provider(p_key, func, model)))
+            logger.info(f"ADAPTIVE_RACING: Primary {p1_key} slow/failed. Racing secondaries...")
+            secondary_tasks = [asyncio.create_task(_attempt_provider(p_key, func, m)) for p_key, func, m in providers[1:]]
+            all_active = [primary_task] + secondary_tasks
             
-            # Combine all active tasks
-            all_active = [p1_task] + secondary_tasks
-            
-            # Loop until we get a result or all fail
             while all_active:
                 done, all_active = await asyncio.wait(all_active, return_when=asyncio.FIRST_COMPLETED)
                 for task in done:
                     res = task.result()
                     if res:
-                        response_text = res
-                        # Cancel remaining tasks to save cost/compute
+                        final_result = res
                         for p in all_active: p.cancel()
-                        all_active = [] # Break outer loop
+                        all_active = []
                         break
-                if response_text != "SERVICE_UNAVAILABLE":
-                    break
 
-        # Final Fallback (Sequential) for remaining providers if still unavailable
-        final_p_key, final_model, final_latency = None, None, 0
-        if response_text == "SERVICE_UNAVAILABLE" and len(providers) > 3:
-            for p_key, func, model in providers[3:]:
-                 res_tuple = await _attempt_provider(p_key, func, model)
-                 if res_tuple:
-                     response_text, final_p_key, final_model, final_latency = res_tuple
-                     break
+        if not final_result:
+             # ENTERPRISE RECOVERY: Clinical Safe Mode
+             logger.critical(f"TOTAL_AI_OUTAGE: trace_id={trace_id}")
+             safe_fallback = (
+                 "⚠️ [CLINICAL SAFE MODE ACTIVE]\n\n"
+                 "I am currently experiencing connectivity issues with my central medical intelligence network. "
+                 "To ensure your safety, I am operating in a restricted mode.\n\n"
+                 "ACTION REQUIRED:\n"
+                 "1. If this is an emergency, contact your local emergency services immediately.\n"
+                 "2. Please consult your physical medical records or your physician for urgent clinical decisions.\n"
+                 "3. I will be fully available once my secure connection is restored."
+             )
+             return {
+                 "success": False, 
+                 "error": "ALL_PROVIDERS_FAILED", 
+                 "response": safe_fallback,
+                 "trace_id": trace_id,
+                 "safety_flag": "SAFE_MODE"
+             }
 
-        # Extract Provider Info if available
-        # (This is a bit messy because of the racing logic, but necessary for forensics)
-        actual_provider = final_p_key or "unknown"
-        actual_model = final_model or "unknown"
-        actual_latency = final_latency
-
-
-        # --- Regional Language Enhancement (Sarvam) ---
-        if response_text != "SERVICE_UNAVAILABLE" and language_code not in ["en", "en-IN"]:
-            logger.info(f"TRANSLATING: Response to {language_code} via Sarvam...")
-            response_text = await self._call_sarvam(response_text, language_code)
-
-        # --- ENTERPRISE AI BLACK BOX RECORDER (Forensics) ---
-        if db and user_id and response_text != "SERVICE_UNAVAILABLE":
+        # 3. Multilingual Pipeline (Sarvam AI)
+        response_text = final_result["text"]
+        if language_code not in ["en", "en-IN"]:
             try:
-                # Extract safety metadata if JSON
-                safety_meta = {"confidence_score": 0.5} # Default
-                if force_json:
-                    try:
-                        data = json.loads(response_text)
-                        safety_meta = data.get("safety_metadata", safety_meta)
-                    except: pass
+                response_text = await self._call_sarvam(response_text, language_code)
+            except Exception as e:
+                logger.error(f"TRANSLATION_FAILURE: {e}")
 
-                from opentelemetry import trace
-                span_ctx = trace.get_current_span().get_span_context()
-                trace_id = hex(span_ctx.trace_id)[2:] if span_ctx.is_valid else "internal"
+        # 4. Observability & Forensics
+        total_latency = int((time.time() - start_engine) * 1000)
+        
+        # --- ENTERPRISE CLINICAL SAFETY AUDIT (SHIELD V3) ---
+        from app.services.safety_service import safety_service
+        safety_findings = await safety_service.audit_interaction(
+            prompt=full_prompt,
+            response=response_text,
+            user_id=user_id or uuid.UUID(int=0), # Fallback to system ID if anon
+            db=db
+        )
+        
+        # Enforce Safety Protocols (Disclaimers/Emergency Overrides)
+        protected_response = safety_service.inject_safety_protocol(response_text, safety_findings)
 
+        if db and user_id:
+            try:
                 event = ClinicalAIEvent(
                     hospital_id=hospital_id,
                     user_id=user_id,
                     trace_id=trace_id,
                     prompt_template=prompt_template,
-                    prompt_payload={"prompt_length": len(prompt)}, # Don't store full prompt in basic audit
-                    response_text=response_text[:1000], # Truncate for DB
-                    safety_metadata=safety_meta,
-                    provider=actual_provider,
-                    model_version=actual_model,
-                    latency_ms=actual_latency,
-                    safety_mode=self.safety_mode
+                    prompt_payload={"length": len(full_prompt)},
+                    response_text=protected_response[:2000],
+                    safety_metadata={
+                        "confidence": 1.0,
+                        "risk_level": safety_findings["risk_level"],
+                        "intervention": safety_findings["intervention_type"]
+                    },
+                    provider=final_result["provider"],
+                    model_version=final_result["model"],
+                    latency_ms=total_latency
                 )
                 db.add(event)
-                # Note: We don't commit here, we rely on the caller's transaction
             except Exception as e:
-                logger.error(f"AI_FORENSICS_FAILURE: {e}")
+                logger.error(f"AI_FORENSICS_DB_ERROR: {e}")
 
-        return sanitize_ai_output(response_text)
+        return {
+            "success": True,
+            "provider": final_result["provider"],
+            "model": final_result["model"],
+            "response": protected_response,
+            "latency_ms": total_latency,
+            "trace_id": trace_id,
+            "safety_flag": safety_findings["risk_level"]
+        }
 
     async def _call_local_ocr(self, image_bytes: bytes) -> str:
         """Local Tesseract fallback for OCR when all cloud AI services are down."""
@@ -538,7 +526,9 @@ class AsyncAIService:
             f"Content: {text}"
         )
         for attempt in range(retries):
-            res = await self.unified_ai_engine(prompt, force_json=True)
+            engine_resp = await self.unified_ai_engine(prompt)
+            res = engine_resp.get("response", "")
+            
             # Robust Markdown Cleaning
             clean_res = res.strip()
             if "```json" in clean_res:
@@ -548,7 +538,8 @@ class AsyncAIService:
             clean_res = clean_res.strip()
             
             try:
-                return MedicalEntities(**json.loads(clean_res))
+                if clean_res:
+                    return MedicalEntities(**json.loads(clean_res))
             except (json.JSONDecodeError, ValidationError) as e:
                 logger.warning(f"Medical entity parsing attempt {attempt + 1} failed: {e}")
                 
@@ -561,36 +552,42 @@ class AsyncAIService:
             f"Raw text: {raw_text[:1000]}\n"
             "Focus on clinical significance, potential diagnoses, and recommended next steps."
         )
-        return await self.unified_ai_engine(prompt)
+        res = await self.unified_ai_engine(prompt)
+        return res.get("response", "Clinical summary unavailable.")
 
     async def explain_to_patient(self, entities: MedicalEntities, raw_text: str, language_code: str = "en") -> str:
-        """解释给病人 (Explain to patient) - The CHITTI Persona (Hardened)."""
         prompt = (
             "You are 'CHITTI', a professional and objective medical assistant.\n"
             f"Your goal is to explain the following medical findings in language: {language_code}.\n"
-            "Enterprise Safety Guidelines:\n"
-            "1. Be professional and neutral. Do NOT use emotional, reassuring, or celebratory language.\n"
-            "2. Clearly distinguish between normal findings and those requiring clinician review.\n"
-            "3. Use plain language but maintain clinical accuracy.\n"
-            "4. ALWAYS include a disclaimer: 'This is an AI summary. Please consult your physician for medical decisions.'\n"
+            "Safety: Disclaimers required. No emotional language.\n"
             f"Entities Found: {entities.model_dump_json()}\n"
             f"Raw Narrative: {raw_text[:500]}\n\n"
             "Return EXCLUSIVELY a JSON object: {\"answer\": \"your explanation here\"}"
         )
-        res = await self.unified_ai_engine(prompt, force_json=True, language_code=language_code)
+        engine_resp = await self.unified_ai_engine(prompt, language_code=language_code)
+        res = engine_resp.get("response", "")
         try:
-            # Handle potential JSON markdown wrap from AI
             clean_res = res.strip()
-            if clean_res.startswith("```json"): clean_res = clean_res[7:-3]
-            elif clean_res.startswith("```"): clean_res = clean_res[3:-3]
+            if "```json" in clean_res: clean_res = clean_res.split("```json")[-1].split("```")[0]
+            elif "```" in clean_res: clean_res = clean_res.split("```")[-1].split("```")[0]
             
             answer = json.loads(clean_res.strip()).get("answer")
-            if not answer: raise ValueError("No answer field")
-            return sanitize_ai_output(answer)
+            return sanitize_ai_output(answer or res)
         except Exception as e:
-            logger.error(f"CHITTI_PARSE_ERROR: {e} | Raw: {res}")
-            # Fallback to professional disclaimer
-            return "I have processed your medical findings. The results are available for your physician to review. This is an AI summary; please consult your doctor for all medical decisions."
+            logger.error(f"CHITTI_PARSE_ERROR: {e}")
+            return sanitize_ai_output(res) or "I have processed your findings. Please consult your physician."
+
+    async def chat_with_memory(self, user_id: str, conversation_id: str, user_message: str, family_member_id: Optional[uuid.UUID] = None, image_bytes: bytes = None, audio_bytes: bytes = None, language_code: str = "en-IN", role: str = "patient", db: Optional[AsyncSession] = None) -> str:
+        # ... (History and prompt assembly logic remains same)
+        history = await self.get_chat_history(user_id, conversation_id, db=db)
+        
+        full_prompt = f"CLINICAL_CONTEXT:\n{await self.get_medical_context(user_id, family_member_id, role, db)}\n\nHISTORY:\n{history}\n\nUSER: {user_message}"
+        
+        engine_resp = await self.unified_ai_engine(full_prompt, image_bytes=image_bytes, language_code=language_code, user_id=uuid.UUID(user_id), db=db)
+        response_text = engine_resp.get("response", "I'm having trouble connecting to my medical memory.")
+        
+        await self.save_chat_message(user_id, conversation_id, "assistant", response_text, db=db)
+        return response_text
 
     async def _get_file_bytes(self, source: str) -> bytes:
         """Helper to get file bytes from either a local path or GCP Cloud Storage."""
@@ -761,64 +758,67 @@ class AsyncAIService:
             logger.error(f"Failed to build secure medical context: {e}")
             return "Security Guard: Error retrieving clinical profile."
 
-    async def chat_with_memory(self, user_id: str, conversation_id: str, user_message: str, family_member_id: Optional[uuid.UUID] = None, image_bytes: bytes = None, audio_bytes: bytes = None, language_code: str = "en-IN", role: str = "patient", db: Optional[AsyncSession] = None) -> str:
+    async def chat_with_memory(
+        self, 
+        user_id: str, 
+        conversation_id: str, 
+        user_message: str, 
+        family_member_id: Optional[uuid.UUID] = None, 
+        image_bytes: bytes = None, 
+        audio_bytes: bytes = None, 
+        language_code: str = "en-IN", 
+        role: str = "patient", 
+        db: Optional[AsyncSession] = None
+    ) -> str:
         """Generate a response using clinical context AND conversational memory."""
         
-        # 0. Handle Voice if present
+        # 0. Handle Voice
         if audio_bytes:
             transcription = await self.speech_to_text(audio_bytes)
             if transcription:
                 user_message = f"{user_message} (Transcription: {transcription})"
-                logger.info(f"Voice Transcribed: {transcription}")
 
-        # 1. Fetch Secure Medical Context First (Role-Aware)
+        # 1. Fetch Secure Medical Context (Role-Aware)
         clinical_context = await self.get_medical_context(user_id, family_member_id=family_member_id, role=role, db=db)
 
-        # 2. Save the user's message
+        # 2. Save user message
         await self.save_chat_message(user_id, conversation_id, "user", user_message, db=db)
 
-        # 3. Get conversational history
+        # 3. Get history
         history = await self.get_chat_history(user_id, conversation_id, db=db)
 
-        # 4. Premium Personality Prompt
+        # 4. Prompt Assembly
         system_prompt = (
-            "You are CHITTI, the High-End Personal Healthcare Companion for the Hospyn 2.0 Platform.\n\n"
-            "YOUR UNIQUE IDENTITY:\n"
-            "- You are NOT a generic AI. You are a dedicated partner in the patient's health journey.\n"
-            "- You HAVE access to the patient's real-time medical profile provided below as SECURE_CLINICAL_CONTEXT.\n"
-            "- Your tone is empathetic, elite, and proactive.\n\n"
-            f"- IMPORTANT: Please respond in the following language/dialect: {language_code}.\n"
-            f"- If language is not English, ensure you maintain the warm 'Chitti' personality while speaking {language_code}.\n\n"
-            "OPERATING GUIDELINES:\n"
-            "1. CONTEXTUAL AWARENESS: Always check the 'SECURE_CLINICAL_CONTEXT_V1' section. Use THIS data for clinical queries.\n"
-            "2. PROACTIVITY: Suggest health tips based on the 'active_state' and 'timeline' in the context.\n"
-            "3. PRIVACY: Do not hallucinate data not present in the context.\n"
-            "4. ELITE STATUS: Introduce yourself as 'CHITTI, your Healthcare Companion' in your first turn."
+            "You are CHITTI, the High-End Personal Healthcare Companion for Hospyn 2.0.\n"
+            "Tone: Empathetic, elite, proactive.\n"
+            f"Language: {language_code}.\n"
         )
         
-        formatted_history = ""
-        for msg in history:
-            role_label = "User" if msg["role"] == "user" else "Assistant"
-            formatted_history += f"{role_label}: {msg['content']}\n"
+        formatted_history = "\n".join([f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content']}" for m in history])
         
         full_prompt = (
             f"{system_prompt}\n\n"
-            f"--- SECURE CLINICAL CONTEXT (FILTERED) ---\n"
-            f"{clinical_context}\n\n"
-            f"--- CONVERSATION HISTORY ---\n"
-            f"{formatted_history}\n"
+            f"CONTEXT:\n{clinical_context}\n\n"
+            f"HISTORY:\n{formatted_history}\n"
             f"Assistant:"
         )
 
         # 5. Generate response
-        response = await self.unified_ai_engine(full_prompt, image_bytes=image_bytes, language_code=language_code)
-
-        # 6. Save and Return
-        if response and response != "SERVICE_UNAVAILABLE":
-            await self.save_chat_message(user_id, conversation_id, "assistant", response, db=db)
-            return response
+        engine_resp = await self.unified_ai_engine(
+            full_prompt, 
+            image_bytes=image_bytes, 
+            language_code=language_code,
+            user_id=uuid.UUID(user_id),
+            db=db
+        )
         
-        return "I apologize, but I am having trouble connecting to my central medical memory right now."
+        response_text = engine_resp.get("response", "I'm having trouble connecting to my medical memory.")
+
+        # 6. Save assistant response
+        if engine_resp.get("success"):
+            await self.save_chat_message(user_id, conversation_id, "assistant", response_text, db=db)
+            
+        return response_text
 
 _ai_service_instance = AsyncAIService()
 

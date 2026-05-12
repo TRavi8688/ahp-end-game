@@ -317,15 +317,15 @@ export default function OnboardingScreen({ navigation }) {
         setLoading(true);
         try {
             let hospyn_id = null;
+            const defaultPassword = 'DefaultPass123!';
 
             if (formData.userExists) {
-                // If user exists, we skip registration. 
                 hospyn_id = formData.hospyn_id || `Hospyn-${formData.phone.slice(-6)}`;
             } else {
                 // 1. Register User
                 const registerResp = await axios.post(`${API_BASE_URL}/auth/register`, {
                     email: formData.phone,
-                    password: 'DefaultPass123!', // User will change later
+                    password: defaultPassword,
                     first_name: formData.fullName.split(' ')[0] || 'Patient',
                     last_name: formData.fullName.split(' ').slice(1).join(' ') || '',
                     role: 'patient'
@@ -333,14 +333,18 @@ export default function OnboardingScreen({ navigation }) {
                 hospyn_id = registerResp.data.hospyn_id;
             }
 
-            // 2. Setup Profile (Using master bypass for onboarding flow)
-            const loginResp = await axios.post(`${API_BASE_URL}/auth/master-bypass`, {
-                hospyn_id: hospyn_id,
-                password: 'DefaultPass123!'
+            // 2. Real Login (No Bypass)
+            const loginFormData = new FormData();
+            loginFormData.append('username', formData.phone);
+            loginFormData.append('password', defaultPassword);
+
+            const loginResp = await axios.post(`${API_BASE_URL}/auth/login`, loginFormData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
             });
 
             const token = loginResp.data.access_token;
 
+            // 3. Profile Setup
             await axios.post(`${API_BASE_URL}/profile/setup`, {
                 phone_number: formData.phone,
                 date_of_birth: formData.dob || null,
@@ -361,7 +365,8 @@ export default function OnboardingScreen({ navigation }) {
             });
 
         } catch (e) {
-            Alert.alert('Account Creation Failed', e.response?.data?.detail || 'An error occurred.');
+            logger.error("ONBOARDING_FINALIZE_FAILURE", e);
+            Alert.alert('Account Creation Failed', e.response?.data?.message || 'An error occurred during secure setup.');
         } finally {
             setLoading(false);
         }
