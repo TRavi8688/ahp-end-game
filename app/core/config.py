@@ -18,20 +18,46 @@ class Settings(BaseSettings):
     DEMO_MODE: bool = False
     
     # --- SECURITY (Hardened via Shield V5) ---
-    JWT_PRIVATE_KEY: Optional[str] = load_rsa_key("JWT_PRIVATE_KEY", "priv.pem")
-    JWT_PUBLIC_KEY: Optional[str] = load_rsa_key("JWT_PUBLIC_KEY", "pub.pem")
-    JWT_AUDIENCE: str = get_secret("JWT_AUDIENCE", "hospyn-enterprise-clients")
-    
-    SECRET_KEY: Optional[str] = get_secret("SECRET_KEY", "placeholder-for-debug-only-change-in-production")
-    ENCRYPTION_KEY: Optional[str] = get_secret("ENCRYPTION_KEY")
+    @property
+    def JWT_PRIVATE_KEY(self) -> Optional[str]:
+        return load_rsa_key("JWT_PRIVATE_KEY", "priv.pem")
 
-    GCP_PROJECT_ID: Optional[str] = get_secret("GCP_PROJECT_ID")
-    GCS_BUCKET_NAME: Optional[str] = get_secret("GCS_BUCKET_NAME")
+    @property
+    def JWT_PUBLIC_KEY(self) -> Optional[str]:
+        return load_rsa_key("JWT_PUBLIC_KEY", "pub.pem")
+
+    @property
+    def JWT_AUDIENCE(self) -> str:
+        return get_secret("JWT_AUDIENCE", "hospyn-enterprise-clients")
+    
+    @property
+    def SECRET_KEY(self) -> str:
+        return get_secret("SECRET_KEY", "placeholder-for-debug-only-change-in-production")
+
+    @property
+    def ENCRYPTION_KEY(self) -> Optional[str]:
+        return get_secret("ENCRYPTION_KEY")
+
+    @property
+    def GCP_PROJECT_ID(self) -> Optional[str]:
+        return get_secret("GCP_PROJECT_ID")
+
+    @property
+    def GCS_BUCKET_NAME(self) -> Optional[str]:
+        return get_secret("GCS_BUCKET_NAME")
     
     # --- DATABASE ISOLATION (Priority 1) ---
-    DATABASE_URL: Optional[str] = get_secret("DATABASE_URL")
-    DATABASE_READER_URL: Optional[str] = get_secret("DATABASE_READER_URL") # For Read Replicas
-    REDIS_URL: Optional[str] = get_secret("REDIS_URL")
+    @property
+    def DATABASE_URL(self) -> Optional[str]:
+        return get_secret("DATABASE_URL")
+
+    @property
+    def DATABASE_READER_URL(self) -> Optional[str]:
+        return get_secret("DATABASE_READER_URL")
+
+    @property
+    def REDIS_URL(self) -> Optional[str]:
+        return get_secret("REDIS_URL")
     USE_REDIS: bool = False
     
     @field_validator("DATABASE_URL", mode="before")

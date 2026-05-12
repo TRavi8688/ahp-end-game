@@ -32,11 +32,12 @@ async def lifespan(app: FastAPI):
     logger.info("HOSPYN_BOOT: Initializing Lifespan...")
     
     try:
-        from app.core.database import writer_engine
+        from app.core.database import get_writer_engine
         
         # 1. Verification of DB Connectivity (Non-Blocking if fails)
         try:
-            async with writer_engine.connect() as conn:
+            engine = get_writer_engine()
+            async with engine.connect() as conn:
                 await conn.execute(text("SELECT 1"))
             logger.info("HOSPYN_BOOT: Database Connectivity Verified.")
         except Exception as db_e:

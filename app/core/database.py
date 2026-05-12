@@ -32,44 +32,51 @@ def get_ssl_context():
         # FAIL CLOSED: Do not allow connection if SSL verification is broken in production
         raise RuntimeError(f"Database SSL verification failed: {e}")
 
-# --- ENGINE ORCHESTRATION (Priority 1: Isolation) ---
+# --- ENGINE ORCHESTRATION (LAZY) ---
 
-# 1. Primary Writer Engine (Strictly for Mutations)
-writer_engine = create_async_engine(
-    settings.DATABASE_URL,
-    pool_size=20,
-    max_overflow=10,
-    pool_recycle=1800,
-    connect_args={"ssl": get_ssl_context()} if "postgresql" in settings.DATABASE_URL else {}
-)
+_writer_engine = None
+_reader_engine = None
 
-# 2. Replica Reader Engine (Strictly for Queries)
-# Falls back to writer if reader URL is not provided
-reader_url = settings.DATABASE_READER_URL or settings.DATABASE_URL
-reader_engine = create_async_engine(
-    reader_url,
-    pool_size=40, # Higher pool for read-heavy clinical workloads
-    max_overflow=20,
-    pool_recycle=1800,
-    connect_args={"ssl": get_ssl_context()} if "postgresql" in reader_url else {}
-)
+def get_writer_engine():
+    global _writer_engine
+    if _writer_engine is None:
+        _writer_engine = create_async_engine(
+            settings.DATABASE_URL,
+            pool_size=20,
+            max_overflow=10,
+            pool_recycle=1800,
+            connect_args={"ssl": get_ssl_context()} if "postgresql" in settings.DATABASE_URL else {}
+        )
+    return _writer_engine
 
-# --- SESSION MAKERS ---
-WriterSession = sessionmaker(writer_engine, class_=AsyncSession, expire_on_commit=False)
-ReaderSession = sessionmaker(reader_engine, class_=AsyncSession, expire_on_commit=False)
+def get_reader_engine():
+    global _reader_engine
+    if _reader_engine is None:
+        reader_url = settings.DATABASE_READER_URL or settings.DATABASE_URL
+        _reader_engine = create_async_engine(
+            reader_url,
+            pool_size=40,
+            max_overflow=20,
+            pool_recycle=1800,
+            connect_args={"ssl": get_ssl_context()} if "postgresql" in reader_url else {}
+        )
+    return _reader_engine
 
-# Backward Compatibility Alias
-AsyncSessionLocal = WriterSession
-engine = writer_engine
-
-# --- DEPENDENCY INJECTION ---
+# --- SESSION MAKERS (LAZY) ---
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """
-    Standard DB dependency.
-    In Production, this defaults to the WRITER session for atomic safety.
-    """
-    async with WriterSession() as session:
+    engine = get_writer_engine()
+    session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with session_factory() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
+
+async def get_read_db() -> AsyncGenerator[AsyncSession, None]:
+    engine = get_reader_engine()
+    session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with session_factory() as session:
         try:
             yield session
         finally:
