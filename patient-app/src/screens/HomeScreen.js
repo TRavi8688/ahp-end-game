@@ -121,7 +121,14 @@ export default function HomeScreen({ navigation }) {
                             </View>
                         </View>
                     </View>
-                    <View style={{ flexDirection: 'row', gap: 15 }}>
+                    <View style={{ flexDirection: 'row', gap: 15, alignItems: 'center' }}>
+                        <TouchableOpacity 
+                            style={styles.addFamilyBtn} 
+                            onPress={() => navigation.navigate('FamilyProfiles')}
+                        >
+                            <Ionicons name="add" size={24} color="#fff" />
+                            <Text style={styles.addFamilyLabel}>Family</Text>
+                        </TouchableOpacity>
                         <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
                             <Ionicons name="notifications-outline" size={28} color="#fff" />
                         </TouchableOpacity>
@@ -391,6 +398,21 @@ const styles = StyleSheet.create({
         marginRight: 15,
         borderWidth: 3,
         borderColor: 'rgba(255,255,255,0.3)',
+    },
+    addFamilyBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(99, 102, 241, 0.4)',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+        gap: 2,
+    },
+    addFamilyLabel: {
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
     },
     userName: {
         color: '#fff',

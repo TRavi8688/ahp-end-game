@@ -209,6 +209,7 @@ class PatientProfileResponse(BaseModel):
     blood_group: Optional[str] = None
     gender: Optional[str] = None
     recent_records: List[MedicalRecordResponse] = []
+    care_circle: List["FamilyMemberResponse"] = []
 
 class JobStatusResponse(BaseModel):
     job_id: str
@@ -240,4 +241,23 @@ class AISafetyResponse(BaseModel):
     hallucination_risk: float
     trace_id: str
     provider_info: str
+
+# Care Circle / Family Member Schemas
+class FamilyMemberBase(BaseModel):
+    full_name: str
+    relation: str
+    phone_number: Optional[str] = None
+    blood_group: Optional[str] = None
+    gender: Optional[str] = None
+    date_of_birth: Optional[str] = None
+
+class FamilyMemberCreate(FamilyMemberBase):
+    pass
+
+class FamilyMemberResponse(FamilyMemberBase):
+    id: uuid.UUID
+    linked_hospyn_id: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
 

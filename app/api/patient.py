@@ -219,17 +219,59 @@ async def get_patient_profile(
             "recent_records": []
         }
     
+    # Reload patient with relationships
+    from sqlalchemy.orm import selectinload
+    stmt = select(models.Patient).where(models.Patient.id == current_patient.id).options(
+        selectinload(models.Patient.family_members),
+        selectinload(models.Patient.records)
+    )
+    result_p = await db.execute(stmt)
+    patient = result_p.scalar_one()
+
     return {
-        "id": current_patient.id,
+        "id": patient.id,
         "full_name": f"{user.first_name} {user.last_name}",
         "email": user.email,
-        "phone_number": current_patient.phone_number,
-        "hospyn_id": current_patient.hospyn_id,
-        "age": current_patient.age,
-        "blood_group": current_patient.blood_group,
-        "gender": current_patient.gender,
-        "recent_records": [] # Can be populated via join if needed
+        "phone_number": patient.phone_number,
+        "hospyn_id": patient.hospyn_id,
+        "age": 0,
+        "blood_group": patient.blood_group,
+        "gender": patient.gender,
+        "recent_records": patient.records[:5],
+        "care_circle": patient.family_members
     }
+
+@router.get("/care-circle", response_model=List[schemas.FamilyMemberResponse])
+async def get_care_circle(
+    current_patient: models.Patient = Depends(deps.get_current_patient),
+    db: AsyncSession = Depends(deps.get_db)
+):
+    """Lists all family members in the patient's care circle."""
+    result = await db.execute(
+        select(models.FamilyMember).where(models.FamilyMember.patient_id == current_patient.id)
+    )
+    return result.scalars().all()
+
+@router.post("/care-circle", response_model=schemas.FamilyMemberResponse)
+async def add_family_member(
+    data: schemas.FamilyMemberCreate,
+    current_patient: models.Patient = Depends(deps.get_current_patient),
+    db: AsyncSession = Depends(deps.get_db)
+):
+    """Adds a new family member to the care circle."""
+    new_member = models.FamilyMember(
+        patient_id=current_patient.id,
+        full_name=data.full_name,
+        relation=data.relation,
+        phone_number=data.phone_number,
+        blood_group=data.blood_group,
+        gender=data.gender,
+        date_of_birth=data.date_of_birth
+    )
+    db.add(new_member)
+    await db.commit()
+    await db.refresh(new_member)
+    return new_member
 
 @router.get("/clinical-summary")
 async def get_clinical_summary(

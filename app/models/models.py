@@ -149,6 +149,7 @@ class Patient(Base, TenantScopedMixin, TimestampMixin):
     conditions: Mapped[List["Condition"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
     medications: Mapped[List["Medication"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
     allergies: Mapped[List["Allergy"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
+    family_members: Mapped[List["FamilyMember"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
     dashboard: Mapped["PatientDashboard"] = relationship(back_populates="patient", uselist=False)
 
     __mapper_args__ = {"version_id_col": version_id}
@@ -604,6 +605,29 @@ class ClinicalEvent(Base):
     
     signature: Mapped[str] = mapped_column(String(255)) # Integrity hash
     version: Mapped[int] = mapped_column(default=1)
+
+class FamilyMember(Base, TimestampMixin):
+    """
+    CARE CIRCLE: Managing blood-line coordination for dependents.
+    """
+    __tablename__ = "family_members"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    
+    full_name: Mapped[str] = mapped_column(String(255))
+    relation: Mapped[str] = mapped_column(String(50)) # Mother, Father, Spouse, Child, etc.
+    phone_number: Mapped[Optional[str]] = mapped_column(String(20))
+    
+    # Basic Health Profile for Member
+    blood_group: Mapped[Optional[str]] = mapped_column(String(10))
+    gender: Mapped[Optional[str]] = mapped_column(String(20))
+    date_of_birth: Mapped[Optional[str]] = mapped_column(String(50))
+    
+    # Cross-link if the family member has their own Hospyn ID
+    linked_hospyn_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    
+    patient: Mapped["Patient"] = relationship(back_populates="family_members")
 
 # --- QUEUE & ADMISSION MODELS (Consolidated for Metadata Integrity) ---
 

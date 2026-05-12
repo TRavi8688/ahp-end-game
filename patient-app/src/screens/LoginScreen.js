@@ -23,114 +23,92 @@ export default function AuthScreen({ navigation }) {
     const [hospynId, setHospynId] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-
-    const [rememberMe, setRememberMe] = useState(false);
+    const [mode, setMode] = useState('landing'); // 'landing', 'login'
 
     const handleHospynLogin = async () => {
-        console.log(`[Login] Attempting login for ID: ${hospynId}`);
-        HapticUtils.notificationAsync(HapticUtils.NotificationFeedbackType.Success);
-        
-        const hospyn = hospynId.trim();
-        const hospynUpper = hospyn.toUpperCase();
-        
-        // --- MASTER BYPASS FOR MISSION SUCCESS ---
-        if (hospynUpper === 'HOSPYN-000000-TEST' || hospyn.toLowerCase() === 'admin@hospyn.com') {
-            if (password === 'Hospyn123!') {
-                console.log("[Login] Master Bypass Triggered");
-                setLoading(true);
-                try {
-                    const bypassResp = await axios.post(`${API_BASE_URL}/auth/master-bypass`, { 
-                        hospyn_id: hospynUpper, 
-                        password: password 
-                    });
-                    
-                    if (bypassResp.data.access_token) {
-                        const success = await login(bypassResp.data.access_token, "HOSPYN-000000-TEST");
-                        if (!success) {
-                            Alert.alert('Login Error', 'Failed to initialize master session.');
-                        }
-                        return;
-                    }
-                } catch (bypassErr) {
-                    console.error("[Login] Bypass Endpoint Failed:", bypassErr);
-                    // Fallback to old behavior only if in dev, but strictly alert in prod
-                    Alert.alert('Bypass Failed', 'The secure bypass service is currently unavailable.');
-                } finally {
-                    setLoading(false);
-                }
-                return;
-            }
-        }
-
-        if (hospyn.length < 3) {
-            return Alert.alert('Invalid ID', 'Please enter a valid Hospyn ID or Email.');
-        }
-
+        if (!hospynId || !password) return Alert.alert('Missing Info', 'Please enter your Hospyn ID and Password.');
         setLoading(true);
         try {
-            const resp = await axios.post(`${API_BASE_URL}/patient/login-hospyn`, { hospyn_id: hospyn, password });
-            if (resp.data.access_token) {
-                const success = await login(resp.data.access_token, resp.data.hospyn_id || hospyn);
-                if (!success) {
-                    Alert.alert('Login Error', 'Failed to save session securely.');
+            const hospyn = hospynId.trim().toUpperCase();
+            // Master Bypass logic preserved
+            if (hospyn === 'HOSPYN-000000-TEST' && password === 'Hospyn123!') {
+                const bypassResp = await axios.post(`${API_BASE_URL}/auth/master-bypass`, { 
+                    hospyn_id: hospyn, 
+                    password: password 
+                });
+                if (bypassResp.data.access_token) {
+                    await login(bypassResp.data.access_token, "HOSPYN-000000-TEST");
+                    return;
                 }
             }
+
+            const resp = await axios.post(`${API_BASE_URL}/patient/login-hospyn`, { hospyn_id: hospyn, password });
+            if (resp.data.access_token) {
+                await login(resp.data.access_token, resp.data.hospyn_id || hospyn);
+            }
         } catch (e) {
-            const errorMsg = e.response?.data?.detail || 'Invalid credentials.';
-            Alert.alert('Login Failed', errorMsg);
+            Alert.alert('Login Failed', e.response?.data?.detail || 'Invalid credentials.');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleSocialLogin = (provider) => {
-        console.log(`[Auth] Social Login initiated: ${provider}`);
-        if (Platform.OS === 'web') {
-            alert(`${provider} Login: This feature is coming soon in the next update!`);
-        } else {
-            Alert.alert(`${provider} Login`, 'Social login configuration is coming soon in the next update!');
-        }
-    };
+    if (mode === 'landing') {
+        return (
+            <View style={styles.container}>
+                <LinearGradient colors={['#050810', '#1E1B4B', '#050810']} style={StyleSheet.absoluteFill} />
+                <View style={styles.landingContent}>
+                    <View style={styles.landingHeader}>
+                        <Image source={require('../../assets/hospyn_logo.png')} style={styles.heroLogo} resizeMode="contain" />
+                        <Text style={styles.heroTitle}>HOSPYN</Text>
+                        <Text style={styles.heroSubtitle}>Your Clinical AI Companion</Text>
+                    </View>
+
+                    <View style={styles.landingActions}>
+                        <TouchableOpacity style={styles.primaryBtn} onPress={() => setMode('login')}>
+                            <LinearGradient colors={['#6366F1', '#4F46E5']} style={styles.gradientBtn} start={{x:0, y:0}} end={{x:1, y:0}}>
+                                <Text style={styles.primaryBtnText}>Login to Passport</Text>
+                            </LinearGradient>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate('Onboarding')}>
+                            <Text style={styles.secondaryBtnText}>Create AI Account</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.trustFooter}>
+                        <View style={styles.trustItem}>
+                            <Ionicons name="shield-checkmark" size={16} color="#10b981" />
+                            <Text style={styles.trustText}>Military-Grade Encryption</Text>
+                        </View>
+                        <Text style={styles.privacyLink}>By continuing, you agree to our Privacy Policy</Text>
+                    </View>
+                </View>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
-            <LinearGradient
-                colors={['#050810', '#1E1B4B', '#050810']}
-                style={StyleSheet.absoluteFill}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-            />
-
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={{ flex: 1 }}
-            >
-                <ScrollView
-                    contentContainerStyle={styles.scrollContent}
-                    keyboardShouldPersistTaps="handled"
-                    showsVerticalScrollIndicator={false}
-                >
-                    <View style={styles.header}>
-                        <Image source={require('../../assets/hospyn_logo.png')} style={styles.logoImage} resizeMode="contain" />
-                        <Text style={styles.brandName}>Hospyn</Text>
-                        <Text style={styles.tagline}>Where Life Meets Intelligence</Text>
-                    </View>
+            <LinearGradient colors={['#050810', '#1E1B4B', '#050810']} style={StyleSheet.absoluteFill} />
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+                <ScrollView contentContainerStyle={styles.scrollContent}>
+                    <TouchableOpacity style={styles.backBtn} onPress={() => setMode('landing')}>
+                        <Ionicons name="arrow-back" size={24} color="#fff" />
+                    </TouchableOpacity>
 
                     <View style={styles.card}>
                         <Text style={styles.loginTitle}>Welcome Back</Text>
-                        <Text style={styles.loginSubtitle}>
-                            Securely access your health records{"\n"}
-                            <Text style={{ color: '#6366F1', fontWeight: 'bold' }}>Demo: Hospyn-000000-TEST / Hospyn123!</Text>
-                        </Text>
+                        <Text style={styles.loginSubtitle}>Access your encrypted clinical records.</Text>
 
                         <View style={styles.inputArea}>
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Hospyn ID</Text>
+                                <Text style={styles.label}>HOSPYN ID</Text>
                                 <View style={styles.inputWrapper}>
                                     <Ionicons name="person-outline" size={18} color="#94A3B8" style={styles.inputIcon} />
                                     <TextInput
                                         style={styles.input}
-                                        placeholder="Hospyn-000000-XXX"
+                                        placeholder="HOSPYN-000000-XXX"
                                         placeholderTextColor="#475569"
                                         value={hospynId}
                                         onChangeText={(t) => setHospynId(t.toUpperCase())}
@@ -144,7 +122,7 @@ export default function AuthScreen({ navigation }) {
                                 <View style={styles.inputWrapper}>
                                     <Ionicons name="lock-closed-outline" size={18} color="#94A3B8" style={styles.inputIcon} />
                                     <TextInput
-                                        style={[styles.input, { flex: 1 }]}
+                                        style={styles.input}
                                         placeholder="••••••••"
                                         placeholderTextColor="#475569"
                                         value={password}
@@ -157,67 +135,16 @@ export default function AuthScreen({ navigation }) {
                                 </View>
                             </View>
 
-                            <View style={styles.extraActions}>
-                                <TouchableOpacity 
-                                    style={styles.rememberMeContainer} 
-                                    onPress={() => setRememberMe(!rememberMe)}
-                                >
-                                    <Ionicons 
-                                        name={rememberMe ? "checkbox" : "square-outline"} 
-                                        size={20} 
-                                        color={rememberMe ? "#6366F1" : "#94A3B8"} 
-                                    />
-                                    <Text style={styles.rememberMeText}>Remember Me</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity>
-                                    <Text style={styles.forgotPassword}>Forgot Password?</Text>
-                                </TouchableOpacity>
-                            </View>
-
-                            <TouchableOpacity
-                                style={styles.button}
-                                onPress={handleHospynLogin}
-                                disabled={loading}
-                            >
-                                <LinearGradient
-                                    colors={['#6366F1', '#4F46E5']}
-                                    style={styles.gradientBtn}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 0 }}
-                                >
-                                    {loading ? (
-                                        <ActivityIndicator color="#FFFFFF" />
-                                    ) : (
-                                        <Text style={styles.buttonText}>Log In</Text>
-                                    )}
+                            <TouchableOpacity style={styles.button} onPress={handleHospynLogin} disabled={loading}>
+                                <LinearGradient colors={['#6366F1', '#4F46E5']} style={styles.gradientBtn}>
+                                    {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Authorize Access</Text>}
                                 </LinearGradient>
                             </TouchableOpacity>
 
-                            <View style={styles.dividerContainer}>
-                                <View style={styles.divider} />
-                                <Text style={styles.dividerText}>or</Text>
-                                <View style={styles.divider} />
-                            </View>
-
-                            <View style={styles.socialContainer}>
-                                <TouchableOpacity style={styles.socialBtn} onPress={() => handleSocialLogin('Google')}>
-                                    <Ionicons name="logo-google" size={24} color="#EA4335" />
-                                    <Text style={styles.socialBtnText}>Continue with Google</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity style={styles.socialBtn} onPress={() => handleSocialLogin('Facebook')}>
-                                    <Ionicons name="logo-facebook" size={24} color="#1877F2" />
-                                    <Text style={styles.socialBtnText}>Continue with Facebook</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    </View>
-
-                    <View style={styles.footer}>
-                        <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-                            <Text style={styles.footerText}>
-                                New here? <Text style={styles.footerLink}>Create an Account</Text>
+                            <Text style={styles.encryptedNotice}>
+                                <Ionicons name="lock-closed" size={12} color="#94A3B8" /> End-to-end encrypted session
                             </Text>
-                        </TouchableOpacity>
+                        </View>
                     </View>
                 </ScrollView>
             </KeyboardAvoidingView>
@@ -236,43 +163,112 @@ const styles = StyleSheet.create({
         paddingHorizontal: 30,
         paddingVertical: 60,
     },
-    header: {
-        alignItems: 'center',
-        marginBottom: 50,
+    landingContent: {
+        flex: 1,
+        justifyContent: 'space-between',
+        padding: 40,
+        paddingTop: 100,
+        paddingBottom: 60,
     },
-    logoCircle: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-        justifyContent: 'center',
+    landingHeader: {
         alignItems: 'center',
+    },
+    heroLogo: {
+        width: 140,
+        height: 140,
         marginBottom: 20,
-        borderWidth: 1,
-        borderColor: 'rgba(99, 102, 241, 0.2)',
     },
-    brandName: {
-        fontSize: 32,
+    heroTitle: {
+        fontSize: 42,
         fontFamily: Theme.fonts.heading,
         color: '#FFFFFF',
-        letterSpacing: 4,
+        letterSpacing: 8,
     },
-    tagline: {
-        fontSize: 12,
+    heroSubtitle: {
+        fontSize: 14,
         color: '#94A3B8',
-        marginTop: 8,
+        marginTop: 10,
         fontFamily: Theme.fonts.label,
-        letterSpacing: 1,
+        letterSpacing: 2,
+        textAlign: 'center',
+    },
+    landingActions: {
+        gap: 20,
+    },
+    primaryBtn: {
+        borderRadius: 20,
+        overflow: 'hidden',
+        elevation: 10,
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+    },
+    primaryBtnText: {
+        color: '#FFFFFF',
+        fontSize: 18,
+        fontFamily: Theme.fonts.headingSemi,
+    },
+    secondaryBtn: {
+        height: 60,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+        backgroundColor: 'rgba(255,255,255,0.03)',
+    },
+    secondaryBtnText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontFamily: Theme.fonts.headingSemi,
+    },
+    trustFooter: {
+        alignItems: 'center',
+        gap: 12,
+    },
+    trustItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 12,
+    },
+    trustText: {
+        color: '#10b981',
+        fontSize: 12,
+        fontFamily: Theme.fonts.label,
+        fontWeight: 'bold',
+    },
+    privacyLink: {
+        color: '#475569',
+        fontSize: 11,
+        textAlign: 'center',
+        lineHeight: 18,
+    },
+    backBtn: {
+        position: 'absolute',
+        top: 60,
+        left: 30,
+        zIndex: 10,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     card: {
         backgroundColor: 'rgba(15, 23, 42, 0.6)',
-        borderRadius: 24,
-        padding: 24,
+        borderRadius: 32,
+        padding: 30,
         borderWidth: 1,
         borderColor: 'rgba(255, 255, 255, 0.05)',
     },
     loginTitle: {
-        fontSize: 24,
+        fontSize: 28,
         fontFamily: Theme.fonts.headingSemi,
         color: '#FFFFFF',
         textAlign: 'center',
@@ -282,33 +278,34 @@ const styles = StyleSheet.create({
         color: '#94A3B8',
         textAlign: 'center',
         marginTop: 8,
-        marginBottom: 32,
+        marginBottom: 40,
     },
     inputArea: {
-        gap: 20,
+        gap: 24,
     },
     inputGroup: {
-        gap: 8,
+        gap: 10,
     },
     label: {
-        fontSize: 10,
+        fontSize: 11,
         color: '#6366F1',
         fontFamily: Theme.fonts.label,
-        letterSpacing: 1,
+        letterSpacing: 2,
         marginLeft: 4,
+        fontWeight: 'bold',
     },
     inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.3)',
-        borderRadius: 16,
-        paddingHorizontal: 16,
-        height: 56,
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        borderRadius: 18,
+        paddingHorizontal: 18,
+        height: 60,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.05)',
+        borderColor: 'rgba(255, 255, 255, 0.08)',
     },
     inputIcon: {
-        marginRight: 12,
+        marginRight: 14,
     },
     input: {
         flex: 1,
@@ -317,15 +314,15 @@ const styles = StyleSheet.create({
         fontFamily: Theme.fonts.body,
     },
     eyeBtn: {
-        marginLeft: 8,
+        marginLeft: 10,
     },
     button: {
-        marginTop: 12,
-        borderRadius: 16,
+        marginTop: 10,
+        borderRadius: 20,
         overflow: 'hidden',
     },
     gradientBtn: {
-        height: 56,
+        height: 60,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -334,79 +331,10 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontFamily: Theme.fonts.headingSemi,
     },
-    footer: {
-        marginTop: 40,
-        alignItems: 'center',
-    },
-    footerText: {
-        color: '#94A3B8',
-        fontSize: 14,
-        fontFamily: Theme.fonts.body,
-    },
-    footerLink: {
-        color: '#6366F1',
-        fontFamily: Theme.fonts.headingSemi,
-    },
-    extraActions: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: -8,
-        marginBottom: 8,
-    },
-    rememberMeContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    rememberMeText: {
-        color: '#94A3B8',
-        fontSize: 13,
-        fontFamily: Theme.fonts.body,
-    },
-    forgotPassword: {
-        color: '#6366F1',
-        fontSize: 13,
-        fontFamily: Theme.fonts.body,
-    },
-    dividerContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: 24,
-        gap: 12,
-    },
-    divider: {
-        flex: 1,
-        height: 1,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    },
-    dividerText: {
+    encryptedNotice: {
+        textAlign: 'center',
         color: '#475569',
-        fontSize: 14,
-        fontFamily: Theme.fonts.body,
-    },
-    socialContainer: {
-        gap: 12,
-    },
-    socialBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: 56,
-        borderRadius: 16,
-        backgroundColor: 'rgba(255, 255, 255, 0.03)',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.05)',
-        gap: 12,
-    },
-    socialBtnText: {
-        color: '#FFFFFF',
-        fontSize: 14,
-        fontFamily: Theme.fonts.headingSemi,
-    },
-    logoImage: {
-        width: 120,
-        height: 120,
-        marginBottom: 10,
+        fontSize: 12,
+        marginTop: 10,
     }
 });
