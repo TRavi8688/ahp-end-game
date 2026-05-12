@@ -148,4 +148,23 @@ class Settings(BaseSettings):
         """Zero-fail startup strategy."""
         return self
 
-settings = Settings()
+print(">>> HOSPYN_CONFIG_IMPORT_BEGIN")
+
+from functools import lru_cache
+
+@lru_cache
+def get_settings() -> Settings:
+    """Lazy-loaded, cached settings to prevent boot-time schema crashes."""
+    print(">>> HOSPYN_SETTINGS_INIT_BEGIN")
+    try:
+        s = Settings()
+        print(">>> HOSPYN_SETTINGS_INIT_SUCCESS")
+        return s
+    except Exception as e:
+        print(f">>> HOSPYN_SETTINGS_INIT_FATAL: {e}")
+        # Re-raise so the import chain still fails, but with explicit diagnostic
+        raise
+
+settings = get_settings()
+
+print(">>> HOSPYN_CONFIG_IMPORT_COMPLETE")
