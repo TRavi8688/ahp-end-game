@@ -22,53 +22,34 @@ class InterceptHandler(logging.Handler):
 
 def setup_logging():
     """
-    ENTERPRISE LOGGING:
-    - Structured JSON for Cloud Run / GCP Logs Explorer.
-    - Intercepts standard logging (uvicorn, sqlalchemy).
-    - Colorized console for local dev.
+    ENTERPRISE LOGGING (SHIELD V5):
+    - Standard Console for Development.
+    - Native Loguru JSON Serialization for Production (GCP).
+    - Intercepts standard library logs (Uvicorn/SQLAlchemy).
     """
-    # 1. Remove all default handlers
+    # 1. Intercept Standard Logging
     logging.root.handlers = [InterceptHandler()]
-    logging.getLogger("uvicorn").handlers = []
-    logging.getLogger("uvicorn.access").handlers = []
-    logging.getLogger("sqlalchemy").handlers = []
+    for name in ["uvicorn", "uvicorn.access", "sqlalchemy"]:
+        logging.getLogger(name).handlers = []
+        logging.getLogger(name).propagate = True
 
     # 2. Configure Loguru
-    config = {
-        "handlers": [
-            {
-                "sink": sys.stdout,
-                "format": "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} - {message}",
-                "level": "INFO",
-                "colorize": True
-            }
-        ],
-    }
+    is_prod = os.getenv("ENVIRONMENT") == "production"
+    
+    # Clear existing handlers
+    logger.remove()
+    
+    # Add Console / JSON Sink
+    logger.add(
+        sys.stdout,
+        format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} - {message}",
+        level="INFO",
+        serialize=is_prod,  # Native JSON serialization for Cloud Run
+        backtrace=True,
+        diagnose=not is_prod
+    )
 
-    # 3. Add JSON handler for Production (Cloud Run)
-    if os.getenv("ENVIRONMENT") == "production":
-        def serialize(record):
-            subset = {
-                "timestamp": record["time"].isoformat(),
-                "level": record["level"].name,
-                "message": record["message"],
-                "module": record["name"],
-                "function": record["function"],
-                "line": record["line"],
-            }
-            if record["extra"]:
-                # Safe string conversion for extra data
-                subset["extra"] = {k: str(v) for k, v in record["extra"].items()}
-            return json.dumps(subset) + "\n"
+    logger.info(f"HOSPYN_LOGGING_STABILIZED | Mode: {'PRODUCTION (JSON)' if is_prod else 'DEVELOPMENT'}")
 
-        config["handlers"].append({
-            "sink": lambda msg: sys.stdout.write(msg),
-            "format": serialize,
-            "level": "INFO"
-        })
-
-    logger.configure(**config)
-
-setup_logging()
 # Export logger
 logger = logger
