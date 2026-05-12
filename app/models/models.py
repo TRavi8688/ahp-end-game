@@ -1,5 +1,5 @@
 from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey, JSON, Text, func, Enum as SQLEnum
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -177,7 +177,7 @@ class OrganizationTypeEnum(str, enum.Enum):
 class Hospital(Base):
     __tablename__ = "hospitals"
     
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     hospyn_id: Mapped[str] = mapped_column(String(50), unique=True, index=True)
     short_code: Mapped[str] = mapped_column(String(10), unique=True, index=True) # For manual patient entry
     org_type: Mapped[OrganizationTypeEnum] = mapped_column(SQLEnum(OrganizationTypeEnum), default=OrganizationTypeEnum.hospital)

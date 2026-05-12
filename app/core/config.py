@@ -30,15 +30,22 @@ class Settings(BaseSettings):
     def decode_base64_keys(cls, v: Any) -> Any:
         if not v or not isinstance(v, str):
             return v
-        v = v.strip().strip('"').strip("'").replace("\\n", "\n")
-        if not v.startswith("-----BEGIN"):
-            import base64
-            import re
-            try:
-                v_clean = re.sub(r"\s+", "", v)
-                return base64.b64decode(v_clean).decode("utf-8")
-            except Exception:
-                return v
+        
+        # Handle literal \n and multi-line strings from env
+        v = v.replace("\\n", "\n").replace("\\ ", " ")
+        v = v.strip().strip('"').strip("'")
+        
+        if "-----BEGIN" in v:
+            return v
+            
+        import base64
+        import re
+        try:
+            # Try to decode if it looks like base64
+            v_clean = re.sub(r"\s+", "", v)
+            return base64.b64decode(v_clean).decode("utf-8")
+        except Exception:
+            return v
         return v
     
     GCP_PROJECT_ID: Optional[str] = None
@@ -107,6 +114,15 @@ class Settings(BaseSettings):
         url = self.DATABASE_URL
         if url.startswith("sqlite://"):
             url = url.replace("sqlite://", "sqlite+aiosqlite://", 1)
+        if url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url
+
+    @property
+    def sync_database_url(self) -> str:
+        url = self.DATABASE_URL
+        if url.startswith("postgresql+asyncpg://"):
+            url = url.replace("postgresql+asyncpg://", "postgresql://", 1)
         return url
 
     model_config = SettingsConfigDict(

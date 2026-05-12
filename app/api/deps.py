@@ -7,7 +7,7 @@ from app.models.models import User, Patient, Doctor
 from app.repositories.base import UserRepository, PatientRepository
 import logging
 import uuid
-async def get_hospital_id(user: User = Depends(get_current_user)) -> uuid.UUID:
+async def get_hospital_id(user: User = Depends(get_current_user)) -> int:
     """
     Mandatory Enterprise Dependency to enforce Tenant Isolation.
     Extracts the hospital_id from the user's staff profile.

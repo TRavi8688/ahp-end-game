@@ -102,10 +102,14 @@ app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 # CORS (Hardened for Production)
 from app.core.config import settings
 allowed_origins = settings.ALLOWED_ORIGINS
-if "*" in allowed_origins:
-    allowed_origins = ["*"]
-else:
-    allowed_origins.extend([
+
+# If using allow_credentials=True, origins MUST NOT be ["*"]
+# We sanitize this here to prevent FastAPI/Uvicorn startup crashes
+is_wildcard = "*" in allowed_origins
+final_origins = ["*"] if is_wildcard else allowed_origins
+
+if not is_wildcard:
+    final_origins.extend([
         "https://hospyn-495906-96438.web.app",
         "https://hospyn-495906.web.app",
         "https://app.hospyn.com"
@@ -113,11 +117,37 @@ else:
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_origins=final_origins,
+    allow_credentials=not is_wildcard,  # Must be false if origin is "*"
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
+    expose_headers=["*"]
 )
+
+# --- GLOBAL EXCEPTION HANDLER (CORS AWARE) ---
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """
+    Ensures that even on a 500 crash, we return JSON and attempt to preserve CORS headers.
+    """
+    logger.exception(f"UNHANDLED_EXCEPTION: {str(exc)}")
+    response = JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "detail": {
+                "error_code": "INTERNAL_SERVER_ERROR",
+                "message": "A critical backend error occurred.",
+                "trace": str(exc) if settings.ENVIRONMENT == "development" else None
+            }
+        }
+    )
+    # Manually re-apply CORS headers if middleware was bypassed by the crash
+    origin = request.headers.get("origin")
+    if origin:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+    
+    return response
 
 # --- WEBSOCKET BRIDGE ---
 

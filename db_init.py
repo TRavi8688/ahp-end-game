@@ -17,10 +17,10 @@ async def init_db():
             # This will create all tables defined in models.py if they don't exist
             await conn.run_sync(Base.metadata.create_all)
         logger.info("Database initialization successful.")
-        print("✅ Database tables created successfully.")
+        print("Database tables created successfully.")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
     asyncio.run(init_db())

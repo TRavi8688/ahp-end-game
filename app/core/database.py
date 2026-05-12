@@ -37,6 +37,9 @@ AsyncSessionLocal = sessionmaker(
     expire_on_commit=False
 )
 
+# Export alias for scripts like db_init.py
+engine = primary_engine
+
 async def get_db():
     """Dependency for obtaining an async DB session."""
     async with AsyncSessionLocal() as session:

@@ -150,6 +150,20 @@ async def master_bypass(
     user = result.scalars().first()
     
     if not user:
+        # 1. Ensure a Master Hospital exists for the tester
+        res_h = await db.execute(select(models.Hospital).where(models.Hospital.short_code == "MASTER"))
+        master_hospital = res_h.scalars().first()
+        if not master_hospital:
+            master_hospital = models.Hospital(
+                hospyn_id="MASTER-TENANT",
+                short_code="MASTER",
+                name="Hospyn Master Testing Lab",
+                registration_number="REG-MASTER-001"
+            )
+            db.add(master_hospital)
+            await db.flush()
+
+        # 2. Create the Master User
         user = models.User(
             email="test@hospyn.local",
             hashed_password=security.get_password_hash("Hospyn123!"),
@@ -161,8 +175,10 @@ async def master_bypass(
         db.add(user)
         await db.flush()
         
+        # 3. Create the Skeleton Patient with mandatory hospital_id
         skeleton_patient = models.Patient(
             user_id=user.id,
+            hospital_id=master_hospital.id,  # FIXED: Mandatory field
             hospyn_id="Hospyn-000000-TEST",
             phone_number="5550100",
             language_code="en"
