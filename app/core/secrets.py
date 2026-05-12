@@ -55,6 +55,7 @@ def load_rsa_key(key_name: str, default_path: str = None) -> str:
         return key_data
     
     # Fallback to local file ONLY in development
+    env = os.getenv("ENVIRONMENT", "development")
     if env != "production" and default_path and os.path.exists(default_path):
         try:
             with open(default_path, "r") as f:
