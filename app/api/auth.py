@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Any
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import app.api.deps as deps
 from app.core import security
@@ -206,18 +206,10 @@ async def send_otp(request: Request, req: schemas.OTPRequest):
 
     otp = "123456" if req.identifier in ["+910000000000", "0000000000", "910000000000"] else "".join([str(secrets.randbelow(10)) for _ in range(6)])
     
-    # --- Persistence (DB Fallback for Zero-Infra Setup) ---
+    # --- Persistence (Zero-Infra DB Primary) ---
     try:
-        from datetime import timedelta
-        # Try Redis first if enabled
-        if settings.USE_REDIS:
-            try:
-                await redis_service.set(f"otp:{req.identifier}", otp, expire=300)
-            except Exception:
-                logger.warning("REDIS_PERSISTENCE_FAILED: Falling back to Database.")
-        
-        # Always store in DB as a robust secondary/primary fallback
-        # This ensures the user NEVER gets a 500 even if Redis is down.
+        # Always store in DB as the primary production-grade persistence.
+        # Redis is skipped entirely to prevent placeholder URL crashes.
         new_otp = models.OTPVerification(
             identifier=req.identifier,
             otp=otp,
@@ -227,8 +219,7 @@ async def send_otp(request: Request, req: schemas.OTPRequest):
         await db.commit()
     except Exception as e:
         logger.error(f"OTP_STORAGE_FAILURE: {e}")
-        # We don't fail here if delivery can still happen, but for security we should
-        raise HTTPException(status_code=500, detail="Secure Persistence Layer Unavailable.")
+        raise HTTPException(status_code=500, detail="Database Persistence Layer Unavailable.")
 
     # --- Delivery ---
     try:
@@ -248,20 +239,18 @@ async def send_otp(request: Request, req: schemas.OTPRequest):
     return {"status": "success", "message": f"OTP sent via {req.method}"}
 
 @router.get("/diag")
-async def auth_diagnostics():
+async def auth_diagnostics(db: AsyncSession = Depends(deps.get_db)):
     """Hidden endpoint to verify infrastructure health."""
-    results = {"redis": "unknown", "twilio": "unknown"}
+    results = {"database": "disconnected", "twilio": "unknown"}
     try:
-        client = redis_service.get_client()
-        if client:
-            await client.ping()
-            results["redis"] = "connected"
-        else:
-            results["redis"] = "disabled_by_config"
+        from sqlalchemy import text
+        await db.execute(text("SELECT 1"))
+        results["database"] = "connected"
     except Exception as e:
-        results["redis"] = f"error: {str(e)}"
+        results["database"] = f"error: {str(e)}"
 
     results["twilio"] = "configured" if settings.TWILIO_ACCOUNT_SID and "your_" not in settings.TWILIO_ACCOUNT_SID else "missing"
+    results["redis_mode"] = "DISABLED (Using Database Fallback)"
     return results
 
 @router.post("/verify-otp")
