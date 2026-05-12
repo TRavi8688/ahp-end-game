@@ -4,39 +4,51 @@ from app.core.logging import logger
 
 async def send_sms_otp(phone_number: str, otp: str) -> bool:
     """
-    2FACTOR.IN PRODUCTION SMS DELIVERY: 
-    Reliable OTP delivery for Indian numbers.
+    MSG91 PRODUCTION SMS DELIVERY (v5 API): 
+    Elite OTP delivery for Indian numbers.
     """
-    api_key = settings.TWO_FACTOR_API_KEY
+    auth_key = settings.MSG91_AUTH_KEY
+    template_id = settings.MSG91_OTP_TEMPLATE_ID
     
-    if not api_key or "your_" in api_key:
+    # 1. Check for missing credentials
+    if not auth_key or "your_" in auth_key or not template_id:
         if settings.ENVIRONMENT == "production":
-            logger.critical("2FACTOR_CREDENTIALS_MISSING: SMS delivery failed in production.")
+            logger.critical("MSG91_CREDENTIALS_MISSING: SMS delivery failed in production.")
             return False
-        logger.warning("SMS_SKIPPED: 2Factor.in Credentials not configured.", recipient=phone_number)
-        if settings.DEMO_MODE:
-            logger.info("DEMO_MODE_OTP", recipient=phone_number, otp=otp)
+        
+        # In non-production, we fallback to logging the OTP for development ease
+        logger.warning(f"[DEV_MODE] SMS OTP for {phone_number}: {otp}")
         return True
 
-    # Standardize phone number (2Factor.in likes just the number with country code, usually +91 for India)
+    # 2. Standardize phone number (MSG91 likes country code without +)
     target = phone_number.lstrip("+")
     if len(target) == 10:
         target = f"91{target}"
 
-    # 2Factor.in API Format: https://2factor.in/API/V1/{api_key}/SMS/{phone_number}/{otp}
-    url = f"https://2factor.in/API/V1/{api_key}/SMS/{target}/{otp}/OTP1" # Using standard OTP template
+    # MSG91 API Format (v5): https://control.msg91.com/api/v5/otp
+    url = "https://control.msg91.com/api/v5/otp"
+    
+    params = {
+        "template_id": template_id,
+        "mobile": target,
+        "authkey": auth_key,
+        "otp": otp,
+        "otp_length": 6
+    }
 
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url)
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            # We use POST as per documentation
+            response = await client.post(url, params=params)
             data = response.json()
             
-            if response.status_code == 200 and data.get("Status") == "Success":
-                logger.info("2FACTOR_OTP_DISPATCHED", recipient=target, session_id=data.get("Details"))
+            if response.status_code == 200 and data.get("type") == "success":
+                logger.info(f"MSG91_OTP_DISPATCHED: recipient={target}")
                 return True
             else:
-                logger.error("2FACTOR_DISPATCH_FAILURE", error=data.get("Details"), status=response.status_code)
+                logger.error(f"MSG91_DISPATCH_FAILURE: error={data.get('message')}, status={response.status_code}")
                 return False
+                
     except Exception as e:
-        logger.error("2FACTOR_NETWORK_FAILURE", error=str(e))
+        logger.error(f"MSG91_NETWORK_FAILURE: error={str(e)}")
         return False
