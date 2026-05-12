@@ -100,6 +100,7 @@ class Settings(BaseSettings):
     MSG91_OTP_TEMPLATE_ID: Optional[str] = None
     
     TWILIO_FROM_NUMBER: Optional[str] = None
+    TWILIO_PHONE_NUMBER: Optional[str] = None  # Alias for TWILIO_FROM_NUMBER
     
     AWS_ACCESS_KEY_ID: Optional[str] = None
     AWS_SECRET_ACCESS_KEY: Optional[str] = None

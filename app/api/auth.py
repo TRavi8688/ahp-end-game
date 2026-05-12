@@ -199,17 +199,22 @@ async def master_bypass(
 
 @router.post("/send-otp", status_code=status.HTTP_200_OK)
 @limiter.limit("10/minute")
-async def send_otp(request: Request, req: schemas.OTPRequest):
+async def send_otp(
+    request: Request, 
+    req: schemas.OTPRequest,
+    db: AsyncSession = Depends(deps.get_db)
+):
     """Generates and sends a 6-digit OTP via Twilio SMS or Email."""
     from app.services.two_factor_service import send_sms_otp
     import secrets
 
+    # 1. OTP Generation
     otp = "123456" if req.identifier in ["+910000000000", "0000000000", "910000000000"] else "".join([str(secrets.randbelow(10)) for _ in range(6)])
+    logger.info(f"OTP_GENERATED: For={req.identifier}, Method={req.method}")
     
-    # --- Persistence (Zero-Infra DB Primary) ---
+    # 2. Persistence (Database Primary)
     try:
-        # Always store in DB as the primary production-grade persistence.
-        # Redis is skipped entirely to prevent placeholder URL crashes.
+        # Always store in DB for production durability
         new_otp = models.OTPVerification(
             identifier=req.identifier,
             otp=otp,
@@ -217,26 +222,40 @@ async def send_otp(request: Request, req: schemas.OTPRequest):
         )
         db.add(new_otp)
         await db.commit()
+        await db.refresh(new_otp)
+        logger.info(f"OTP_DB_STORE_SUCCESS: ID={new_otp.id}, Identifier={req.identifier}")
     except Exception as e:
-        logger.error(f"OTP_STORAGE_FAILURE: {e}")
-        raise HTTPException(status_code=500, detail="Database Persistence Layer Unavailable.")
+        logger.error(f"OTP_STORAGE_FAILURE: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail={"success": False, "message": "Infrastructure Persistence Failure"}
+        )
 
-    # --- Delivery ---
+    # 3. Delivery
     try:
         if req.method == "sms":
+            logger.info(f"SMS_DISPATCH_INITIATED: To={req.identifier}")
             success = await send_sms_otp(req.identifier, otp)
             if not success:
-                raise HTTPException(status_code=500, detail="SMS_PROVIDER_FAILURE: Twilio rejected the message. Check credentials.")
+                logger.error(f"SMS_PROVIDER_FAILURE: Twilio rejected dispatch to {req.identifier}")
+                raise Exception("Provider rejected message")
         else:
             from app.services.email_service import send_email_otp
+            logger.info(f"EMAIL_DISPATCH_INITIATED: To={req.identifier}")
             success = send_email_otp(req.identifier, otp)
             if not success:
-                raise HTTPException(status_code=500, detail="EMAIL_PROVIDER_FAILURE: Check SMTP settings.")
+                logger.error(f"EMAIL_PROVIDER_FAILURE: SMTP failure for {req.identifier}")
+                raise Exception("Email provider failure")
+        
+        logger.info(f"OTP_DISPATCH_SUCCESS: Method={req.method}, To={req.identifier}")
     except Exception as e:
-        logger.error(f"OTP_DELIVERY_CRASH: {e}")
-        raise HTTPException(status_code=500, detail=f"COMMUNICATION_FAULT: {str(e)}")
+        logger.error(f"OTP_DELIVERY_CRASH: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+            detail={"success": False, "message": f"Communication Fault: {str(e)}"}
+        )
     
-    return {"status": "success", "message": f"OTP sent via {req.method}"}
+    return {"success": True, "message": "OTP sent successfully"}
 
 @router.get("/diag")
 async def auth_diagnostics(db: AsyncSession = Depends(deps.get_db)):
@@ -260,61 +279,85 @@ async def verify_otp(
     req: schemas.OTPVerify, 
     db: AsyncSession = Depends(deps.get_db)
 ):
+    """Verifies the OTP and issues a production JWT."""
     # --- 1. Verify OTP ---
     stored_otp = None
+    cache_key = f"otp:{req.identifier}"
     
-    # Try Redis first
-    if settings.USE_REDIS:
-        try:
-            stored_otp = await redis_service.get(f"otp:{req.identifier}")
-        except Exception:
-            logger.warning("REDIS_READ_FAILED: Checking Database.")
-
-    # Fallback to Database
-    if not stored_otp:
-        result = await db.execute(
-            select(models.OTPVerification)
-            .where(models.OTPVerification.identifier == req.identifier)
-            .where(models.OTPVerification.expires_at > datetime.now(timezone.utc))
-            .order_by(models.OTPVerification.created_at.desc())
-        )
-        otp_record = result.scalars().first()
-        if otp_record:
-            stored_otp = otp_record.otp
-
-    if not stored_otp or stored_otp != req.otp:
-        await log_audit_action(
-            db, 
-            "OTP_VERIFY_FAILURE", 
-            identifier=req.identifier,
-            status="REJECTED"
-        )
-        raise HTTPException(status_code=400, detail="Invalid or expired verification code. Please try again.")
-        
-    # 2. Retrieve & Activate User
-    result = await db.execute(select(models.User).where(models.User.email == req.identifier))
-    user = result.scalars().first()
-    
-    if not user:
-        # For initial registration, we just confirm verification success
-        return {"status": "success", "message": "Identity verified. Please complete your profile."}
-
-    user.is_active = True
-    # Clean up OTP from Redis after successful verification
     try:
-        await redis_service.delete(cache_key)
-    except Exception as e:
-        logger.warning(f"OTP_CLEANUP_FAILURE: {e}")
+        # Try Redis first if enabled
+        if settings.USE_REDIS:
+            try:
+                stored_otp = await redis_service.get(cache_key)
+                if stored_otp:
+                    logger.info(f"OTP_HIT_REDIS: {req.identifier}")
+            except Exception as re:
+                logger.warning(f"REDIS_READ_FAILED: {re}. Falling back to DB.")
 
-    await db.commit()
-    
-    access_token = security.create_access_token(user.id, user.role)
-    refresh_token = security.create_refresh_token(user.id, user.role)
-    
-    await log_audit_action(db, "OTP_VERIFY_SUCCESS", user_id=user.id)
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "status": "success"
-    }
+        # Fallback to Database
+        if not stored_otp:
+            result = await db.execute(
+                select(models.OTPVerification)
+                .where(models.OTPVerification.identifier == req.identifier)
+                .where(models.OTPVerification.expires_at > datetime.now(timezone.utc))
+                .order_by(models.OTPVerification.created_at.desc())
+            )
+            otp_record = result.scalars().first()
+            if otp_record:
+                stored_otp = otp_record.otp
+                logger.info(f"OTP_HIT_DB: {req.identifier}")
+
+        if not stored_otp or stored_otp != req.otp:
+            logger.warning(f"OTP_VERIFY_FAILURE: Invalid code for {req.identifier}")
+            await log_audit_action(
+                db, 
+                "OTP_VERIFY_FAILURE", 
+                identifier=req.identifier,
+                status="REJECTED"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, 
+                detail={"success": False, "message": "Invalid or expired verification code."}
+            )
+            
+        # 2. Retrieve & Activate User
+        result = await db.execute(select(models.User).where(models.User.email == req.identifier))
+        user = result.scalars().first()
+        
+        if not user:
+            logger.info(f"OTP_VERIFY_SUCCESS_PENDING_REG: {req.identifier}")
+            return {"success": True, "message": "Identity verified. Please complete your profile."}
+
+        user.is_active = True
+        
+        # Clean up OTP from Redis (Fail-Safe)
+        try:
+            if settings.USE_REDIS:
+                await redis_service.delete(cache_key)
+                logger.info(f"OTP_CLEANUP_REDIS: {req.identifier}")
+        except Exception as e:
+            logger.warning(f"OTP_CLEANUP_FAILURE: {e}")
+
+        await db.commit()
+        
+        access_token = security.create_access_token(user.id, user.role)
+        refresh_token = security.create_refresh_token(user.id, user.role)
+        
+        logger.info(f"OTP_VERIFY_SUCCESS: UserID={user.id}")
+        await log_audit_action(db, "OTP_VERIFY_SUCCESS", user_id=user.id)
+        
+        return {
+            "success": True,
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "message": "Login successful"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"OTP_VERIFY_CRASH: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={"success": False, "message": "Internal Verification Error"}
+        )
