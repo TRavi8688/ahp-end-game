@@ -724,7 +724,7 @@ class AsyncAIService:
         except Exception as e:
             logger.error("SAVE_CHAT_FAILURE", error=str(e))
 
-    async def get_medical_context(self, user_id: str, role: str = "patient", db: Optional[AsyncSession] = None) -> str:
+    async def get_medical_context(self, user_id: str, family_member_id: Optional[uuid.UUID] = None, role: str = "patient", db: Optional[AsyncSession] = None) -> str:
         """Fetch a secure, filtered summary of the patient's record for AI awareness."""
         if not db:
             return "No clinical context available (DB Connection Missing)."
@@ -744,7 +744,8 @@ class AsyncAIService:
             context_obj = await clinical_context_service.get_patient_clinical_context(
                 db=db,
                 patient_id=patient.id,
-                requesting_user_role=role
+                requesting_user_role=role,
+                family_member_id=family_member_id
             )
             
             if "error" in context_obj:
@@ -760,7 +761,7 @@ class AsyncAIService:
             logger.error(f"Failed to build secure medical context: {e}")
             return "Security Guard: Error retrieving clinical profile."
 
-    async def chat_with_memory(self, user_id: str, conversation_id: str, user_message: str, image_bytes: bytes = None, audio_bytes: bytes = None, language_code: str = "en-IN", role: str = "patient", db: Optional[AsyncSession] = None) -> str:
+    async def chat_with_memory(self, user_id: str, conversation_id: str, user_message: str, family_member_id: Optional[uuid.UUID] = None, image_bytes: bytes = None, audio_bytes: bytes = None, language_code: str = "en-IN", role: str = "patient", db: Optional[AsyncSession] = None) -> str:
         """Generate a response using clinical context AND conversational memory."""
         
         # 0. Handle Voice if present
@@ -771,7 +772,7 @@ class AsyncAIService:
                 logger.info(f"Voice Transcribed: {transcription}")
 
         # 1. Fetch Secure Medical Context First (Role-Aware)
-        clinical_context = await self.get_medical_context(user_id, role=role, db=db)
+        clinical_context = await self.get_medical_context(user_id, family_member_id=family_member_id, role=role, db=db)
 
         # 2. Save the user's message
         await self.save_chat_message(user_id, conversation_id, "user", user_message, db=db)

@@ -88,6 +88,7 @@ class MedicalRecordBase(BaseModel):
 
 class MedicalRecordResponse(MedicalRecordBase):
     id: uuid.UUID
+    family_member_id: Optional[uuid.UUID] = None
     ai_summary: Optional[str] = None
     patient_summary: Optional[str] = None
     doctor_summary: Optional[str] = None

@@ -14,18 +14,20 @@ class ClinicalContextService:
     async def get_patient_clinical_context(
         self,
         db: AsyncSession,
-        patient_id: int,
+        patient_id: uuid.UUID,
         requesting_user_role: str,
+        family_member_id: Optional[uuid.UUID] = None,
         consent_overrides: Optional[Dict[str, bool]] = None
     ) -> Dict[str, Any]:
         """
         Generates a Filtered Structured Summary of the patient's history.
-        Enforces PHI-stripping and consent-aware filtering.
+        Enforces PHI-stripping and profile isolation.
         """
         try:
             # 1. Fetch the last 50 clinical events (Longitudinal Memory)
             stmt = select(ClinicalEvent).where(
-                ClinicalEvent.patient_id == patient_id
+                ClinicalEvent.patient_id == patient_id,
+                ClinicalEvent.family_member_id == family_member_id
             ).order_by(desc(ClinicalEvent.timestamp)).limit(50)
             
             result = await db.execute(stmt)

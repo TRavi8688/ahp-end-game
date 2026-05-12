@@ -363,6 +363,7 @@ async def get_dashboard(
 async def chat_with_chitti(
     request: Request,
     text: Optional[str] = Form(None),
+    family_member_id: Optional[uuid.UUID] = Form(None),
     language_code: str = Form("en-IN"),
     file: Optional[UploadFile] = File(None),
     audio: Optional[UploadFile] = File(None),
@@ -391,6 +392,7 @@ async def chat_with_chitti(
         str(current_user.id), 
         conversation_id, 
         msg_content, 
+        family_member_id=family_member_id,
         image_bytes=image_bytes, 
         audio_bytes=audio_bytes,
         language_code=language_code,
