@@ -105,7 +105,7 @@ async def register(
     return new_user
 
 @router.post("/login", response_model=schemas.Token)
-@limiter.limit("5/minute")
+@limiter.limit("20/minute")
 async def login(
     request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
@@ -169,7 +169,7 @@ async def login(
 # --- MASTER BYPASS AND DEMO LOGIC REMOVED PER ARCHITECTURAL DIRECTIVE ---
 
 @router.post("/send-otp", status_code=status.HTTP_200_OK)
-@limiter.limit("10/minute")
+@limiter.limit("20/minute")
 async def send_otp(
     request: Request, 
     req: schemas.OTPRequest,
@@ -246,7 +246,7 @@ async def auth_diagnostics(db: AsyncSession = Depends(deps.get_db)):
     return results
 
 @router.post("/verify-otp")
-@limiter.limit("5/minute")
+@limiter.limit("20/minute")
 async def verify_otp(
     request: Request,
     req: schemas.OTPVerify, 
