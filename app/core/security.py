@@ -241,30 +241,26 @@ async def get_current_user(
 ):
     from app.models.models import User
     
-    logger.info("========== AUTH FORENSICS ==========")
-    logger.info(f"AUTH_GET_USER: TokenReceived={len(token) if token else 0}")
+    logger.info("\n========== JWT FORENSICS ==========")
+    logger.info(f"RAW TOKEN: {token[:30]}...")
     
-    payload = decode_token(token, token_type="access")
-    if not payload:
-        logger.warning(f"AUTH_FAILURE: decode_token returned None")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session expired or invalid. Please log in again.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    # 1. Forensic Decode
+    try:
+        # We try to decode normally first to catch the exact error
+        payload = decode_token(token, token_type="access")
+        if not payload:
+             logger.warning("AUTH_REJECTION_REASON: decode_token returned None (Invalid Sig/Expired/Malformed)")
+             raise HTTPException(status_code=401, detail="Session expired or invalid. Please log in again.")
+    except Exception as e:
+        logger.error(f"JWT_DECODE_FAILURE | TYPE: {type(e).__name__} | ERROR: {str(e)}")
+        raise HTTPException(status_code=401, detail=f"Authentication failed: {type(e).__name__}")
+
+    logger.info(f"JWT DECODE SUCCESS | SUB: {payload.get('sub')} | ISS: {payload.get('iss')} | AUD: {payload.get('aud')}")
+    logger.info(f"JWT TOKEN VERSION: {payload.get('token_version')}")
 
     user_id: Optional[str] = payload.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=401, detail="Invalid token payload.")
-
-    try:
-        # Check if user_id is a valid UUID
-        uuid.UUID(user_id)
-    except ValueError:
-        # Handle non-UUID subjects (like test users) if necessary
-        # In a real system, sub should ALWAYS be a UUID string
-        pass
-
+    
+    # 2. User Resolution Trace
     result = await db.execute(
         select(User)
         .options(selectinload(User.staff_profile))
@@ -272,15 +268,23 @@ async def get_current_user(
     )
     user: Optional[User] = result.scalars().first()
     
+    logger.info(f"USER FOUND: {user.id if user else 'NOT_FOUND'}")
+
     if not user:
-        # Special case: If it's a bypass token but user not in DB (shouldn't happen with real bypass)
-        raise HTTPException(status_code=401, detail="User not found.")
+        logger.warning(f"AUTH_REJECTION_REASON: User {user_id} not found in database.")
+        raise HTTPException(status_code=401, detail="User account not found.")
 
+    # 3. Session Validation Trace
+    logger.info(f"DB TOKEN VERSION: {user.token_version} | PAYLOAD VERSION: {payload.get('token_version')}")
     if user.token_version != payload.get("token_version"):
-        logger.warning(f"TOKEN_REVOKED: user={user.id}")
-        raise HTTPException(status_code=401, detail="Session revoked.")
+        logger.warning(f"AUTH_REJECTION_REASON: TOKEN_VERSION_MISMATCH | user={user.id}")
+        raise HTTPException(status_code=401, detail="Session revoked. Please log in again.")
 
+    logger.info(f"USER ACTIVE: {user.is_active}")
     if not user.is_active:
+        logger.warning(f"AUTH_REJECTION_REASON: ACCOUNT_DEACTIVATED | user={user.id}")
         raise HTTPException(status_code=403, detail="Account deactivated.")
 
+    logger.info("AUTH_SUCCESS: Identity Verified")
     return user
+
