@@ -249,11 +249,15 @@ async def get_current_user(
         # We try to decode normally first to catch the exact error
         payload = decode_token(token, token_type="access")
         if not payload:
-             logger.warning("AUTH_REJECTION_REASON: decode_token returned None (Invalid Sig/Expired/Malformed)")
-             raise HTTPException(status_code=401, detail="Session expired or invalid. Please log in again.")
+             # We need to know WHY it's None. The logs have the reason, 
+             # but we'll raise a descriptive error here.
+             raise HTTPException(status_code=401, detail="Invalid token: Signature mismatch or insecure algorithm (HS256 in Prod)")
+    except HTTPException as http_exc:
+        raise http_exc
     except Exception as e:
         logger.error(f"JWT_DECODE_FAILURE | TYPE: {type(e).__name__} | ERROR: {str(e)}")
-        raise HTTPException(status_code=401, detail=f"Authentication failed: {type(e).__name__}")
+        raise HTTPException(status_code=401, detail=f"Authentication failed: {str(e)}")
+
 
     logger.info(f"JWT DECODE SUCCESS | SUB: {payload.get('sub')} | ISS: {payload.get('iss')} | AUD: {payload.get('aud')}")
     logger.info(f"JWT TOKEN VERSION: {payload.get('token_version')}")
