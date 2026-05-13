@@ -89,8 +89,10 @@ def load_rsa_key(key_name: str, default_path: str = None) -> str:
                 logger.error(f"FILE_KEY_LOAD_FAILURE: path={default_path} | error={e}")
                 
         if env == "production":
-            logger.critical(f"PRODUCTION_KEY_MISSING: RSA key '{key_name}' must be in Secret Manager.")
-            raise RuntimeError(f"PRODUCTION_KEY_MISSING: RSA key '{key_name}' must be in Secret Manager.")
+            logger.critical(f"PRODUCTION_KEY_FAILURE: RSA key '{key_name}' is missing, invalid, or inaccessible.")
+            # FORCE CRASH: Do not allow an insecure platform to boot in production
+            raise RuntimeError(f"CRITICAL AUTH FAILURE: RSA key '{key_name}' is required for Production.")
+
             
         return ""
     except Exception as e:
