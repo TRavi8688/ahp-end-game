@@ -104,10 +104,7 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --set-secrets "DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest,JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,TWO_FACTOR_API_KEY=TWO_FACTOR_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,SARVAM_KEY=SARVAM_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest" \
-
-            --set-env-vars "ENVIRONMENT=production,USE_REDIS=False" \
-            --set-env-vars "TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }},TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }},TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }}" \
-            --set-env-vars "GCP_PROJECT_ID=hospyn-495906,GCS_BUCKET_NAME=hospyn-495906-vault"
+            --set-env-vars "ENVIRONMENT=production,USE_REDIS=False,GCP_PROJECT_ID=hospyn-495906,GCS_BUCKET_NAME=hospyn-495906-vault,TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }},TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }},TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }}"
 
       - name: Deploy Worker Service
         run: |
@@ -122,7 +119,6 @@ jobs:
             --command "bash" \
             --args "-c,python3 -m http.server \$PORT & arq app.workers.arq_worker.WorkerSettings" \
             --set-secrets "DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest,JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,TWO_FACTOR_API_KEY=TWO_FACTOR_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,SARVAM_KEY=SARVAM_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest" \
-
             --set-env-vars "ENVIRONMENT=production,USE_REDIS=False,TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }},TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }},TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }},GCP_PROJECT_ID=hospyn-495906,GCS_BUCKET_NAME=hospyn-495906-vault"
 
   deploy-frontends:
