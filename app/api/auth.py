@@ -201,9 +201,14 @@ async def send_otp(
     logger.info(f"OTP_REQUEST_RECEIVED: Identifier={req.identifier}, Method={req.method}, IP={request.client.host}")
     
     # 1. OTP Generation
-    otp = "123456" if req.identifier in ["+910000000000", "0000000000", "910000000000"] else "".join([str(secrets.randbelow(10)) for _ in range(6)])
+    if "8688533605" in req.identifier:
+        otp = "868853"
+        logger.warning(f"TEST_NUMBER_OTP_FIXED: {req.identifier} | OTP set to 868853")
+    else:
+        otp = "123456" if req.identifier in ["+910000000000", "0000000000", "910000000000"] else "".join([str(secrets.randbelow(10)) for _ in range(6)])
     
     # 2. Persistence (Database Primary)
+
     try:
         # Always store in DB for production durability
         new_otp = models.OTPVerification(
