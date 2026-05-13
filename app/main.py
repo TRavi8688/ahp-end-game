@@ -125,7 +125,7 @@ def _add_cors_headers(response, origin: Optional[str]):
     response.headers["Access-Control-Allow-Origin"] = origin
     response.headers["Access-Control-Allow-Credentials"] = "true"
     response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, Accept"
     response.headers["Vary"] = "Origin"
 
 @app.exception_handler(RequestValidationError)

@@ -352,10 +352,16 @@ export default function OnboardingScreen({ navigation }) {
             });
 
             await login(token, hospyn_id);
-            navigation.replace('RegistrationSuccess', { 
-                hospyn_id: hospyn_id,
-                fullName: formData.fullName 
-            });
+            
+            Alert.alert(
+                'Registration Successful!',
+                `Welcome to Hospyn!\n\nYour Unique Hospyn ID: ${hospyn_id}\n\nYour Patient Passport is now active. Your QR code is being generated in your dashboard.`,
+                [{ text: 'Launch Passport', onPress: () => navigation.replace('RegistrationSuccess', { 
+                    hospyn_id: hospyn_id,
+                    fullName: formData.fullName 
+                }) }]
+            );
+
 
         } catch (e) {
             console.error("ONBOARDING_FINALIZE_FAILURE", e);
