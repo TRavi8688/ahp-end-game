@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     DEMO_MODE: bool = False
     
+    # JWT Settings (Defaults for Production)
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days (Shield V5 Default)
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
+
+    
     # --- SECURITY (Hardened via Shield V5) ---
     @property
     def JWT_PRIVATE_KEY(self) -> Optional[str]:
