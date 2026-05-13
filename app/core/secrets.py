@@ -72,9 +72,32 @@ def load_rsa_key(key_name: str, default_path: str = None) -> str:
             # Try Secret Manager / Local
             key_data = get_secret(key_name)
         
-        if key_data and "-----BEGIN" in key_data:
-            logger.info(f"HOSPYN_RSA_LOAD_SUCCESS: key={key_name} | prefix={key_data[:15]}...")
-            return key_data
+        if key_data:
+            # SHIELD V8.0: AUTO-REPAIR FLATTENED RSA KEYS
+            # Some secret managers strip newlines, making PEM files invalid.
+            if "-----BEGIN" in key_data and "\n" not in key_data:
+                logger.info(f"HOSPYN_RSA_REPAIR_TRIGGERED: key={key_name}")
+                # Remove any existing spaces that might have replaced newlines
+                clean_data = key_data.replace(" ", "")
+                
+                # Identify header and footer
+                if "PRIVATEKEY" in clean_data:
+                    header = "-----BEGINRSAPRIVATEKEY-----"
+                    footer = "-----ENDRSAPRIVATEKEY-----"
+                    core = clean_data.replace(header, "").replace(footer, "")
+                    # Reconstruct with proper formatting
+                    formatted_core = "\n".join([core[i:i+64] for i in range(0, len(core), 64)])
+                    key_data = f"-----BEGIN RSA PRIVATE KEY-----\n{formatted_core}\n-----END RSA PRIVATE KEY-----\n"
+                elif "PUBLICKEY" in clean_data:
+                    header = "-----BEGINPUBLICKEY-----"
+                    footer = "-----ENDPUBLICKEY-----"
+                    core = clean_data.replace(header, "").replace(footer, "")
+                    formatted_core = "\n".join([core[i:i+64] for i in range(0, len(core), 64)])
+                    key_data = f"-----BEGIN PUBLIC KEY-----\n{formatted_core}\n-----END PUBLIC KEY-----\n"
+            
+            if "-----BEGIN" in key_data:
+                logger.info(f"HOSPYN_RSA_LOAD_SUCCESS: key={key_name} | prefix={key_data[:15]}...")
+                return key_data
         else:
             logger.error(f"HOSPYN_RSA_LOAD_INVALID_FORMAT: key={key_name} | length={len(key_data) if key_data else 0}")
         
