@@ -4,7 +4,8 @@ import time
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, or_
+
 from typing import Any
 from datetime import datetime, timezone, timedelta
 
@@ -40,17 +41,34 @@ async def check_user_exists(
     logger.info(f"CHECK_USER_ATTEMPT: Identifier={identifier}")
     try:
 
-        # 1. Check User table (email)
-        result_u = await db.execute(select(models.User).where(models.User.email == identifier))
+        # 1. Normalize and Check User table
+        alt_identifier = f"+91{identifier}" if not identifier.startswith("+") else identifier.replace("+91", "")
+        
+        result_u = await db.execute(
+            select(models.User).where(
+                or_(
+                    models.User.email == identifier,
+                    models.User.email == alt_identifier
+                )
+            )
+        )
         user = result_u.scalars().first()
         if user:
             return {"exists": True, "type": "email", "hospyn_id": user.hospyn_id}
         
-        # 2. Check Patient table (phone_number)
-        result_p = await db.execute(select(models.Patient).where(models.Patient.phone_number == identifier))
+        # 2. Check Patient table
+        result_p = await db.execute(
+            select(models.Patient).where(
+                or_(
+                    models.Patient.phone_number == identifier,
+                    models.Patient.phone_number == alt_identifier
+                )
+            )
+        )
         patient = result_p.scalars().first()
         if patient:
             return {"exists": True, "type": "phone", "hospyn_id": patient.hospyn_id}
+
             
     except Exception as e:
         logger.error(f"CHECK_USER_ERROR: Failed to verify identifier {identifier}. Error: {e}")
