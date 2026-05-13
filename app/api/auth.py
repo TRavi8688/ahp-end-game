@@ -140,6 +140,9 @@ async def login(
 
     
     alt_identifier = f"+91{identifier}" if not identifier.startswith("+") else identifier.replace("+91", "")
+    from app.models.models import User, Patient
+    from sqlalchemy import or_
+
     
     stmt = select(User).join(Patient, isouter=True).where(
         or_(
