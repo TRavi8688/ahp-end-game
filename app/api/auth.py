@@ -139,15 +139,14 @@ async def login(
     logger.info(f"LOGIN_ATTEMPT: Identifier={identifier}")
 
     
-    # 1. ATOMIC LOOKUP (Email, Phone, or Hospyn ID)
-    # This ensures we find the user regardless of how they identify
-    from sqlalchemy import or_
-    from app.models.models import User, Patient
+    alt_identifier = f"+91{identifier}" if not identifier.startswith("+") else identifier.replace("+91", "")
     
     stmt = select(User).join(Patient, isouter=True).where(
         or_(
             User.email == identifier,
+            User.email == alt_identifier,
             Patient.phone_number == identifier,
+            Patient.phone_number == alt_identifier,
             Patient.hospyn_id == identifier.upper()
         )
     )
@@ -156,21 +155,15 @@ async def login(
     user = result.scalars().first()
     
     # 2. STRICT VERIFICATION
-    try:
-        if not user or not security.verify_password(form_data.password, user.hashed_password):
-            await log_audit_action(
-                db, 
-                "LOGIN_FAILURE", 
-                resource_type="USER",
-                details={"identifier": identifier}
-            )
-            throw_auth_exception("Invalid credentials provided.")
-    except Exception as e:
-        logger.error(f"LOGIN_VERIFICATION_CRASH: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal Login Verification Error"
+    if not user or not security.verify_password(form_data.password, user.hashed_password):
+        await log_audit_action(
+            db, 
+            "LOGIN_FAILURE", 
+            resource_type="USER",
+            details={"identifier": identifier}
         )
+        throw_auth_exception("Invalid credentials provided.")
+
 
     
     if not user.is_active:
