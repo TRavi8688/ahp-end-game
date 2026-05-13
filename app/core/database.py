@@ -62,33 +62,25 @@ def get_reader_engine():
         )
     return _reader_engine
 
-# --- SESSION MAKERS (LAZY) ---
-
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+# --- EXPORTED SESSION MAKERS (FOR INTERNAL USE/AUDIT) ---
+def AsyncSessionLocal():
     engine = get_writer_engine()
-    session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    async with session_factory() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+    return sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)()
 
-async def get_read_db() -> AsyncGenerator[AsyncSession, None]:
+def ReaderSessionLocal():
     engine = get_reader_engine()
-    session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    async with session_factory() as session:
+    return sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)()
+
+# --- DEPENDENCIES ---
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    async with sessionmaker(get_writer_engine(), class_=AsyncSession, expire_on_commit=False)() as session:
         try:
             yield session
         finally:
             await session.close()
 
 async def get_read_db() -> AsyncGenerator[AsyncSession, None]:
-    """
-    LEAST-PRIVILEGE READ DEPENDENCY:
-    Routes traffic to the Read Replica to offload the Primary DB.
-    Use this for all GET endpoints that do not perform writes.
-    """
-    async with ReaderSession() as session:
+    async with sessionmaker(get_reader_engine(), class_=AsyncSession, expire_on_commit=False)() as session:
         try:
             yield session
         finally:

@@ -38,59 +38,79 @@ async def log_audit_action(
 ):
     """
     Immutable Audit Logging with Per-Tenant Chain of Trust.
-    Every log entry is signed and chained to the previous entry's hash for that hospital.
     """
-    from app.core.database import AsyncSessionLocal
-    import uuid as uuid_lib
-    
-    async with AsyncSessionLocal() as session:
-        try:
-            # 1. Get the hash of the previous log for THIS tenant for chaining
-            stmt = select(AuditLog.signature).where(
-                AuditLog.hospyn_id == hospyn_id
-            ).order_by(desc(AuditLog.id)).limit(1)
-            
-            result = await session.execute(stmt)
-            prev_hash = result.scalar() or f"ROOT_GENESIS_{hospyn_id or 'GLOBAL'}"
-
-            # 2. Prepare log data
-            log_data = {
-                "action": action,
-                "user_id": str(user_id) if user_id else None,
-                "hospyn_id": hospyn_id,
-                "hospital_id": str(hospital_id) if hospital_id else None,
-                "resource_type": resource_type,
-                "resource_id": str(resource_id) if resource_id else None,
-                "patient_id": str(patient_id) if patient_id else None,
-                "details": details,
-                "ip_address": ip_address,
-                "user_agent": user_agent,
-                "timestamp": datetime.now(timezone.utc).isoformat()
-            }
-
-            # 3. Calculate Signature (Immutability Check)
-            signature = calculate_log_signature(log_data, prev_hash)
-
-            audit_entry = AuditLog(
-                action=action,
-                user_id=user_id,
-                hospital_id=hospital_id,
-                hospyn_id=hospyn_id,
-                resource_type=resource_type,
-                resource_id=resource_id,
-                patient_id=patient_id,
-                details=details,
-                ip_address=ip_address,
-                user_agent=user_agent,
-                signature=signature,
-                prev_hash=prev_hash
+    # 1. Use existing session or create a new one
+    if db is not None:
+        await _perform_audit_log(
+            db, action, user_id, resource_type, resource_id, 
+            patient_id, hospital_id, hospyn_id, details, ip_address, user_agent
+        )
+    else:
+        from app.core.database import AsyncSessionLocal
+        async with AsyncSessionLocal() as session:
+            await _perform_audit_log(
+                session, action, user_id, resource_type, resource_id, 
+                patient_id, hospital_id, hospyn_id, details, ip_address, user_agent
             )
-            
-            session.add(audit_entry)
-            await session.commit()
-        except Exception as e:
-            logger.error(f"AUDIT_LOGGING_FAILURE: {e}")
-            await session.rollback()
+
+async def _perform_audit_log(
+    session: AsyncSession,
+    action: str,
+    user_id: Optional[uuid.UUID],
+    resource_type: Optional[str],
+    resource_id: Optional[uuid.UUID],
+    patient_id: Optional[uuid.UUID],
+    hospital_id: Optional[uuid.UUID],
+    hospyn_id: Optional[str],
+    details: Optional[Dict[str, Any]],
+    ip_address: Optional[str],
+    user_agent: Optional[str]
+):
+    try:
+        # Chaining logic
+        stmt = select(AuditLog.signature).where(
+            AuditLog.hospyn_id == hospyn_id
+        ).order_by(desc(AuditLog.id)).limit(1)
+        
+        result = await session.execute(stmt)
+        prev_hash = result.scalar() or f"ROOT_GENESIS_{hospyn_id or 'GLOBAL'}"
+
+        log_data = {
+            "action": action,
+            "user_id": str(user_id) if user_id else None,
+            "hospyn_id": hospyn_id,
+            "hospital_id": str(hospital_id) if hospital_id else None,
+            "resource_type": resource_type,
+            "resource_id": str(resource_id) if resource_id else None,
+            "patient_id": str(patient_id) if patient_id else None,
+            "details": details,
+            "ip_address": ip_address,
+            "user_agent": user_agent,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+        signature = calculate_log_signature(log_data, prev_hash)
+
+        audit_entry = AuditLog(
+            action=action,
+            user_id=user_id,
+            hospital_id=hospital_id,
+            hospyn_id=hospyn_id,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            patient_id=patient_id,
+            details=details,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            signature=signature,
+            prev_hash=prev_hash
+        )
+        
+        session.add(audit_entry)
+        await session.flush()  # Use flush instead of commit if part of a larger transaction
+    except Exception as e:
+        logger.error(f"AUDIT_LOGGING_FAILURE: {e}")
+
             
 async def verify_audit_chain(logs: list[AuditLog]) -> tuple[bool, list[str]]:
     """
