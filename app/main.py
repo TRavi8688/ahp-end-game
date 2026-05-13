@@ -90,51 +90,51 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
-# Custom Resilience Middleware: Ensures CORS headers on EVERY response
+# --- HARDENED CORS & ERROR RESILIENCE (SHIELD V7.0) ---
+
 @app.middleware("http")
 async def cors_resilience_middleware(request: Request, call_next):
+    """
+    ULTIMATE SHIELD: Ensures CORS headers are present even if the app crashes.
+    """
+    origin = request.headers.get("Origin")
+    
     if request.method == "OPTIONS":
-        # Force handle OPTIONS preflight if CORSMiddleware missed it
-        response = await call_next(request)
+        response = JSONResponse(content="OK")
+        _add_cors_headers(response, origin)
         return response
-        
+
     try:
         response = await call_next(request)
+        _add_cors_headers(response, origin)
         return response
     except Exception as e:
-        logger.error(f"UNCAUGHT_EXCEPTION: {str(e)}", exc_info=True)
-        return JSONResponse(
+        logger.error(f"UNCAUGHT_SYSTEM_ERROR: {str(e)}", exc_info=True)
+        response = JSONResponse(
             status_code=500,
-            content={"detail": "Internal Server Error", "error": str(e)},
-            headers={
-                "Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
-                "Access-Control-Allow-Credentials": "true"
-            }
+            content={"detail": "Critical System Fault", "error": str(e)}
         )
+        _add_cors_headers(response, origin)
+        return response
 
-# Global Exception Handlers
+def _add_cors_headers(response, origin: Optional[str]):
+    if not origin:
+        return
+    response.headers["Access-Control-Allow-Origin"] = origin
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Vary"] = "Origin"
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.warning(f"VALIDATION_ERROR: {exc.errors()} | Body: {await request.body()}")
-    return JSONResponse(
-        status_code=400,
-        content={"detail": "Validation Error", "errors": exc.errors()},
-        headers={
-            "Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
-            "Access-Control-Allow-Credentials": "true"
-        }
-    )
+    logger.warning(f"VALIDATION_ERROR: {exc.errors()}")
+    return JSONResponse(status_code=422, content={"detail": "Validation Failed", "errors": exc.errors()})
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.detail},
-        headers={
-            "Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
-            "Access-Control-Allow-Credentials": "true"
-        }
-    )
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
 
 
 # --- ROUTERS ---

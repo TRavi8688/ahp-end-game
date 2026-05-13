@@ -322,12 +322,22 @@ async def verify_otp(
             )
             
         # 2. Retrieve & Activate User
-        result = await db.execute(select(models.User).where(models.User.email == req.identifier))
+        alt_identifier = f"+91{req.identifier}" if not req.identifier.startswith("+") else req.identifier.replace("+91", "")
+        
+        result = await db.execute(
+            select(models.User).where(
+                or_(
+                    models.User.email == req.identifier,
+                    models.User.email == alt_identifier
+                )
+            )
+        )
         user = result.scalars().first()
         
         if not user:
             logger.info(f"OTP_VERIFY_SUCCESS_PENDING_REG: {req.identifier}")
             return {"success": True, "message": "Identity verified. Please complete your profile."}
+
 
         user.is_active = True
         
