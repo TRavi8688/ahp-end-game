@@ -134,14 +134,22 @@ async def login(
     user = result.scalars().first()
     
     # 2. STRICT VERIFICATION
-    if not user or not security.verify_password(form_data.password, user.hashed_password):
-        await log_audit_action(
-            db, 
-            "LOGIN_FAILURE", 
-            resource_type="USER",
-            details={"identifier": identifier}
+    try:
+        if not user or not security.verify_password(form_data.password, user.hashed_password):
+            await log_audit_action(
+                db, 
+                "LOGIN_FAILURE", 
+                resource_type="USER",
+                details={"identifier": identifier}
+            )
+            throw_auth_exception("Invalid credentials provided.")
+    except Exception as e:
+        logger.error(f"LOGIN_VERIFICATION_CRASH: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Login Verification Error"
         )
-        throw_auth_exception("Invalid credentials provided.")
+
     
     if not user.is_active:
         throw_auth_exception("Account is deactivated. Please contact support.")
@@ -171,9 +179,10 @@ async def send_otp(
     from app.services.two_factor_service import send_sms_otp
     import secrets
 
+    logger.info(f"OTP_REQUEST_RECEIVED: Identifier={req.identifier}, Method={req.method}, IP={request.client.host}")
+    
     # 1. OTP Generation
     otp = "123456" if req.identifier in ["+910000000000", "0000000000", "910000000000"] else "".join([str(secrets.randbelow(10)) for _ in range(6)])
-    logger.info(f"OTP_GENERATED: For={req.identifier}, Method={req.method}")
     
     # 2. Persistence (Database Primary)
     try:
@@ -188,10 +197,10 @@ async def send_otp(
         await db.refresh(new_otp)
         logger.info(f"OTP_DB_STORE_SUCCESS: ID={new_otp.id}, Identifier={req.identifier}")
     except Exception as e:
-        logger.error(f"OTP_STORAGE_FAILURE: {str(e)}")
+        logger.error(f"OTP_STORAGE_FAILURE: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
-            detail={"success": False, "message": "Infrastructure Persistence Failure"}
+            detail="OTP Persistence Failure. Check infrastructure logs."
         )
 
     # 3. Delivery
@@ -201,24 +210,25 @@ async def send_otp(
             success = await send_sms_otp(req.identifier, otp)
             if not success:
                 logger.error(f"SMS_PROVIDER_FAILURE: Twilio rejected dispatch to {req.identifier}")
-                raise Exception("Provider rejected message")
+                raise Exception("SMS Provider Rejected Request")
         else:
             from app.services.email_service import send_email_otp
             logger.info(f"EMAIL_DISPATCH_INITIATED: To={req.identifier}")
             success = send_email_otp(req.identifier, otp)
             if not success:
                 logger.error(f"EMAIL_PROVIDER_FAILURE: SMTP failure for {req.identifier}")
-                raise Exception("Email provider failure")
+                raise Exception("Email Provider Rejected Request")
         
         logger.info(f"OTP_DISPATCH_SUCCESS: Method={req.method}, To={req.identifier}")
     except Exception as e:
-        logger.error(f"OTP_DELIVERY_CRASH: {str(e)}")
+        logger.error(f"OTP_DELIVERY_CRASH: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
-            detail={"success": False, "message": f"Communication Fault: {str(e)}"}
+            detail=f"Communication Fault: {str(e)}"
         )
     
     return {"success": True, "message": "OTP sent successfully"}
+
 
 @router.get("/diag")
 async def auth_diagnostics(db: AsyncSession = Depends(deps.get_db)):

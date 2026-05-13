@@ -68,7 +68,7 @@ app = FastAPI(
 # --- MIDDLEWARE ---
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 
-# CORS (Hardened for Production - Fix 5)
+# CORS (Hardened for Production - Fix 6: Resilience Shield)
 allowed_origins = settings.ALLOWED_ORIGINS
 env = settings.ENVIRONMENT
 
@@ -80,13 +80,62 @@ if env == "production":
 else:
     final_origins = ["*"] if "*" in allowed_origins else allowed_origins
 
+# Outermost: CORS Handling
 app.add_middleware(
     CORSMiddleware,
     allow_origins=final_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
+
+# Custom Resilience Middleware: Ensures CORS headers on EVERY response
+@app.middleware("http")
+async def cors_resilience_middleware(request: Request, call_next):
+    if request.method == "OPTIONS":
+        # Force handle OPTIONS preflight if CORSMiddleware missed it
+        response = await call_next(request)
+        return response
+        
+    try:
+        response = await call_next(request)
+        return response
+    except Exception as e:
+        logger.error(f"UNCAUGHT_EXCEPTION: {str(e)}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal Server Error", "error": str(e)},
+            headers={
+                "Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
+                "Access-Control-Allow-Credentials": "true"
+            }
+        )
+
+# Global Exception Handlers
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.warning(f"VALIDATION_ERROR: {exc.errors()} | Body: {await request.body()}")
+    return JSONResponse(
+        status_code=400,
+        content={"detail": "Validation Error", "errors": exc.errors()},
+        headers={
+            "Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
+            "Access-Control-Allow-Credentials": "true"
+        }
+    )
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers={
+            "Access-Control-Allow-Origin": request.headers.get("Origin", "*"),
+            "Access-Control-Allow-Credentials": "true"
+        }
+    )
+
 
 # --- ROUTERS ---
 from app.api import auth, patient, profile, doctor, admin, privacy, auth_onboarding, staff, governance

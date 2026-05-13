@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, AliasChoices, ConfigDict
 import re
 import uuid
 from typing import List, Optional
@@ -15,9 +15,20 @@ class TokenPayload(BaseModel):
     role: Optional[str] = None
 
 class OTPRequest(BaseModel):
-    identifier: str = Field(..., description="Phone number or Email")
-    country_code: str = "+91"
+    model_config = ConfigDict(populate_by_name=True)
+    
+    identifier: str = Field(
+        ..., 
+        validation_alias=AliasChoices("email", "phone", "identifier"),
+        description="Phone number or Email"
+    )
+    country_code: str = Field(
+        "+91", 
+        validation_alias=AliasChoices("countryCode", "country_code")
+    )
     method: str = "sms"
+
+
 
 class OTPVerify(BaseModel):
     identifier: str
