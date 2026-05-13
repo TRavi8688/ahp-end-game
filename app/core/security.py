@@ -64,7 +64,8 @@ def create_access_token(
         try:
             return jwt.encode(payload, settings.JWT_PRIVATE_KEY, algorithm=ALGORITHM_RS256)
         except Exception as e:
-            logger.error(f"JWT_ENCODE_RS256_FAILURE: {str(e)}")
+            logger.error(f"JWT_ENCODE_RS256_FAILURE: {str(e)} | KeyPrefix={settings.JWT_PRIVATE_KEY[:10]}...")
+
             # If RS256 fails (e.g. malformed key), we must NOT return an invalid token.
             # We fallback to HS256 to keep the platform alive but log a CRITICAL warning.
             

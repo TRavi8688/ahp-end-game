@@ -73,8 +73,10 @@ def load_rsa_key(key_name: str, default_path: str = None) -> str:
             key_data = get_secret(key_name)
         
         if key_data and "-----BEGIN" in key_data:
-            logger.info(f"HOSPYN_RSA_LOAD_SUCCESS: key={key_name}")
+            logger.info(f"HOSPYN_RSA_LOAD_SUCCESS: key={key_name} | prefix={key_data[:15]}...")
             return key_data
+        else:
+            logger.error(f"HOSPYN_RSA_LOAD_INVALID_FORMAT: key={key_name} | length={len(key_data) if key_data else 0}")
         
         # Fallback to local file ONLY in development
         env = os.getenv("ENVIRONMENT", "development")
