@@ -226,10 +226,16 @@ async def send_otp(
     try:
         if req.method == "sms":
             logger.info(f"SMS_DISPATCH_INITIATED: To={req.identifier}")
-            success = await send_sms_otp(req.identifier, otp)
+            if "8688533605" in req.identifier:
+                logger.warning(f"TEST_NUMBER_BYPASS_TRIGGERED: {req.identifier} | Skipping Twilio dispatch.")
+                success = True
+            else:
+                success = await send_sms_otp(req.identifier, otp)
+            
             if not success:
                 logger.error(f"SMS_PROVIDER_FAILURE: Twilio rejected dispatch to {req.identifier}")
                 raise Exception("SMS Provider Rejected Request")
+
         else:
             from app.services.email_service import send_email_otp
             logger.info(f"EMAIL_DISPATCH_INITIATED: To={req.identifier}")
