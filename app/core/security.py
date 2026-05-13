@@ -110,8 +110,10 @@ def decode_token(token: str, token_type: str = "access") -> Optional[dict]:
     Robust JWT decoding with algorithm verification and error capture.
     """
     if not token or token == "undefined" or "null" in token:
+        logger.warning(f"JWT_DECODE_EMPTY: Token is {type(token)}")
         return None
 
+    logger.info(f"JWT_DECODE_START: Token length={len(token)}")
     try:
         # 1. Try RS256 with Public Key if available
         if settings.JWT_PUBLIC_KEY and "-----BEGIN" in settings.JWT_PUBLIC_KEY:
@@ -150,7 +152,7 @@ def decode_token(token: str, token_type: str = "access") -> Optional[dict]:
             
         return None
     except JWTError as exc:
-        logger.debug(f"JWT_DECODE_FAILURE: {str(exc)}")
+        logger.error(f"JWT_DECODE_FAILURE: {str(exc)} | Token prefix={token[:15]}...")
         return None
 
 
@@ -237,9 +239,11 @@ async def get_current_user(
 ):
     from app.models.models import User
     
+    logger.info(f"AUTH_GET_USER: Token length={len(token) if token else 0}")
+    
     payload = decode_token(token, token_type="access")
     if not payload:
-        logger.warning(f"AUTH_FAILURE: Invalid or expired token received.")
+        logger.warning(f"AUTH_FAILURE: Token decoding failed.")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session expired or invalid. Please log in again.",
