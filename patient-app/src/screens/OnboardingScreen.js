@@ -358,7 +358,7 @@ export default function OnboardingScreen({ navigation }) {
             });
 
         } catch (e) {
-            logger.error("ONBOARDING_FINALIZE_FAILURE", e);
+            console.error("ONBOARDING_FINALIZE_FAILURE", e);
             Alert.alert('Account Creation Failed', e.response?.data?.message || 'An error occurred during secure setup.');
         } finally {
             setLoading(false);

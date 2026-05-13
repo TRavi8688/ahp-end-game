@@ -136,6 +136,8 @@ async def login(
     Supports Email, Phone Number, or Hospyn ID as the primary identifier.
     """
     identifier = form_data.username.strip()
+    logger.info(f"LOGIN_ATTEMPT: Identifier={identifier}")
+
     
     # 1. ATOMIC LOOKUP (Email, Phone, or Hospyn ID)
     # This ensures we find the user regardless of how they identify
