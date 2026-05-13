@@ -65,30 +65,23 @@ export default function OnboardingScreen({ navigation }) {
         setLoading(true);
         try {
             // Strictly enforce real OTP verification
-            await axios.post(`${API_BASE_URL}/auth/verify-otp`, { 
+            const verifyResp = await axios.post(`${API_BASE_URL}/auth/verify-otp`, { 
                 identifier: formData.phone, 
                 otp: formData.otp 
             });
             
-            // Check if user already exists to avoid 401/409 errors on register
-            const checkResp = await axios.get(`${API_BASE_URL}/auth/check-user?identifier=${formData.phone}`);
-            if (checkResp.data.exists) {
-                // If user exists, we should probably attempt to log them in or 
-                // skip the registration step and go straight to Profile Setup if missing
-                // For now, we'll proceed but flag it so handleFinalize knows to use bypass/login
+            if (verifyResp.data.user_exists) {
                 setFormData(prev => ({ 
                     ...prev, 
                     userExists: true,
-                    hospyn_id: checkResp.data.hospyn_id 
+                    hospyn_id: verifyResp.data.hospyn_id 
                 }));
-                Alert.alert(
-                    'Account Found', 
-                    'An account with this number already exists. We will securely link your session.',
-                    [{ text: 'Continue', onPress: () => setStep(1) }]
-                );
+                // Go straight to Step 1 without an alert that might be blocked by browser
+                setStep(1);
             } else {
                 setStep(1);
             }
+
         } catch (e) {
             Alert.alert('Verification Failed', 'Incorrect OTP.');
         } finally {

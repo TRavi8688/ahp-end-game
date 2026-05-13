@@ -336,7 +336,8 @@ async def verify_otp(
         
         if not user:
             logger.info(f"OTP_VERIFY_SUCCESS_PENDING_REG: {req.identifier}")
-            return {"success": True, "message": "Identity verified. Please complete your profile."}
+            return {"success": True, "user_exists": False, "message": "Identity verified. Please complete your profile."}
+
 
 
         user.is_active = True
@@ -362,8 +363,11 @@ async def verify_otp(
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
+            "user_exists": True,
+            "hospyn_id": user.hospyn_id,
             "message": "Login successful"
         }
+
     except HTTPException:
         raise
     except Exception as e:
