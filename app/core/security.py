@@ -149,11 +149,12 @@ def decode_token(token: str, token_type: str = "access") -> Optional[dict]:
             issuer=settings.PROJECT_NAME,
         )
         if payload.get("type") == token_type:
+            logger.info(f"JWT_DECODE_SUCCESS: sub={payload.get('sub')}")
             return payload
             
         return None
     except JWTError as exc:
-        logger.error(f"JWT_DECODE_FAILURE: {str(exc)} | Token prefix={token[:15]}...")
+        logger.error(f"JWT_DECODE_FAILURE: {type(exc).__name__} | {str(exc)} | TokenPrefix={token[:15]}...")
         return None
 
 
@@ -240,11 +241,12 @@ async def get_current_user(
 ):
     from app.models.models import User
     
-    logger.info(f"AUTH_GET_USER: Token length={len(token) if token else 0}")
+    logger.info("========== AUTH FORENSICS ==========")
+    logger.info(f"AUTH_GET_USER: TokenReceived={len(token) if token else 0}")
     
     payload = decode_token(token, token_type="access")
     if not payload:
-        logger.warning(f"AUTH_FAILURE: Token decoding failed.")
+        logger.warning(f"AUTH_FAILURE: decode_token returned None")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session expired or invalid. Please log in again.",

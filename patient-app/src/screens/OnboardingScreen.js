@@ -336,6 +336,13 @@ export default function OnboardingScreen({ navigation }) {
             });
 
             const token = loginResp.data.access_token;
+            
+            console.log("========== FINALIZE REQUEST ==========");
+            console.log("TOKEN:", token);
+            console.log("TOKEN TYPE:", typeof token);
+            console.log("TOKEN LENGTH:", token?.length);
+            console.log("AUTH HEADER:", `Bearer ${token}`);
+            console.log("HOSPYN_ID:", hospyn_id);
 
             // 3. Profile Setup
             await axios.post(`${API_BASE_URL}/profile/setup`, {
@@ -364,6 +371,12 @@ export default function OnboardingScreen({ navigation }) {
 
 
         } catch (e) {
+            console.error("========== FINALIZE ERROR ==========");
+            console.error("FINALIZE ERROR STATUS:", e?.response?.status);
+            console.error("FINALIZE ERROR DATA:", e?.response?.data);
+            console.error("FINALIZE ERROR HEADERS:", e?.response?.headers);
+            console.error("FULL ERROR:", e);
+            
             console.error("ONBOARDING_FINALIZE_FAILURE", e);
             Alert.alert('Account Creation Failed', e.response?.data?.message || 'An error occurred during secure setup.');
         } finally {
