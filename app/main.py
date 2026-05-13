@@ -88,9 +88,11 @@ app.add_middleware(
     allow_origins=final_origins,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"]
+    allow_headers=["Content-Type", "Authorization", "authorization", "X-Requested-With", "Accept"],
+    expose_headers=["*"],
+    max_age=600
 )
+
 
 # --- HARDENED CORS & ERROR RESILIENCE (SHIELD V7.0) ---
 
@@ -125,7 +127,8 @@ def _add_cors_headers(response, origin: Optional[str]):
     response.headers["Access-Control-Allow-Origin"] = origin
     response.headers["Access-Control-Allow-Credentials"] = "true"
     response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, Accept"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, authorization, X-Requested-With, Accept"
+
     response.headers["Vary"] = "Origin"
 
 @app.exception_handler(RequestValidationError)
