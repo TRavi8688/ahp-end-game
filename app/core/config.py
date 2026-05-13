@@ -75,10 +75,11 @@ class Settings(BaseSettings):
         
     USE_REDIS: bool = False
 
-    ALLOWED_ORIGINS: List[str] = [
+    ALLOWED_ORIGINS: Any = [
         "https://hospyn-495906.web.app",
         "https://app.hospyn.com"
     ]
+
     TRUSTED_PROXIES: List[str] = ["*"]
     
     @field_validator("ALLOWED_ORIGINS", mode="before")
