@@ -31,8 +31,14 @@ class OTPRequest(BaseModel):
 
 
 class OTPVerify(BaseModel):
-    identifier: str
+    model_config = ConfigDict(populate_by_name=True)
+    
+    identifier: str = Field(
+        ..., 
+        validation_alias=AliasChoices("email", "phone", "identifier")
+    )
     otp: str
+
 
 # User Schemas
 class UserBase(BaseModel):
