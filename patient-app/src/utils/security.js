@@ -11,6 +11,10 @@ const ID_KEY = 'hospyn_id';
 const HospynSecurity = {
   save: async (key, value) => {
     try {
+      if (!value) {
+        console.warn('HOSPYN_SECURITY: Attempted to save empty value for', key);
+        value = ""; // Convert null/undefined to empty string to prevent crash
+      }
       if (Platform.OS === 'web') {
         localStorage.setItem(key, value);
       } else {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Platform, Linking, Alert } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SecurityUtils } from '../utils/security';
@@ -33,6 +34,26 @@ export default function HealthIdScreen() {
     }
 
     const qrValue = profile?.hospyn_id || 'HOSPYN-PENDING';
+
+    const copyToClipboard = async () => {
+        if (!qrValue || qrValue === 'HOSPYN-PENDING') return;
+        await Clipboard.setStringAsync(qrValue);
+        Alert.alert('Copied!', 'Your Hospyn ID has been copied to your clipboard. Use it to log in next time!');
+    };
+
+    const handleDownloadQR = () => {
+        const url = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${qrValue}&color=4c1d95&bgcolor=fff`;
+        if (Platform.OS === 'web') {
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Hospyn_QR_${qrValue}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } else {
+            Linking.openURL(url);
+        }
+    };
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={{ padding: 24, alignItems: 'center' }}>
@@ -69,13 +90,16 @@ export default function HealthIdScreen() {
                 </View>
 
                 <View style={styles.patientInfo}>
-                    <View>
+                    <View style={{ flex: 1 }}>
                         <Text style={styles.infoLabel}>PATIENT NAME</Text>
                         <Text style={styles.infoValue}>{profile?.full_name?.toUpperCase()}</Text>
                     </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.infoLabel}>HOSPYN ID</Text>
-                        <Text style={styles.infoValue}>{profile?.hospyn_id}</Text>
+                    <View style={{ alignItems: 'flex-end', flex: 1 }}>
+                        <Text style={[styles.infoLabel, { color: '#fcd34d' }]}>YOUR LOGIN ID</Text>
+                        <TouchableOpacity onPress={copyToClipboard} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={styles.infoValue}>{profile?.hospyn_id}</Text>
+                            <Ionicons name="copy-outline" size={16} color="#fff" />
+                        </TouchableOpacity>
                     </View>
                 </View>
 
@@ -86,11 +110,11 @@ export default function HealthIdScreen() {
 
             {/* Actions */}
             <View style={styles.actions}>
-                <TouchableOpacity style={styles.actionBtn}>
+                <TouchableOpacity style={styles.actionBtn} onPress={handleDownloadQR}>
                     <Ionicons name="download-outline" size={20} color="#4c1d95" />
                     <Text style={styles.actionBtnText}>Save to Device</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.actionBtn}>
+                <TouchableOpacity style={styles.actionBtn} onPress={() => Alert.alert('Share', 'Share functionality coming soon.')}>
                     <Ionicons name="share-social-outline" size={20} color="#4c1d95" />
                     <Text style={styles.actionBtnText}>Share Passport</Text>
                 </TouchableOpacity>

@@ -3,11 +3,74 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-# Defaults apply to the API
-startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 4"
-healthcheckPath = "/health"
-restartPolicyType = "ON_FAILURE"
-numReplicas = 2
+# ═══════════════════════════════════════════════════════════════
+# FASTAPI API SERVICE CONFIGURATION
+# ═══════════════════════════════════════════════════════════════
 
-# We create a specific deployment for the worker locally in Railway Dashboard via 'Command Override'
-# Worker override command: "arq app.workers.arq_worker.WorkerSettings"
+# Docstring
+name = "api"
+description = "AHP 2.0 FastAPI Backend"
+
+# Start command with 4 workers for parallel request handling
+startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 4 --loop uvloop"
+
+# Health check configuration (Railway probes this endpoint)
+healthcheckPath = "/healthz"
+healthcheckTimeout = 10
+healthcheckInterval = 30
+healthcheckHttpVersion = "HTTP/1.1"
+
+# Restart policy (on failure, restart immediately)
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# Scaling for High Availability (HA)
+# Always run at least 2 instances for redundancy
+numReplicas = 2
+maxConcurrency = 1000
+
+# Port configuration
+[[deploy.ports]]
+port = 8000
+type = "http"
+
+# Environment variables (will be overridden by Railway Variables tab)
+[env]
+PYTHONUNBUFFERED = "1"
+PYTHONDONTWRITEBYTECODE = "1"
+PYTHONOPTIMIZE = "2"
+
+# ═══════════════════════════════════════════════════════════════
+# REQUIRED DEPENDENCIES
+# ═══════════════════════════════════════════════════════════════
+# These services must be connected in Railway Dashboard:
+# 1. PostgreSQL 15 (DATABASE_URL)
+# 2. Redis 7 (REDIS_URL)
+# ═══════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════════
+# BACKGROUND WORKER SERVICE (SEPARATE DEPLOYMENT)
+# ═══════════════════════════════════════════════════════════════
+# 
+# To set up the worker service in Railway:
+#
+# 1. Go to Railway Dashboard → Project
+# 2. Click "+ New Service" → "GitHub Repo" or "Empty Service"
+# 3. Name: "ahp-worker"
+# 4. In Settings tab:
+#    - Link same GitHub repo
+#    - Set build: DOCKERFILE
+# 5. In Deploy tab:
+#    - Command Override: arq app.workers.arq_worker.WorkerSettings
+#    - Set numReplicas = 2 (for redundancy)
+# 6. In Variables tab:
+#    - Add all same environment variables as API
+#    - Link same PostgreSQL and Redis services
+# 7. Deploy
+#
+# The worker processes background tasks:
+# - PDF/Image OCR processing
+# - AI text summarization
+# - Document uploads
+# - Async notifications
+# ═══════════════════════════════════════════════════════════════

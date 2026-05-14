@@ -3,6 +3,9 @@
 **/*.py[cod]
 **/*$py.class
 .env
+.env.local
+.env.*.local
+.env.production
 **/.venv
 **/env/
 **/venv/
@@ -28,6 +31,37 @@ test.db
 
 # OS
 .DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Security - NEVER commit these
+.env
+.env.*
+!.env.example
+secrets/
+private/
+*.pem
+*.key
+id_rsa
+id_rsa.pub
+
+# Railway
+.railway
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
 Thumbs.db
 
 # Misc

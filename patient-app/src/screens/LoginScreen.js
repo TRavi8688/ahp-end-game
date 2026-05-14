@@ -5,6 +5,7 @@ import {
     KeyboardAvoidingView, Platform, ScrollView, Dimensions,
     ImageBackground, Image
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
@@ -42,6 +43,9 @@ export default function AuthScreen({ navigation }) {
             });
 
             if (resp.data.access_token) {
+                // Clear any stale mock profile data from previous registrations 
+                // to ensure the app fetches the real profile for this new login.
+                await AsyncStorage.removeItem('mock_profile');
                 await login(resp.data.access_token, identifier);
             }
         } catch (e) {
