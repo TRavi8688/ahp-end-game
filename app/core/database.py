@@ -1,3 +1,4 @@
+import os
 import ssl
 from typing import AsyncGenerator, Optional
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -6,35 +7,20 @@ from app.core.config import settings
 from app.core.logging import logger
 
 def get_ssl_context():
-    """STRICT SSL Context for Cloud SQL Isolation (Fix 1)."""
+    """STRICT SSL Context for Cloud SQL Isolation (Shield V10)."""
     if settings.ENVIRONMENT != "production":
         return None
     
-<<<<<<< Updated upstream
+    # Check if we are using SQLite (no SSL needed)
+    if "sqlite" in settings.DATABASE_URL:
+        return None
+
     try:
         from app.core.secrets import get_secret
         ca_cert = get_secret("DB_CA_CERT")
-=======
-    if not is_sqlite:
-        import ssl
-        ctx = ssl.create_default_context()
-        
-        # In production, ALWAYS verify certificates
-        # In development, allow unverified (for local testing)
-        if os.environ.get("ENVIRONMENT") == "production":
-            # Production: Strict SSL verification
-            ctx.check_hostname = True
-            ctx.verify_mode = ssl.CERT_REQUIRED
-            logger.info("DATABASE: SSL verification ENABLED (production)")
-        else:
-            # Development: Allow unverified (for testing)
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-            logger.warning("DATABASE: SSL verification DISABLED (development only)")
->>>>>>> Stashed changes
         
         ctx = ssl.create_default_context()
-        ctx.check_hostname = False
+        ctx.check_hostname = False # Cloud SQL hostname usually doesn't match the cert
         ctx.verify_mode = ssl.CERT_REQUIRED
         
         if ca_cert:
@@ -44,6 +30,9 @@ def get_ssl_context():
                 tmp.write(ca_cert)
                 tmp_path = tmp.name
             ctx.load_verify_locations(cafile=tmp_path)
+            logger.info("DATABASE: SSL verification ENABLED using CA Certificate from Secret Manager")
+        else:
+            logger.warning("DATABASE: SSL verification ENABLED but no CA Certificate found in secrets")
             
         return ctx
     except Exception as e:
@@ -80,15 +69,6 @@ def get_reader_engine():
             connect_args={"ssl": get_ssl_context()} if "postgresql" in reader_url else {}
         )
     return _reader_engine
-
-# --- EXPORTED SESSION MAKERS (FOR INTERNAL USE/AUDIT) ---
-def AsyncSessionLocal():
-    engine = get_writer_engine()
-    return sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)()
-
-def ReaderSessionLocal():
-    engine = get_reader_engine()
-    return sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)()
 
 # --- DEPENDENCIES ---
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
