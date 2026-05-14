@@ -81,9 +81,65 @@ app = FastAPI(
 # PROD_RULE: Only trust localhost/loopback or specific production ingress IPs
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["127.0.0.1", "::1"] if settings.ENVIRONMENT == "production" else ["*"])
 
+<<<<<<< Updated upstream
 # CORS (Hardened for Production - Fix 6: Resilience Shield)
 allowed_origins = settings.ALLOWED_ORIGINS
 env = settings.ENVIRONMENT
+=======
+# ════════════════════════════════════════════════════════════════
+# SECURITY MIDDLEWARE FUNCTIONS (before adding to app)
+# ════════════════════════════════════════════════════════════════
+
+async def security_headers_middleware(request: Request, call_next):
+    """Add security headers to all responses."""
+    response = await call_next(request)
+    
+    # Prevent MIME type sniffing
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    
+    # Prevent clickjacking
+    response.headers["X-Frame-Options"] = "DENY"
+    
+    # Enable XSS protection
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    
+    # Content Security Policy (strict by default)
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'"
+    
+    # Referrer policy
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    
+    # Permissions policy (formerly Feature-Policy)
+    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    
+    # HSTS (Strict-Transport-Security) - only in production
+    if settings.ENVIRONMENT == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
+    
+    return response
+
+async def https_redirect_middleware(request: Request, call_next):
+    """Redirect HTTP to HTTPS in production."""
+    if settings.ENVIRONMENT == "production":
+        if request.url.scheme == "http":
+            from fastapi.responses import RedirectResponse
+            url = request.url.replace(scheme="https")
+            return RedirectResponse(url=url, status_code=301)
+    return await call_next(request)
+
+# 2. MIDDLEWARE CHAIN (Order is Critical: Security first, then routing)
+# HTTPS redirect (highest priority - must be first)
+app.add_middleware(lambda app: https_redirect_middleware)
+app.middleware("http")(https_redirect_middleware)
+
+# Security headers (second priority)
+app.middleware("http")(security_headers_middleware)
+
+# Traceability & Metrics
+app.add_middleware(RequestIDMiddleware)
+app.middleware("http")(instrument_request())
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+>>>>>>> Stashed changes
 
 if env == "production":
     if "*" in allowed_origins:
@@ -105,6 +161,7 @@ app.add_middleware(
 )
 
 
+<<<<<<< Updated upstream
 # --- HARDENED CORS & ERROR RESILIENCE (SHIELD V7.0) ---
 
 @app.middleware("http")
@@ -113,6 +170,20 @@ async def cors_resilience_middleware(request: Request, call_next):
     ULTIMATE SHIELD: Ensures CORS headers are present even if the app crashes.
     """
     origin = request.headers.get("Origin")
+=======
+# --- GOOGLE-GRADE SRE PROBES ---
+
+@app.get("/healthz", tags=["Infrastructure"])
+async def liveness_probe():
+    """Liveness probe: Minimal check if the process is alive."""
+    return {"status": "alive", "timestamp": datetime.utcnow().isoformat()}
+
+@app.get("/readyz", tags=["Infrastructure"])
+async def readiness_probe(request: Request, db: AsyncSession = Depends(get_db)):
+    """Readiness probe: Checks if subsystems are ready. Secure diagnostics."""
+    status_code = 200
+    subsystems = {"db": "up"}
+>>>>>>> Stashed changes
     
     if request.method == "OPTIONS":
         response = JSONResponse(content="OK")

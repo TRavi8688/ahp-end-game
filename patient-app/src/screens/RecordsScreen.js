@@ -229,6 +229,23 @@ export default function RecordsScreen({ navigation }) {
         }
     };
 
+    const downloadFile = (url) => {
+        if (url && !url.startsWith('local://') && !url.startsWith('simulated')) {
+            if (Platform.OS === 'web') {
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `Hospyn_Record_${Date.now()}`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else {
+                Linking.openURL(url);
+            }
+        } else {
+            Alert.alert('File not available', 'This file was stored locally and cannot be downloaded.');
+        }
+    };
+
     const getRecordTypeIcon = (type) => {
         switch ((type || '').toLowerCase()) {
             case 'prescription': return 'medical';
@@ -343,13 +360,23 @@ export default function RecordsScreen({ navigation }) {
                                             <Ionicons name="open-outline" size={16} color="#4c1d95" />
                                             <Text style={styles.openFileBtnText}>Open Full Image</Text>
                                         </TouchableOpacity>
+                                        <TouchableOpacity style={styles.openFileBtn} onPress={() => downloadFile(fileUrl)}>
+                                            <Ionicons name="download-outline" size={16} color="#4c1d95" />
+                                            <Text style={styles.openFileBtnText}>Download Image</Text>
+                                        </TouchableOpacity>
                                     </>
                                 ) : (
-                                    <TouchableOpacity style={styles.pdfPreviewBtn} onPress={() => openFileInBrowser(fileUrl)}>
-                                        <Ionicons name="document-attach" size={40} color="#4c1d95" />
-                                        <Text style={styles.pdfPreviewTitle}>View Document</Text>
-                                        <Text style={styles.pdfPreviewSub}>Tap to open in browser</Text>
-                                    </TouchableOpacity>
+                                    <View>
+                                        <TouchableOpacity style={styles.pdfPreviewBtn} onPress={() => openFileInBrowser(fileUrl)}>
+                                            <Ionicons name="document-attach" size={40} color="#4c1d95" />
+                                            <Text style={styles.pdfPreviewTitle}>View Document</Text>
+                                            <Text style={styles.pdfPreviewSub}>Tap to open in browser</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity style={styles.openFileBtn} onPress={() => downloadFile(fileUrl)}>
+                                            <Ionicons name="download-outline" size={16} color="#4c1d95" />
+                                            <Text style={styles.openFileBtnText}>Download Document</Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 )}
                             </View>
                         ) : (

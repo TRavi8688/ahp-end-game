@@ -10,9 +10,28 @@ def get_ssl_context():
     if settings.ENVIRONMENT != "production":
         return None
     
+<<<<<<< Updated upstream
     try:
         from app.core.secrets import get_secret
         ca_cert = get_secret("DB_CA_CERT")
+=======
+    if not is_sqlite:
+        import ssl
+        ctx = ssl.create_default_context()
+        
+        # In production, ALWAYS verify certificates
+        # In development, allow unverified (for local testing)
+        if os.environ.get("ENVIRONMENT") == "production":
+            # Production: Strict SSL verification
+            ctx.check_hostname = True
+            ctx.verify_mode = ssl.CERT_REQUIRED
+            logger.info("DATABASE: SSL verification ENABLED (production)")
+        else:
+            # Development: Allow unverified (for testing)
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            logger.warning("DATABASE: SSL verification DISABLED (development only)")
+>>>>>>> Stashed changes
         
         ctx = ssl.create_default_context()
         ctx.check_hostname = False

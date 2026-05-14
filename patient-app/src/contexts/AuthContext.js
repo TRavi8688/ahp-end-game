@@ -28,6 +28,7 @@ export const AuthProvider = ({ children }) => {
                 setIsAuthenticated(true);
                 
                 // Fetch profile to verify token and get user data
+
                 try {
                     const profile = await ApiService.getProfile();
                     setUser(profile);
@@ -63,11 +64,14 @@ export const AuthProvider = ({ children }) => {
             
             setIsAuthenticated(true);
             
-            // Refresh profile data
-            const profile = await ApiService.getProfile();
-            setUser(profile);
+            // Refresh profile data in background to prevent UI block
+            ApiService.getProfile().then(profile => {
+                setUser(profile);
+                console.log('[Auth] Login profile synchronized.');
+            }).catch(e => {
+                console.warn('[Auth] Background profile sync failed, using defaults.');
+            });
             
-            console.log('[Auth] Login successful.');
             return true;
         } catch (error) {
             console.error('[Auth] Login persistence failed:', error);
