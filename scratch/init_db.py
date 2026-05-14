@@ -1,13 +1,14 @@
+
 import asyncio
-from app.core.database import get_writer_engine
+from sqlalchemy.ext.asyncio import create_async_engine
 from app.models.models import Base
+from app.core.config import settings
 
 async def init_db():
-    engine = get_writer_engine()
+    engine = create_async_engine(settings.async_database_url)
     async with engine.begin() as conn:
-        print("Creating all tables...")
         await conn.run_sync(Base.metadata.create_all)
-        print("Done.")
+    print("DB initialized with all models.")
 
 if __name__ == "__main__":
     asyncio.run(init_db())

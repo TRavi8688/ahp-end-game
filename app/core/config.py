@@ -103,6 +103,35 @@ class Settings(BaseSettings):
             url = url.replace("postgres://", "postgresql+asyncpg://", 1)
         return url
 
+    @property
+    def sync_database_url(self) -> str:
+        url = self.DATABASE_URL
+        # Remove +asyncpg or +aiosqlite if present
+        if "+asyncpg" in url:
+            url = url.replace("+asyncpg", "")
+        if "+aiosqlite" in url:
+            url = url.replace("+aiosqlite", "")
+        # For postgres, ensure it's postgresql://
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        return url
+
+    @property
+    def DATABASE_READER_URL(self) -> Optional[str]:
+        # Legacy support for reader URL from secrets
+        return get_secret("DATABASE_READER_URL")
+
+    @property
+    def sync_reader_url(self) -> str:
+        url = self.DATABASE_READER_URL or self.DATABASE_URL
+        if "+asyncpg" in url:
+            url = url.replace("+asyncpg", "")
+        if "+aiosqlite" in url:
+            url = url.replace("+aiosqlite", "")
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        return url
+
     @model_validator(mode="after")
     def validate_production_lockdown(self) -> "Settings":
         """SHIELD V10: Resilient post-init secret loading & DB URL transformation."""

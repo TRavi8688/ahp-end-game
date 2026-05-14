@@ -1,3 +1,4 @@
+import logging
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
@@ -13,6 +14,8 @@ config = context.config
 # This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+logger = logging.getLogger("alembic.env")
 
 # add your model's MetaData object here
 # for 'autogenerate' support
@@ -66,8 +69,11 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        # Acquire Distributed Migration Lock
-        connection.execute(text("SELECT pg_advisory_lock(86888688)"))
+        # Acquire Distributed Migration Lock (PostgreSQL only)
+        is_postgres = connection.dialect.name == "postgresql"
+        if is_postgres:
+            connection.execute(text("SELECT pg_advisory_lock(86888688)"))
+        
         try:
             logger.info("MIGRATION_SEQUENCE_STARTED")
             context.configure(
@@ -79,7 +85,8 @@ def run_migrations_online() -> None:
                 context.run_migrations()
             logger.info("MIGRATION_SEQUENCE_COMPLETED")
         finally:
-            connection.execute(text("SELECT pg_advisory_unlock(86888688)"))
+            if is_postgres:
+                connection.execute(text("SELECT pg_advisory_unlock(86888688)"))
 
 
 if context.is_offline_mode():
