@@ -17,6 +17,12 @@
       "public": "hospital-erp/dist",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "rewrites": [{"source": "**", "destination": "/index.html"}]
+    },
+    {
+      "target": "landing",
+      "public": "landing-page",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [{"source": "**", "destination": "/index.html"}]
     }
   ]
 }

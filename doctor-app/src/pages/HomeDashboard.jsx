@@ -64,70 +64,62 @@ export default function HomeDashboard({ onOpenScan }) {
     const urgentAlertsCount = stats.alerts_count;
 
     return (
-        <Box sx={{ maxWidth: 1400, mx: 'auto', px: 2, pt: 2 }}>
+        <Box sx={{ maxWidth: 1400, mx: 'auto', px: 4, pt: 6 }} className="animate-fade-in">
             {/* Header */}
-            <Box sx={{ mb: 4 }}>
+            <Box sx={{ mb: 8 }}>
                 <Typography 
-                    variant="h3" 
+                    variant="h2" 
                     sx={{ 
-                        fontWeight: 800, 
+                        fontWeight: 900, 
                         color: '#fff', 
                         fontFamily: 'Outfit', 
-                        letterSpacing: '-0.02em',
-                        background: 'linear-gradient(to right, #ffffff 0%, #94a3b8 100%)',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent'
+                        letterSpacing: '-0.04em',
+                        mb: 1
                     }}
                 >
-                    {profile ? `Good afternoon, Dr. ${profile.last_name}` : 'Welcome, Surgeon'}
+                    {profile ? `Dr. ${profile.last_name}` : 'Clinical Commander'}
                 </Typography>
-                <Typography variant="body1" sx={{ color: '#64748b', mt: 1, fontWeight: 500 }}>
-                    <span style={{ color: '#0d9488', fontWeight: 700 }}>{appointmentsToday}</span> consultations scheduled today · 
-                    <span style={{ color: '#6366f1', fontWeight: 700, marginLeft: '8px' }}>{pendingPrescriptions}</span> pending Rx · 
-                    <span style={{ color: '#ef4444', fontWeight: 700, marginLeft: '8px' }}>{urgentAlertsCount}</span> urgent alerts.
+                <Typography variant="h6" sx={{ color: '#64748b', fontWeight: 500, letterSpacing: -0.5 }}>
+                    Secure session active · <span style={{ color: '#6366f1' }}>{appointmentsToday}</span> consults pending · <span style={{ color: '#10b981' }}>Ecosystem Synchronized</span>
                 </Typography>
             </Box>
 
-            {/* Stats Row (4 cards) */}
-            <Grid container spacing={3} sx={{ mb: 4 }}>
-                {/* Card 1 - Appointments */}
+            {/* Stats Grid */}
+            <Grid container spacing={4} sx={{ mb: 8 }}>
                 <Grid item xs={12} sm={6} md={3}>
                     <StatCard
-                        title="Today's Appointments"
+                        title="Today's Load"
                         value={appointmentsToday}
-                        change={appointmentsToday === 0 ? "No visits yet" : "▲ from yesterday"}
-                        color="#0d9488" // Teal
-                        icon={<EventIcon fontSize="large" sx={{ opacity: 0.2, color: '#0d9488' }} />}
+                        change="REAL-TIME"
+                        color="#6366f1"
+                        icon={<EventIcon fontSize="large" />}
                     />
                 </Grid>
-                {/* Card 2 - Active Patients */}
                 <Grid item xs={12} sm={6} md={3}>
                     <StatCard
-                        title="My Active Patients"
+                        title="Authorized Patients"
                         value={stats.patients_count}
-                        change="+ on record"
-                        color="#3b82f6" // Blue
-                        icon={<PeopleIcon fontSize="large" sx={{ opacity: 0.2, color: '#3b82f6' }} />}
+                        change="SECURE"
+                        color="#0ea5e9"
+                        icon={<PeopleIcon fontSize="large" />}
                     />
                 </Grid>
-                {/* Card 3 - Pending Prescriptions */}
                 <Grid item xs={12} sm={6} md={3}>
                     <StatCard
-                        title="Pending Prescriptions"
+                        title="Pending Reviews"
                         value={pendingPrescriptions}
-                        change={pendingPrescriptions === 0 ? "Up to date" : "Needs review"}
-                        color="#f59e0b" // Amber
-                        icon={<MedicationIcon fontSize="large" sx={{ opacity: 0.2, color: '#f59e0b' }} />}
+                        change="ACTION REQ"
+                        color="#f59e0b"
+                        icon={<MedicationIcon fontSize="large" />}
                     />
                 </Grid>
-                {/* Card 4 - Urgent Alerts */}
                 <Grid item xs={12} sm={6} md={3}>
                     <StatCard
-                        title="Urgent Alerts"
+                        title="System Alerts"
                         value={urgentAlertsCount}
-                        change={urgentAlertsCount === 0 ? "All clear ✓" : "Requires attention"}
-                        color={urgentAlertsCount === 0 ? "#10b981" : "#ef4444"} // Green or Red
-                        icon={<WarningAmberIcon fontSize="large" sx={{ opacity: 0.2, color: urgentAlertsCount === 0 ? '#10b981' : '#ef4444' }} />}
+                        change={urgentAlertsCount === 0 ? "STABLE" : "URGENT"}
+                        color={urgentAlertsCount === 0 ? "#10b981" : "#ef4444"}
+                        icon={<WarningAmberIcon fontSize="large" />}
                     />
                 </Grid>
             </Grid>

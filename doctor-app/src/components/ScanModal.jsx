@@ -101,7 +101,7 @@ export default function ScanModal({ open, onClose }) {
                 },
                 body: JSON.stringify({
                     hospyn_id: patientData.id,
-                    clinic_name: "Nirixa Clinic",
+                    clinic_name: "Hospyn Clinic",
                     access_level: "full"
                 })
             });

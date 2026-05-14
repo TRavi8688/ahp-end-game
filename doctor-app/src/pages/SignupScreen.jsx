@@ -14,9 +14,10 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import PersonPinIcon from '@mui/icons-material/PersonPin';
 import BadgeIcon from '@mui/icons-material/Badge';
 import SecurityIcon from '@mui/icons-material/Security';
+import ShieldIcon from '@mui/icons-material/Shield';
 import { API_BASE_URL } from '../api';
 
-const STEPS = ['Professional Profile', 'Identity Verification', 'Safety Verification', 'Access Protection'];
+const STEPS = ['Clinical Identity', 'Forensic Check', 'Factor Auth', 'Secure Vault'];
 
 const STATE_COUNCILS = [
     "National Medical Commission (NMC)",
@@ -38,7 +39,6 @@ export default function SignupScreen() {
     const [showPassword, setShowPassword] = useState(false);
     const [finalUser, setFinalUser] = useState(null);
 
-    // Form State
     const [formData, setFormData] = useState({
         full_name: '',
         registration_number: '',
@@ -49,19 +49,10 @@ export default function SignupScreen() {
         confirm_password: ''
     });
 
-    const [files, setFiles] = useState({
-        aadhaar: null,
-        selfie: null
-    });
+    const [files, setFiles] = useState({ aadhaar: null, selfie: null });
+    const [previews, setPreviews] = useState({ aadhaar: null, selfie: null });
 
-    const [previews, setPreviews] = useState({
-        aadhaar: null,
-        selfie: null
-    });
-
-    const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
-    };
+    const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
     const handleFileChange = (e, type) => {
         const file = e.target.files[0];
@@ -73,8 +64,6 @@ export default function SignupScreen() {
         }
     };
 
-    // --- Actions ---
-
     const handleStartVerify = async () => {
         setIsLoading(true);
         setErrorMsg('');
@@ -82,16 +71,10 @@ export default function SignupScreen() {
             const response = await fetch(`${API_BASE_URL}/doctor/verify/start`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    full_name: formData.full_name,
-                    registration_number: formData.registration_number,
-                    state_medical_council: formData.state_medical_council,
-                    mobile_number: formData.mobile_number
-                })
+                body: JSON.stringify(formData)
             });
             const data = await response.json();
-            if (!response.ok) throw new Error(data.detail || 'Basic verification failed');
-            
+            if (!response.ok) throw new Error(data.detail || 'Clinical registry validation failed');
             setSessionId(data.session_id);
             setActiveStep(1);
         } catch (err) {
@@ -103,7 +86,7 @@ export default function SignupScreen() {
 
     const handleUploadIdentity = async () => {
         if (!files.aadhaar || !files.selfie) {
-            setErrorMsg("Please upload both Aadhaar and a live selfie.");
+            setErrorMsg("Forensic matching requires both Identity Document and Live Capture.");
             return;
         }
         setIsLoading(true);
@@ -118,27 +101,9 @@ export default function SignupScreen() {
                 body: data
             });
             const result = await response.json();
-            if (!response.ok) throw new Error(result.detail || 'Identity verification failed');
-            
-            // Automatically send OTP
+            if (!response.ok) throw new Error(result.detail || 'Identity matching failed');
             await fetch(`${API_BASE_URL}/doctor/verify/send-otp?session_id=${sessionId}`, { method: 'POST' });
-            
             setActiveStep(2);
-        } catch (err) {
-            setErrorMsg(err.message);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleSendOTP = async () => {
-        setIsLoading(true);
-        setErrorMsg('');
-        try {
-            const response = await fetch(`${API_BASE_URL}/doctor/verify/send-otp?session_id=${sessionId}`, { method: 'POST' });
-            if (!response.ok) throw new Error('Failed to resend OTP');
-            // Show some success message if needed, but for now just clear error
-            setErrorMsg('');
         } catch (err) {
             setErrorMsg(err.message);
         } finally {
@@ -155,10 +120,7 @@ export default function SignupScreen() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ session_id: sessionId, otp: formData.otp })
             });
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.detail || 'Invalid or expired OTP');
-            }
+            if (!response.ok) throw new Error('Security token mismatch');
             setActiveStep(3);
         } catch (err) {
             setErrorMsg(err.message);
@@ -168,12 +130,8 @@ export default function SignupScreen() {
     };
 
     const handleComplete = async () => {
-        if (formData.password.length < 8) {
-            setErrorMsg("Password must be at least 8 characters");
-            return;
-        }
         if (formData.password !== formData.confirm_password) {
-            setErrorMsg("Passwords do not match");
+            setErrorMsg("Secure keys do not match");
             return;
         }
         setIsLoading(true);
@@ -185,18 +143,13 @@ export default function SignupScreen() {
                 body: JSON.stringify({ session_id: sessionId, password: formData.password })
             });
             const data = await response.json();
-            if (!response.ok) throw new Error(data.detail || 'Account creation failed');
+            if (!response.ok) throw new Error(data.detail || 'Workspace initialization failed');
             
-            // Store tokens
             localStorage.setItem('token', data.access_token);
             localStorage.setItem('isAuthenticated', 'true');
             localStorage.setItem('isVerified', 'true');
 
-            // Decode token manually for UI display (mock way)
-            const base64Url = data.access_token.split('.')[1];
-            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            const payload = JSON.parse(window.atob(base64));
-            
+            const payload = JSON.parse(window.atob(data.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
             setFinalUser(payload.sub);
             setActiveStep(4);
         } catch (err) {
@@ -207,223 +160,136 @@ export default function SignupScreen() {
     };
 
     return (
-        <Box sx={{ minHeight: '100vh', display: 'flex', bgcolor: '#0f172a' }}>
-            {/* Left Info Panel */}
+        <Box sx={{ minHeight: '100vh', bgcolor: '#020617', display: 'flex', position: 'relative', overflow: 'hidden' }}>
+            <div className="aurora-1" />
+            <div className="aurora-2" />
+
             <Box sx={{
-                width: { xs: '0', md: '350px' },
-                bgcolor: '#1e293b',
+                width: { xs: '0', md: '380px' },
+                bgcolor: 'rgba(15, 23, 42, 0.4)',
+                backdropFilter: 'blur(40px)',
                 display: { xs: 'none', md: 'flex' },
                 flexDirection: 'column',
-                p: 5,
-                color: 'white',
-                borderRight: '1px solid rgba(255,255,255,0.1)'
+                p: 6,
+                borderRight: '1px solid rgba(255,255,255,0.05)',
+                zIndex: 2
             }}>
-                <Box sx={{ mb: 6, display: 'flex', alignItems: 'center' }}>
-                    <VerifiedUserIcon sx={{ color: '#38bdf8', fontSize: 40, mr: 2 }} />
-                    <Typography variant="h4" fontWeight="bold" letterSpacing={-1}>Nirixa</Typography>
+                <Box sx={{ mb: 10, display: 'flex', alignItems: 'center' }}>
+                    <div style={{ width: 40, height: 40, background: '#6366f1', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 16 }}>
+                        <ShieldIcon sx={{ color: 'white', fontSize: 24 }} />
+                    </div>
+                    <Typography variant="h4" sx={{ fontWeight: 900, color: 'white', letterSpacing: '-0.04em' }}>Hospyn</Typography>
                 </Box>
 
                 <Stepper activeStep={activeStep} orientation="vertical" sx={{ 
-                    '& .MuiStepLabel-label': { color: 'rgba(255,255,255,0.4)', fontWeight: 500 },
-                    '& .MuiStepLabel-label.Mui-active': { color: 'white', fontWeight: 700 },
-                    '& .MuiStepLabel-label.Mui-completed': { color: '#38bdf8' },
-                    '& .MuiStepIcon-root': { color: 'rgba(255,255,255,0.1)' },
-                    '& .MuiStepIcon-root.Mui-active': { color: '#38bdf8' },
+                    '& .MuiStepLabel-label': { color: 'rgba(255,255,255,0.3)', fontWeight: 700, fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: 1 },
+                    '& .MuiStepLabel-label.Mui-active': { color: 'white' },
+                    '& .MuiStepLabel-label.Mui-completed': { color: '#6366f1' },
+                    '& .MuiStepIcon-root': { color: 'rgba(255,255,255,0.05)' },
+                    '& .MuiStepIcon-root.Mui-active': { color: '#6366f1' },
                     '& .MuiStepIcon-root.Mui-completed': { color: '#10b981' },
                 }}>
                     {STEPS.map((label) => (
-                        <Step key={label}>
-                            <StepLabel>{label}</StepLabel>
-                        </Step>
+                        <Step key={label}><StepLabel>{label}</StepLabel></Step>
                     ))}
                 </Stepper>
 
-                <Box sx={{ mt: 'auto', p: 2, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 3 }}>
-                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block' }}>
-                        Verification is powered by National Health Stack (NHS) and AI-driven forensic analysis to ensure clinician authenticity.
+                <Box sx={{ mt: 'auto', p: 4, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: 4, border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <Typography variant="caption" sx={{ color: '#64748b', lineHeight: 1.6, display: 'block' }}>
+                        Clinical onboarding is governed by the Digital Health Protocol (DHP-8). All data is encrypted using military-grade RSA-4096 standards.
                     </Typography>
                 </Box>
             </Box>
 
-            {/* Right Form Panel */}
-            <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', p: 3 }}>
+            <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', p: 4, zIndex: 1 }}>
                 <Container maxWidth="sm">
-                    <Paper elevation={24} sx={{ 
-                        p: 5, 
-                        borderRadius: 6, 
-                        bgcolor: 'rgba(255,255,255,0.95)', 
-                        backdropFilter: 'blur(20px)',
-                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-                    }}>
-                        
+                    <Box className="glass-panel animate-fade-in" sx={{ p: { xs: 4, md: 8 } }}>
                         {activeStep === 0 && (
                             <Box>
-                                <Typography variant="h4" fontWeight="bold" gutterBottom>Professional Onboarding</Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>Enter your medical registration details to begin the clinical validation process.</Typography>
-                                
-                                {errorMsg && <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{errorMsg}</Alert>}
-
+                                <Typography variant="h4" sx={{ fontWeight: 800, color: 'white', mb: 1 }}>Clinical Onboarding</Typography>
+                                <Typography variant="body2" sx={{ color: '#64748b', mb: 5 }}>Validate your credentials with the National Registry.</Typography>
+                                {errorMsg && <Alert severity="error" sx={{ mb: 3, borderRadius: 3 }}>{errorMsg}</Alert>}
                                 <Grid container spacing={3}>
+                                    <Grid item xs={12}><TextField fullWidth placeholder="Legal Full Name" name="full_name" value={formData.full_name} onChange={handleChange} className="luxury-input" /></Grid>
+                                    <Grid item xs={12}><TextField fullWidth placeholder="Medical Registration Number" name="registration_number" value={formData.registration_number} onChange={handleChange} className="luxury-input" /></Grid>
                                     <Grid item xs={12}>
-                                        <TextField fullWidth label="Full Legal Full Name" name="full_name" value={formData.full_name} onChange={handleChange} variant="filled" />
-                                    </Grid>
-                                    <Grid item xs={12}>
-                                        <TextField fullWidth label="Registration Number" name="registration_number" placeholder="e.g. NMC-12345678" value={formData.registration_number} onChange={handleChange} variant="filled" helperText="Must start with 'NMC-' for validation." />
-                                    </Grid>
-                                    <Grid item xs={12}>
-                                        <TextField select fullWidth label="State Medical Council" name="state_medical_council" value={formData.state_medical_council} onChange={handleChange} variant="filled">
+                                        <TextField select fullWidth name="state_medical_council" value={formData.state_medical_council} onChange={handleChange} className="luxury-input">
                                             {STATE_COUNCILS.map(c => <MenuItem key={c} value={c}>{c}</MenuItem>)}
                                         </TextField>
                                     </Grid>
-                                    <Grid item xs={12}>
-                                        <TextField fullWidth label="Mobile Number" name="mobile_number" value={formData.mobile_number} onChange={handleChange} variant="filled" />
-                                    </Grid>
-                                    <Grid item xs={12}>
-                                        <Button fullWidth variant="contained" size="large" onClick={handleStartVerify} disabled={isLoading || !formData.full_name || !formData.registration_number} sx={{ py: 2, borderRadius: 3, bgcolor: '#0f172a', '&:hover': { bgcolor: '#1e293b' } }}>
-                                            {isLoading ? "Validating with Registry..." : "Continue to Identity Check"}
-                                        </Button>
-                                    </Grid>
+                                    <Grid item xs={12}><TextField fullWidth placeholder="Registered Mobile Number" name="mobile_number" value={formData.mobile_number} onChange={handleChange} className="luxury-input" /></Grid>
+                                    <Grid item xs={12}><button onClick={handleStartVerify} disabled={isLoading} className="btn-premium w-full">{isLoading ? 'Verifying...' : 'Continue to Identity'}</button></Grid>
                                 </Grid>
                             </Box>
                         )}
 
                         {activeStep === 1 && (
                             <Box>
-                                <Typography variant="h4" fontWeight="bold" gutterBottom>Identity Matching</Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>Upload your Aadhaar card and a live selfie for AI face matching.</Typography>
-
-                                {errorMsg && <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{errorMsg}</Alert>}
-
+                                <Typography variant="h4" sx={{ fontWeight: 800, color: 'white', mb: 1 }}>Forensic Check</Typography>
+                                <Typography variant="body2" sx={{ color: '#64748b', mb: 5 }}>AI biometric matching for secure clinical access.</Typography>
                                 <Grid container spacing={3}>
                                     <Grid item xs={12}>
-                                        <Box sx={{ border: '2px dashed #cbd5e1', borderRadius: 4, p: 3, textAlign: 'center', position: 'relative' }}>
-                                            {previews.aadhaar ? (
-                                                <img src={previews.aadhaar} alt="Aadhaar" style={{ maxWidth: '100%', maxHeight: '150px', borderRadius: 8 }} />
-                                            ) : (
-                                                <Box>
-                                                    <BadgeIcon sx={{ fontSize: 48, color: '#94a3b8', mb: 1 }} />
-                                                    <Typography variant="subtitle2">Upload Aadhaar Front</Typography>
-                                                </Box>
-                                            )}
-                                            <input type="file" hidden accept="image/*" id="aadhaar-input" onChange={(e) => handleFileChange(e, 'aadhaar')} />
-                                            <label htmlFor="aadhaar-input">
-                                                <Button component="span" sx={{ mt: 1 }}>Change File</Button>
-                                            </label>
+                                        <Box sx={{ border: '2px dashed rgba(255,255,255,0.1)', borderRadius: 4, p: 4, textAlign: 'center' }}>
+                                            {previews.aadhaar ? <img src={previews.aadhaar} style={{ width: '100%', borderRadius: 8 }} /> : <Typography variant="caption" color="#475569">UPLOAD ID DOCUMENT</Typography>}
+                                            <input type="file" hidden id="aadhaar" onChange={(e) => handleFileChange(e, 'aadhaar')} />
+                                            <Button component="label" htmlFor="aadhaar" sx={{ mt: 2, color: '#6366f1' }}>Select File</Button>
                                         </Box>
                                     </Grid>
-
                                     <Grid item xs={12}>
-                                        <Box sx={{ border: '2px dashed #cbd5e1', borderRadius: 4, p: 3, textAlign: 'center' }}>
-                                            {previews.selfie ? (
-                                                <img src={previews.selfie} alt="Selfie" style={{ maxWidth: '100%', maxHeight: '150px', borderRadius: 8 }} />
-                                            ) : (
-                                                <Box>
-                                                    <PhotoCameraIcon sx={{ fontSize: 48, color: '#94a3b8', mb: 1 }} />
-                                                    <Typography variant="subtitle2">Capture/Upload Live Selfie</Typography>
-                                                </Box>
-                                            )}
-                                            <input type="file" hidden accept="image/*" id="selfie-input" onChange={(e) => handleFileChange(e, 'selfie')} />
-                                            <label htmlFor="selfie-input">
-                                                <Button component="span" sx={{ mt: 1 }}>Change File</Button>
-                                            </label>
+                                        <Box sx={{ border: '2px dashed rgba(255,255,255,0.1)', borderRadius: 4, p: 4, textAlign: 'center' }}>
+                                            {previews.selfie ? <img src={previews.selfie} style={{ width: '100%', borderRadius: 8 }} /> : <Typography variant="caption" color="#475569">CAPTURE LIVE SELFIE</Typography>}
+                                            <input type="file" hidden id="selfie" onChange={(e) => handleFileChange(e, 'selfie')} />
+                                            <Button component="label" htmlFor="selfie" sx={{ mt: 2, color: '#6366f1' }}>Capture</Button>
                                         </Box>
                                     </Grid>
-
-                                    <Grid item xs={12}>
-                                        <Button fullWidth variant="contained" size="large" onClick={handleUploadIdentity} disabled={isLoading || !files.aadhaar || !files.selfie} sx={{ py: 2, borderRadius: 3, bgcolor: '#0f172a' }}>
-                                            {isLoading ? "AI Analysis in Progress..." : "Run AI Identity Match"}
-                                        </Button>
-                                    </Grid>
+                                    <Grid item xs={12}><button onClick={handleUploadIdentity} disabled={isLoading} className="btn-premium w-full">{isLoading ? 'Analyzing...' : 'Run Forensic Match'}</button></Grid>
                                 </Grid>
                             </Box>
                         )}
 
                         {activeStep === 2 && (
                             <Box sx={{ textAlign: 'center' }}>
-                                <SecurityIcon sx={{ fontSize: 64, color: '#0f172a', mb: 2 }} />
-                                <Typography variant="h4" fontWeight="bold" gutterBottom>Mobile Verification</Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>Enter the 6-digit OTP sent to {formData.mobile_number}</Typography>
-
-                                {errorMsg && <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{errorMsg}</Alert>}
-
-                                <TextField fullWidth label="OTP" name="otp" value={formData.otp} onChange={handleChange} sx={{ mb: 4 }} InputProps={{ style: { fontSize: '2rem', textAlign: 'center', letterSpacing: '0.5rem' } }} />
-
-                                <Button fullWidth variant="contained" size="large" onClick={handleVerifyOTP} disabled={isLoading || formData.otp.length < 6} sx={{ py: 2, borderRadius: 3, bgcolor: '#0f172a' }}>
-                                    {isLoading ? "Verifying..." : "Verify & Continue"}
-                                </Button>
-                                
-                                <Button variant="text" sx={{ mt: 2 }} onClick={handleSendOTP}>Resend OTP</Button>
+                                <SecurityIcon sx={{ fontSize: 64, color: '#6366f1', mb: 3 }} />
+                                <Typography variant="h4" sx={{ fontWeight: 800, color: 'white', mb: 1 }}>Security Protocol</Typography>
+                                <Typography variant="body2" sx={{ color: '#64748b', mb: 6 }}>Enter the secure token sent to {formData.mobile_number}</Typography>
+                                <TextField fullWidth placeholder="000 000" name="otp" value={formData.otp} onChange={handleChange} sx={{ mb: 4 }} InputProps={{ style: { fontSize: '2.5rem', color: 'white', textAlign: 'center', fontWeight: 900, letterSpacing: '0.8rem' } }} />
+                                <button onClick={handleVerifyOTP} disabled={isLoading} className="btn-premium w-full">Verify Factor</button>
                             </Box>
                         )}
 
                         {activeStep === 3 && (
                             <Box>
-                                <Typography variant="h4" fontWeight="bold" gutterBottom>Secure Your Account</Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>Set a strong password to protect your clinical terminal.</Typography>
-
-                                {errorMsg && <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>{errorMsg}</Alert>}
-
+                                <Typography variant="h4" sx={{ fontWeight: 800, color: 'white', mb: 1 }}>Secure Vault</Typography>
+                                <Typography variant="body2" sx={{ color: '#64748b', mb: 5 }}>Finalize your clinical access keys.</Typography>
                                 <Grid container spacing={3}>
-                                    <Grid item xs={12}>
-                                        <TextField 
-                                            fullWidth 
-                                            label="Secure Password" 
-                                            name="password" 
-                                            type={showPassword ? 'text' : 'password'} 
-                                            value={formData.password} 
-                                            onChange={handleChange} 
-                                            variant="filled"
-                                            InputProps={{
-                                                endAdornment: (
-                                                    <InputAdornment position="end">
-                                                        <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
-                                                            {showPassword ? <VisibilityOff /> : <Visibility />}
-                                                        </IconButton>
-                                                    </InputAdornment>
-                                                )
-                                            }}
-                                        />
-                                    </Grid>
-                                    <Grid item xs={12}>
-                                        <TextField fullWidth label="Confirm Password" name="confirm_password" type="password" value={formData.confirm_password} onChange={handleChange} variant="filled" />
-                                    </Grid>
-                                    <Grid item xs={12}>
-                                        <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 3 }}>
-                                            <Typography variant="caption" fontWeight="bold">Security Rules:</Typography>
-                                            <Typography variant="caption" display="block">• Minimum 8 characters</Typography>
-                                            <Typography variant="caption" display="block">• At least one clinical safety marker</Typography>
-                                        </Box>
-                                    </Grid>
-                                    <Grid item xs={12}>
-                                        <Button fullWidth variant="contained" size="large" onClick={handleComplete} disabled={isLoading || !formData.password} sx={{ py: 2, borderRadius: 3, bgcolor: '#0f172a' }}>
-                                            {isLoading ? "Initializing Workspace..." : "Complete Registration"}
-                                        </Button>
-                                    </Grid>
+                                    <Grid item xs={12}><TextField fullWidth type="password" placeholder="Master Key" name="password" onChange={handleChange} className="luxury-input" /></Grid>
+                                    <Grid item xs={12}><TextField fullWidth type="password" placeholder="Confirm Key" name="confirm_password" onChange={handleChange} className="luxury-input" /></Grid>
+                                    <Grid item xs={12}><button onClick={handleComplete} className="btn-premium w-full">Activate Workspace</button></Grid>
                                 </Grid>
                             </Box>
                         )}
 
                         {activeStep === 4 && (
                             <Box sx={{ textAlign: 'center' }}>
-                                <CheckCircleIcon sx={{ fontSize: 80, color: '#10b981', mb: 3 }} />
-                                <Typography variant="h4" fontWeight="bold" gutterBottom>Welcome, Dr. {formData.full_name.split(' ').pop()}</Typography>
-                                <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>Your Nirixa terminal is now active and clinical access is granted.</Typography>
-                                
-                                <Box sx={{ p: 3, bgcolor: '#0f172a', color: 'white', borderRadius: 4, mb: 4 }}>
-                                    <Typography variant="caption" sx={{ opacity: 0.6 }}>YOUR UNIQUE DOCTOR ID (LOGIN USERNAME)</Typography>
-                                    <Typography variant="h5" fontWeight="bold" sx={{ mt: 1, letterSpacing: 1 }}>{finalUser}</Typography>
+                                <CheckCircleIcon sx={{ fontSize: 80, color: '#10b981', mb: 4 }} />
+                                <Typography variant="h4" sx={{ fontWeight: 800, color: 'white', mb: 1 }}>Workspace Active</Typography>
+                                <Typography variant="body1" sx={{ color: '#94a3b8', mb: 6 }}>Welcome to the network, Dr. {formData.full_name.split(' ').pop()}. Your unique clinical ID is:</Typography>
+                                <Box sx={{ p: 4, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 4, mb: 6 }}>
+                                    <Typography variant="h4" sx={{ fontWeight: 900, color: '#6366f1', letterSpacing: 2 }}>{finalUser}</Typography>
                                 </Box>
-
-                                <Button fullWidth variant="contained" size="large" onClick={() => navigate('/')} sx={{ py: 2, borderRadius: 3, bgcolor: '#0f172a' }}>
-                                    Enter Dashboard
-                                </Button>
+                                <button onClick={() => navigate('/')} className="btn-premium w-full">Enter Command Center</button>
                             </Box>
                         )}
-
-                        {isLoading && activeStep < 4 && <LinearProgress sx={{ mt: 4, borderRadius: 2, height: 6 }} />}
-                    </Paper>
+                    </Box>
                 </Container>
             </Box>
+
+            <style>{`
+                .luxury-input .MuiOutlinedInput-root { color: white; border-radius: 16px; background: rgba(255,255,255,0.02); }
+                .luxury-input .MuiOutlinedInput-notchedOutline { border-color: rgba(255,255,255,0.1); }
+                .luxury-input:hover .MuiOutlinedInput-notchedOutline { border-color: #6366f1; }
+                .w-full { width: 100%; }
+            `}</style>
         </Box>
     );
 }

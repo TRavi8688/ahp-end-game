@@ -11,6 +11,21 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../api';
 
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, 
+  Tooltip, ResponsiveContainer, BarChart, Bar 
+} from 'recharts';
+
+const chartData = [
+  { name: 'Mon', stock: 4000, demand: 2400 },
+  { name: 'Tue', stock: 3000, demand: 1398 },
+  { name: 'Wed', stock: 2000, demand: 9800 },
+  { name: 'Thu', stock: 2780, demand: 3908 },
+  { name: 'Fri', stock: 1890, demand: 4800 },
+  { name: 'Sat', stock: 2390, demand: 3800 },
+  { name: 'Sun', stock: 3490, demand: 4300 },
+];
+
 const PharmacyDashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -38,7 +53,6 @@ const PharmacyDashboard = () => {
         setInventory(invRes.data);
       } catch (error) {
         console.error("DATA_FETCH_FAILURE:", error);
-        // Fallback to mocks if API fails for demo
         setInventory([
           { id: 1, name: "Paracetamol 500mg", batch: "B921", stock: 1240, status: "Healthy", expiry: "2025-12", price: "₹120" },
           { id: 2, name: "Amoxicillin 250mg", batch: "A402", stock: 42, status: "Low Stock", expiry: "2024-08", price: "₹450" },
@@ -47,7 +61,6 @@ const PharmacyDashboard = () => {
         setLoading(false);
       }
     };
-
     fetchData();
   }, []);
 
@@ -106,7 +119,6 @@ const PharmacyDashboard = () => {
 
       {/* Main Command Center */}
       <main className="flex-1 ml-80 p-12 bg-transparent relative">
-        {/* Background Gradients */}
         <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-indigo-600/5 blur-[120px] -z-10 rounded-full" />
         <div className="fixed bottom-0 left-80 w-[400px] h-[400px] bg-emerald-600/5 blur-[120px] -z-10 rounded-full" />
 
@@ -132,10 +144,45 @@ const PharmacyDashboard = () => {
           </div>
         </header>
 
-        {/* Intelligence Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          <StatCard title="Total SKU" value={stats.totalItems} icon={Package} colorClass="bg-indigo-500" trend={+4} delay={0} />
-          <StatCard title="Critical Stock" value={stats.lowStock} icon={AlertTriangle} colorClass="bg-amber-500" trend={-2} delay={100} />
+        {/* Chart Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
+            <div className="lg:col-span-2 glass-card p-8 h-[400px]">
+                <div className="flex justify-between items-center mb-8">
+                    <h3 className="text-lg font-black text-white tracking-tight">Stock Velocity Trend</h3>
+                    <div className="flex gap-4">
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-indigo-500 rounded-full" />
+                            <span className="text-[10px] font-black text-slate-500 uppercase">Stock</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-emerald-500 rounded-full" />
+                            <span className="text-[10px] font-black text-slate-500 uppercase">Demand</span>
+                        </div>
+                    </div>
+                </div>
+                <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={chartData}>
+                        <defs>
+                            <linearGradient id="colorStock" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                            </linearGradient>
+                        </defs>
+                        <XAxis dataKey="name" stroke="#475569" fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px' }} />
+                        <Area type="monotone" dataKey="stock" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorStock)" />
+                        <Area type="monotone" dataKey="demand" stroke="#10b981" strokeWidth={3} fillOpacity={0} />
+                    </AreaChart>
+                </ResponsiveContainer>
+            </div>
+            
+            <div className="grid grid-cols-1 gap-6">
+                <StatCard title="Total SKU" value={stats.totalItems} icon={Package} colorClass="bg-indigo-500" trend={+4} delay={0} />
+                <StatCard title="Critical Stock" value={stats.lowStock} icon={AlertTriangle} colorClass="bg-amber-500" trend={-2} delay={100} />
+            </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
           <StatCard title="Near Expiry" value={stats.nearExpiry} icon={Clock} colorClass="bg-rose-500" delay={200} />
           <StatCard title="Daily Intake" value={stats.todaySales} icon={TrendingUp} colorClass="bg-emerald-500" trend={+12} delay={300} />
         </div>

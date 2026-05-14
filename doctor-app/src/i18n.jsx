@@ -5,7 +5,7 @@ const resources = {
     en: {
         translation: {
             "doc_login": "Doctor Login",
-            "secure_access": "Secure access to the Nirixa Clinic Terminal.",
+            "secure_access": "Secure access to the Hospyn Clinic Terminal.",
             "identifier_placeholder": "Mobile Number or Email Address",
             "pwd_placeholder": "Password or OTP",
             "hosp_code": "Hospital / Clinic Code",
@@ -20,7 +20,7 @@ const resources = {
     hi: {
         translation: {
             "doc_login": "डॉक्टर लॉगिन",
-            "secure_access": "Nirixa क्लिनिक टर्मिनल तक सुरक्षित पहुंच।",
+            "secure_access": "Hospyn क्लिनिक टर्मिनल तक सुरक्षित पहुंच।",
             "identifier_placeholder": "मोबाइल नंबर या ईमेल पता",
             "pwd_placeholder": "पासवर्ड या OTP",
             "hosp_code": "अस्पताल / क्लिनिक कोड",
@@ -35,7 +35,7 @@ const resources = {
     te: {
         translation: {
             "doc_login": "డాక్టర్ లాగిన్",
-            "secure_access": "Nirixa క్లినిక్ టెర్మినల్‌కు సురక్షిత ప్రాప్యత.",
+            "secure_access": "Hospyn క్లినిక్ టెర్మినల్‌కు సురక్షిత ప్రాప్యత.",
             "identifier_placeholder": "మొబైల్ నంబర్ లేదా ఇమెయిల్ చిరునామా",
             "pwd_placeholder": "పాస్వర్డ్ లేదా OTP",
             "hosp_code": "ఆసుపత్రి / క్లినిక్ కోడ్",
