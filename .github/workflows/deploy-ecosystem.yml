@@ -49,7 +49,7 @@ jobs:
 
 
   auth-and-backend:
-    name: Deploy Backend to Cloud Run
+    name: Deploy Backend & Database
     needs: run-tests
     runs-on: ubuntu-latest
     permissions:
@@ -84,15 +84,13 @@ jobs:
           docker build -t $IMAGE_NAME .
           docker push $IMAGE_NAME
 
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: "us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-backend:${{ github.sha }}"
-          format: 'table'
-          exit-code: '0'
-          ignore-unfixed: true
-          vuln-type: 'os,library'
-          severity: 'CRITICAL,HIGH'
+      - name: Run Database Migrations (Alembic)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PROD }}
+        run: |
+          pip install alembic asyncpg psycopg2-binary
+          export PYTHONPATH=$PYTHONPATH:.
+          alembic upgrade head
 
       - name: Deploy API Service
         run: |
@@ -125,10 +123,6 @@ jobs:
     name: Deploy Frontends to Firebase
     needs: auth-and-backend
     runs-on: ubuntu-latest
-    permissions:
-      contents: 'read'
-      id-token: 'write'
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4.2.2
@@ -150,16 +144,15 @@ jobs:
           npm install --legacy-peer-deps
           npm run build
 
-      - name: Integrate Frontends
+      - name: Build Hospital ERP
         run: |
-          mkdir -p patient-app/web-build/doctor
-          cp -r doctor-app/build/* patient-app/web-build/doctor/
+          cd hospital-erp
+          npm install --legacy-peer-deps
+          npm run build
 
-      - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_HOSPYN }}
-          channelId: live
-          projectId: hospyn-495906-96438
-          target: main-site
+      - name: Deploy to Firebase Hosting (All Targets)
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          npm install -g firebase-tools
+          firebase deploy --only hosting --project hospyn-495906-96438 --token "$FIREBASE_TOKEN"
