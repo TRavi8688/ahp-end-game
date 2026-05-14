@@ -82,24 +82,19 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        # Acquire Distributed Migration Lock (PostgreSQL only)
-        is_postgres = connection.dialect.name == "postgresql"
-        if is_postgres:
-            connection.execute(text("SELECT pg_advisory_lock(86888688)"))
-        
+        logger.info("MIGRATION_SEQUENCE_STARTED")
+        context.configure(
+            connection=connection, 
+            target_metadata=target_metadata,
+            render_as_batch=True,
+        )
         try:
-            logger.info("MIGRATION_SEQUENCE_STARTED")
-            context.configure(
-                connection=connection, 
-                target_metadata=target_metadata,
-                render_as_batch=True,
-            )
             with context.begin_transaction():
                 context.run_migrations()
             logger.info("MIGRATION_SEQUENCE_COMPLETED")
-        finally:
-            if is_postgres:
-                connection.execute(text("SELECT pg_advisory_unlock(86888688)"))
+        except Exception as e:
+            logger.error(f"MIGRATION_FAILURE: {e}")
+            raise
 
 
 if context.is_offline_mode():
