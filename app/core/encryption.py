@@ -5,8 +5,7 @@ import hashlib
 from typing import Optional, Any
 from sqlalchemy.types import TypeDecorator, String, Text
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from app.core.config import settings
-from app.core.logging import logger
+# Runtime dependencies moved inside methods to allow standalone migration imports
 
 class DecryptionError(Exception):
     """Raised when data decryption fails."""
@@ -49,6 +48,8 @@ class KMSManager:
         # In a real enterprise system, we would fetch the wrapped KEK from 
         # a 'TenantKeys' table and unwrap it via Cloud KMS.
         # Here we derive it securely from the platform master for simulation.
+        # Secure late-binding import to prevent migration circularities
+        from app.core.config import settings
         base_key = settings.ENCRYPTION_KEY or "REPLACE_WITH_HSM_MANAGED_KEY_IN_PROD"
         if tenant_id:
             # Cryptographic Isolation: Derive a unique key for this tenant
@@ -93,6 +94,7 @@ class KMSManager:
             aesgcm = AESGCM(kek)
             return aesgcm.decrypt(nonce, ciphertext, aad).decode('utf-8')
         except Exception as e:
+            from app.core.logging import logger
             logger.critical("KMS_DECRYPTION_FAILURE", error=str(e), tenant_id=tenant_id)
             raise DecryptionError("Data integrity check failed or tenant mismatch.")
 

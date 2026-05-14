@@ -81,12 +81,21 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
 
+    def render_item(type_, val, autogen_context):
+        """Safeguard: Ensures custom Hospyn types are rendered with deep imports, not absolute app.* paths."""
+        if type_ == "type" and hasattr(val, "__module__") and "app.core.encryption" in val.__module__:
+            # Ensure the import is added to the generated script
+            autogen_context.imports.add("from app.core.encryption import StringEncryptedType, TextEncryptedType")
+            return val.__class__.__name__
+        return False
+
     with connectable.connect() as connection:
         logger.info("MIGRATION_SEQUENCE_STARTED")
         context.configure(
             connection=connection, 
             target_metadata=target_metadata,
             render_as_batch=True,
+            render_item=render_item
         )
         try:
             with context.begin_transaction():
