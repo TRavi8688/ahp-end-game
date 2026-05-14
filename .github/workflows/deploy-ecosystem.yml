@@ -99,6 +99,11 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL_PROD }}
           ENVIRONMENT: production
+          GCP_PROJECT_ID: hospyn-495906
+          SECRET_KEY: "ci-dummy-secret-key-for-migrations-only"
+          JWT_PRIVATE_KEY: "LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUNkd0lCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQW13d2dnSmtBZ0VBQW9JQkFRQzZySjF4V1J3ZwpLS0tLS1FTkQgUFJJVkFURSBLRVktLS0tLQo="
+          JWT_PUBLIC_KEY: "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUM2ckoxa1dXUncKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg=="
+          ENCRYPTION_KEY: "Y2ktdGVzdC1lbmNyeXB0aW9uLWtleS1tdXN0LWJlLTMyLWJ5dGVz"
         run: |
           export PYTHONPATH=$PYTHONPATH:.
           alembic upgrade head
