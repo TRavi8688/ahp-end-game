@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SecurityUtils } from '../utils/security';
 import ApiService from '../utils/ApiService';
 import { Theme, GlobalStyles } from '../theme';
+// import QRCode from 'react-native-qrcode-svg';
 
 export default function HealthIdScreen() {
     const [profile, setProfile] = useState(null);
@@ -56,11 +57,8 @@ export default function HealthIdScreen() {
 
                 <View style={styles.qrContainer}>
                     <View style={styles.qrBackground}>
-                         {/* Using a placeholder for now, ideally react-native-qrcode-svg */}
-                         <Image 
-                            source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${qrValue}&color=4c1d95&bgcolor=fff` }}
-                            style={styles.qrImage}
-                         />
+                         {/* Temporarily disabled QRCode for web stability */}
+                         <Ionicons name="qr-code-outline" size={150} color="#4c1d95" />
                     </View>
                     <View style={styles.scanHint}>
                         <Ionicons name="scan" size={16} color="rgba(255,255,255,0.6)" />

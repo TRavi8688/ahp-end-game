@@ -1,5 +1,5 @@
-from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey, JSON, Text, func, Enum as SQLEnum
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey, JSON, Text, func, Enum as SQLEnum, UUID
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -101,6 +101,12 @@ class AISafetyMode(str, enum.Enum):
     emergency = "emergency"
     human_only = "human_only"
 
+class VisitStatusEnum(str, enum.Enum):
+    scheduled = "scheduled"
+    active = "active"
+    completed = "completed"
+    cancelled = "cancelled"
+
 class Base(DeclarativeBase):
     pass
 
@@ -123,7 +129,7 @@ class User(Base):
     token_version: Mapped[int] = mapped_column(default=1, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     
-    patient_profile: Mapped["Patient"] = relationship(back_populates="user", uselist=False)
+    patient: Mapped["Patient"] = relationship(back_populates="user", uselist=False)
     doctor_profile: Mapped["Doctor"] = relationship(back_populates="user", uselist=False)
     staff_profile: Mapped["StaffProfile"] = relationship(back_populates="user", uselist=False)
 
@@ -144,13 +150,14 @@ class Patient(Base, TenantScopedMixin, TimestampMixin):
     language_code: Mapped[str] = mapped_column(String(10), default="en")
     password_hash: Mapped[Optional[str]] = mapped_column(String(255)) # Secondary Hospyn login
     
-    user: Mapped["User"] = relationship(back_populates="patient_profile")
+    user: Mapped["User"] = relationship(back_populates="patient")
     records: Mapped[List["MedicalRecord"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
     conditions: Mapped[List["Condition"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
     medications: Mapped[List["Medication"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
     allergies: Mapped[List["Allergy"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
     family_members: Mapped[List["FamilyMember"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
     dashboard: Mapped["PatientDashboard"] = relationship(back_populates="patient", uselist=False)
+    patient_visits: Mapped[List["PatientVisit"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
 
     __mapper_args__ = {"version_id_col": version_id}
 
@@ -194,8 +201,28 @@ class Hospital(Base):
     queue_entries: Mapped[List["QueueEntry"]] = relationship(back_populates="hospital")
     beds: Mapped[List["Bed"]] = relationship(back_populates="hospital")
     inventory: Mapped[List["PharmacyStock"]] = relationship(back_populates="hospital")
+    patient_visits: Mapped[List["PatientVisit"]] = relationship(back_populates="hospital")
 
     __mapper_args__ = {"version_id_col": version_id}
+
+class PatientVisit(Base, TenantScopedMixin, TimestampMixin):
+    __tablename__ = "patient_visits"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    
+    visit_reason: Mapped[str] = mapped_column(TextEncryptedType)
+    symptoms: Mapped[Optional[str]] = mapped_column(TextEncryptedType)
+    department: Mapped[Optional[str]] = mapped_column(String(100))
+    doctor_name: Mapped[Optional[str]] = mapped_column(String(255))
+    status: Mapped[VisitStatusEnum] = mapped_column(SQLEnum(VisitStatusEnum), default=VisitStatusEnum.active)
+    
+    queue_token: Mapped[Optional[str]] = mapped_column(String(50))
+    check_in_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    
+    patient: Mapped["Patient"] = relationship(back_populates="patient_visits")
+    hospital: Mapped["Hospital"] = relationship(back_populates="patient_visits")
 
 class Department(Base):
     __tablename__ = "departments"
@@ -242,6 +269,11 @@ class MedicalRecord(Base, TenantScopedMixin):
     ai_summary: Mapped[Optional[str]] = mapped_column(TextEncryptedType)
     patient_summary: Mapped[Optional[str]] = mapped_column(TextEncryptedType)
     doctor_summary: Mapped[Optional[str]] = mapped_column(TextEncryptedType)
+    
+    # Metadata for display
+    record_name: Mapped[Optional[str]] = mapped_column(String(255))
+    hospital_name: Mapped[Optional[str]] = mapped_column(String(255))
+    
     hidden_by_patient: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     ai_processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
@@ -254,6 +286,7 @@ class Condition(Base, TenantScopedMixin, TimestampMixin):
     
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
     patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"))
+    family_member_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("family_members.id"), nullable=True)
     name: Mapped[str] = mapped_column(StringEncryptedType(255))
     added_by: Mapped[AddedByEnum] = mapped_column(SQLEnum(AddedByEnum), default=AddedByEnum.patient)
     confirmed_by_patient: Mapped[bool] = mapped_column(default=False)
@@ -267,6 +300,7 @@ class Medication(Base, TenantScopedMixin, TimestampMixin):
     
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
     patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"))
+    family_member_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("family_members.id"), nullable=True)
     generic_name: Mapped[str] = mapped_column(StringEncryptedType(255))
     dosage: Mapped[str] = mapped_column(String(100))
     frequency: Mapped[Optional[str]] = mapped_column(String(100))
@@ -277,12 +311,24 @@ class Medication(Base, TenantScopedMixin, TimestampMixin):
     source_record_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("medical_records.id"))
     
     patient: Mapped["Patient"] = relationship(back_populates="medications")
+    intake_logs: Mapped[List["MedicationIntakeLog"]] = relationship(back_populates="medication", cascade="all, delete-orphan")
+
+class MedicationIntakeLog(Base, TimestampMixin):
+    __tablename__ = "medication_intake_logs"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    medication_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("medications.id"))
+    taken_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    notes: Mapped[Optional[str]] = mapped_column(Text)
+    
+    medication: Mapped["Medication"] = relationship(back_populates="intake_logs")
 
 class Allergy(Base, TenantScopedMixin, TimestampMixin):
     __tablename__ = "allergies"
     
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
     patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"))
+    family_member_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("family_members.id"), nullable=True)
     allergen: Mapped[str] = mapped_column(String(255))
     severity: Mapped[str] = mapped_column(String(50), default="Moderate")
     added_by: Mapped[AddedByEnum] = mapped_column(SQLEnum(AddedByEnum), default=AddedByEnum.patient)

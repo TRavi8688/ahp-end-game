@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TextInput,
-    TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Modal
+    TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Audio } from 'expo-av';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -21,19 +22,42 @@ const LANGUAGES = [
 ];
 
 export default function ChittiAiScreen() {
-    const [messages, setMessages] = useState([
-        { id: '1', sender: 'ai', text: 'Hi! I am Chitti. How can I help you with your health today?' }
-    ]);
+    const [messages, setMessages] = useState([]);
     const [inputText, setInputText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const [recording, setRecording] = useState(null);
     const [selectedLang, setSelectedLang] = useState('en-IN');
     const [showLangModal, setShowLangModal] = useState(false);
+    const [userName, setUserName] = useState('');
 
     const flatListRef = useRef();
 
     useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                const token = await SecurityUtils.getToken();
+                const resp = await axios.get(`${API_BASE_URL}/patient/profile`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const name = resp.data.full_name?.split(' ')[0] || 'there';
+                setUserName(name);
+                
+                // Elite Proactive Greeting
+                setMessages([
+                    { 
+                        id: '1', 
+                        sender: 'ai', 
+                        text: `Namaste ${name}! 🌿 I am Chitti, your Hospyn clinical companion. I've just synced with your health dashboard. You're looking stable! Is there anything specific you'd like to discuss or a report you'd like me to analyze?` 
+                    }
+                ]);
+            } catch (e) {
+                setMessages([
+                    { id: '1', sender: 'ai', text: 'Hi! I am Chitti. How can I help you with your health today?' }
+                ]);
+            }
+        };
+
         const fetchHistory = async () => {
             try {
                 const token = await SecurityUtils.getToken();
@@ -47,9 +71,12 @@ export default function ChittiAiScreen() {
                         text: m.message_text
                     }));
                     setMessages(formatted);
+                } else {
+                    fetchUserData();
                 }
             } catch (e) {
                 console.log("History fetch failed", e);
+                fetchUserData();
             }
         };
         fetchHistory();
@@ -153,10 +180,18 @@ export default function ChittiAiScreen() {
     };
 
     const renderItem = ({ item }) => (
-        <View style={[styles.messageBubble, item.sender === 'user' ? styles.userBubble : styles.aiBubble]}>
-            <Text style={[styles.messageText, item.sender === 'user' ? styles.userText : styles.aiText]}>
-                {item.text}
-            </Text>
+        <View style={[styles.messageRow, item.sender === 'user' ? styles.userRow : styles.aiRow]}>
+            {item.sender === 'ai' && (
+                <Image 
+                    source={require('../../assets/chitti_avatar.png')} 
+                    style={styles.chittiAvatar} 
+                />
+            )}
+            <View style={[styles.messageBubble, item.sender === 'user' ? styles.userBubble : styles.aiBubble]}>
+                <Text style={[styles.messageText, item.sender === 'user' ? styles.userText : styles.aiText]}>
+                    {item.text}
+                </Text>
+            </View>
         </View>
     );
 
@@ -168,6 +203,19 @@ export default function ChittiAiScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : null}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         >
+            <LinearGradient colors={['#4c1d95', '#7c3aed']} style={styles.header}>
+                <View style={styles.headerProfile}>
+                    <Image source={require('../../assets/chitti_avatar.png')} style={styles.headerAvatar} />
+                    <View>
+                        <Text style={styles.headerName}>Chitti AI</Text>
+                        <View style={styles.statusRow}>
+                            <View style={styles.statusDot} />
+                            <Text style={styles.statusText}>Online & Ready</Text>
+                        </View>
+                    </View>
+                </View>
+            </LinearGradient>
+
             <FlatList
                 ref={flatListRef}
                 data={messages}
@@ -180,7 +228,7 @@ export default function ChittiAiScreen() {
             {isTyping && (
                 <View style={styles.typingContainer}>
                     <ActivityIndicator size="small" color="#4c1d95" />
-                    <Text style={styles.typingText}>Chitti is thinking in {CurrentLang.name}...</Text>
+                    <Text style={styles.typingText}>Chitti is reviewing your clinical context...</Text>
                 </View>
             )}
 
@@ -257,11 +305,67 @@ const styles = StyleSheet.create({
         padding: 20,
         paddingBottom: 40,
     },
+
+    messageRow: {
+        flexDirection: 'row',
+        marginBottom: 15,
+        alignItems: 'flex-end',
+    },
+    userRow: {
+        justifyContent: 'flex-end',
+    },
+    aiRow: {
+        justifyContent: 'flex-start',
+    },
+    chittiAvatar: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        marginRight: 8,
+        backgroundColor: '#ede9fe',
+    },
+    header: {
+        paddingTop: Platform.OS === 'ios' ? 60 : 40,
+        paddingBottom: 20,
+        paddingHorizontal: 20,
+    },
+    headerProfile: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    headerAvatar: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        marginRight: 12,
+        borderWidth: 2,
+        borderColor: 'rgba(255,255,255,0.3)',
+    },
+    headerName: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    statusRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 2,
+    },
+    statusDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#10b981',
+        marginRight: 6,
+    },
+    statusText: {
+        color: 'rgba(255,255,255,0.7)',
+        fontSize: 12,
+    },
     messageBubble: {
-        maxWidth: '85%',
+        maxWidth: '80%',
         padding: 15,
         borderRadius: 20,
-        marginBottom: 15,
         elevation: 1,
     },
     userBubble: {
@@ -275,6 +379,10 @@ const styles = StyleSheet.create({
         borderBottomLeftRadius: 4,
         borderWidth: 1,
         borderColor: '#e2e8f0',
+        shadowColor: '#4c1d95',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
     },
     messageText: {
         fontSize: 16,

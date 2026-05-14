@@ -25,47 +25,53 @@ class ClinicalContextService:
         Enforces PHI-stripping and profile isolation.
         """
         try:
-            # 1. Fetch the last 50 clinical events (Longitudinal Memory)
-            stmt = select(ClinicalEvent).where(
+            from app.models.models import Condition, Medication, Allergy, MedicalRecord, ClinicalEvent
+
+            # 1. Fetch Core Profile Data
+            conditions_stmt = select(Condition).where(Condition.patient_id == patient_id)
+            meds_stmt = select(Medication).where(Medication.patient_id == patient_id)
+            allergies_stmt = select(Allergy).where(Allergy.patient_id == patient_id)
+            records_stmt = select(MedicalRecord).where(MedicalRecord.patient_id == patient_id).order_by(desc(MedicalRecord.created_at)).limit(10)
+
+            # 2. Fetch Clinical Events (Timeline)
+            events_stmt = select(ClinicalEvent).where(
                 ClinicalEvent.patient_id == patient_id,
                 ClinicalEvent.family_member_id == family_member_id
-            ).order_by(desc(ClinicalEvent.timestamp)).limit(50)
+            ).order_by(desc(ClinicalEvent.timestamp)).limit(20)
             
-            result = await db.execute(stmt)
-            events = result.scalars().all()
+            # Execute all queries
+            conditions_res = await db.execute(conditions_stmt)
+            meds_res = await db.execute(meds_stmt)
+            allergies_res = await db.execute(allergies_stmt)
+            records_res = await db.execute(records_stmt)
+            events_res = await db.execute(events_stmt)
+
+            conditions = conditions_res.scalars().all()
+            medications = meds_res.scalars().all()
+            allergies = allergies_res.scalars().all()
+            records = records_res.scalars().all()
+            events = events_res.scalars().all()
             
-            # 2. Reconstruct the Clinical Timeline
+            # 3. Reconstruct the Clinical Timeline
             timeline = []
-            active_medications = []
-            pending_labs = []
-            
             for event in events:
-                # Basic context per event
                 entry = {
                     "t": event.timestamp.isoformat(),
                     "type": event.event_type,
                     "data": self._filter_phi(event.payload, requesting_user_role, consent_overrides)
                 }
                 timeline.append(entry)
-                
-                # Logic to track active state from events (Projections)
-                if event.event_type == "PRESCRIPTION_CREATED":
-                    active_medications.extend(event.payload.get("medications", []))
-                elif event.event_type == "LAB_ORDER_CREATED":
-                    pending_labs.append(event.aggregate_id)
-                elif event.event_type == "LAB_STATUS_UPDATED" and event.payload.get("status") == "completed":
-                    if event.aggregate_id in pending_labs:
-                        pending_labs.remove(event.aggregate_id)
 
-            # 3. Assemble the Final LLM Context
+            # 4. Assemble the Final LLM Context
             context = {
                 "summary_version": "v1.enterprise",
-                "timeline": timeline[:20], # Most recent 20 for token efficiency
-                "active_state": {
-                    "medications": active_medications,
-                    "pending_lab_count": len(pending_labs),
-                    "recent_alerts": [e.payload for e in events if e.event_type in ["ABNORMAL_RESULT_DETECTED", "CRITICAL_ALERT"]][:3]
+                "patient_profile": {
+                    "conditions": [{"name": c.name, "added_by": c.added_by} for c in conditions if not c.hidden_by_patient],
+                    "medications": [{"name": m.generic_name, "dosage": m.dosage, "frequency": m.frequency} for m in medications if not m.hidden_by_patient],
+                    "allergies": [{"allergen": a.allergen, "severity": a.severity} for a in allergies if not a.hidden_by_patient],
+                    "recent_records": [{"name": r.record_name or r.type, "hospital": r.hospital_name, "summary": r.ai_summary} for r in records if not r.hidden_by_patient]
                 },
+                "timeline": timeline,
                 "safety_flags": {
                     "phi_stripped": True,
                     "role_scoped": requesting_user_role

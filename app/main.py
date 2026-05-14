@@ -45,6 +45,16 @@ async def lifespan(app: FastAPI):
             engine = get_writer_engine()
             async with engine.connect() as conn:
                 await conn.execute(text("SELECT 1"))
+                
+                # Development Auto-Migration: Ensure tables exist
+                if settings.ENVIRONMENT == "development":
+                    logger.info("HOSPYN_BOOT_MIGRATION: Syncing local schema...")
+                    from app.models.models import Base
+                    def _sync_create(connection):
+                        Base.metadata.create_all(connection)
+                    await conn.run_sync(_sync_create)
+                    logger.info("HOSPYN_BOOT_MIGRATION: Success")
+
             logger.info(f"HOSPYN_BOOT_DB_SUCCESS: Connection Established [ID: {boot_id}]")
         except Exception as db_e:
             logger.warning(f"HOSPYN_BOOT_DEGRADED: Database check failed (will retry): {db_e} [ID: {boot_id}]")
@@ -68,7 +78,8 @@ app = FastAPI(
 )
 
 # --- MIDDLEWARE ---
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
+# PROD_RULE: Only trust localhost/loopback or specific production ingress IPs
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["127.0.0.1", "::1"] if settings.ENVIRONMENT == "production" else ["*"])
 
 # CORS (Hardened for Production - Fix 6: Resilience Shield)
 allowed_origins = settings.ALLOWED_ORIGINS
@@ -113,13 +124,17 @@ async def cors_resilience_middleware(request: Request, call_next):
         _add_cors_headers(response, origin)
         return response
     except Exception as e:
-        logger.error(f"UNCAUGHT_SYSTEM_ERROR: {str(e)}", exc_info=True)
+        import traceback
+        error_trace = traceback.format_exc()
+        logger.error(f"UNCAUGHT_SYSTEM_ERROR: {str(e)}")
+        logger.error(error_trace)
         response = JSONResponse(
             status_code=500,
-            content={"detail": "Critical System Fault", "error": str(e)}
+            content={"detail": "Critical System Fault", "error": str(e), "traceback": error_trace}
         )
         _add_cors_headers(response, origin)
         return response
+
 
 def _add_cors_headers(response, origin: Optional[str]):
     if not origin:
@@ -143,7 +158,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 
 # --- ROUTERS ---
-from app.api import auth, patient, profile, doctor, admin, privacy, auth_onboarding, staff, governance
+from app.api import auth, patient, profile, doctor, admin, privacy, auth_onboarding, staff, governance, visit
 from app.api.v1.router import api_router as enterprise_v1_router
 
 app.include_router(auth.router, prefix=settings.API_V1_STR, tags=["Authentication"])
@@ -156,6 +171,7 @@ app.include_router(privacy.router, prefix=settings.API_V1_STR, tags=["Privacy"])
 app.include_router(auth_onboarding.router, prefix=settings.API_V1_STR, tags=["Onboarding"])
 app.include_router(staff.router, prefix=settings.API_V1_STR, tags=["Staff"])
 app.include_router(governance.router, prefix=settings.API_V1_STR, tags=["Governance"])
+app.include_router(visit.router, prefix=settings.API_V1_STR, tags=["Visit"])
 
 # --- HEALTH ---
 @app.get("/health", tags=["Infrastructure"])

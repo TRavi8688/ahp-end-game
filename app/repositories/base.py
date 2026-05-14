@@ -92,7 +92,7 @@ class PatientRepository(AsyncBaseRepository):
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_user_id(self, user_id: int):
+    async def get_by_user_id(self, user_id: uuid.UUID):
         stmt = select(self.model).where(self.model.user_id == user_id)
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()

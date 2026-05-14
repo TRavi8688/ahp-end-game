@@ -57,37 +57,57 @@ export default function RecordsScreen({ navigation }) {
 
     const handleUpload = async (type) => {
         try {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            
             let result;
             if (type === 'camera') {
-                const permission = await ImagePicker.requestCameraPermissionsAsync();
-                if (!permission.granted) {
-                    return Alert.alert(
-                        'Permission Denied', 
-                        'Camera access is required to scan reports. Please enable it in your device settings.'
+                // Enterprise Rule: Strict Hardware Permission Audit
+                const { status } = await ImagePicker.requestCameraPermissionsAsync();
+                if (status !== 'granted') {
+                    Alert.alert(
+                        'Hardware Lock', 
+                        'Hospyn requires Camera access for clinical scanning. Please enable it in Settings.',
+                        [{ text: 'Settings', onPress: () => Linking.openSettings() }, { text: 'Cancel' }]
                     );
+                    return;
                 }
                 
                 result = await ImagePicker.launchCameraAsync({
                     mediaTypes: ImagePicker.MediaTypeOptions.Images,
                     allowsEditing: true,
-                    quality: 0.7,
+                    quality: 0.8,
                     aspect: [4, 3],
                 });
             } else if (type === 'gallery') {
+                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (status !== 'granted') {
+                    Alert.alert(
+                        'Media Access Required', 
+                        'Permission is needed to select clinical documents from your gallery.',
+                        [{ text: 'Settings', onPress: () => Linking.openSettings() }, { text: 'Cancel' }]
+                    );
+                    return;
+                }
+                
                 result = await ImagePicker.launchImageLibraryAsync({
                     mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                    quality: 0.7,
+                    quality: 0.8,
+                    selectionLimit: 1,
                 });
             } else {
-                result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf' });
+                result = await DocumentPicker.getDocumentAsync({ 
+                    type: 'application/pdf',
+                    copyToCacheDirectory: true 
+                });
             }
 
-            if (result.canceled || !result.assets) return;
+            if (result.canceled || !result.assets || result.assets.length === 0) return;
 
             const file = result.assets[0];
             processFile(file);
         } catch (error) {
-            Alert.alert('Upload Error', 'Failed to trigger hardware camera.');
+            console.error("HARDWARE_FAILURE:", error);
+            Alert.alert('System Error', 'Failed to initialize clinical hardware interface.');
         }
     };
 
@@ -97,6 +117,8 @@ export default function RecordsScreen({ navigation }) {
             console.log('[Records] Report analysis finished!', lastMessage.payload);
             setAnalysisData({
                 status: 'success',
+                record_name: lastMessage.payload.record_name || 'Medical Report',
+                hospital_name: lastMessage.payload.hospital_name || 'Unknown Facility',
                 summary: lastMessage.payload.summary,
                 extracted_data: lastMessage.payload.dashboard?.ai_extracted || {},
                 url: lastMessage.payload.url || selectedRecord?.file_url,
@@ -161,6 +183,8 @@ export default function RecordsScreen({ navigation }) {
                     doctor_summary: analysisData.doctor_summary || "",
                     raw_text: analysisData.visual_findings || ""
                 },
+                record_name: analysisData.record_name,
+                hospital_name: analysisData.hospital_name,
                 s3_url: analysisData.url,
                 type: analysisData.type,
                 update_profile: shouldUpdateProfile
@@ -257,8 +281,9 @@ export default function RecordsScreen({ navigation }) {
                 />
             </LinearGradient>
             <View style={styles.recordContent}>
-                <Text style={styles.recordTitle}>{item.title || (item.type === 'prescription' ? 'Prescription' : 'Medical Record')}</Text>
-                <Text style={styles.recordSummary} numberOfLines={2}>{item.ai_summary || 'Tap to view details'}</Text>
+                <Text style={styles.recordTitle} numberOfLines={1}>{item.record_name || (item.type === 'prescription' ? 'Prescription' : 'Medical Record')}</Text>
+                {item.hospital_name ? <Text style={styles.recordHospital}>{item.hospital_name}</Text> : null}
+                <Text style={styles.recordSummary} numberOfLines={1}>{item.ai_summary || 'Tap to view details'}</Text>
                 <Text style={styles.recordDate}>{new Date(item.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</Text>
             </View>
             <TouchableOpacity
@@ -291,8 +316,11 @@ export default function RecordsScreen({ navigation }) {
                         </TouchableOpacity>
                         <View style={styles.detailHeaderText}>
                             <Text style={styles.detailHeaderTitle}>
-                                {selectedRecord.type === 'prescription' ? '💊 Prescription' : '📄 Medical Record'}
+                                {selectedRecord.record_name || (selectedRecord.type === 'prescription' ? '💊 Prescription' : '📄 Medical Record')}
                             </Text>
+                            {selectedRecord.hospital_name ? (
+                                <Text style={styles.detailHeaderHospital}>🏥 {selectedRecord.hospital_name}</Text>
+                            ) : null}
                             <Text style={styles.detailHeaderDate}>
                                 {new Date(selectedRecord.created_at).toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
                             </Text>
@@ -461,6 +489,17 @@ export default function RecordsScreen({ navigation }) {
                             </View>
 
                             <Text style={styles.detailLabel}>EXTRACTED INFO:</Text>
+                            <View style={styles.analysisInfoBox}>
+                                <View style={styles.analysisField}>
+                                    <Text style={styles.analysisFieldLabel}>Record Name:</Text>
+                                    <Text style={styles.analysisFieldValue}>{analysisData?.record_name || 'N/A'}</Text>
+                                </View>
+                                <View style={styles.analysisField}>
+                                    <Text style={styles.analysisFieldLabel}>Hospital:</Text>
+                                    <Text style={styles.analysisFieldValue}>{analysisData?.hospital_name || 'N/A'}</Text>
+                                </View>
+                            </View>
+
                             <View style={styles.entitiesBox}>
                                 {analysisData?.extracted_data?.conditions?.map((c, i) => (
                                     <View key={i} style={styles.entityTag}><Text style={styles.entityTagText}>🤒 {c.name || c}</Text></View>
@@ -586,7 +625,13 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: 'bold',
         color: '#374151',
-        marginBottom: 3,
+        marginBottom: 2,
+    },
+    recordHospital: {
+        fontSize: 12,
+        color: '#7c3aed',
+        fontWeight: '600',
+        marginBottom: 2,
     },
     recordSummary: {
         fontSize: 12,
@@ -647,10 +692,42 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
     },
-    detailHeaderDate: {
-        color: 'rgba(255,255,255,0.75)',
-        fontSize: 12,
+    detailHeaderHospital: {
+        color: 'rgba(255,255,255,0.9)',
+        fontSize: 13,
+        fontWeight: '600',
         marginTop: 2,
+    },
+    detailHeaderDate: {
+        color: 'rgba(255,255,255,0.7)',
+        fontSize: 11,
+        marginTop: 2,
+    },
+    analysisInfoBox: {
+        backgroundColor: '#f9fafb',
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 15,
+        borderWidth: 1,
+        borderColor: '#f3f4f6',
+    },
+    analysisField: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 6,
+    },
+    analysisFieldLabel: {
+        fontSize: 12,
+        color: '#6b7280',
+        fontWeight: '600',
+    },
+    analysisFieldValue: {
+        fontSize: 12,
+        color: '#111827',
+        fontWeight: '700',
+        flex: 1,
+        textAlign: 'right',
+        marginLeft: 20,
     },
     detailScroll: {
         flex: 1,

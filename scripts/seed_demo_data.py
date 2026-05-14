@@ -5,19 +5,34 @@ import sys
 # Add the parent directory to the path so we can import our app modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from app.core.database import SessionLocal
-from app.services.auth_service import AuthService
-from app.models.models import User, PatientProfile, StaffProfile
+from app.core.database import AsyncSessionLocal
+from app.models.models import User, Patient, StaffProfile, Hospital
 from app.core.security import get_password_hash
+from sqlalchemy import select
 
 async def seed_demo():
-    db = SessionLocal()
+    db = AsyncSessionLocal()
     try:
-        print("🌱 Seeding demo accounts...")
+        print("[SEED] Seeding demo accounts...")
         
+        # 0. Create Demo Hospital
+        hosp_result = await db.execute(select(Hospital).where(Hospital.short_code == "HOSP1"))
+        hospital = hosp_result.scalars().first()
+        if not hospital:
+            hospital = Hospital(
+                hospyn_id="HOSP-GLOBAL-001",
+                short_code="HOSP1",
+                name="Hospyn Global Hospital",
+                registration_number="REG-12345"
+            )
+            db.add(hospital)
+            await db.flush()
+            print("[SEED] Demo Hospital Created.")
+
         # 1. Create Demo Patient
         patient_email = "test@hospyn.com"
-        existing_patient = db.query(User).filter(User.email == patient_email).first()
+        result = await db.execute(select(User).where(User.email == patient_email))
+        existing_patient = result.scalars().first()
         if not existing_patient:
             user = User(
                 email=patient_email,
@@ -26,26 +41,24 @@ async def seed_demo():
                 role="patient"
             )
             db.add(user)
-            db.commit()
-            db.refresh(user)
+            await db.flush()
             
-            profile = PatientProfile(
+            profile = Patient(
                 user_id=user.id,
-                hospyn_id="Hospyn-000000-TEST",
-                first_name="Demo",
-                last_name="Patient",
+                hospyn_id="HOSPYN-000000-TEST",
                 phone_number="9876543210",
                 gender="Male"
             )
             db.add(profile)
-            db.commit()
-            print(f"✅ Demo Patient Created: Hospyn-000000-TEST / Hospyn123!")
+            await db.commit()
+            print(f"[SEED] Demo Patient Created: Hospyn-000000-TEST / Hospyn123!")
         else:
-            print("ℹ️ Demo Patient already exists.")
+            print("[SEED] Demo Patient already exists.")
 
         # 2. Create Demo Doctor
         doctor_email = "doctor@hospyn.com"
-        existing_doctor = db.query(User).filter(User.email == doctor_email).first()
+        result_d = await db.execute(select(User).where(User.email == doctor_email))
+        existing_doctor = result_d.scalars().first()
         if not existing_doctor:
             user = User(
                 email=doctor_email,
@@ -54,27 +67,22 @@ async def seed_demo():
                 role="doctor"
             )
             db.add(user)
-            db.commit()
-            db.refresh(user)
+            await db.flush()
             
             profile = StaffProfile(
                 user_id=user.id,
-                staff_id="DOC-001",
-                first_name="Dr. Sarah",
-                last_name="Hospyn",
-                role="doctor",
-                specialty="General Medicine"
+                hospital_id=hospital.id
             )
             db.add(profile)
-            db.commit()
-            print(f"✅ Demo Doctor Created: doctor@hospyn.com / Hospyn123!")
+            await db.commit()
+            print(f"[SEED] Demo Doctor Created: doctor@hospyn.com / Hospyn123!")
         else:
-            print("ℹ️ Demo Doctor already exists.")
+            print("[SEED] Demo Doctor already exists.")
 
     except Exception as e:
-        print(f"❌ Error seeding data: {e}")
+        print(f"[ERROR] Error seeding data: {e}")
     finally:
-        db.close()
+        await db.close()
 
 if __name__ == "__main__":
     asyncio.run(seed_demo())

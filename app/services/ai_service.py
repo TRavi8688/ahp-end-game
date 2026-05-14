@@ -86,6 +86,8 @@ def decrypt_data(encrypted_data_str: str) -> str:
 
 # --- Pydantic Models for AI Output Validation ---
 class MedicalEntities(BaseModel):
+    record_name: Optional[str] = None
+    hospital_name: Optional[str] = None
     conditions: List[Dict[str, Any]] = Field(default_factory=list)
     medications: List[Dict[str, Any]] = Field(default_factory=list)
     lab_results: List[Dict[str, Any]] = Field(default_factory=list)
@@ -358,7 +360,8 @@ class AsyncAIService:
         user_id: Optional[uuid.UUID] = None,
         hospital_id: Optional[uuid.UUID] = None,
         prompt_template: str = "generic",
-        db: Optional[AsyncSession] = None
+        db: Optional[AsyncSession] = None,
+        skip_safety: bool = False
     ) -> Dict[str, Any]:
         """
         ENTERPRISE AI ORCHESTRATOR:
@@ -370,13 +373,17 @@ class AsyncAIService:
         # 1. Inject Enterprise Clinical Safety Instructions
         from app.core.policy import clinical_policy
         safety_instruction = (
-            "\n\n[CLINICAL SAFETY & GOVERNANCE PROTOCOL]\n"
+            "### [CLINICAL GOVERNANCE SHIELD v7]\n"
+            "You are CHITTI, a dedicated personal AI Healthcare Friend. Follow these constraints:\n"
             f"{clinical_policy.get_system_governance_prompt()}\n"
-            "1. TONE: Strict clinical neutrality. No emotional language.\n"
-            "2. EVIDENCE: Ground claims in context. Use 'evidence_sources' IDs.\n"
-            "3. SCOPE: Observations only. Do NOT provide definitive diagnoses.\n"
+            "1. TONE: Friendly, warm, and supportive—like a caring friend who is also an elite medical expert.\n"
+            "2. BREVITY: Be extremely concise. Avoid 'walls of text'. Use bullet points for advice. Keep it conversational.\n"
+            "3. DIRECTNESS: Address the user's concerns immediately and personally.\n"
+            "4. PERSONALIZATION: Make the user feel like you are their private, dedicated assistant.\n"
+            "5. SAFETY: Provide general health education but ALWAYS advise consulting a human clinician for diagnosis.\n"
+            "-----------------------------------\n"
         )
-        full_prompt = prompt + safety_instruction
+        full_prompt = safety_instruction + prompt
 
         # 2. Define Providers (Priority Ranked)
         if image_bytes:
@@ -459,34 +466,51 @@ class AsyncAIService:
             except Exception as e:
                 logger.error(f"TRANSLATION_FAILURE: {e}")
 
+        # Ensure UUID objects for DB persistence
+        target_user_id = user_id
+        if isinstance(target_user_id, str):
+            target_user_id = uuid.UUID(target_user_id)
+        elif target_user_id is None:
+            target_user_id = uuid.UUID(int=0)
+
+        target_hosp_id = hospital_id
+        if isinstance(target_hosp_id, str):
+            target_hosp_id = uuid.UUID(target_hosp_id)
+
         # 4. Observability & Forensics
         total_latency = int((time.time() - start_engine) * 1000)
         
         # --- ENTERPRISE CLINICAL SAFETY AUDIT (SHIELD V3) ---
-        from app.services.safety_service import safety_service
-        safety_findings = await safety_service.audit_interaction(
-            prompt=full_prompt,
-            response=response_text,
-            user_id=user_id or uuid.UUID(int=0), # Fallback to system ID if anon
-            db=db
-        )
-        
-        # Enforce Safety Protocols (Disclaimers/Emergency Overrides)
-        protected_response = safety_service.inject_safety_protocol(response_text, safety_findings)
+        if not skip_safety:
+            from app.services.safety_service import safety_service
+            safety_findings = await safety_service.audit_interaction(
+                prompt=full_prompt,
+                response=response_text,
+                user_id=target_user_id,
+                db=db
+            )
+            # Enforce Safety Protocols (Disclaimers/Emergency Overrides)
+            protected_response = safety_service.inject_safety_protocol(response_text, safety_findings)
+            risk_level = safety_findings["risk_level"]
+            intervention = safety_findings.get("intervention_type")
+        else:
+            protected_response = response_text
+            risk_level = "low"
+            intervention = None
 
-        if db and user_id:
+        if db and target_user_id:
             try:
                 event = ClinicalAIEvent(
-                    hospital_id=hospital_id,
-                    user_id=user_id,
+                    hospital_id=target_hosp_id,
+                    user_id=target_user_id,
                     trace_id=trace_id,
                     prompt_template=prompt_template,
                     prompt_payload={"length": len(full_prompt)},
                     response_text=protected_response[:2000],
                     safety_metadata={
                         "confidence": 1.0,
-                        "risk_level": safety_findings["risk_level"],
-                        "intervention": safety_findings["intervention_type"]
+                        "risk_level": risk_level,
+                        "intervention": intervention
                     },
                     provider=final_result["provider"],
                     model_version=final_result["model"],
@@ -503,7 +527,7 @@ class AsyncAIService:
             "response": protected_response,
             "latency_ms": total_latency,
             "trace_id": trace_id,
-            "safety_flag": safety_findings["risk_level"]
+            "safety_flag": risk_level
         }
 
     async def _call_local_ocr(self, image_bytes: bytes) -> str:
@@ -520,9 +544,9 @@ class AsyncAIService:
 
     async def extract_medical_entities(self, text: str, retries: int = 2) -> MedicalEntities:
         prompt = (
-            "Extract medical entities (conditions, medications, lab results) from this text.\n"
+            "Extract medical entities (conditions, medications, lab results, hospital name, and a descriptive record name) from this text.\n"
             "Return EXCLUSIVELY this JSON:\n"
-            "{\"conditions\": [{\"name\": \"...\"}], \"medications\": [{\"name\": \"...\"}], \"lab_results\": [{\"test\": \"...\"}]}\n\n"
+            "{\"record_name\": \"...\", \"hospital_name\": \"...\", \"conditions\": [{\"name\": \"...\"}], \"medications\": [{\"name\": \"...\"}], \"lab_results\": [{\"test\": \"...\"}]}\n\n"
             f"Content: {text}"
         )
         for attempt in range(retries):
@@ -576,18 +600,6 @@ class AsyncAIService:
         except Exception as e:
             logger.error(f"CHITTI_PARSE_ERROR: {e}")
             return sanitize_ai_output(res) or "I have processed your findings. Please consult your physician."
-
-    async def chat_with_memory(self, user_id: str, conversation_id: str, user_message: str, family_member_id: Optional[uuid.UUID] = None, image_bytes: bytes = None, audio_bytes: bytes = None, language_code: str = "en-IN", role: str = "patient", db: Optional[AsyncSession] = None) -> str:
-        # ... (History and prompt assembly logic remains same)
-        history = await self.get_chat_history(user_id, conversation_id, db=db)
-        
-        full_prompt = f"CLINICAL_CONTEXT:\n{await self.get_medical_context(user_id, family_member_id, role, db)}\n\nHISTORY:\n{history}\n\nUSER: {user_message}"
-        
-        engine_resp = await self.unified_ai_engine(full_prompt, image_bytes=image_bytes, language_code=language_code, user_id=uuid.UUID(user_id), db=db)
-        response_text = engine_resp.get("response", "I'm having trouble connecting to my medical memory.")
-        
-        await self.save_chat_message(user_id, conversation_id, "assistant", response_text, db=db)
-        return response_text
 
     async def _get_file_bytes(self, source: str) -> bytes:
         """Helper to get file bytes from either a local path or GCP Cloud Storage."""
@@ -664,6 +676,8 @@ class AsyncAIService:
 
         return {
             "type": "Document",
+            "record_name": entities.record_name,
+            "hospital_name": entities.hospital_name,
             "raw_text": ocr_text,
             "structured_data": entities.model_dump(),
             "patient_summary": patient_summary,
@@ -689,8 +703,12 @@ class AsyncAIService:
         # 2. Database Fetch
         from sqlalchemy import select
         from app.models import models
+        
+        # Ensure user_id is a UUID object for binding
+        target_user_id = uuid.UUID(str(user_id))
+        
         stmt = select(models.Message).where(
-            models.Message.user_id == user_id, 
+            models.Message.user_id == target_user_id, 
             models.Message.conversation_id == conversation_id
         ).order_by(models.Message.created_at.asc())
         
@@ -709,9 +727,8 @@ class AsyncAIService:
             return
 
         try:
-            from app.models import models
             msg = models.Message(
-                user_id=user_id, 
+                user_id=uuid.UUID(str(user_id)), 
                 conversation_id=conversation_id, 
                 role=role, 
                 content=content
@@ -731,8 +748,9 @@ class AsyncAIService:
             from app.models.models import Patient
             from sqlalchemy import select
             
-            # Fetch Patient Profile ID first
-            res = await db.execute(select(Patient).where(Patient.user_id == user_id))
+            # Ensure user_id is a UUID object for SQLAlchemy
+            target_user_id = uuid.UUID(str(user_id))
+            res = await db.execute(select(Patient).where(Patient.user_id == target_user_id))
             patient = res.scalar_one_or_none()
             if not patient:
                 return "No clinical profile found for this user."
@@ -789,18 +807,18 @@ class AsyncAIService:
 
         # 4. Prompt Assembly
         system_prompt = (
-            "You are CHITTI, the High-End Personal Healthcare Companion for Hospyn 2.0.\n"
-            "Tone: Empathetic, elite, proactive.\n"
-            f"Language: {language_code}.\n"
+            f"You are speaking with your personal patient in {language_code}.\n"
+            "Be a friendly, supportive companion. Keep it short and sweet.\n"
         )
         
         formatted_history = "\n".join([f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content']}" for m in history])
         
         full_prompt = (
-            f"{system_prompt}\n\n"
-            f"CONTEXT:\n{clinical_context}\n\n"
-            f"HISTORY:\n{formatted_history}\n"
-            f"Assistant:"
+            f"PERSONALITY_CONTEXT: {system_prompt}\n\n"
+            f"PATIENT_CLINICAL_DATA:\n{clinical_context}\n\n"
+            f"CONVERSATION_HISTORY:\n{formatted_history}\n\n"
+            f"CURRENT_USER_MESSAGE: {user_message}\n\n"
+            f"Assistant (Respond naturally as CHITTI):"
         )
 
         # 5. Generate response
@@ -808,7 +826,7 @@ class AsyncAIService:
             full_prompt, 
             image_bytes=image_bytes, 
             language_code=language_code,
-            user_id=uuid.UUID(user_id),
+            user_id=uuid.UUID(str(user_id)),
             db=db
         )
         

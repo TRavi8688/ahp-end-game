@@ -72,6 +72,33 @@ const HospynSecurity = {
 
   saveHospynId: async (id) => {
     return await HospynSecurity.save(ID_KEY, id);
+  },
+
+  getActiveMemberId: async () => {
+    return await HospynSecurity.get('hospyn_active_member_id');
+  },
+
+  saveActiveMemberId: async (id) => {
+    if (id === null) {
+      return await HospynSecurity.remove('hospyn_active_member_id');
+    }
+    return await HospynSecurity.save('hospyn_active_member_id', id);
+  },
+
+  // --- Native Capability Shims (Prevent Web Crashes) ---
+  enableScreenshotProtection: async () => {
+    // Not possible on web, just log and skip
+    console.log('[Security] Screenshot protection skip (web)');
+    return true;
+  },
+
+  isBiometricAvailable: async () => {
+    // Biometrics handled differently on web (WebAuthn), returning false for now
+    return false;
+  },
+
+  authenticateWithBiometrics: async () => {
+    return false;
   }
 };
 

@@ -65,6 +65,7 @@ class UserLogin(BaseModel):
 
 class UserResponse(UserBase):
     id: uuid.UUID
+    hospyn_id: Optional[str] = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -106,6 +107,8 @@ class MedicalRecordBase(BaseModel):
 class MedicalRecordResponse(MedicalRecordBase):
     id: uuid.UUID
     family_member_id: Optional[uuid.UUID] = None
+    record_name: Optional[str] = None
+    hospital_name: Optional[str] = None
     ai_summary: Optional[str] = None
     patient_summary: Optional[str] = None
     doctor_summary: Optional[str] = None
@@ -205,6 +208,8 @@ class ChatMessageResponse(BaseModel):
 
 class ReportAnalysisResponse(BaseModel):
     status: str = "success"
+    record_name: Optional[str] = None
+    hospital_name: Optional[str] = None
     summary: Optional[str] = None
     extracted_data: Optional[dict] = None
     visual_findings: Optional[str] = None
@@ -213,6 +218,8 @@ class ReportAnalysisResponse(BaseModel):
 
 class ReportConfirmSave(BaseModel):
     analysis: dict
+    record_name: Optional[str] = None
+    hospital_name: Optional[str] = None
     s3_url: str
     type: str
     update_profile: bool = False
@@ -228,6 +235,8 @@ class PatientProfileResponse(BaseModel):
     gender: Optional[str] = None
     recent_records: List[MedicalRecordResponse] = []
     care_circle: List["FamilyMemberResponse"] = []
+    is_family_member: bool = False
+    relation: Optional[str] = None
 
 class JobStatusResponse(BaseModel):
     job_id: str
@@ -278,4 +287,26 @@ class FamilyMemberResponse(FamilyMemberBase):
     
     class Config:
         from_attributes = True
+
+# Visit Schemas
+class VisitCreate(BaseModel):
+    hospital_id: uuid.UUID
+    visit_reason: str
+    symptoms: Optional[str] = None
+    department: Optional[str] = None
+    doctor_name: Optional[str] = None
+
+class VisitResponse(BaseModel):
+    id: uuid.UUID
+    hospital_name: str
+    visit_reason: str
+    status: str
+    check_in_time: datetime
+    queue_token: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class HospitalQRScan(BaseModel):
+    qr_data: str # Contains hospital_id or short_code
 

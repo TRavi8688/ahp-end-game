@@ -125,7 +125,7 @@ function RecordCard({ record, onShare }) {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
-export default function AiAssistScreen() {
+export default function AiAssistScreen({ navigation }) {
     // Chat state
     const [messages, setMessages] = useState([]);
     const [inputText, setInputText] = useState('');
@@ -145,6 +145,12 @@ export default function AiAssistScreen() {
     const [recordToShare, setRecordToShare]   = useState(null);
     const [shareDuration, setShareDuration]   = useState(SHARE_DURATIONS[0]);
     const [loadingContext, setLoadingContext]  = useState(true);
+    const [recentSessions, setRecentSessions] = useState([
+        { id: '1', title: 'Fever Checkup', date: 'Today' },
+        { id: '2', title: 'Diabetes Management', date: 'Yesterday' },
+        { id: '3', title: 'Lab Report Analysis', date: '12 May' },
+        { id: '4', title: 'General Wellness', date: '10 May' },
+    ]);
 
     // Sharing state
     const [doctorName, setDoctorName]         = useState('');
@@ -171,11 +177,8 @@ export default function AiAssistScreen() {
     }, []);
 
     // Fetch health context + chat history + vault on screen focus
-    useFocusEffect(
-        useCallback(() => {
-            loadAll();
-        }, [])
-    );
+    const [isTabBarVisible, setIsTabBarVisible] = useState(true);
+    const lastScrollY = useRef(0);
 
     const loadAll = async () => {
         setLoadingContext(true);
@@ -206,12 +209,14 @@ export default function AiAssistScreen() {
                     records: m.attached_records || [],
                 }));
             } else {
-                // Fresh greeting
                 const ctxData = contextRes.status === 'fulfilled' ? contextRes.value.data : null;
+                const patientName = ctxData?.patient_name?.split(' ')[0] || 'there';
                 const conditionNames = ctxData?.conditions?.slice(0, 3).map(c => c.name || c).join(', ');
+                
                 const greeting = conditionNames
-                    ? `Namaste! 🙏 I'm Chitti, your personal health companion.\n\nI can see your profile includes: **${conditionNames}**.\n\nAsk me anything — how you're doing, what a report means, or to share a file with your doctor.`
-                    : `Namaste! 🙏 I'm Chitti, your personal health companion.\n\nUpload your first health report so I can build your health story with you.`;
+                    ? `Namaste ${patientName}! 🙏 I'm Chitti, your Hospyn clinical companion. I've synced with your dashboard and see your profile includes: **${conditionNames}**. Is there anything specific you'd like to discuss or a report you'd like me to analyze?`
+                    : `Namaste ${patientName}! 🙏 I'm Chitti, your Hospyn clinical companion. I'm ready to help! Upload your first health report or clinical visit details so I can build your health story with you.`;
+                
                 initialMessages = [{ id: 'greeting_0', sender: 'ai', text: greeting, records: [] }];
             }
             setMessages(initialMessages);
@@ -229,6 +234,60 @@ export default function AiAssistScreen() {
             setLoadingContext(false);
         }
     };
+
+    // Google-style Tab Bar Hiding
+    const handleScroll = (event) => {
+        const currentScrollY = event.nativeEvent.contentOffset.y;
+        if (currentScrollY > lastScrollY.current + 10 && isTabBarVisible && currentScrollY > 100) {
+            setIsTabBarVisible(false);
+            navigation.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
+        } else if (currentScrollY < lastScrollY.current - 10 && !isTabBarVisible) {
+            setIsTabBarVisible(true);
+            navigation.getParent()?.setOptions({ 
+                tabBarStyle: { 
+                    display: 'flex',
+                    position: 'absolute',
+                    bottom: 20,
+                    left: 15,
+                    right: 15,
+                    elevation: 5,
+                    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                    borderRadius: 30,
+                    height: 65,
+                    paddingBottom: 10,
+                    borderTopWidth: 0,
+                    borderWidth: 1,
+                    borderColor: 'rgba(255, 255, 255, 0.4)',
+                } 
+            });
+        }
+        lastScrollY.current = currentScrollY;
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            loadAll();
+            // Reset tab bar on focus with translucent style
+            navigation.getParent()?.setOptions({ 
+                tabBarStyle: { 
+                    display: 'flex', 
+                    position: 'absolute', 
+                    bottom: 20, 
+                    left: 15, 
+                    right: 15, 
+                    elevation: 5, 
+                    backgroundColor: 'rgba(255, 255, 255, 0.7)', 
+                    borderRadius: 30, 
+                    height: 65, 
+                    paddingBottom: 10, 
+                    borderTopWidth: 0, 
+                    borderWidth: 1, 
+                    borderColor: 'rgba(255, 255, 255, 0.4)' 
+                } 
+            });
+        }, [])
+    );
+
 
     // ─── Send Message ──────────────────────────────────────────────────────────
 
@@ -273,13 +332,13 @@ export default function AiAssistScreen() {
                 }
             }
 
-            const response = await axios.post(`${API_BASE_URL}/patient/chat`, formData, {
+            const requestUrl = `${API_BASE_URL}/patient/chat`;
+            const response = await axios.post(requestUrl, formData, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
             const aiData = response.data;
 
-            // Chitti may return pinned_records (relevant to the query)
             const aiMsg = {
                 id:      `a_${Date.now() + 1}`,
                 sender:  'ai',
@@ -290,10 +349,20 @@ export default function AiAssistScreen() {
 
         } catch (error) {
             console.error('[ChittiAI] send error:', error);
+            let errorText = 'I had a small hiccup connecting to my medical intelligence network. 🔄';
+            
+            if (!error.response) {
+                errorText = 'I cannot reach the server. Please ensure the backend is running and the API URL is correct. 🌐';
+            } else if (error.response.status === 401) {
+                errorText = 'Your session has expired. Please log in again to continue our conversation. 🔐';
+            } else if (error.response.status === 500) {
+                errorText = 'My central medical brain is experiencing a temporary internal error. Please try again in a moment. 🧠';
+            }
+
             const errMsg = {
                 id:      `e_${Date.now() + 1}`,
                 sender:  'ai',
-                text:    'I had a small hiccup connecting to the server. Please try again in a moment! 🔄',
+                text:    errorText,
                 records: [],
             };
             setMessages(prev => [...prev, errMsg]);
@@ -321,7 +390,27 @@ export default function AiAssistScreen() {
         }
     };
 
-    // ─── Pick Image / Document ─────────────────────────────────────────────────
+    // ─── Camera / Gallery / Document Picker ───────────────────────────────────
+    
+    const launchCamera = async () => {
+        try {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Permission Denied', 'Camera access is required for clinical scanning.');
+                return;
+            }
+            const result = await ImagePicker.launchCameraAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                quality: 0.8,
+            });
+            if (!result.canceled && result.assets?.[0]) {
+                sendMessage('📸 Captured a clinical image for analysis', result.assets[0]);
+            }
+        } catch (e) {
+            Alert.alert('Hardware Error', 'Failed to initialize clinical camera.');
+        }
+    };
 
     const pickImage = async () => {
         try {
@@ -387,7 +476,6 @@ export default function AiAssistScreen() {
             setMessages(prev => [...prev, confirmMsg]);
         } catch (e) {
             console.error('[ChittiAI] share error:', e);
-            // Even on API error, show a success-like UX in demo mode
             setShowShareModal(false);
             const confirmMsg = {
                 id:      `share_${Date.now()}`,
@@ -466,7 +554,7 @@ export default function AiAssistScreen() {
                         <Text style={styles.headerTitle}>Chitti AI</Text>
                         <View style={styles.headerStatusRow}>
                             <View style={styles.activeDot} />
-                            <Text style={styles.headerStatus}>Your Personal Health Companion</Text>
+                            <Text style={styles.headerStatus}>Care Connected Intelligently</Text>
                         </View>
                     </View>
 
@@ -509,6 +597,28 @@ export default function AiAssistScreen() {
                 )}
             </LinearGradient>
 
+            {/* HISTORY BAR */}
+            <View style={styles.historyBarContainer}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.historyScroll}>
+                    <TouchableOpacity style={styles.newChatBtn} onPress={() => {
+                        setMessages([{ id: 'greeting_new', sender: 'ai', text: "Starting a fresh session. How can I help you today?", records: [] }]);
+                    }}>
+                        <Ionicons name="add" size={18} color="#fff" />
+                        <Text style={styles.newChatText}>New Chat</Text>
+                    </TouchableOpacity>
+                    {recentSessions.map((session, idx) => (
+                        <TouchableOpacity 
+                            key={idx} 
+                            style={styles.sessionBtn}
+                            onPress={() => Alert.alert("Resume Chat", `Resuming "${session.title}" from ${session.date}...`)}
+                        >
+                            <View style={styles.sessionDot} />
+                            <Text style={styles.sessionTitle}>{session.title}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </View>
+
             {/* MESSAGES */}
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
@@ -520,14 +630,17 @@ export default function AiAssistScreen() {
                     data={messages}
                     renderItem={renderMessage}
                     keyExtractor={item => item.id}
-                    contentContainerStyle={styles.messageList}
+                    contentContainerStyle={[styles.messageList, { paddingBottom: isTabBarVisible ? 110 : 40 }]}
+                    onScroll={handleScroll}
+                    scrollEventThrottle={16}
                     onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
                     showsVerticalScrollIndicator={false}
-                    ListEmptyComponent={
-                        <View style={styles.emptyChat}>
-                            <Text style={styles.emptyChatText}>Start chatting with Chitti ↓</Text>
+                    ListEmptyComponent={loadingContext ? null : (
+                        <View style={styles.emptyContainer}>
+                            <Ionicons name="chatbubbles-outline" size={40} color="#475569" />
+                            <Text style={styles.emptyText}>No messages yet. Ask me anything about your health!</Text>
                         </View>
-                    }
+                    )}
                 />
 
                 {/* Typing Indicator */}
@@ -584,7 +697,12 @@ export default function AiAssistScreen() {
 
                     {/* Attach from Gallery */}
                     <TouchableOpacity style={styles.inputAction} onPress={pickImage} id="chitti-gallery-btn">
-                        <Ionicons name="image-outline" size={22} color="#7c3aed" />
+                        <Ionicons name="images-outline" size={22} color="#7c3aed" />
+                    </TouchableOpacity>
+
+                    {/* Camera Button */}
+                    <TouchableOpacity style={styles.inputAction} onPress={launchCamera} id="chitti-camera-btn">
+                        <Ionicons name="camera-outline" size={22} color="#7c3aed" />
                     </TouchableOpacity>
 
                     {/* Attach from Vault */}
@@ -1166,10 +1284,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 12,
         paddingVertical: 10,
-        paddingBottom: Platform.OS === 'ios' ? 28 : 12,
-        backgroundColor: '#fff',
-        borderTopWidth: 1,
-        borderTopColor: '#e2e8f0',
+        paddingBottom: Platform.OS === 'web' ? 20 : (Platform.OS === 'ios' ? 28 : 12),
+        marginBottom: 80, // CRITICAL: Clear the floating tab bar
+        backgroundColor: 'rgba(255, 255, 255, 0.6)',
+        borderRadius: 20,
+        marginHorizontal: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
         gap: 6,
     },
     langChip: {
@@ -1201,9 +1322,11 @@ const styles = StyleSheet.create({
         width: 38,
         height: 38,
         borderRadius: 19,
-        backgroundColor: '#f5f3ff',
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
         justifyContent: 'center',
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.4)',
     },
     sendBtn: {
         width: 44,
@@ -1590,5 +1713,58 @@ const styles = StyleSheet.create({
         width: 24,
         height: 24,
         borderRadius: 12,
-    }
+    },
+    emptyContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 100,
+        opacity: 0.5,
+    },
+    historyBarContainer: {
+        backgroundColor: '#050810',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.05)',
+    },
+    historyScroll: {
+        paddingHorizontal: 16,
+        gap: 10,
+    },
+    newChatBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#7c3aed',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 20,
+        gap: 4,
+    },
+    newChatText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+    sessionBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
+        gap: 8,
+    },
+    sessionDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#10b981',
+    },
+    sessionTitle: {
+        color: '#94a3b8',
+        fontSize: 12,
+        fontWeight: '600',
+    },
 });

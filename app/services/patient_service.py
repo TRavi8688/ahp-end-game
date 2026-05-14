@@ -18,6 +18,9 @@ class PatientService(BaseService[Patient]):
 
     async def setup_profile(self, data: schemas.PatientCreate, user_id: uuid.UUID) -> Patient:
         """Upsert onboarding logic for patients."""
+        # For local forensic dev, we use a central hospital ID
+        central_hospital_id = uuid.UUID("f0f0f0f0-f0f0-4040-b0b0-a0a0a0a0a0a0")
+        
         patient = await self.get_by_user_id(user_id)
         
         if not patient:
@@ -25,10 +28,13 @@ class PatientService(BaseService[Patient]):
                 user_id=user_id,
                 hospyn_id=f"Hospyn-{uuid.uuid4().hex[:8].upper()}",
                 phone_number=data.phone_number,
-                language_code=data.language_code
+                language_code=data.language_code,
+                hospital_id=central_hospital_id
             )
             self.db.add(patient)
             await self.db.flush()
+
+
         
         patient.date_of_birth = data.date_of_birth
         patient.gender = data.gender
@@ -36,13 +42,24 @@ class PatientService(BaseService[Patient]):
         
         # Sync conditions
         for c_name in data.conditions:
-            cond = Condition(patient_id=patient.id, name=c_name, added_by="patient")
+            cond = Condition(
+                patient_id=patient.id, 
+                name=c_name, 
+                added_by="patient",
+                hospital_id=central_hospital_id
+            )
             self.db.add(cond)
             
         # Sync medications
         for m_name in data.medications:
-            med = Medication(patient_id=patient.id, generic_name=m_name, added_by="patient")
+            med = Medication(
+                patient_id=patient.id, 
+                generic_name=m_name, 
+                added_by="patient",
+                hospital_id=central_hospital_id
+            )
             self.db.add(med)
+
             
         await self.db.flush()
         return patient

@@ -161,6 +161,8 @@ async def confirm_report(
     new_record = models.MedicalRecord(
         patient_id=current_patient.id,
         type=data.type,
+        record_name=data.record_name,
+        hospital_name=data.hospital_name,
         file_url=data.s3_url,
         raw_text=data.analysis.get("raw_text"),
         ai_extracted=data.analysis.get("structured_data"),
@@ -189,57 +191,77 @@ async def confirm_report(
 @router.get("/records", response_model=List[schemas.MedicalRecordResponse])
 async def get_my_records(
     current_patient: models.Patient = Depends(deps.get_current_patient),
+    active_member_id: Optional[uuid.UUID] = Depends(deps.get_active_family_member_id),
     db: AsyncSession = Depends(deps.get_db)
 ):
     result = await db.execute(
-        select(models.MedicalRecord).where(models.MedicalRecord.patient_id == current_patient.id)
+        select(models.MedicalRecord).where(
+            models.MedicalRecord.patient_id == current_patient.id,
+            models.MedicalRecord.family_member_id == active_member_id
+        )
     )
     return result.scalars().all()
 
 @router.get("/profile", response_model=schemas.PatientProfileResponse)
 async def get_patient_profile(
     current_patient: models.Patient = Depends(deps.get_current_patient),
+    active_member_id: Optional[uuid.UUID] = Depends(deps.get_active_family_member_id),
     db: AsyncSession = Depends(deps.get_db)
 ):
-    """Retrieves the full profile of the authenticated patient."""
-    # Ensure user is loaded
-    result = await db.execute(select(models.User).where(models.User.id == current_patient.user_id))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        return {
-            "id": current_patient.id,
-            "full_name": "Valued Patient",
-            "email": "patient@hospyn.local",
-            "phone_number": current_patient.phone_number or "N/A",
-            "hospyn_id": current_patient.hospyn_id,
-            "age": current_patient.age,
-            "blood_group": current_patient.blood_group,
-            "gender": current_patient.gender,
-            "recent_records": []
-        }
-    
-    # Reload patient with relationships
-    from sqlalchemy.orm import selectinload
-    stmt = select(models.Patient).where(models.Patient.id == current_patient.id).options(
-        selectinload(models.Patient.family_members),
-        selectinload(models.Patient.records)
-    )
-    result_p = await db.execute(stmt)
-    patient = result_p.scalar_one()
+    try:
+        """Retrieves the active profile (either the patient or a family member)."""
+        # Ensure user is loaded
+        result = await db.execute(select(models.User).where(models.User.id == current_patient.user_id))
+        user = result.scalar_one_or_none()
+        
+        # Reload patient with relationships
+        from sqlalchemy.orm import selectinload
+        stmt = select(models.Patient).where(models.Patient.id == current_patient.id).options(
+            selectinload(models.Patient.family_members),
+            selectinload(models.Patient.records)
+        )
+        result_p = await db.execute(stmt)
+        patient = result_p.scalar_one()
 
-    return {
-        "id": patient.id,
-        "full_name": f"{user.first_name} {user.last_name}",
-        "email": user.email,
-        "phone_number": patient.phone_number,
-        "hospyn_id": patient.hospyn_id,
-        "age": 0,
-        "blood_group": patient.blood_group,
-        "gender": patient.gender,
-        "recent_records": patient.records[:5],
-        "care_circle": patient.family_members
-    }
+        if active_member_id:
+            # Switch context to family member
+            member = next((m for m in patient.family_members if m.id == active_member_id), None)
+            if member:
+                # Filter records for this member
+                member_records = [r for r in patient.records if r.family_member_id == active_member_id]
+                return {
+                    "id": member.id,
+                    "full_name": member.full_name,
+                    "email": user.email if user else None,
+                    "phone_number": member.phone_number or patient.phone_number,
+                    "hospyn_id": f"{patient.hospyn_id}-{member.relation.upper()}",
+                    "age": 0,
+                    "blood_group": member.blood_group,
+                    "gender": member.gender,
+                    "recent_records": member_records[:5],
+                    "care_circle": patient.family_members,
+                    "is_family_member": True,
+                    "relation": member.relation
+                }
+
+        return {
+            "id": patient.id,
+            "full_name": f"{user.first_name} {user.last_name}" if (user and user.first_name) else "Patient",
+            "email": user.email if user else None,
+            "phone_number": patient.phone_number,
+            "hospyn_id": patient.hospyn_id,
+            "age": 0,
+            "blood_group": patient.blood_group,
+            "gender": patient.gender,
+            "recent_records": [r for r in patient.records if r.family_member_id == None][:5],
+            "care_circle": patient.family_members,
+            "is_family_member": False
+        }
+    except Exception as e:
+        import logging
+        logger = logging.getLogger("app.api.patient")
+        logger.exception(f"PATIENT_PROFILE_500_ERROR: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch patient profile. Internal log recorded.")
 
 @router.get("/care-circle", response_model=List[schemas.FamilyMemberResponse])
 async def get_care_circle(
@@ -276,40 +298,76 @@ async def add_family_member(
 @router.get("/clinical-summary")
 async def get_clinical_summary(
     current_patient: models.Patient = Depends(deps.get_current_patient),
+    active_member_id: Optional[uuid.UUID] = Depends(deps.get_active_family_member_id),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Returns dynamic clinical insights based on the patient's record history."""
-    from sqlalchemy import select, func
-    from app.models.models import MedicalRecord, Condition, Medication
+    from sqlalchemy import select, func, and_
+    from app.models.models import MedicalRecord, Condition, Medication, MedicationIntakeLog
+    from datetime import datetime, date
     
     # 1. Fetch recent records for trend analysis
     res = await db.execute(
-        select(MedicalRecord).where(MedicalRecord.patient_id == current_patient.id).order_by(MedicalRecord.created_at.desc()).limit(5)
+        select(MedicalRecord).where(
+            MedicalRecord.patient_id == current_patient.id,
+            MedicalRecord.family_member_id == active_member_id
+        ).order_by(MedicalRecord.created_at.desc()).limit(5)
     )
     records = res.scalars().all()
     
-    # 2. Basic Aggregation
-    conditions_res = await db.execute(select(Condition).where(Condition.patient_id == current_patient.id))
-    meds_res = await db.execute(select(Medication).where(Medication.patient_id == current_patient.id))
+    # 2. Fetch Medications & Conditions
+    conditions_res = await db.execute(
+        select(Condition).where(
+            Condition.patient_id == current_patient.id,
+            Condition.family_member_id == active_member_id
+        )
+    )
+    meds_res = await db.execute(
+        select(Medication).where(
+            Medication.patient_id == current_patient.id,
+            Medication.family_member_id == active_member_id,
+            Medication.active == True
+        )
+    )
     
-    condition_names = [c.name for c in conditions_res.scalars().all()]
-    med_names = [m.generic_name for m in meds_res.scalars().all()]
+    conditions = conditions_res.scalars().all()
+    meds = meds_res.scalars().all()
+    
+    condition_names = [c.name for c in conditions]
+    
+    # 3. Logic for "Today's Medications" vs "Ongoing Medications"
+    today = date.today()
+    # Fetch intake logs for today
+    intake_res = await db.execute(
+        select(MedicationIntakeLog.medication_id)
+        .where(func.date(MedicationIntakeLog.taken_at) == today)
+    )
+    taken_med_ids = set(intake_res.scalars().all())
+    
+    today_meds = []
+    ongoing_meds = []
+    
+    for m in meds:
+        med_obj = {
+            "id": m.id,
+            "name": m.generic_name,
+            "dosage": m.dosage or "",
+            "frequency": m.frequency or "",
+            "taken_today": m.id in taken_med_ids,
+            "last_taken": "Not taken today" if m.id not in taken_med_ids else "Taken today"
+        }
+        # In a real app, we'd check frequency (e.g., 'Daily', 'BID') to decide if it belongs to 'Today'
+        # For now, all active meds are 'Ongoing', and we show them in 'Today' if they are 'Daily' or similar.
+        if m.frequency and ("Daily" in m.frequency or "day" in m.frequency.lower() or "morning" in m.frequency.lower()):
+            today_meds.append(med_obj)
+        
+        ongoing_meds.append(med_obj)
 
-    # Build structured arrays for the frontend health context banner
-    condition_objects = [{"name": c.name, "status": "Active", "added_by": c.added_by} for c in conditions_res.scalars().all()] if False else []
-    medication_objects = [{"name": m.generic_name, "dosage": m.dosage or "", "frequency": m.frequency or ""} for m in meds_res.scalars().all()] if False else []
-    # Re-query since scalars were consumed above
-    conditions_res2 = await db.execute(select(Condition).where(Condition.patient_id == current_patient.id))
-    meds_res2 = await db.execute(select(Medication).where(Medication.patient_id == current_patient.id))
-    condition_objects = [{"name": c.name, "status": "Active", "added_by": c.added_by} for c in conditions_res2.scalars().all()]
-    medication_objects = [{"name": m.generic_name, "dosage": m.dosage or "", "frequency": m.frequency or ""} for m in meds_res2.scalars().all()]
-    
-    # 3. Generate proactive summary
+    # 4. Generate proactive summary
     if not records:
         summary = "No medical records found. Upload your first report for a Chitti-powered analysis!"
         score = 50
     else:
-        # Simplified score for now
         score = 70 + (len(records) * 2) if len(records) < 10 else 90
         summary = f"Your health snapshot is active. We are tracking {len(condition_names)} conditions across {len(records)} clinical documents."
 
@@ -317,17 +375,41 @@ async def get_clinical_summary(
         "summary": summary,
         "health_score": min(score, 100),
         "health_score_factors": condition_names[:3],
-        "conditions": condition_objects,
-        "medications": medication_objects,
-        "last_update": "Latest Data",
+        "conditions": [{"name": c.name, "status": "Active"} for c in conditions],
+        "today_medications": today_meds,
+        "ongoing_medications": ongoing_meds,
+        "last_update": "LIVE",
         "recovery_timeline": [
             {"year": "2025", "level": 60},
             {"year": "2026", "level": score}
         ],
         "condition_progress": {c: [{"value": "Stable", "date": "Today"}] for c in condition_names[:2]},
-        "medication_impact": [{"name": m, "improvement": "Tracked"} for m in med_names[:2]],
+        "medication_impact": [{"name": m["name"], "improvement": "Tracked"} for m in ongoing_meds[:2]],
         "alerts": ["No urgent alerts found."] if not condition_names else [f"Monitoring {len(condition_names)} conditions."]
     }
+
+@router.post("/log-medication")
+async def log_medication_intake(
+    medication_id: uuid.UUID,
+    current_patient: models.Patient = Depends(deps.get_current_patient),
+    db: AsyncSession = Depends(deps.get_db)
+):
+    """Records that a patient has taken a medication."""
+    # Verify medication belongs to patient
+    res = await db.execute(
+        select(models.Medication).where(models.Medication.id == medication_id, models.Medication.patient_id == current_patient.id)
+    )
+    med = res.scalar_one_or_none()
+    if not med:
+        raise HTTPException(status_code=404, detail="Medication not found")
+    
+    log = models.MedicationIntakeLog(medication_id=medication_id)
+    db.add(log)
+    await db.commit()
+    
+    await log_audit_action(db, "MEDICATION_TAKEN", user_id=current_patient.user_id, details={"medication": med.generic_name})
+    
+    return {"status": "success", "message": f"Logged {med.generic_name} intake."}
 
 @router.post("/set-password")
 async def set_patient_password(
@@ -352,7 +434,7 @@ async def set_patient_password(
 
 @router.get("/dashboard")
 async def get_dashboard(
-    hospital_id: int = 0,
+    hospital_id: Optional[uuid.UUID] = None,
     current_patient: models.Patient = Depends(deps.get_current_patient),
     db: AsyncSession = Depends(deps.get_db)
 ):
@@ -388,6 +470,15 @@ async def chat_with_chitti(
         msg_content += " (Voice message attached)"
 
     # Generate AI response using memory, vision, and language preference
+    # Save user message
+    await ai.save_chat_message(
+        user_id=str(current_user.id),
+        conversation_id=conversation_id,
+        role="user",
+        content=msg_content,
+        db=db
+    )
+    
     ai_text = await ai.chat_with_memory(
         str(current_user.id), 
         conversation_id, 

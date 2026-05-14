@@ -1,14 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Image, Modal, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Image, Modal, ActivityIndicator, Alert, Dimensions, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence } from 'react-native-reanimated';
 import ApiService from '../utils/ApiService';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
 import { Theme, GlobalStyles } from '../theme';
 
+const { width } = Dimensions.get('window');
+
 export default function HomeScreen({ navigation }) {
-    const { isAuthenticated, logout } = useAuth();
+    const { isAuthenticated, logout, user, switchProfile } = useAuth();
     const [profile, setProfile] = useState(null);
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -17,26 +20,43 @@ export default function HomeScreen({ navigation }) {
     const [showConsent, setShowConsent] = useState(false);
     const [consentData, setConsentData] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
+    const [greeting, setGreeting] = useState('');
+    const [showVisitModal, setShowVisitModal] = useState(false);
+    const [visitStep, setVisitStep] = useState(1); // 1: Scan, 2: Details, 3: Success
+    const [scannedHospital, setScannedHospital] = useState(null);
+    const [visitReason, setVisitReason] = useState('');
+    const [visitSymptoms, setVisitSymptoms] = useState('');
+    const [visitDept, setVisitDept] = useState('');
+    const [visitDoctor, setVisitDoctor] = useState('');
+    const [visitResult, setVisitResult] = useState(null);
+    const [manualQR, setManualQR] = useState('');
 
-    const [timeline, setTimeline] = useState([]);
+    // Animation values
+    const orbScale = useSharedValue(1);
+    const orbOpacity = useSharedValue(0.6);
+
+    const getGreeting = useCallback(() => {
+        const hour = new Date().getHours();
+        if (!summary?.patient_name && !profile?.full_name) return "Welcome to Hospyn";
+        
+        const name = summary?.patient_name || profile?.full_name || 'there';
+        if (hour < 12) return `Good morning, ${name}`;
+        if (hour < 17) return `Good afternoon, ${name}`;
+        return `Good evening, ${name}`;
+    }, [summary, profile]);
 
     const fetchData = async () => {
         if (!isAuthenticated) return;
         
         try {
-            console.log('[Home] Refreshing clinical snapshot...');
-            
-            // Fetch profile and summary in parallel but handle individually to avoid cascading failures
-            const [profileRes, summaryRes, accessRes, timelineRes] = await Promise.allSettled([
+            const [profileRes, summaryRes, accessRes] = await Promise.allSettled([
                 ApiService.getProfile(),
                 ApiService.getClinicalSummary(),
-                ApiService.getPendingAccess(),
-                ApiService.getTimeline()
+                ApiService.getPendingAccess()
             ]);
 
             if (profileRes.status === 'fulfilled') setProfile(profileRes.value);
             if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value);
-            if (timelineRes.status === 'fulfilled') setTimeline(timelineRes.value.slice(0, 3));
             
             if (accessRes.status === 'fulfilled' && accessRes.value?.length > 0) {
                 setConsentData(accessRes.value[0]);
@@ -56,32 +76,59 @@ export default function HomeScreen({ navigation }) {
         }
     }, [isAuthenticated]);
 
-    // Handle Real-time Updates (Analysis Complete, etc.)
     useEffect(() => {
-        if (lastMessage && lastMessage.type === 'ANALYSIS_COMPLETE') {
-            console.log('[Home] Analysis complete event received, refreshing...');
-            fetchData();
-        }
-    }, [lastMessage]);
+        setGreeting(getGreeting());
+    }, [getGreeting]);
 
-    const handleConsentAction = async (action) => {
-        if (!consentData) return;
-        setActionLoading(true);
+    // Hero Animation Logic
+    useEffect(() => {
+        orbScale.value = withRepeat(
+            withSequence(
+                withTiming(1.2, { duration: 2000 }),
+                withTiming(1, { duration: 2000 })
+            ),
+            -1,
+            true
+        );
+        orbOpacity.value = withRepeat(
+            withSequence(
+                withTiming(0.8, { duration: 2000 }),
+                withTiming(0.4, { duration: 2000 })
+            ),
+            -1,
+            true
+        );
+    }, []);
+
+    const animatedOrbStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: orbScale.value }],
+        opacity: orbOpacity.value,
+    }));
+
+    const handleLogMedication = async (medId, medName) => {
         try {
-            if (action === 'approve') {
-                await ApiService.approveAccess(consentData.access_id);
-            } else {
-                await ApiService.revokeAccess(consentData.access_id);
-            }
-
-            setShowConsent(false);
-            Alert.alert("Success", `Access ${action === 'approve' ? 'granted' : 'rejected'} successfully.`);
-            fetchData(); // Refresh to clear modal and update state
+            await ApiService.logMedication(medId);
+            Alert.alert("Success", `Logged intake for ${medName}`);
+            fetchData(); // Refresh to update "taken_today" status
         } catch (error) {
-            console.error('Consent action error:', error);
-            Alert.alert("Error", "Failed to process consent request.");
+            Alert.alert("Error", "Failed to log medication.");
+        }
+    };
+
+    const handleSwitchProfile = async (memberId) => {
+        setLoading(true);
+        try {
+            const success = await switchProfile(memberId);
+            if (success) {
+                // Fetch data for the new context
+                await fetchData();
+            } else {
+                Alert.alert("Error", "Failed to switch profile.");
+            }
+        } catch (err) {
+            console.error('Switch error:', err);
         } finally {
-            setActionLoading(false);
+            setLoading(false);
         }
     };
 
@@ -90,11 +137,61 @@ export default function HomeScreen({ navigation }) {
         fetchData();
     };
 
+    const handleScanQR = async () => {
+        if (!manualQR) return;
+        setActionLoading(true);
+        try {
+            const hospital = await ApiService.scanHospitalQR(manualQR);
+            setScannedHospital(hospital);
+            setVisitStep(2);
+        } catch (error) {
+            Alert.alert("Error", "Invalid QR Code or Hospital not found.");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleSubmitVisit = async () => {
+        if (!visitReason) {
+            Alert.alert("Required", "Please provide a reason for your visit.");
+            return;
+        }
+        setActionLoading(true);
+        try {
+            const result = await ApiService.createVisit(
+                scannedHospital.qr_data, 
+                visitReason, 
+                visitSymptoms,
+                visitDept,
+                visitDoctor
+            );
+            setVisitResult(result);
+            setVisitStep(3);
+            fetchData(); 
+        } catch (error) {
+            Alert.alert("Error", "Failed to register visit.");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const resetVisitFlow = () => {
+        setShowVisitModal(false);
+        setVisitStep(1);
+        setScannedHospital(null);
+        setVisitReason('');
+        setVisitSymptoms('');
+        setVisitDept('');
+        setVisitDoctor('');
+        setVisitResult(null);
+        setManualQR('');
+    };
+
     if (loading) {
         return (
             <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator color={Theme.colors.primary} />
-                <Text style={{ color: '#4c1d95', fontSize: 16, marginTop: 10, fontFamily: Theme.fonts.label }}>INITIALIZING SNAPSHOT...</Text>
+                <ActivityIndicator color={Theme.colors.primary} size="large" />
+                <Text style={styles.loadingText}>INITIALIZING YOUR HEALTH COMPANION...</Text>
             </View>
         );
     }
@@ -102,263 +199,359 @@ export default function HomeScreen({ navigation }) {
     return (
         <ScrollView
             style={styles.container}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4c1d95" />}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.primary} />}
+            showsVerticalScrollIndicator={false}
         >
-            {/* 1. Patient Header */}
-            <LinearGradient colors={['#050810', '#1E1B4B']} style={styles.header}>
-                <View style={styles.headerContent}>
-                    <View style={styles.profileRow}>
-                        <View style={[styles.avatar, GlobalStyles.glass]}>
-                            <Ionicons name="person" size={30} color="#fff" />
-                        </View>
-                        <View style={styles.headerText}>
-                            <Text style={[styles.userName, GlobalStyles.heading]}>{summary?.patient_name || profile?.full_name || 'Patient'}</Text>
-                            <Text style={styles.patientSub}>
-                                Age: {summary?.age || profile?.age || 'N/A'} | {summary?.blood_group || profile?.blood_group || 'N/A'}
-                            </Text>
-                            <View style={[styles.idBadge, GlobalStyles.glass]}>
-                                <Text style={styles.idText}>HOSPYN ID: {summary?.hospyn_id || profile?.hospyn_id}</Text>
-                            </View>
-                        </View>
-                    </View>
-                    <View style={{ flexDirection: 'row', gap: 15, alignItems: 'center' }}>
-                        <TouchableOpacity 
-                            style={styles.addFamilyBtn} 
-                            onPress={() => navigation.navigate('FamilyProfiles')}
-                        >
-                            <Ionicons name="add" size={24} color="#fff" />
-                            <Text style={styles.addFamilyLabel}>Family</Text>
+            {/* 1. Premium Header */}
+            <View style={styles.header}>
+                <View style={styles.headerTop}>
+                    <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+                    <View style={styles.headerActions}>
+                        <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.iconBtn}>
+                            <Ionicons name="notifications-outline" size={24} color="#fff" />
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => navigation.navigate('Notifications')}>
-                            <Ionicons name="notifications-outline" size={28} color="#fff" />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => logout()}>
-                            <Ionicons name="log-out-outline" size={28} color="#fff" />
+                        <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.iconBtn}>
+                            <Ionicons name="person-outline" size={24} color="#fff" />
                         </TouchableOpacity>
                     </View>
                 </View>
-
-                {/* 1b. AI Health Summary */}
-                <View style={[styles.summaryCard, GlobalStyles.glass]}>
-                    <View style={{ flexDirection: 'row', gap: 20, alignItems: 'center' }}>
-                         <View style={{ flex: 1 }}>
-                            <View style={styles.summaryBadge}>
-                                <Ionicons name="sparkles" size={14} color="#fff" />
-                                <Text style={styles.summaryBadgeText}>CHITTI CLINICAL INSIGHT</Text>
-                            </View>
-                            <Text style={styles.summaryText} numberOfLines={4}>
-                                {summary?.summary || 'No clinical summary available. Upload a medical record to allow Chitti AI to analyze your health.'}
-                            </Text>
-                         </View>
-                    </View>
-                    <Text style={styles.lastUpdate}>SYNCED: {summary?.last_update || 'LIVE'}</Text>
-                </View>
-            </LinearGradient>
-
-            {/* 2. Optimization Factors */}
-            {summary?.health_score_factors?.length > 0 && (
-                <View style={styles.scoreSection}>
-                    <Text style={[styles.sectionTitle, { fontSize: 13, color: '#64748b', marginBottom: 8 }]}>OPTIMIZATION FACTORS</Text>
-                    <View style={styles.factorTags}>
-                        {summary.health_score_factors?.map((f, i) => (
-                            <View key={i} style={styles.factorTag}>
-                                <Ionicons name="checkmark-circle" size={12} color="#10b981" />
-                                <Text style={styles.factorText}>{f}</Text>
-                            </View>
-                        ))}
+                <View style={styles.greetingSection}>
+                    <Text style={styles.greetingText}>{greeting}</Text>
+                    <View style={styles.subGreetingRow}>
+                        <Text style={styles.subGreeting}>{profile?.is_family_member ? `${profile.relation} Profile` : 'Personal Health Shield'}</Text>
+                        {profile?.is_family_member && (
+                            <TouchableOpacity style={styles.backToMeBtn} onPress={() => handleSwitchProfile(null)}>
+                                <Text style={styles.backToMeText}>Back to Me</Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </View>
-            )}
+            </View>
 
-            {/* 3. Recovery Timeline (Visual Chart) */}
-            {summary?.recovery_timeline?.length > 0 && (
-                <View style={styles.chartSection}>
-                    <Text style={styles.sectionTitle}>Health Progress Timeline</Text>
-                    <View style={styles.timelineChart}>
-                        {Array.isArray(summary.recovery_timeline) && summary.recovery_timeline.map((point, i) => (
-                            <View key={i} style={styles.timelineBarGroup}>
-                                <Text style={styles.timelineYear}>{point.year}</Text>
-                                <View style={styles.barContainer}>
-                                    <View style={[styles.barFill, { height: point.level * 1.5 }]} />
-                                </View>
-                            </View>
-                        ))}
-                    </View>
-                </View>
-            )}
-
-            {/* 4. Condition Progress Tracker */}
-            {Object.keys(summary?.condition_progress || {}).length > 0 && (
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Condition Progress</Text>
-                    {Object.entries(summary.condition_progress).map(([name, trends], i) => (
-                        <View key={i} style={styles.conditionCard}>
-                            <View style={styles.conditionHeader}>
-                                <Text style={styles.conditionName}>{name}</Text>
-                                <Ionicons name="trending-down" size={20} color="#10b981" />
-                            </View>
-                            <View style={styles.trendRow}>
-                                {Array.isArray(trends) && trends.map((t, idx) => (
-                                    <View key={idx} style={styles.trendItem}>
-                                        <Text style={styles.trendVal}>{t.value}</Text>
-                                        <Text style={styles.trendDate}>{t.date}</Text>
-                                    </View>
-                                ))}
-                            </View>
+            {/* 2. Hero Section (Digital Health Passport) */}
+            <View style={styles.heroContainer}>
+                <TouchableOpacity 
+                    onPress={() => Alert.alert("Digital Health Passport", `Your unique Hospyn ID: ${profile?.hospyn_id}\n\nThis passport allows hospitals to instantly sync your clinical history securely.`)}
+                    activeOpacity={0.9}
+                >
+                    <LinearGradient colors={['#1E293B', '#0F172A']} style={styles.heroCard}>
+                        {/* Security Badge */}
+                        <View style={styles.securityBadge}>
+                            <Ionicons name="shield-checkmark" size={12} color="#10b981" />
+                            <Text style={styles.securityText}>AES-256 SECURED</Text>
                         </View>
-                    ))}
-                </View>
-            )}
 
-            {/* 5. Medication Impact */}
-            {summary?.medication_impact?.length > 0 && (
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Medication Impact</Text>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.impactScroll}>
-                        {Array.isArray(summary.medication_impact) && summary.medication_impact.map((med, i) => (
-                            <View key={i} style={styles.impactCard}>
-                                <Ionicons name="medkit" size={24} color="#4c1d95" />
-                                <Text style={styles.impactMedName}>{med.name}</Text>
-                                <Text style={styles.impactImprovement}>{med.improvement}</Text>
-                                <Text style={styles.impactLabel}>Improvement</Text>
+                        <View style={styles.passportMain}>
+                            <View style={styles.qrContainer}>
+                                <View style={styles.qrRing} />
+                                <View style={styles.qrRingOuter} />
+                                <Animated.View style={[styles.glowOrb, animatedOrbStyle]} />
+                                <Ionicons name="qr-code" size={40} color={Theme.colors.primary} />
                             </View>
-                        ))}
-                    </ScrollView>
-                </View>
-            )}
-
-            {/* 7. Health Alerts */}
-            {summary?.alerts?.length > 0 && (
-                <View style={styles.alertSection}>
-                    {Array.isArray(summary.alerts) && summary.alerts.map((alert, i) => (
-                        <View key={i} style={styles.alertBox}>
-                            <Ionicons name="warning" size={20} color="#b91c1c" />
-                            <Text style={styles.alertText}>{alert}</Text>
+                            
+                            <Text style={styles.passportTitle}>DIGITAL HEALTH PASSPORT</Text>
+                            <Text style={styles.passportId}>{profile?.hospyn_id || 'HOSPYN-000000-TEST'}</Text>
                         </View>
-                    ))}
-                </View>
-            )}
+                    </LinearGradient>
+                </TouchableOpacity>
+            </View>
 
-            {/* 8. Clinical Journey Preview */}
+            {/* NEW: Quick Action - New Visit */}
+            <View style={styles.section}>
+                <TouchableOpacity 
+                    style={styles.newVisitBtn}
+                    onPress={() => setShowVisitModal(true)}
+                >
+                    <LinearGradient 
+                        colors={[Theme.colors.primary, '#4c1d95']} 
+                        start={{x: 0, y: 0}} 
+                        end={{x: 1, y: 0}}
+                        style={styles.newVisitGradient}
+                    >
+                        <Ionicons name="add-circle" size={24} color="#fff" />
+                        <Text style={styles.newVisitText}>NEW HOSPITAL VISIT</Text>
+                        <Ionicons name="scan-outline" size={20} color="#fff" style={{ marginLeft: 'auto' }} />
+                    </LinearGradient>
+                </TouchableOpacity>
+            </View>
+
+            {/* 3. Today's Medications (Priority Actions) */}
             <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Clinical Journey</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('Timeline')}>
-                        <Text style={styles.viewAll}>Full Timeline</Text>
+                    <Text style={styles.sectionTitle}>Today's Medications</Text>
+                    <TouchableOpacity onPress={() => navigation.navigate('Meds')}>
+                        <Text style={styles.viewAll}>Schedule</Text>
                     </TouchableOpacity>
                 </View>
                 
-                {timeline.length > 0 ? (
-                    timeline.map((event, index) => (
-                        <View key={event.id} style={styles.timelinePreviewCard}>
-                            <View style={[styles.timelineDot, { backgroundColor: index === 0 ? '#7c3aed' : '#cbd5e1' }]} />
-                            <View style={styles.timelineContent}>
-                                <Text style={styles.timelineSummary}>{event.summary}</Text>
-                                <Text style={styles.timelineTime}>
-                                    {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </Text>
-                            </View>
-                        </View>
-                    ))
+                {summary?.today_medications?.length > 0 ? (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                        {summary.today_medications.map((med, index) => (
+                            <TouchableOpacity 
+                                key={index} 
+                                style={[styles.medCard, med.taken_today && styles.medCardTaken]}
+                                onPress={() => !med.taken_today && handleLogMedication(med.id, med.name)}
+                            >
+                                <View style={styles.medCardHeader}>
+                                    <Ionicons name="medkit" size={20} color={med.taken_today ? "#10b981" : Theme.colors.primary} />
+                                    {med.taken_today && <Ionicons name="checkmark-circle" size={16} color="#10b981" />}
+                                </View>
+                                <Text style={styles.medName} numberOfLines={1}>{med.name}</Text>
+                                <Text style={styles.medDosage}>{med.dosage}</Text>
+                                <Text style={styles.medTime}>{med.frequency}</Text>
+                                <TouchableOpacity 
+                                    style={[styles.takeBtn, med.taken_today && styles.takeBtnDisabled]}
+                                    onPress={() => handleLogMedication(med.id, med.name)}
+                                    disabled={med.taken_today}
+                                >
+                                    <Text style={styles.takeBtnText}>{med.taken_today ? 'DONE' : 'LOG DOSE'}</Text>
+                                </TouchableOpacity>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
                 ) : (
-                    <View style={styles.emptyTimeline}>
-                        <Text style={styles.emptyTimelineText}>No clinical actions recorded yet.</Text>
+                    <View style={[styles.emptySection, GlobalStyles.glass]}>
+                        <Text style={styles.emptyText}>No medications scheduled for today.</Text>
                     </View>
                 )}
             </View>
 
-            {/* 9. Reports Overview */}
+            {/* 4. Ongoing Medications (Full Context) */}
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Ongoing Medications</Text>
+                <View style={styles.ongoingList}>
+                    {summary?.ongoing_medications?.length > 0 ? (
+                        summary.ongoing_medications.map((med, index) => (
+                            <View key={index} style={[styles.ongoingItem, GlobalStyles.glass]}>
+                                <View style={styles.ongoingIcon}>
+                                    <Ionicons name="medical" size={18} color={Theme.colors.secondary} />
+                                </View>
+                                <View style={styles.ongoingInfo}>
+                                    <Text style={styles.ongoingName}>{med.name}</Text>
+                                    <Text style={styles.ongoingSub}>{med.dosage} • {med.frequency}</Text>
+                                </View>
+                                <View style={styles.ongoingStatus}>
+                                    <Text style={styles.statusText}>ACTIVE</Text>
+                                </View>
+                            </View>
+                        ))
+                    ) : (
+                        <Text style={styles.emptyText}>No active medications found.</Text>
+                    )}
+                </View>
+            </View>
+
+            {/* 5. Family Pulse */}
             <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Record History</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('Records')}>
-                        <Text style={styles.viewAll}>View All</Text>
+                    <Text style={styles.sectionTitle}>Family Pulse</Text>
+                    <TouchableOpacity onPress={() => navigation.navigate('FamilyProfiles')}>
+                        <Text style={styles.viewAll}>Manage</Text>
                     </TouchableOpacity>
                 </View>
-
-                {profile?.recent_records?.length > 0 ? (
-                    profile.recent_records.slice(0, 3).map((record, index) => (
-                        <TouchableOpacity key={index} style={styles.activityCard} onPress={() => navigation.navigate('Records')}>
-                            <View style={styles.activityIcon}>
-                                <Ionicons name="document-text" size={20} color="#4c1d95" />
-                            </View>
-                            <View style={styles.activityInfo}>
-                                <Text style={styles.activityTitle}>{record.title || 'Medical Record'}</Text>
-                                <Text style={styles.activityDate}>{new Date(record.created_at).toLocaleDateString()}</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={20} color="#ccc" />
-                        </TouchableOpacity>
-                    ))
-                ) : (
-                    <TouchableOpacity style={styles.uploadPrompt} onPress={() => navigation.navigate('Records')}>
-                        <Ionicons name="cloud-upload-outline" size={40} color="#4c1d95" />
-                        <Text style={styles.uploadText}>No records found. Upload now.</Text>
+                <View style={styles.familyRow}>
+                    <TouchableOpacity style={styles.addFamilyCircle} onPress={() => navigation.navigate('FamilyProfiles')}>
+                        <Ionicons name="add" size={24} color="#fff" />
                     </TouchableOpacity>
-                )}
+                    
+                    {/* Primary User Profile */}
+                    <TouchableOpacity 
+                        style={styles.familyMember} 
+                        onPress={() => handleSwitchProfile(null)}
+                    >
+                        <View style={[styles.memberAvatar, !profile?.is_family_member && styles.activeMemberAvatar, { backgroundColor: '#4c1d95' }]}>
+                            <Text style={styles.avatarInitials}>ME</Text>
+                            {!profile?.is_family_member && <View style={styles.statusDot} />}
+                        </View>
+                        <Text style={[styles.memberName, !profile?.is_family_member && styles.activeMemberName]}>Self</Text>
+                    </TouchableOpacity>
+
+                    {profile?.care_circle?.map((member, i) => (
+                        <TouchableOpacity 
+                            key={i} 
+                            style={styles.familyMember}
+                            onPress={() => handleSwitchProfile(member.id)}
+                        >
+                            <View style={[styles.memberAvatar, profile?.id === member.id && styles.activeMemberAvatar]}>
+                                <Text style={styles.avatarInitials}>{member.full_name[0]}</Text>
+                                {profile?.id === member.id && <View style={styles.statusDot} />}
+                            </View>
+                            <Text style={[styles.memberName, profile?.id === member.id && styles.activeMemberName]}>{member.full_name.split(' ')[0]}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
             </View>
 
-            {/* 10. AI Assistant CTA */}
-            <TouchableOpacity
-                style={styles.aiAssistantCard}
-                onPress={() => navigation.navigate('Chitti')}
-            >
-                <LinearGradient colors={['#1e1b4b', '#4c1d95']} style={styles.aiGradient}>
-                    <View style={styles.aiContent}>
-                        <View style={styles.aiTextGroup}>
-                            <Text style={styles.aiTitle}>Chat with Chitti AI</Text>
-                            <Text style={styles.aiSubtitle}>Ask anything about your health or reports</Text>
-                        </View>
-                        <View style={styles.aiIconCircle}>
-                            <Ionicons name="chatbubble-ellipses" size={24} color="#fff" />
+            {/* 6. AI Health Summary Card */}
+            <View style={styles.section}>
+                <TouchableOpacity 
+                    style={[styles.chittiCard, GlobalStyles.glass]}
+                    onPress={() => navigation.navigate('Chitti AI')}
+                >
+                    <View style={styles.chittiHeader}>
+                        <Image source={require('../../assets/chitti_avatar.png')} style={styles.chittiIcon} />
+                        <View>
+                            <Text style={styles.chittiTitle}>CHITTI AI INSIGHT</Text>
+                            <Text style={styles.chittiStatus}>Status: Analysing Trends</Text>
                         </View>
                     </View>
-                </LinearGradient>
-            </TouchableOpacity>
+                    <Text style={styles.chittiText}>
+                        {summary?.summary || (profile?.full_name ? `Hello ${profile.full_name.split(' ')[0]}! I'm Chitti, your AI health companion. I've secured your Health Passport. To get started, you can tell me how you're feeling or upload a report.` : "Upload your latest medical reports to let Chitti AI analyze your health trends.")}
+                    </Text>
+                    <LinearGradient colors={[Theme.colors.primary, '#4c1d95']} style={styles.chatBtn}>
+                        <Text style={styles.chatBtnText}>ASK CHITTI ANYTHING</Text>
+                        <Ionicons name="arrow-forward" size={16} color="#fff" />
+                    </LinearGradient>
+                </TouchableOpacity>
+            </View>
 
-            <View style={{ height: 60 }} />
+            <View style={{ height: 100 }} />
 
-            {/* 11. Consent Modal */}
+            {/* NEW VISIT MODAL */}
             <Modal
-                visible={showConsent}
+                visible={showVisitModal}
                 transparent={true}
-                animationType="fade"
-                onRequestClose={() => setShowConsent(false)}
+                animationType="slide"
+                onRequestClose={resetVisitFlow}
             >
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <View style={styles.modalIconBox}>
-                            <Ionicons name="shield-checkmark" size={40} color="#4c1d95" />
-                        </View>
-                        <Text style={styles.modalTitle}>Access Request</Text>
-                        <Text style={styles.modalMsg}>
-                            <Text style={{ fontWeight: 'bold' }}>Dr. {consentData?.doctor_name}</Text> is requesting to view your medical records for clinical consultation.
-                        </Text>
-
-                        <View style={styles.modalInfoBox}>
-                            <Ionicons name="information-circle-outline" size={16} color="#64748b" />
-                            <Text style={styles.modalInfoText}>This access will be logged in your history.</Text>
-                        </View>
-
-                        <View style={styles.modalActions}>
-                            <TouchableOpacity
-                                style={[styles.modalBtn, styles.grantBtn]}
-                                onPress={() => handleConsentAction('approve')}
-                                disabled={actionLoading}
-                            >
-                                {actionLoading ? (
-                                    <ActivityIndicator color="#fff" size="small" />
-                                ) : (
-                                    <Text style={styles.grantBtnText}>Grant Access</Text>
-                                )}
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.modalBtn, styles.rejectBtn]}
-                                onPress={() => handleConsentAction('reject')}
-                                disabled={actionLoading}
-                            >
-                                <Text style={styles.rejectBtnText}>Reject</Text>
+                    <View style={[styles.modalContent, GlobalStyles.glass]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>New Hospital Visit</Text>
+                            <TouchableOpacity onPress={resetVisitFlow}>
+                                <Ionicons name="close" size={24} color="#94A3B8" />
                             </TouchableOpacity>
                         </View>
+
+                        {visitStep === 1 && (
+                            <View style={styles.visitStepContent}>
+                                <View style={styles.scanPlaceholder}>
+                                    <Ionicons name="scan" size={60} color={Theme.colors.primary} />
+                                    <Text style={styles.scanHint}>Scan Hospital QR Code</Text>
+                                </View>
+                                <View style={styles.manualInputGroup}>
+                                    <Text style={styles.inputLabel}>OR ENTER HOSPITAL CODE</Text>
+                                    <View style={styles.inputWrapper}>
+                                        <Ionicons name="business" size={20} color="#64748B" />
+                                        <TextInput 
+                                            style={styles.textInput}
+                                            placeholder="Enter Code (e.g. CITY-001)"
+                                            placeholderTextColor="#475569"
+                                            value={manualQR}
+                                            onChangeText={setManualQR}
+                                            autoCapitalize="characters"
+                                        />
+                                    </View>
+                                    <View style={styles.demoCodes}>
+                                        <Text style={styles.demoTitle}>Demo Hospital Codes:</Text>
+                                        <TouchableOpacity onPress={() => setManualQR('CITY-001')}>
+                                            <Text style={styles.demoCode}>CITY-001 (City General Hospital)</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity onPress={() => setManualQR('APOLLO-01')}>
+                                            <Text style={styles.demoCode}>APOLLO-01 (Apollo Healthcare)</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                    <TouchableOpacity 
+                                        style={[styles.primaryBtn, !manualQR && styles.btnDisabled]} 
+                                        onPress={handleScanQR}
+                                        disabled={!manualQR || actionLoading}
+                                    >
+                                        {actionLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>VERIFY HOSPITAL</Text>}
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        )}
+
+                        {visitStep === 2 && scannedHospital && (
+                            <ScrollView style={styles.visitStepContent}>
+                                <View style={styles.hospitalInfoCard}>
+                                    <Ionicons name="business" size={32} color={Theme.colors.primary} />
+                                    <View>
+                                        <Text style={styles.scannedHospitalName}>{scannedHospital.name}</Text>
+                                        <Text style={styles.scannedHospitalId}>Hospyn ID: {scannedHospital.hospyn_id}</Text>
+                                    </View>
+                                </View>
+                                
+                                <Text style={styles.inputLabel}>REASON FOR VISIT</Text>
+                                <View style={styles.textAreaWrapper}>
+                                    <TextInput 
+                                        style={styles.textArea}
+                                        placeholder="e.g. Regular checkup, Fever"
+                                        placeholderTextColor="#475569"
+                                        value={visitReason}
+                                        onChangeText={setVisitReason}
+                                        multiline
+                                    />
+                                </View>
+
+                                <View style={{ flexDirection: 'row', gap: 15 }}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.inputLabel}>DEPARTMENT</Text>
+                                        <View style={styles.inputWrapper}>
+                                            <TextInput 
+                                                style={styles.textInput}
+                                                placeholder="e.g. Cardiology"
+                                                placeholderTextColor="#475569"
+                                                value={visitDept}
+                                                onChangeText={setVisitDept}
+                                            />
+                                        </View>
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.inputLabel}>DOCTOR (OPTIONAL)</Text>
+                                        <View style={styles.inputWrapper}>
+                                            <TextInput 
+                                                style={styles.textInput}
+                                                placeholder="Dr. Smith"
+                                                placeholderTextColor="#475569"
+                                                value={visitDoctor}
+                                                onChangeText={setVisitDoctor}
+                                            />
+                                        </View>
+                                    </View>
+                                </View>
+
+                                <Text style={styles.inputLabel}>SYMPTOMS (OPTIONAL)</Text>
+                                <View style={styles.textAreaWrapper}>
+                                    <TextInput 
+                                        style={styles.textArea}
+                                        placeholder="Describe any symptoms..."
+                                        placeholderTextColor="#475569"
+                                        value={visitSymptoms}
+                                        onChangeText={setVisitSymptoms}
+                                        multiline
+                                    />
+                                </View>
+
+                                <TouchableOpacity 
+                                    style={styles.primaryBtn} 
+                                    onPress={handleSubmitVisit}
+                                    disabled={actionLoading || !visitReason}
+                                >
+                                    {actionLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>SUBMIT VISIT DETAILS</Text>}
+                                </TouchableOpacity>
+                            </ScrollView>
+                        )}
+
+                        {visitStep === 3 && visitResult && (
+                            <View style={styles.visitStepContent}>
+                                <View style={styles.successAnimation}>
+                                    <Ionicons name="checkmark-circle" size={80} color="#10b981" />
+                                    <Text style={styles.successTitle}>CHECK-IN SUCCESSFUL</Text>
+                                    <Text style={styles.successSub}>Your details have been shared with {scannedHospital?.name}</Text>
+                                </View>
+                                
+                                <View style={styles.tokenCard}>
+                                    <Text style={styles.tokenLabel}>QUEUE TOKEN</Text>
+                                    <Text style={styles.tokenValue}>{visitResult.queue_token}</Text>
+                                    <Text style={styles.tokenHint}>Please wait for your turn. You will be notified.</Text>
+                                </View>
+
+                                <TouchableOpacity style={styles.secondaryBtn} onPress={resetVisitFlow}>
+                                    <Text style={styles.secondaryBtnText}>BACK TO DASHBOARD</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
                     </View>
                 </View>
             </Modal>
@@ -369,483 +562,593 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#050810',
+    },
+    loadingText: {
+        color: '#6366F1',
+        fontSize: 12,
+        marginTop: 20,
+        fontFamily: Theme.fonts.label,
+        letterSpacing: 1,
     },
     header: {
         paddingTop: 60,
-        paddingHorizontal: 20,
-        paddingBottom: 30,
-        borderBottomLeftRadius: 36,
-        borderBottomRightRadius: 36,
+        paddingHorizontal: 24,
+        paddingBottom: 20,
     },
-    headerContent: {
+    headerTop: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 25,
-    },
-    profileRow: {
-        flexDirection: 'row',
         alignItems: 'center',
+        marginBottom: 30,
     },
-    avatar: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: '#fff',
+    logo: {
+        width: 44,
+        height: 44,
+    },
+    headerActions: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    iconBtn: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(255,255,255,0.05)',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 15,
-        borderWidth: 3,
-        borderColor: 'rgba(255,255,255,0.3)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
     },
-    addFamilyBtn: {
+    greetingSection: {
+        marginTop: 10,
+    },
+    greetingText: {
+        fontSize: 28,
+        fontFamily: Theme.fonts.heading,
+        color: '#fff',
+        fontWeight: '900',
+    },
+    subGreetingRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(99, 102, 241, 0.4)',
+        justifyContent: 'space-between',
+        marginTop: 4,
+    },
+    subGreeting: {
+        fontSize: 16,
+        color: '#94A3B8',
+        fontFamily: Theme.fonts.body,
+    },
+    backToMeBtn: {
+        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(99, 102, 241, 0.3)',
+    },
+    backToMeText: {
+        color: Theme.colors.primary,
+        fontSize: 11,
+        fontWeight: 'bold',
+    },
+    heroContainer: {
+        paddingHorizontal: 20,
+        marginBottom: 25,
+    },
+    heroCard: {
+        borderRadius: 24,
+        padding: 24,
+        height: 180,
+        position: 'relative',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
+    },
+    securityBadge: {
+        position: 'absolute',
+        top: 16,
+        right: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderRadius: 12,
-        gap: 2,
+        gap: 5,
     },
-    addFamilyLabel: {
+    securityText: {
+        color: '#10b981',
+        fontSize: 9,
+        fontWeight: '900',
+    },
+    passportMain: {
+        alignItems: 'center',
+        marginTop: 10,
+    },
+    qrContainer: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: 'rgba(99, 102, 241, 0.05)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 15,
+        position: 'relative',
+    },
+    qrRing: {
+        position: 'absolute',
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        borderWidth: 1,
+        borderColor: 'rgba(99, 102, 241, 0.1)',
+    },
+    qrRingOuter: {
+        position: 'absolute',
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        borderWidth: 1,
+        borderColor: 'rgba(99, 102, 241, 0.05)',
+    },
+    passportTitle: {
         color: '#fff',
-        fontSize: 10,
-        fontWeight: 'bold',
-        textTransform: 'uppercase',
+        fontSize: 18,
+        fontWeight: '900',
+        letterSpacing: 2,
+        textAlign: 'center',
     },
-    userName: {
+    passportId: {
+        color: '#64748B',
+        fontSize: 11,
+        fontWeight: '500',
+        marginTop: 4,
+        letterSpacing: 1,
+    },
+    glowOrb: {
+        position: 'absolute',
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: Theme.colors.primary,
+        opacity: 0.1,
+    },
+    newVisitBtn: {
+        borderRadius: 20,
+        overflow: 'hidden',
+    },
+    newVisitGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 20,
+        gap: 15,
+    },
+    newVisitText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '900',
+        letterSpacing: 1,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#0F172A',
+        borderTopLeftRadius: 32,
+        borderTopRightRadius: 32,
+        padding: 24,
+        minHeight: 500,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 30,
+    },
+    modalTitle: {
         color: '#fff',
         fontSize: 22,
         fontWeight: 'bold',
     },
-    patientSub: {
-        color: 'rgba(255,255,255,0.8)',
-        fontSize: 13,
-        marginTop: 2,
+    visitStepContent: {
+        flex: 1,
     },
-    idBadge: {
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 6,
-        marginTop: 6,
-        alignSelf: 'flex-start',
-    },
-    idText: {
-        color: '#fff',
-        fontSize: 10,
-        fontWeight: 'bold',
-    },
-    summaryCard: {
-        backgroundColor: 'rgba(255,255,255,0.15)',
+    scanPlaceholder: {
+        height: 200,
+        backgroundColor: 'rgba(255,255,255,0.03)',
         borderRadius: 24,
-        padding: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderStyle: 'dashed',
+        borderColor: 'rgba(99, 102, 241, 0.3)',
+        marginBottom: 30,
     },
-    summaryBadge: {
+    scanHint: {
+        color: '#94A3B8',
+        fontSize: 14,
+        marginTop: 10,
+    },
+    manualInputGroup: {
+        gap: 15,
+    },
+    inputLabel: {
+        color: '#64748B',
+        fontSize: 12,
+        fontWeight: '900',
+        letterSpacing: 1,
+        marginBottom: 8,
+    },
+    inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#7c3aed',
-        paddingHorizontal: 10,
-        paddingVertical: 4,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    textInput: {
+        flex: 1,
+        height: 50,
+        color: '#fff',
+        fontSize: 16,
+        paddingLeft: 12,
+    },
+    textArea: {
+        color: '#fff',
+        fontSize: 15,
+        minHeight: 60,
+        textAlignVertical: 'top',
+    },
+    demoCodes: {
+        padding: 15,
+        backgroundColor: 'rgba(99, 102, 241, 0.05)',
         borderRadius: 12,
-        alignSelf: 'flex-start',
-        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(99, 102, 241, 0.1)',
     },
-    summaryBadgeText: {
+    demoTitle: {
+        color: '#94A3B8',
+        fontSize: 12,
+        marginBottom: 8,
+    },
+    demoCode: {
+        color: Theme.colors.primary,
+        fontSize: 13,
+        fontWeight: 'bold',
+        marginBottom: 5,
+    },
+    primaryBtn: {
+        backgroundColor: Theme.colors.primary,
+        paddingVertical: 18,
+        borderRadius: 16,
+        alignItems: 'center',
+        marginTop: 10,
+    },
+    btnDisabled: {
+        opacity: 0.5,
+    },
+    btnText: {
         color: '#fff',
-        fontSize: 10,
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    hospitalInfoCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 15,
+        padding: 20,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderRadius: 20,
+        marginBottom: 25,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
+    },
+    scannedHospitalName: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    scannedHospitalId: {
+        color: '#64748B',
+        fontSize: 12,
+    },
+    textAreaWrapper: {
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
+    },
+    successAnimation: {
+        alignItems: 'center',
+        marginVertical: 30,
+    },
+    successTitle: {
+        color: '#10b981',
+        fontSize: 20,
         fontWeight: '900',
-        marginLeft: 4,
-        letterSpacing: 0.5,
+        marginTop: 15,
     },
-    summaryText: {
-        color: '#fff',
+    successSub: {
+        color: '#94A3B8',
         fontSize: 14,
-        lineHeight: 22,
-        opacity: 0.95,
+        textAlign: 'center',
+        marginTop: 8,
+        paddingHorizontal: 20,
     },
-    lastUpdate: {
-        color: 'rgba(255,255,255,0.5)',
-        fontSize: 10,
-        marginTop: 12,
+    tokenCard: {
+        backgroundColor: 'rgba(16, 185, 129, 0.05)',
+        borderRadius: 24,
+        padding: 30,
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: 'rgba(16, 185, 129, 0.2)',
+        marginBottom: 30,
+    },
+    tokenLabel: {
+        color: '#10b981',
+        fontSize: 14,
+        fontWeight: 'bold',
+        letterSpacing: 2,
+    },
+    tokenValue: {
+        color: '#fff',
+        fontSize: 48,
+        fontWeight: '900',
+        marginVertical: 10,
+    },
+    tokenHint: {
+        color: '#64748B',
+        fontSize: 12,
+        textAlign: 'center',
+    },
+    secondaryBtn: {
+        paddingVertical: 16,
+        borderRadius: 16,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    secondaryBtnText: {
+        color: '#94A3B8',
+        fontSize: 14,
+        fontWeight: 'bold',
     },
     section: {
-        padding: 20,
-    },
-    scoreSection: {
-        backgroundColor: '#fff',
-        margin: 20,
-        padding: 20,
-        borderRadius: 24,
-        elevation: 4,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
+        paddingHorizontal: 24,
+        marginBottom: 30,
     },
     sectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 15,
+        marginBottom: 16,
     },
     sectionTitle: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: '#1e293b',
-    },
-    scoreValue: {
-        fontSize: 24,
-        fontWeight: '900',
-        color: '#4c1d95',
-    },
-    factorTags: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        marginTop: 15,
-    },
-    factorTag: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#f0fdf4',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
-        marginRight: 8,
-        marginBottom: 8,
-    },
-    factorText: {
-        fontSize: 11,
-        color: '#166534',
-        marginLeft: 4,
-    },
-    chartSection: {
-        backgroundColor: '#fff',
-        padding: 20,
-        marginHorizontal: 20,
-        borderRadius: 24,
-        marginBottom: 20,
-    },
-    timelineChart: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-end',
-        height: 180,
-        marginTop: 20,
-    },
-    timelineBarGroup: {
-        alignItems: 'center',
-        flex: 1,
-    },
-    barContainer: {
-        height: 150,
-        width: 12,
-        backgroundColor: '#f1f5f9',
-        borderRadius: 6,
-        justifyContent: 'flex-end',
-    },
-    barFill: {
-        width: '100%',
-        backgroundColor: '#7c3aed',
-        borderRadius: 6,
-    },
-    timelineYear: {
-        fontSize: 10,
-        color: '#94a3b8',
-        marginTop: 10,
-    },
-    conditionCard: {
-        backgroundColor: '#fff',
-        borderRadius: 20,
-        padding: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: '#f1f5f9',
-    },
-    conditionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    conditionName: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#334155',
-    },
-    trendRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    trendItem: {
-        alignItems: 'center',
-    },
-    trendVal: {
-        fontSize: 15,
-        fontWeight: '800',
-        color: '#1e293b',
-    },
-    trendDate: {
-        fontSize: 10,
-        color: '#94a3b8',
-    },
-    impactScroll: {
-        marginTop: 10,
-    },
-    impactCard: {
-        backgroundColor: '#fff',
-        width: 140,
-        padding: 16,
-        borderRadius: 20,
-        marginRight: 12,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#f1f5f9',
-    },
-    impactMedName: {
-        fontSize: 12,
-        fontWeight: 'bold',
-        color: '#64748b',
-        marginTop: 8,
-    },
-    impactImprovement: {
         fontSize: 20,
-        fontWeight: '900',
-        color: '#10b981',
-        marginVertical: 4,
-    },
-    impactLabel: {
-        fontSize: 10,
-        color: '#94a3b8',
-    },
-    alertSection: {
-        paddingHorizontal: 20,
-        marginBottom: 10,
-    },
-    alertBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fef2f2',
-        padding: 12,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#fee2e2',
-        marginBottom: 8,
-    },
-    alertText: {
-        fontSize: 13,
-        color: '#991b1b',
-        marginLeft: 10,
-        fontWeight: '600',
-    },
-    activityCard: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 10,
-    },
-    activityIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 10,
-        backgroundColor: '#f5f3ff',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 12,
-    },
-    activityInfo: {
-        flex: 1,
-    },
-    activityTitle: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#334155',
-    },
-    activityDate: {
-        fontSize: 11,
-        color: '#94a3b8',
-    },
-    uploadPrompt: {
-        backgroundColor: '#fff',
-        borderRadius: 24,
-        padding: 30,
-        alignItems: 'center',
-        borderStyle: 'dashed',
-        borderWidth: 2,
-        borderColor: '#cbd5e1',
-    },
-    uploadText: {
-        marginTop: 10,
-        color: '#64748b',
-        fontSize: 14,
-        fontWeight: '600',
-    },
-    aiAssistantCard: {
-        margin: 20,
-        borderRadius: 24,
-        overflow: 'hidden',
-        elevation: 8,
-        shadowColor: '#4c1d95',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.3,
-        shadowRadius: 15,
-    },
-    aiGradient: {
-        padding: 20,
-    },
-    aiContent: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-    },
-    aiTextGroup: {
-        flex: 1,
-        marginRight: 15,
-    },
-    aiTitle: {
         color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    aiSubtitle: {
-        color: 'rgba(255,255,255,0.7)',
-        fontSize: 12,
-        marginTop: 4,
-    },
-    aiIconCircle: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: 'rgba(255,255,255,0.2)',
-        justifyContent: 'center',
-        alignItems: 'center',
+        fontWeight: '800',
+        fontFamily: Theme.fonts.headingSemi,
     },
     viewAll: {
-        color: '#4c1d95',
+        color: Theme.colors.primary,
         fontSize: 14,
         fontWeight: 'bold',
     },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        justifyContent: 'center',
-        alignItems: 'center',
+    horizontalScroll: {
+        marginLeft: -24,
+        paddingLeft: 24,
+    },
+    medCard: {
+        width: 160,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderRadius: 24,
         padding: 20,
+        marginRight: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
-    modalContent: {
-        backgroundColor: '#fff',
-        width: '100%',
-        borderRadius: 32,
-        padding: 24,
-        alignItems: 'center',
-        elevation: 10,
+    medCardTaken: {
+        backgroundColor: 'rgba(16, 185, 129, 0.05)',
+        borderColor: 'rgba(16, 185, 129, 0.2)',
     },
-    modalIconBox: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: '#f5f3ff',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    modalTitle: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#1e293b',
+    medCardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         marginBottom: 12,
     },
-    modalMsg: {
+    medName: {
+        color: '#fff',
         fontSize: 16,
-        color: '#64748b',
-        textAlign: 'center',
+        fontWeight: 'bold',
+        marginBottom: 4,
+    },
+    medDosage: {
+        color: '#94A3B8',
+        fontSize: 12,
+        marginBottom: 2,
+    },
+    medTime: {
+        color: Theme.colors.primary,
+        fontSize: 11,
+        fontWeight: 'bold',
+        marginBottom: 15,
+    },
+    takeBtn: {
+        backgroundColor: Theme.colors.primary,
+        paddingVertical: 8,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    takeBtnDisabled: {
+        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    },
+    takeBtnText: {
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: '900',
+    },
+    ongoingList: {
+        gap: 12,
+    },
+    ongoingItem: {
+        flexDirection: 'row',
+        padding: 16,
+        borderRadius: 20,
+        alignItems: 'center',
+    },
+    ongoingIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 16,
+    },
+    ongoingInfo: {
+        flex: 1,
+    },
+    ongoingName: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '700',
+    },
+    ongoingSub: {
+        color: '#64748B',
+        fontSize: 13,
+        marginTop: 2,
+    },
+    ongoingStatus: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+    },
+    statusText: {
+        color: '#22C55E',
+        fontSize: 10,
+        fontWeight: 'bold',
+    },
+    familyRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+    },
+    addFamilyCircle: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        borderWidth: 2,
+        borderStyle: 'dashed',
+        borderColor: 'rgba(255,255,255,0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    familyMember: {
+        alignItems: 'center',
+    },
+    memberAvatar: {
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: '#1E293B',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: Theme.colors.primary,
+    },
+    activeMemberAvatar: {
+        borderColor: '#10b981',
+        borderWidth: 3,
+    },
+    activeMemberName: {
+        color: '#fff',
+        fontWeight: 'bold',
+    },
+    avatarInitials: {
+        color: '#fff',
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+    statusDot: {
+        position: 'absolute',
+        bottom: 2,
+        right: 2,
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        backgroundColor: '#10b981',
+        borderWidth: 2,
+        borderColor: '#050810',
+    },
+    memberName: {
+        color: '#94A3B8',
+        fontSize: 12,
+        marginTop: 8,
+    },
+    chittiCard: {
+        padding: 24,
+        borderRadius: 32,
+    },
+    chittiHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 15,
+        marginBottom: 16,
+    },
+    chittiIcon: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+    },
+    chittiTitle: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '900',
+        letterSpacing: 1,
+    },
+    chittiStatus: {
+        color: '#10b981',
+        fontSize: 11,
+    },
+    chittiText: {
+        color: 'rgba(255,255,255,0.8)',
+        fontSize: 15,
         lineHeight: 24,
         marginBottom: 20,
     },
-    modalInfoBox: {
+    chatBtn: {
         flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#f8fafc',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 12,
-        gap: 8,
-        marginBottom: 24,
-    },
-    modalInfoText: {
-        fontSize: 12,
-        color: '#64748b',
-    },
-    modalActions: {
-        width: '100%',
-        gap: 12,
-    },
-    modalBtn: {
-        width: '100%',
-        height: 56,
+        paddingVertical: 14,
         borderRadius: 16,
         justifyContent: 'center',
         alignItems: 'center',
+        gap: 10,
     },
-    timelinePreviewCard: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        marginBottom: 15,
-        paddingLeft: 5,
-    },
-    timelineDot: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
-        marginTop: 6,
-        marginRight: 15,
-    },
-    timelineContent: {
-        flex: 1,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
-        paddingBottom: 10,
-    },
-    timelineSummary: {
+    chatBtnText: {
+        color: '#fff',
         fontSize: 14,
-        fontWeight: '600',
-        color: '#334155',
+        fontWeight: 'bold',
     },
-    timelineTime: {
-        fontSize: 11,
-        color: '#94a3b8',
-        marginTop: 2,
-    },
-    emptyTimeline: {
-        padding: 20,
-        backgroundColor: '#f8fafc',
-        borderRadius: 16,
+    emptySection: {
+        padding: 30,
+        borderRadius: 24,
         alignItems: 'center',
     },
-    emptyTimelineText: {
-        fontSize: 12,
-        color: '#94a3b8',
+    emptyText: {
+        color: '#64748B',
+        fontSize: 14,
         fontStyle: 'italic',
-    },
-    grantBtn: {
-        backgroundColor: '#4c1d95',
-    },
-    grantBtnText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    rejectBtn: {
-        backgroundColor: '#fff',
-        borderWidth: 1,
-        borderColor: '#e2e8f0',
-    },
-    rejectBtnText: {
-        color: '#64748b',
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
+    }
 });

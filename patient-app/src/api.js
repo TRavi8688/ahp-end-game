@@ -4,9 +4,14 @@ import { Platform } from 'react-native';
 // Priority: Env Variable > Local Dev (port 8000) > Production Fallback
 
 const getBaseUrl = () => {
-    // Always use the production cloud API for consistency during testing
-    return 'https://hospyn-495906-api-625745217419.us-central1.run.app';
+    // 1. Check EXPO_PUBLIC_API_BASE_URL (env)
+    const envUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
+    if (envUrl) return envUrl.replace('/api/v1', '');
+
+    // 2. Local Dev Fallback (matched to your current uvicorn port 8080)
+    return 'http://localhost:8080';
 };
+
 
 const BASE = getBaseUrl();
 

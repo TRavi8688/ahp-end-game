@@ -116,7 +116,7 @@ export default function RegisterScreen({ navigation }) {
 
         } catch (err) {
             console.error(err);
-            Alert.alert('Verification Failed', 'Incorrect OTP. Try 000000.');
+            Alert.alert('Verification Failed', 'Incorrect OTP. Please check the code and try again.');
         } finally { setLoading(false); }
     };
 
@@ -126,9 +126,7 @@ export default function RegisterScreen({ navigation }) {
                 <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
                     <View style={styles.welcomeContainer}>
-                        <Image source={require('../../assets/hospyn_logo.png')} style={styles.logoImage} resizeMode="contain" />
-                        <Text style={styles.title}>Join Hospyn</Text>
-                        <Text style={styles.subtitle}>Create your AI Health Passport in seconds.</Text>
+                        <Image source={require('../../assets/logo.png')} style={styles.logoImage} resizeMode="contain" />
                     </View>
 
                     <View style={styles.card}>
@@ -274,7 +272,7 @@ export default function RegisterScreen({ navigation }) {
                                     />
                                 </View>
                                 <Text style={{ color: '#6366F1', fontSize: 12, textAlign: 'center', marginBottom: 10, opacity: 0.8 }}>
-                                    Hint: Use 000000 for instant verification
+                                    Check your messages for the 6-digit verification code.
                                 </Text>
                             </View>
                         )}

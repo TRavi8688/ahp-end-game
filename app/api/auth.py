@@ -122,7 +122,15 @@ async def register(
         resource_type="USER",
         details={"email": new_user.email, "role": new_user.role}
     )
-    return new_user
+    return {
+        "id": new_user.id,
+        "email": new_user.email,
+        "first_name": new_user.first_name,
+        "last_name": new_user.last_name,
+        "role": new_user.role,
+        "is_active": new_user.is_active,
+        "hospyn_id": new_user.patient_profile.hospyn_id if new_user.patient_profile else None
+    }
 
 @router.post("/login", response_model=schemas.Token)
 @limiter.limit("100/minute")
@@ -283,54 +291,44 @@ async def verify_otp(
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Verifies the OTP and issues a production JWT."""
-    logger.info(f"OTP_VERIFY_ATTEMPT: Identifier={req.identifier}, OTP={req.otp}")
-    req.identifier = req.identifier.strip()
-
-    stored_otp = None
-    cache_key = f"otp:{req.identifier}"
-    
     try:
-        # Try Redis first if enabled
-        if settings.USE_REDIS:
-            try:
+        logger.info(f"OTP_VERIFY_ATTEMPT: Identifier={req.identifier}, OTP={req.otp}")
+        req.identifier = req.identifier.strip()
+
+        stored_otp = None
+        cache_key = f"otp:{req.identifier}"
+        
+        # 1. Retrieve OTP
+        try:
+            if settings.USE_REDIS:
                 stored_otp = await redis_service.get(cache_key)
                 if stored_otp:
                     logger.info(f"OTP_HIT_REDIS: {req.identifier}")
-            except Exception as re:
-                logger.warning(f"REDIS_READ_FAILED: {re}. Falling back to DB.")
+            
+            if not stored_otp:
+                result = await db.execute(
+                    select(models.OTPVerification)
+                    .where(models.OTPVerification.identifier == req.identifier)
+                    .where(models.OTPVerification.expires_at > datetime.now(timezone.utc))
+                    .order_by(models.OTPVerification.created_at.desc())
+                )
+                otp_record = result.scalars().first()
+                if otp_record:
+                    stored_otp = otp_record.otp
+                    logger.info(f"OTP_HIT_DB: {req.identifier}")
+        except Exception as e:
+            logger.warning(f"OTP_RETRIEVAL_ERROR: {e}")
 
-        # Fallback to Database
-        if not stored_otp:
-            result = await db.execute(
-                select(models.OTPVerification)
-                .where(models.OTPVerification.identifier == req.identifier)
-                .where(models.OTPVerification.expires_at > datetime.now(timezone.utc))
-                .order_by(models.OTPVerification.created_at.desc())
-            )
-            otp_record = result.scalars().first()
-            if otp_record:
-                stored_otp = otp_record.otp
-                logger.info(f"OTP_HIT_DB: {req.identifier}")
-
-        # 2. Verify Code Accuracy
-
+        # 2. Verify Accuracy
         if not stored_otp or stored_otp != req.otp:
-
             logger.warning(f"OTP_VERIFY_FAILURE: Invalid code for {req.identifier}")
-            await log_audit_action(
-                db, 
-                "OTP_VERIFY_FAILURE", 
-                identifier=req.identifier,
-                status="REJECTED"
-            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, 
                 detail={"success": False, "message": "Invalid or expired verification code."}
             )
             
-        # 2. Retrieve & Activate User
+        # 3. Retrieve User
         alt_identifier = f"+91{req.identifier}" if not req.identifier.startswith("+") else req.identifier.replace("+91", "")
-        
         result = await db.execute(
             select(models.User).where(
                 or_(
@@ -345,25 +343,12 @@ async def verify_otp(
             logger.info(f"OTP_VERIFY_SUCCESS_PENDING_REG: {req.identifier}")
             return {"success": True, "user_exists": False, "message": "Identity verified. Please complete your profile."}
 
-
-
+        # 4. Success Flow
         user.is_active = True
-        
-        # Clean up OTP from Redis (Fail-Safe)
-        try:
-            if settings.USE_REDIS:
-                await redis_service.delete(cache_key)
-                logger.info(f"OTP_CLEANUP_REDIS: {req.identifier}")
-        except Exception as e:
-            logger.warning(f"OTP_CLEANUP_FAILURE: {e}")
-
         await db.commit()
         
         access_token = security.create_access_token(user.id, user.role)
         refresh_token = security.create_refresh_token(user.id, user.role)
-        
-        logger.info(f"OTP_VERIFY_SUCCESS: UserID={user.id}")
-        await log_audit_action(db, "OTP_VERIFY_SUCCESS", user_id=user.id)
         
         return {
             "success": True,
@@ -371,15 +356,18 @@ async def verify_otp(
             "refresh_token": refresh_token,
             "token_type": "bearer",
             "user_exists": True,
-            "hospyn_id": user.hospyn_id,
+            "hospyn_id": user.patient_profile.hospyn_id if user.patient_profile else None,
             "message": "Login successful"
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"OTP_VERIFY_CRASH: {str(e)}")
+        import traceback
+        logger.error(f"OTP_VERIFY_CRASH: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail={"success": False, "message": "Internal Verification Error"}
+            status_code=500,
+            detail={"success": False, "message": f"Internal Verification Error: {str(e)}"}
         )
+
+

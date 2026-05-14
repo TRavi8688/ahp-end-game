@@ -1,5 +1,6 @@
 import re
 import uuid
+import json
 from typing import Dict, List, Optional, Any
 from app.core.logging import logger
 from app.models.models import ClinicalAIEvent
@@ -51,7 +52,7 @@ class ClinicalSafetyService:
         try:
             # We use a fast, high-reasoning model for the audit (e.g., Gemini Flash)
             # This is a 'Safety Racing' technique
-            res = await ai.unified_ai_engine(audit_prompt, language_code="en")
+            res = await ai.unified_ai_engine(audit_prompt, language_code="en", skip_safety=True)
             audit_json = json.loads(res.get("response", "{}"))
             return audit_json
         except Exception as e:

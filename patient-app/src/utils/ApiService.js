@@ -23,6 +23,11 @@ class ApiService {
                 config.headers.Authorization = `Bearer ${token}`;
             }
 
+            const activeMemberId = await SecurityUtils.getActiveMemberId();
+            if (activeMemberId) {
+                config.headers['X-Family-Member-ID'] = activeMemberId;
+            }
+
             // --- PRODUCTION DATA INTEGRITY ---
             // Automatically generate a unique key for every mutating operation
             // This satisfies the IdempotencyMiddleware for life.
@@ -129,6 +134,28 @@ class ApiService {
 
     async revokeAccess(accessId) {
         const response = await this.client.post(`/patient/revoke-access/${accessId}`);
+        return response.data;
+    }
+
+    async logMedication(medicationId) {
+        const response = await this.client.post(`/patient/log-medication?medication_id=${medicationId}`);
+        return response.data;
+    }
+
+    // --- Hospital Visit Endpoints ---
+    async scanHospitalQR(qrData) {
+        const response = await this.client.post('/visit/scan', { qr_data: qrData });
+        return response.data;
+    }
+
+    async createVisit(hospitalId, reason, symptoms = '', dept = '', doctor = '') {
+        const response = await this.client.post('/visit/create', { 
+            hospital_id: hospitalId, 
+            visit_reason: reason, 
+            symptoms: symptoms,
+            department: dept,
+            doctor_name: doctor
+        });
         return response.data;
     }
 }

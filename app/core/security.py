@@ -262,9 +262,19 @@ async def get_current_user(
     logger.info(f"JWT DECODE SUCCESS | SUB: {payload.get('sub')} | ISS: {payload.get('iss')} | AUD: {payload.get('aud')}")
     logger.info(f"JWT TOKEN VERSION: {payload.get('token_version')}")
 
-    user_id: Optional[str] = payload.get("sub")
+    user_id_str: Optional[str] = payload.get("sub")
+    if not user_id_str:
+        logger.error("JWT_PAYLOAD_MISSING_SUB")
+        raise HTTPException(status_code=401, detail="Invalid token: missing subject.")
+
+    try:
+        user_id = uuid.UUID(user_id_str)
+    except (ValueError, TypeError) as e:
+        logger.error(f"JWT_INVALID_SUB_FORMAT: {user_id_str} | Error: {str(e)}")
+        raise HTTPException(status_code=401, detail="Invalid user ID format in token.")
     
     # 2. User Resolution Trace
+    logger.info(f"USER_LOOKUP_START: {user_id}")
     result = await db.execute(
         select(User)
         .options(selectinload(User.staff_profile))
@@ -272,7 +282,7 @@ async def get_current_user(
     )
     user: Optional[User] = result.scalars().first()
     
-    logger.info(f"USER FOUND: {user.id if user else 'NOT_FOUND'}")
+    logger.info(f"USER_FOUND_STATUS: {'SUCCESS' if user else 'NOT_FOUND'} | ID={user.id if user else 'N/A'}")
 
     if not user:
         logger.warning(f"AUTH_REJECTION_REASON: User {user_id} not found in database.")

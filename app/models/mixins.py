@@ -74,11 +74,11 @@ class TenantScopedMixin:
     filter in hospital-scoped endpoints are a security violation.
     """
     @declared_attr
-    def hospital_id(cls) -> Mapped[uuid.UUID]:
+    def hospital_id(cls) -> Mapped[Optional[uuid.UUID]]:
         return mapped_column(
             UUID(as_uuid=True),
             ForeignKey("hospitals.id", ondelete="RESTRICT"),
-            nullable=False,
+            nullable=True,
             index=True,
         )
 

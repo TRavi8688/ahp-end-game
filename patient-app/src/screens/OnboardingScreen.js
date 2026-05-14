@@ -3,7 +3,7 @@ import {
     View, Text, StyleSheet, TextInput,
     TouchableOpacity, ActivityIndicator, Alert,
     KeyboardAvoidingView, Platform, ScrollView, Dimensions,
-    Image
+    Image, Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,6 +20,8 @@ export default function OnboardingScreen({ navigation }) {
     const { login } = useAuth();
     const [step, setStep] = useState(0); // 0: OTP, 1: Basic, 2: Health, 3: Family
     const [loading, setLoading] = useState(false);
+    const [showFamilyModal, setShowFamilyModal] = useState(false);
+    const [newFamilyMember, setNewFamilyMember] = useState({ name: '', relation: '' });
     
     // Form State
     const [formData, setFormData] = useState({
@@ -32,11 +34,12 @@ export default function OnboardingScreen({ navigation }) {
         allergies: '',
         conditions: '',
         familyMembers: [],
-        consent: false
+        consent: false,
+        password: ''
     });
 
     const steps = [
-        { title: 'Identity Verification', subtitle: 'Secure OTP via Mobile' },
+        { title: 'Identity Verification', subtitle: 'Care Connected Intelligently' },
         { title: 'Personal Profile', subtitle: 'Basic identity details' },
         { title: 'Clinical Baseline', subtitle: 'Chronic health context' },
         { title: 'Care Circle', subtitle: 'Add family for coordinated care' }
@@ -210,6 +213,20 @@ export default function OnboardingScreen({ navigation }) {
                     </View>
                 </View>
             </View>
+            <View style={styles.inputGroup}>
+                <Text style={styles.label}>PASSWORD</Text>
+                <View style={styles.inputWrapper}>
+                    <Ionicons name="lock-closed-outline" size={20} color="#94A3B8" style={styles.inputIcon} />
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Secure Password"
+                        placeholderTextColor="#475569"
+                        secureTextEntry
+                        value={formData.password}
+                        onChangeText={(v) => setFormData({...formData, password: v})}
+                    />
+                </View>
+            </View>
 
             <View style={styles.consentArea}>
                 <TouchableOpacity 
@@ -318,7 +335,7 @@ export default function OnboardingScreen({ navigation }) {
                 // 1. Register User
                 const registerResp = await axios.post(`${API_BASE_URL}/auth/register`, {
                     email: formData.phone,
-                    password: defaultPassword,
+                    password: formData.password || 'Default123!',
                     first_name: formData.fullName.split(' ')[0] || 'Patient',
                     last_name: formData.fullName.split(' ').slice(1).join(' ') || '',
                     role: 'patient'
@@ -329,7 +346,7 @@ export default function OnboardingScreen({ navigation }) {
             // 2. Real Login (No Bypass)
             const loginFormData = new FormData();
             loginFormData.append('username', formData.phone);
-            loginFormData.append('password', defaultPassword);
+            loginFormData.append('password', formData.password || 'Default123!');
 
             const loginResp = await axios.post(`${API_BASE_URL}/auth/login`, loginFormData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
@@ -396,10 +413,30 @@ export default function OnboardingScreen({ navigation }) {
                 </Text>
             </View>
 
-            <TouchableOpacity style={styles.addFamilyBtn}>
+            <TouchableOpacity style={styles.addFamilyBtn} onPress={() => setShowFamilyModal(true)}>
                 <Ionicons name="add-circle-outline" size={24} color="#6366F1" />
                 <Text style={styles.addFamilyText}>Add Family Member</Text>
             </TouchableOpacity>
+
+            {formData.familyMembers.length > 0 && (
+                <View style={styles.familyList}>
+                    {formData.familyMembers.map((m, i) => (
+                        <View key={i} style={styles.familyItem}>
+                            <Ionicons name="person-circle-outline" size={32} color="#6366F1" />
+                            <View style={{ flex: 1, marginLeft: 12 }}>
+                                <Text style={{ color: '#fff', fontWeight: 'bold' }}>{m.name}</Text>
+                                <Text style={{ color: '#94A3B8', fontSize: 12 }}>{m.relation}</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => {
+                                const updated = formData.familyMembers.filter((_, idx) => idx !== i);
+                                setFormData({ ...formData, familyMembers: updated });
+                            }}>
+                                <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                            </TouchableOpacity>
+                        </View>
+                    ))}
+                </View>
+            )}
 
             <View style={styles.actions}>
                 <TouchableOpacity style={styles.skipBtn} onPress={handleFinalize}>
@@ -422,7 +459,10 @@ export default function OnboardingScreen({ navigation }) {
                 <TouchableOpacity onPress={() => step > 0 ? setStep(step - 1) : navigation.goBack()}>
                     <Ionicons name="chevron-back" size={24} color="#fff" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>SECURE ONBOARDING</Text>
+                <Image 
+                    source={require('../../assets/hospyn_logo_new.png')} 
+                    style={{ width: 140, height: 50, resizeMode: 'contain' }} 
+                />
                 <View style={{ width: 24 }} />
             </View>
 
@@ -432,13 +472,56 @@ export default function OnboardingScreen({ navigation }) {
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
                 style={{ flex: 1 }}
             >
-                <ScrollView contentContainerStyle={styles.scrollContent}>
+                <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
                     {step === 0 && renderOTPStep()}
                     {step === 1 && renderBasicStep()}
                     {step === 2 && renderHealthStep()}
                     {step === 3 && renderFamilyStep()}
                 </ScrollView>
             </KeyboardAvoidingView>
+
+            {/* Family Member Modal */}
+            <Modal visible={showFamilyModal} transparent animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <Text style={styles.modalTitle}>Add Family Member</Text>
+                        <TextInput 
+                            style={styles.modalInput} 
+                            placeholder="Full Name" 
+                            placeholderTextColor="#64748b"
+                            value={newFamilyMember.name}
+                            onChangeText={v => setNewFamilyMember({...newFamilyMember, name: v})}
+                        />
+                        <TextInput 
+                            style={styles.modalInput} 
+                            placeholder="Relation (e.g. Spouse, Child)" 
+                            placeholderTextColor="#64748b"
+                            value={newFamilyMember.relation}
+                            onChangeText={v => setNewFamilyMember({...newFamilyMember, relation: v})}
+                        />
+                        <View style={{ flexDirection: 'row', gap: 12, marginTop: 10 }}>
+                            <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#1e293b' }]} onPress={() => setShowFamilyModal(false)}>
+                                <Text style={{ color: '#fff' }}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.modalBtn, { backgroundColor: '#6366F1' }]} 
+                                onPress={() => {
+                                    if (newFamilyMember.name && newFamilyMember.relation) {
+                                        setFormData({
+                                            ...formData,
+                                            familyMembers: [...formData.familyMembers, newFamilyMember]
+                                        });
+                                        setNewFamilyMember({ name: '', relation: '' });
+                                        setShowFamilyModal(false);
+                                    }
+                                }}
+                            >
+                                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Add Member</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
 
             <View style={styles.encryptionBadge}>
                 <Ionicons name="lock-closed" size={12} color="#10b981" />
@@ -677,5 +760,56 @@ const styles = StyleSheet.create({
         fontSize: 10,
         fontWeight: 'bold',
         letterSpacing: 1,
+    },
+    familyList: {
+        marginBottom: 20,
+        gap: 12,
+    },
+    familyItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        padding: 16,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+    },
+    modalContent: {
+        width: '100%',
+        backgroundColor: '#0F172A',
+        borderRadius: 24,
+        padding: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    modalTitle: {
+        fontSize: 20,
+        color: '#fff',
+        fontWeight: 'bold',
+        marginBottom: 20,
+        textAlign: 'center',
+    },
+    modalInput: {
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 12,
+        padding: 16,
+        color: '#fff',
+        marginBottom: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    modalBtn: {
+        flex: 1,
+        height: 50,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
     }
 });

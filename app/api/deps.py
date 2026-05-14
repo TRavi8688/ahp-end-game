@@ -7,7 +7,7 @@ from app.models.models import User, Patient, Doctor
 from app.repositories.base import UserRepository, PatientRepository
 import logging
 import uuid
-async def get_hospital_id(user: User = Depends(get_current_user)) -> int:
+async def get_hospital_id(user: User = Depends(get_current_user)) -> uuid.UUID:
     """
     Mandatory Enterprise Dependency to enforce Tenant Isolation.
     Extracts the hospital_id from the user's staff profile.
@@ -67,3 +67,19 @@ async def get_super_admin(user: User = Depends(get_db_user)) -> User:
             }
         )
     return user
+
+
+async def get_active_family_member_id(request: Request) -> Optional[uuid.UUID]:
+    """
+    Optional Dependency to extract the family member context from headers.
+    If provided, clinical queries will be scoped to this family member.
+    If not provided, queries default to the primary patient profile.
+    """
+    from typing import Optional
+    header_val = request.headers.get("X-Family-Member-ID")
+    if header_val and header_val not in ["null", "undefined", ""]:
+        try:
+            return uuid.UUID(header_val)
+        except ValueError:
+            return None
+    return None

@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { SecurityUtils } from '../utils/security';
 
 // Import the cinematic splash to let Expo/Webpack handle the path bundling
-import logo from '../../assets/hospyn_logo.png';
+import logo from '../../assets/logo.png';
 
 const SplashScreen = () => {
   const navigation = useNavigation();
@@ -177,14 +177,7 @@ const getSplashHtml = (logoUrl) => `
     animation: fadeInUp 1.2s ease forwards 0.5s;
   }
 
-  .tagline {
-    font-size: 0.85rem;
-    color: rgba(255,255,255,0.5);
-    letter-spacing: 6px;
-    text-transform: uppercase;
-    opacity: 0;
-    animation: fadeInUp 1.2s ease forwards 1s;
-  }
+
 
   .accent-line {
     width: 80px; height: 1px;
@@ -227,7 +220,6 @@ const getSplashHtml = (logoUrl) => `
 
     <h1 class="brand-name">Hospyn</h1>
     <div class="accent-line"></div>
-    <p class="tagline">Where Roots Meet the Cosmos</p>
 
     <div class="loading-dots">
       <div class="dot" style="background-color: var(--red);"></div>

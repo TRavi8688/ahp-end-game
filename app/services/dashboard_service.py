@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+import uuid
 from typing import Optional, Dict, Any
 from app.services.redis_service import redis_service
 from sqlalchemy import select
@@ -17,7 +18,7 @@ class DashboardService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_dashboard(self, hospital_id: int, patient_id: int) -> Dict[str, Any]:
+    async def get_dashboard(self, hospital_id: uuid.UUID, patient_id: uuid.UUID) -> Dict[str, Any]:
         """
         Retrieves patient dashboard from Redis cache or Precomputed Database table.
         Strictly Read-Only: No commits in this flow.
@@ -35,9 +36,12 @@ class DashboardService:
         # 2. Precomputed PostgreSQL Tier (Source of Truth)
         try:
             stmt = select(PatientDashboard).where(
-                PatientDashboard.patient_id == patient_id,
-                PatientDashboard.hospital_id == hospital_id
+                PatientDashboard.patient_id == patient_id
             )
+            if hospital_id is not None:
+                stmt = stmt.where(PatientDashboard.hospital_id == hospital_id)
+            else:
+                stmt = stmt.where(PatientDashboard.hospital_id.is_(None))
             result = await self.db.execute(stmt)
             db_dashboard = result.scalar_one_or_none()
             
@@ -55,7 +59,7 @@ class DashboardService:
         # We compute, persist to DB (Source of Truth), and cache.
         return await self.aggregate_dashboard_data(hospital_id, patient_id, persist=True)
 
-    async def aggregate_dashboard_data(self, hospital_id: int, patient_id: int, persist: bool = False) -> Dict[str, Any]:
+    async def aggregate_dashboard_data(self, hospital_id: uuid.UUID, patient_id: uuid.UUID, persist: bool = False) -> Dict[str, Any]:
         """
         Computes dashboard from raw clinical data.
         Optional persistence allows decoupling of heavy writes from read requests.
@@ -75,7 +79,7 @@ class DashboardService:
         records_stmt = select(MedicalRecord).where(
             MedicalRecord.patient_id == patient_id
         )
-        if hospital_id != 0:
+        if hospital_id is not None:
             # Enforce strict isolation: Only show records created at THIS hospital
             records_stmt = records_stmt.where(MedicalRecord.hospital_id == hospital_id)
             
@@ -127,9 +131,14 @@ class DashboardService:
         if persist:
             # Atomic update of dashboard table (Upsert logic)
             stmt = select(PatientDashboard).where(
-                PatientDashboard.patient_id == patient_id,
-                PatientDashboard.hospital_id == hospital_id
-            ).with_for_update()
+                PatientDashboard.patient_id == patient_id
+            )
+            if hospital_id is not None:
+                stmt = stmt.where(PatientDashboard.hospital_id == hospital_id)
+            else:
+                stmt = stmt.where(PatientDashboard.hospital_id.is_(None))
+            
+            stmt = stmt.with_for_update()
             
             async with self.db.begin_nested():
                 result = await self.db.execute(stmt)

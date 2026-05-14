@@ -1,4 +1,10 @@
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Share } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Theme, GlobalStyles } from '../theme';
+// import QRCode from 'react-native-qrcode-svg';
 
 export default function RegistrationSuccessScreen({ navigation, route }) {
     const { hospyn_id, fullName } = route.params || { hospyn_id: 'Hospyn-IN-XXXX-XXXX-XX', fullName: 'Patient' };
@@ -39,9 +45,10 @@ export default function RegistrationSuccessScreen({ navigation, route }) {
                     </View>
 
                     <View style={styles.qrContainer}>
-                        <View style={[styles.qrPlaceholder, { backgroundColor: 'transparent', borderColor: 'rgba(255,255,255,0.1)' }]}>
-                            <Ionicons name="qr-code-outline" size={120} color={Theme.colors.primary} />
-                            <Text style={[styles.qrText, { color: Theme.colors.secondary }]}>Scan to Connect</Text>
+                        <View style={[styles.qrPlaceholder, { backgroundColor: 'rgba(255,255,255,0.05)', padding: 15, borderRadius: 20 }]}>
+                            {/* Temporarily disabled QRCode for web stability */}
+                            <Ionicons name="qr-code-outline" size={150} color={Theme.colors.primary} />
+                            <Text style={[styles.qrText, { color: Theme.colors.primary, marginTop: 10 }]}>Scan to Connect</Text>
                         </View>
                     </View>
                 </View>

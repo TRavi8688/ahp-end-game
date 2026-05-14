@@ -40,7 +40,6 @@ class ClinicalPolicy:
         may_block = "\n".join([f"- {item}" for item in cls.MAY_DO])
         
         return (
-            "\n[CLINICAL GOVERNANCE & BOUNDARY PROTOCOL]\n"
             "I. MANDATORY NEGATIVE CONSTRAINTS (MUST NEVER):\n"
             f"{never_block}\n\n"
             "II. AUTHORIZED CAPABILITIES (MAY DO):\n"

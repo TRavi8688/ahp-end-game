@@ -85,7 +85,12 @@
       var checkInterval = setInterval(function() {
         var root = document.getElementById('root');
         if (root && root.children.length > 0) {
-          document.getElementById('fallback-ui').style.display = 'none';
+          var fb = document.getElementById('fallback-ui');
+          if (fb) {
+            fb.style.opacity = '0';
+            fb.style.pointerEvents = 'none';
+            setTimeout(function() { fb.remove(); }, 500);
+          }
           clearInterval(checkInterval);
         }
       }, 500);

@@ -90,6 +90,27 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    /**
+     * Switch Profile Context (Primary <-> Family Member)
+     */
+    const switchProfile = async (memberId) => {
+        try {
+            console.log('[Auth] Switching profile context to:', memberId || 'Primary');
+            await SecurityUtils.saveActiveMemberId(memberId);
+            
+            // Refresh profile data under the new context
+            // Note: ApiService will automatically include X-Family-Member-ID now
+            const profile = await ApiService.getProfile();
+            setUser(profile);
+            
+            console.log('[Auth] Profile switch successful for:', profile.full_name);
+            return true;
+        } catch (error) {
+            console.error('[Auth] Profile switch failed:', error);
+            return false;
+        }
+    };
+
     return (
         <AuthContext.Provider value={{
             isAuthenticated,
@@ -97,6 +118,7 @@ export const AuthProvider = ({ children }) => {
             user,
             login,
             logout,
+            switchProfile,
             setIsAuthenticated // Exposed for interceptors
         }}>
             {children}

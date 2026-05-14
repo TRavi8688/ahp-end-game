@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     View, Text, StyleSheet, TextInput,
     TouchableOpacity, ActivityIndicator, Alert,
     KeyboardAvoidingView, Platform, ScrollView, Dimensions,
-    ImageBackground, Image
+    ImageBackground, Image, Animated, Easing
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
@@ -58,9 +58,7 @@ export default function AuthScreen({ navigation }) {
                 <LinearGradient colors={['#050810', '#1E1B4B', '#050810']} style={StyleSheet.absoluteFill} />
                 <View style={styles.landingContent}>
                     <View style={styles.landingHeader}>
-                        <Image source={require('../../assets/hospyn_logo.png')} style={styles.heroLogo} resizeMode="contain" />
-                        <Text style={styles.heroTitle}>HOSPYN</Text>
-                        <Text style={styles.heroSubtitle}>Your Clinical AI Companion</Text>
+                        <Image source={require('../../assets/logo.png')} style={styles.heroLogo} resizeMode="contain" />
                     </View>
 
                     <View style={styles.landingActions}>
@@ -171,25 +169,11 @@ const styles = StyleSheet.create({
     },
     landingHeader: {
         alignItems: 'center',
+        marginBottom: 60,
     },
     heroLogo: {
-        width: 140,
-        height: 140,
-        marginBottom: 20,
-    },
-    heroTitle: {
-        fontSize: 42,
-        fontFamily: Theme.fonts.heading,
-        color: '#FFFFFF',
-        letterSpacing: 8,
-    },
-    heroSubtitle: {
-        fontSize: 14,
-        color: '#94A3B8',
-        marginTop: 10,
-        fontFamily: Theme.fonts.label,
-        letterSpacing: 2,
-        textAlign: 'center',
+        width: 180,
+        height: 180,
     },
     landingActions: {
         gap: 20,
