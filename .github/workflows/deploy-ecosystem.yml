@@ -97,7 +97,7 @@ jobs:
 
       - name: Run Database Migrations (Alembic)
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_PROD }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PROD || secrets.DATABASE_URL }}
           ENVIRONMENT: production
           GCP_PROJECT_ID: hospyn-495906
           SECRET_KEY: "ci-dummy-secret-key-for-migrations-only"

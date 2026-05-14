@@ -60,7 +60,20 @@ def run_migrations_online() -> None:
     Implements Distributed Locking and Forensic Audit Chains.
     """
     from sqlalchemy import text
-    config.set_main_option("sqlalchemy.url", settings.sync_database_url)
+    sync_url = settings.sync_database_url
+    if not sync_url or ("://" not in sync_url and "sqlite" not in sync_url):
+        logger.error(f"FATAL: DATABASE_URL is malformed or empty. Length={len(sync_url) if sync_url else 0}")
+        # Log a masked version for debugging
+        if sync_url:
+            logger.error(f"URL_PREFIX: {sync_url[:10]}...")
+        raise RuntimeError("Could not initialize database connection: URL is empty or invalid.")
+    
+    sync_url = settings.sync_database_url
+    if not sync_url or ("://" not in sync_url and "sqlite" not in sync_url):
+        logger.error(f"FATAL: DATABASE_URL is malformed or empty. Length={len(sync_url) if sync_url else 0}")
+        raise RuntimeError("Could not initialize database connection: URL is empty or invalid.")
+    
+    config.set_main_option("sqlalchemy.url", sync_url)
     
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
