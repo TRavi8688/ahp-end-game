@@ -84,11 +84,22 @@ jobs:
           docker build -t $IMAGE_NAME .
           docker push $IMAGE_NAME
 
+      - name: Set up Python
+        uses: actions/setup-python@v5.3.0
+        with:
+          python-version: '3.11'
+
+      - name: Install Migration Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install asyncpg psycopg2-binary
+
       - name: Run Database Migrations (Alembic)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL_PROD }}
+          ENVIRONMENT: production
         run: |
-          pip install alembic asyncpg psycopg2-binary
           export PYTHONPATH=$PYTHONPATH:.
           alembic upgrade head
 
