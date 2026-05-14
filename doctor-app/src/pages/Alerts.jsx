@@ -6,7 +6,7 @@ import { API_BASE_URL } from '../api';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import LockIcon from '@mui/icons-material/Lock';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import ScienceIcon from '@mui/icons-material/Science';
 import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
 
@@ -72,8 +72,8 @@ export default function Alerts() {
             case 'followup': return { icon: <AccessTimeIcon sx={{ color: '#f59e0b' }} />, bg: '#fef3c7' }; // Amber
             case 'lab': return { icon: <ScienceIcon sx={{ color: '#0d9488' }} />, bg: '#ccfbf1' }; // Teal
             case 'granted': return { icon: <PersonAddAlt1Icon sx={{ color: '#0d9488' }} />, bg: '#ccfbf1' }; // Teal
-            case 'update': return { icon: <CheckCircleOutlineIcon sx={{ color: '#10b981' }} />, bg: '#d1fae5' }; // Green
-            default: return { icon: <CheckCircleOutlineIcon sx={{ color: '#6b7280' }} />, bg: '#f3f4f6' };
+            case 'update': return { icon: <CheckCircleOutlinedIcon sx={{ color: '#10b981' }} />, bg: '#d1fae5' }; // Green
+            default: return { icon: <CheckCircleOutlinedIcon sx={{ color: '#6b7280' }} />, bg: '#f3f4f6' };
         }
     };
 
@@ -93,7 +93,7 @@ export default function Alerts() {
             <Card elevation={0} sx={{ border: '1px solid #e5e7eb', borderRadius: 2 }}>
                 {alerts.length === 0 ? (
                     <Box sx={{ p: 6, textAlign: 'center' }}>
-                        <CheckCircleOutlineIcon sx={{ fontSize: 64, color: '#e5e7eb', mb: 2 }} />
+                        <CheckCircleOutlinedIcon sx={{ fontSize: 64, color: '#e5e7eb', mb: 2 }} />
                         <Typography variant="h6" sx={{ color: '#4b5563', fontWeight: 'bold' }}>All clear!</Typography>
                         <Typography variant="body2" sx={{ color: '#9ca3af', mt: 1 }}>You have no new notifications or alerts at this time.</Typography>
                     </Box>

@@ -1,5 +1,6 @@
 import os
 import logging
+from functools import lru_cache
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional, Any
@@ -47,7 +48,9 @@ class Settings(BaseSettings):
     # --- 4. DATABASE & CACHE ---
     DATABASE_URL: str = "sqlite+aiosqlite:///./hospyn_local.db"
     REDIS_URL: Optional[str] = None
-    USE_REDIS: bool = False
+    USE_REDIS: bool = True
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 10
 
     # --- 5. NETWORK & CORS ---
     ALLOWED_ORIGINS: Any = [

@@ -9,7 +9,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import MedicationIcon from '@mui/icons-material/Medication';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import AddIcon from '@mui/icons-material/Add';
@@ -294,7 +294,7 @@ export default function PatientDetailView() {
                     border: '1px solid rgba(20, 184, 166, 0.1)'
                 }}>
                     <Box sx={{ p: 1, bgcolor: '#14b8a6', borderRadius: '10px' }}>
-                        <CheckCircleOutlineIcon sx={{ color: 'white', fontSize: 20 }} />
+                        <CheckCircleOutlinedIcon sx={{ color: 'white', fontSize: 20 }} />
                     </Box>
                     <Typography variant="body2" sx={{ color: '#2dd4bf', fontWeight: 800, letterSpacing: 0.5 }}>CLEARED: NO KNOWN ALLERGIES ENCOUNTERED</Typography>
                 </Box>

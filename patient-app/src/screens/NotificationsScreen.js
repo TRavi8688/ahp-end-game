@@ -1,26 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-import { API_BASE_URL } from '../api';
+import { LinearGradient } from 'expo-linear-gradient';
+import ApiService from '../utils/ApiService';
+import { Theme, GlobalStyles } from '../theme';
+import { HapticUtils } from '../utils/haptics';
 
 export default function NotificationsScreen({ navigation }) {
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     const fetchNotifications = async () => {
         try {
-            const token = await AsyncStorage.getItem('token');
-            const response = await axios.get(`${API_BASE_URL}/patient/notifications`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setNotifications(response.data);
+            const data = await ApiService.getNotifications();
+            setNotifications(data);
         } catch (error) {
             console.error('Fetch notifs error:', error);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
@@ -28,122 +27,113 @@ export default function NotificationsScreen({ navigation }) {
         fetchNotifications();
     }, []);
 
+    const onRefresh = () => {
+        setRefreshing(true);
+        fetchNotifications();
+    };
+
     const handleAction = async (notifId, accessId, action) => {
+        HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Medium);
         try {
-            const token = await AsyncStorage.getItem('token');
-            const endpoint = action === 'approve'
-                ? `${API_BASE_URL}/patient/approve-access/${accessId}`
-                : `${API_BASE_URL}/patient/revoke-access/${accessId}`;
-
-            await axios.post(endpoint, {}, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            Alert.alert("Success", `Access ${action === 'approve' ? 'granted' : 'rejected'} successfully.`);
-            fetchNotifications(); // Refresh
+            if (action === 'approve') {
+                await ApiService.approveAccess(accessId);
+            } else {
+                await ApiService.revokeAccess(accessId);
+            }
+            Alert.alert("Success", `Request ${action === 'approve' ? 'granted' : 'declined'}.`);
+            fetchNotifications();
         } catch (error) {
-            console.error('Action error:', error);
-            Alert.alert("Error", "Failed to process your request.");
+            Alert.alert("Error", "Failed to process request.");
         }
     };
 
-    const renderNotification = ({ item }) => {
+    const renderItem = ({ item }) => {
         const isConsent = item.type === 'consent_request';
-        const icon = isConsent ? 'people' : item.type === 'record_added' ? 'document-text' : 'notifications';
-        const color = isConsent ? '#3b82f6' : '#4c1d95';
+        const icon = isConsent ? 'people-outline' : 'notifications-outline';
+        const color = isConsent ? Theme.colors.primary : Theme.colors.secondary;
 
         return (
-            <View style={styles.alertCard}>
-                <View style={[styles.iconBox, { backgroundColor: color + '20' }]}>
-                    <Ionicons name={icon} size={24} color={color} />
-                </View>
-                <View style={styles.content}>
-                    <View style={styles.topRow}>
-                        <Text style={styles.title}>{item.title || "Health Alert"}</Text>
-                        <Text style={styles.time}>{new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+            <View style={[styles.alertCard, GlobalStyles.glass]}>
+                <View style={styles.cardTop}>
+                    <View style={[styles.iconBox, { backgroundColor: color + '20' }]}>
+                        <Ionicons name={icon} size={24} color={color} />
                     </View>
-                    <Text style={styles.msg}>{item.body}</Text>
-
-                    {isConsent && item.related_entity_id && (
-                        <View style={styles.actionRow}>
-                            <TouchableOpacity
-                                style={[styles.actionBtn, styles.approveBtn]}
-                                onPress={() => handleAction(item.id, item.related_entity_id, 'approve')}
-                            >
-                                <Text style={styles.btnText}>Approve</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.actionBtn, styles.rejectBtn]}
-                                onPress={() => handleAction(item.id, item.related_entity_id, 'reject')}
-                            >
-                                <Text style={[styles.btnText, { color: '#6b7280' }]}>Reject</Text>
-                            </TouchableOpacity>
+                    <View style={styles.content}>
+                        <View style={styles.headerRow}>
+                            <Text style={styles.title}>{item.title || 'System Alert'}</Text>
+                            <Text style={styles.time}>{new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
                         </View>
-                    )}
+                        <Text style={styles.msg}>{item.body}</Text>
+                    </View>
                 </View>
+
+                {isConsent && item.related_entity_id && (
+                    <View style={styles.actionRow}>
+                        <TouchableOpacity 
+                            style={styles.approveBtn} 
+                            onPress={() => handleAction(item.id, item.related_entity_id, 'approve')}
+                        >
+                            <Text style={styles.btnText}>APPROVE ACCESS</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                            style={styles.rejectBtn} 
+                            onPress={() => handleAction(item.id, item.related_entity_id, 'reject')}
+                        >
+                            <Text style={styles.rejectText}>DECLINE</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
         );
     };
 
     return (
-        <View style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <Ionicons name="arrow-back" size={28} color="#1f2937" />
+        <View style={GlobalStyles.screen}>
+            <LinearGradient colors={['#0F172A', '#050810']} style={styles.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                    <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Alerts</Text>
-                <TouchableOpacity onPress={fetchNotifications}>
-                    <Ionicons name="refresh" size={20} color="#4c1d95" />
-                </TouchableOpacity>
-            </View>
+                <Text style={[GlobalStyles.heading, styles.headerTitle]}>ALERTS</Text>
+                <View style={{ width: 24 }} />
+            </LinearGradient>
 
-            {loading ? (
-                <ActivityIndicator size="large" color="#4c1d95" style={{ marginTop: 50 }} />
-            ) : (
-                <FlatList
-                    data={notifications}
-                    keyExtractor={item => item.id.toString()}
-                    renderItem={renderNotification}
-                    contentContainerStyle={{ padding: 20 }}
-                    ListEmptyComponent={
-                        <Text style={{ textAlign: 'center', color: '#9ca3af', marginTop: 50 }}>No new alerts</Text>
-                    }
-                />
-            )}
+            <FlatList
+                data={notifications}
+                keyExtractor={item => item.id.toString()}
+                renderItem={renderItem}
+                contentContainerStyle={styles.listContent}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.primary} />}
+                ListEmptyComponent={
+                    !loading && (
+                        <View style={styles.emptyBox}>
+                            <Ionicons name="notifications-off-outline" size={60} color="#1E293B" />
+                            <Text style={styles.emptyText}>No new notifications.</Text>
+                        </View>
+                    )
+                }
+            />
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#fff' },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 20,
-        paddingTop: 60,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f3f4f6'
-    },
-    headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#1f2937' },
-    alertCard: {
-        flexDirection: 'row',
-        padding: 15,
-        borderRadius: 15,
-        backgroundColor: '#fff',
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: '#f3f4f6'
-    },
-    iconBox: { width: 50, height: 50, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+    header: { padding: 24, paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    headerTitle: { fontSize: 20, letterSpacing: 4 },
+    backBtn: { padding: 4 },
+    listContent: { padding: 20 },
+    alertCard: { padding: 16, borderRadius: 20, marginBottom: 12 },
+    cardTop: { flexDirection: 'row', gap: 15 },
+    iconBox: { width: 50, height: 50, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
     content: { flex: 1 },
-    topRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
-    title: { fontSize: 15, fontWeight: 'bold', color: '#374151' },
-    time: { fontSize: 11, color: '#9ca3af' },
-    msg: { fontSize: 13, color: '#6b7280', lineHeight: 18 },
-    actionRow: { flexDirection: 'row', marginTop: 15, gap: 10 },
-    actionBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
-    approveBtn: { backgroundColor: '#4c1d95' },
-    rejectBtn: { backgroundColor: '#f3f4f6' },
-    btnText: { color: '#fff', fontWeight: 'bold', fontSize: 13 },
+    headerRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+    title: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
+    time: { color: '#64748B', fontSize: 11 },
+    msg: { color: '#94A3B8', fontSize: 13, lineHeight: 18 },
+    actionRow: { flexDirection: 'row', gap: 12, marginTop: 15 },
+    approveBtn: { flex: 2, backgroundColor: Theme.colors.primary, py: 10, borderRadius: 12, alignItems: 'center' },
+    btnText: { color: '#fff', fontSize: 12, fontWeight: '900' },
+    rejectBtn: { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', py: 10, borderRadius: 12, alignItems: 'center' },
+    rejectText: { color: '#64748B', fontSize: 12, fontWeight: 'bold' },
+    emptyBox: { alignItems: 'center', py: 100 },
+    emptyText: { color: '#475569', marginTop: 20, fontSize: 14 }
 });

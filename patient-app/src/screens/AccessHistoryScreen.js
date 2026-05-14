@@ -1,32 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-
-import { API_BASE_URL } from '../api';
+import ApiService from '../utils/ApiService';
+import { Theme, GlobalStyles } from '../theme';
+import { HapticUtils } from '../utils/haptics';
 
 export default function AccessHistoryScreen({ navigation }) {
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
     const fetchHistory = async () => {
         try {
-            const token = await AsyncStorage.getItem('token');
-            // We use the active-sharing endpoint but might need a dedicated history one
-            // For now, let's assume we want to see ALL doctor_access records for this patient
-            // We'll update the backend to provide a history endpoint if needed, 
-            // but for now let's reuse/filter get_patient_active_sharing or similar.
-            // Actually, let's assume the backend has a /patient/access-history endpoint now.
-            const response = await axios.get(`${API_BASE_URL}/patient/access-history`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setHistory(response.data);
+            const data = await ApiService.getAccessHistory();
+            setHistory(data);
         } catch (error) {
             console.error('Fetch history error:', error);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
 
@@ -34,14 +27,18 @@ export default function AccessHistoryScreen({ navigation }) {
         fetchHistory();
     }, []);
 
+    const onRefresh = () => {
+        setRefreshing(true);
+        fetchHistory();
+    };
+
     const renderItem = ({ item }) => {
         const isGranted = item.status === 'granted';
         const isRevoked = item.status === 'revoked';
         const statusColor = isGranted ? '#10b981' : isRevoked ? '#ef4444' : '#f59e0b';
-        const statusText = item.status.toUpperCase();
 
         return (
-            <View style={styles.card}>
+            <View style={[styles.historyCard, GlobalStyles.glass]}>
                 <View style={styles.cardHeader}>
                     <View style={styles.doctorInfo}>
                         <View style={styles.avatar}>
@@ -52,26 +49,26 @@ export default function AccessHistoryScreen({ navigation }) {
                             <Text style={styles.clinicName}>{item.clinic_name || 'Hospyn Network'}</Text>
                         </View>
                     </View>
-                    <View style={[styles.statusBadge, { backgroundColor: statusColor + '15' }]}>
-                        <Text style={[styles.statusText, { color: statusColor }]}>{statusText}</Text>
+                    <View style={[styles.badge, { backgroundColor: statusColor + '15' }]}>
+                        <Text style={[styles.badgeText, { color: statusColor }]}>{item.status.toUpperCase()}</Text>
                     </View>
                 </View>
 
                 <View style={styles.divider} />
 
-                <View style={styles.cardFooter}>
-                    <View style={styles.timeInfo}>
-                        <Ionicons name="calendar-outline" size={14} color="#64748b" />
+                <View style={styles.footer}>
+                    <View style={styles.timeBox}>
+                        <Ionicons name="time-outline" size={14} color="#64748B" />
                         <Text style={styles.timeText}>
                             {isGranted ? `Granted: ${new Date(item.granted_at).toLocaleDateString()}` :
-                                isRevoked ? `Revoked: ${new Date(item.revoked_at).toLocaleDateString()}` :
-                                    `Requested: ${new Date(item.created_at).toLocaleDateString()}`}
+                             isRevoked ? `Revoked: ${new Date(item.revoked_at).toLocaleDateString()}` :
+                             `Requested: ${new Date(item.created_at).toLocaleDateString()}`}
                         </Text>
                     </View>
                     {item.last_accessed_at && (
-                        <View style={styles.timeInfo}>
-                            <Ionicons name="eye-outline" size={14} color="#64748b" />
-                            <Text style={styles.timeText}>Last Seen: {new Date(item.last_accessed_at).toLocaleDateString()}</Text>
+                        <View style={styles.timeBox}>
+                            <Ionicons name="eye-outline" size={14} color="#64748B" />
+                            <Text style={styles.timeText}>Last Viewed: {new Date(item.last_accessed_at).toLocaleDateString()}</Text>
                         </View>
                     )}
                 </View>
@@ -80,30 +77,31 @@ export default function AccessHistoryScreen({ navigation }) {
     };
 
     return (
-        <View style={styles.container}>
-            <View style={styles.header}>
+        <View style={GlobalStyles.screen}>
+            <LinearGradient colors={['#0F172A', '#050810']} style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color="#1e293b" />
+                    <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Access History</Text>
-                <TouchableOpacity onPress={fetchHistory}>
-                    <Ionicons name="refresh" size={20} color="#4c1d95" />
+                <Text style={[GlobalStyles.heading, styles.headerTitle]}>ACCESS LOGS</Text>
+                <TouchableOpacity onPress={onRefresh}>
+                    <Ionicons name="refresh" size={20} color="#fff" />
                 </TouchableOpacity>
-            </View>
+            </LinearGradient>
 
             {loading ? (
-                <ActivityIndicator size="large" color="#4c1d95" style={{ marginTop: 50 }} />
+                <ActivityIndicator size="large" color={Theme.colors.primary} style={{ marginTop: 50 }} />
             ) : (
                 <FlatList
                     data={history}
                     keyExtractor={item => item.id.toString()}
                     renderItem={renderItem}
                     contentContainerStyle={styles.listContent}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.primary} />}
                     ListEmptyComponent={
-                        <View style={styles.emptyContainer}>
-                            <Ionicons name="shield-outline" size={80} color="#e2e8f0" />
-                            <Text style={styles.emptyTitle}>Secure & Private</Text>
-                            <Text style={styles.emptyText}>All doctor access requests and approvals will be logged here for your review.</Text>
+                        <View style={styles.emptyBox}>
+                            <Ionicons name="shield-outline" size={80} color="#1E293B" />
+                            <Text style={styles.emptyTitle}>NO ACTIVITY YET</Text>
+                            <Text style={styles.emptySub}>All doctor interactions with your clinical profile will be securely logged here.</Text>
                         </View>
                     }
                 />
@@ -113,60 +111,24 @@ export default function AccessHistoryScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f8fafc' },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingTop: 60,
-        paddingBottom: 20,
-        backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
-    },
+    header: { padding: 24, paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    headerTitle: { fontSize: 20, letterSpacing: 4 },
     backBtn: { padding: 4 },
-    headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#1e293b' },
     listContent: { padding: 20 },
-    card: {
-        backgroundColor: '#fff',
-        borderRadius: 24,
-        padding: 20,
-        marginBottom: 16,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-    },
-    doctorInfo: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    avatar: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: '#f1f5f9',
-        justifyContent: 'center',
-        alignItems: 'center'
-    },
-    avatarText: { fontSize: 18, fontWeight: 'bold', color: '#475569' },
-    doctorName: { fontSize: 16, fontWeight: 'bold', color: '#1e293b' },
-    clinicName: { fontSize: 12, color: '#64748b', marginTop: 2 },
-    statusBadge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 10,
-    },
-    statusText: { fontSize: 10, fontWeight: '900' },
-    divider: { height: 1, backgroundColor: '#f1f5f9', marginVertical: 16 },
-    cardFooter: { gap: 8 },
-    timeInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    timeText: { fontSize: 12, color: '#64748b' },
-    emptyContainer: { alignItems: 'center', marginTop: 100, paddingHorizontal: 40 },
-    emptyTitle: { fontSize: 20, fontWeight: 'bold', color: '#1e293b', marginTop: 24 },
-    emptyText: { textAlign: 'center', color: '#64748b', marginTop: 12, lineHeight: 20 },
+    historyCard: { padding: 20, borderRadius: 24, marginBottom: 15 },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+    doctorInfo: { flexDirection: 'row', alignItems: 'center', gap: 15 },
+    avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    avatarText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
+    doctorName: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+    clinicName: { color: '#64748B', fontSize: 12, marginTop: 2 },
+    badge: { px: 10, py: 4, borderRadius: 8 },
+    badgeText: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
+    divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.05)', marginVertical: 15 },
+    footer: { gap: 8 },
+    timeBox: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    timeText: { color: '#64748B', fontSize: 11 },
+    emptyBox: { alignItems: 'center', py: 100, px: 40 },
+    emptyTitle: { color: '#fff', fontSize: 16, fontWeight: '900', letterSpacing: 2, marginTop: 20 },
+    emptySub: { color: '#475569', textAlign: 'center', fontSize: 13, marginTop: 10, lineHeight: 20 }
 });

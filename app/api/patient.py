@@ -1,6 +1,6 @@
 import os
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
@@ -10,7 +10,7 @@ from app.models import models
 from app.schemas import schemas
 from app.core.config import settings
 from app.core.limiter import limiter
-from app.core.audit import log_audit_action
+from app.core.audit import log_clinical_audit as log_audit_action
 from app.core.logging import logger
 from app.services.dashboard_service import DashboardService
 from app.services.ai_service import get_ai_service, AsyncAIService
@@ -40,7 +40,7 @@ async def patient_login_hospyn(
     patient = result_p.scalars().first()
     
     if not patient:
-        await log_audit_action(db, "LOGIN_FAILURE_NOT_FOUND", details={"hospyn_id": hospyn_id})
+        await log_audit_action(db, user_id=None, action="LOGIN_FAILURE_NOT_FOUND", resource_type="AUTH", details={"hospyn_id": hospyn_id})
         throw_auth_exception("Invalid Hospyn ID or password")
 
     result_u = await db.execute(select(models.User).where(models.User.id == patient.user_id))
@@ -48,14 +48,14 @@ async def patient_login_hospyn(
     
     # 2. Strict Credential Verification
     if not user or not security.verify_password(req.password, user.hashed_password):
-        await log_audit_action(db, "LOGIN_FAILURE_AUTH", user_id=user.id if user else None)
+        await log_audit_action(db, user_id=user.id if user else None, action="LOGIN_FAILURE_AUTH", resource_type="AUTH")
         throw_auth_exception("Invalid Hospyn ID or password")
     
     # 3. Session Issuance
     access_token = security.create_access_token(user.id, user.role)
     refresh_token = security.create_refresh_token(user.id, user.role)
     
-    await log_audit_action(db, "LOGIN_SUCCESS", user_id=user.id)
+    await log_audit_action(db, user_id=user.id, action="LOGIN_SUCCESS", resource_type="AUTH")
     # Unit of Work: Commit handled by dependency or explicit flush if needed
     await db.commit() 
 
@@ -77,7 +77,7 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 async def upload_report(
     request: Request,
     file: UploadFile = File(...),
-    current_patient: models.Patient = Depends(deps.get_current_patient),
+    current_patient: Any = Depends(deps.get_current_patient),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Securely uploads and asynchronously processes a medical report (Stateless & Scalable)."""
@@ -90,16 +90,15 @@ async def upload_report(
     from app.services.storage_service import upload_bytes_async
 
     try:
-        # 1. Direct Memory Streaming to Cloud Storage (Stateless)
-        content = await file.read()
-        if len(content) > MAX_FILE_SIZE:
-             raise HTTPException(status_code=413, detail="File too large")
-             
+        # 1. Direct Memory Streaming to Cloud Storage (Stateless & Memory-Safe)
+        from app.services.storage_service import StorageService
+        storage = StorageService()
+        
         safe_filename = f"{uuid.uuid4()}{ext}"
         s3_object_name = f"reports/{current_patient.hospyn_id or 'anon'}/{safe_filename}"
         
-        s3_url = await upload_bytes_async(
-            content=content, 
+        s3_url = await storage.upload_stream(
+            file_obj=file.file, 
             object_name=s3_object_name, 
             mime_type=file.content_type or "application/octet-stream"
         )
@@ -131,10 +130,11 @@ async def upload_report(
 
         await log_audit_action(
             db, 
-            "REPORT_STAGED_IN_PIPELINE", 
             user_id=current_patient.user_id, 
+            action="REPORT_STAGED_IN_PIPELINE", 
             resource_type="MEDICAL_RECORD",
-            details={"record_id": new_record.id, "job_id": job_id}
+            resource_id=new_record.id,
+            details={"job_id": job_id}
         )
         
         return {
@@ -154,7 +154,7 @@ async def upload_report(
 @router.post("/confirm-and-save-report")
 async def confirm_report(
     data: schemas.ReportConfirmSave,
-    current_patient: models.Patient = Depends(deps.get_current_patient),
+    current_patient: Any = Depends(deps.get_current_patient),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Saves the AI analyzed report to the permanent database history."""
@@ -190,7 +190,7 @@ async def confirm_report(
 
 @router.get("/records", response_model=List[schemas.MedicalRecordResponse])
 async def get_my_records(
-    current_patient: models.Patient = Depends(deps.get_current_patient),
+    current_patient: Any = Depends(deps.get_current_patient),
     active_member_id: Optional[uuid.UUID] = Depends(deps.get_active_family_member_id),
     db: AsyncSession = Depends(deps.get_db)
 ):
@@ -200,11 +200,26 @@ async def get_my_records(
             models.MedicalRecord.family_member_id == active_member_id
         )
     )
-    return result.scalars().all()
+    await log_audit_action(
+        db, 
+        user_id=current_patient.user_id, 
+        action="READ_PHI", 
+        resource_type="MEDICAL_RECORD_LIST",
+        patient_id=current_patient.id
+    )
+    
+    from app.services.storage_service import get_secure_url
+    records = result.scalars().all()
+    for record in records:
+        try:
+            record.secure_url = await get_secure_url(record.file_url, expires_in=600)
+        except Exception:
+            record.secure_url = None
+    return records
 
 @router.get("/profile", response_model=schemas.PatientProfileResponse)
 async def get_patient_profile(
-    current_patient: models.Patient = Depends(deps.get_current_patient),
+    current_patient: Any = Depends(deps.get_current_patient),
     active_member_id: Optional[uuid.UUID] = Depends(deps.get_active_family_member_id),
     db: AsyncSession = Depends(deps.get_db)
 ):
@@ -244,6 +259,13 @@ async def get_patient_profile(
                     "relation": member.relation
                 }
 
+        await log_audit_action(
+            db, 
+            user_id=current_patient.user_id, 
+            action="READ_PHI", 
+            resource_type="PATIENT_PROFILE",
+            patient_id=current_patient.id
+        )
         return {
             "id": patient.id,
             "full_name": f"{user.first_name} {user.last_name}" if (user and user.first_name) else "Patient",
@@ -265,19 +287,26 @@ async def get_patient_profile(
 
 @router.get("/care-circle", response_model=List[schemas.FamilyMemberResponse])
 async def get_care_circle(
-    current_patient: models.Patient = Depends(deps.get_current_patient),
+    current_patient: Any = Depends(deps.get_current_patient),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Lists all family members in the patient's care circle."""
     result = await db.execute(
         select(models.FamilyMember).where(models.FamilyMember.patient_id == current_patient.id)
     )
+    await log_audit_action(
+        db, 
+        user_id=current_patient.user_id, 
+        action="READ_PHI", 
+        resource_type="MEDICAL_RECORD_LIST",
+        patient_id=current_patient.id
+    )
     return result.scalars().all()
 
 @router.post("/care-circle", response_model=schemas.FamilyMemberResponse)
 async def add_family_member(
     data: schemas.FamilyMemberCreate,
-    current_patient: models.Patient = Depends(deps.get_current_patient),
+    current_patient: Any = Depends(deps.get_current_patient),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Adds a new family member to the care circle."""
@@ -297,7 +326,7 @@ async def add_family_member(
 
 @router.get("/clinical-summary")
 async def get_clinical_summary(
-    current_patient: models.Patient = Depends(deps.get_current_patient),
+    current_patient: Any = Depends(deps.get_current_patient),
     active_member_id: Optional[uuid.UUID] = Depends(deps.get_active_family_member_id),
     db: AsyncSession = Depends(deps.get_db)
 ):
@@ -391,7 +420,7 @@ async def get_clinical_summary(
 @router.post("/log-medication")
 async def log_medication_intake(
     medication_id: uuid.UUID,
-    current_patient: models.Patient = Depends(deps.get_current_patient),
+    current_patient: Any = Depends(deps.get_current_patient),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Records that a patient has taken a medication."""
@@ -407,14 +436,14 @@ async def log_medication_intake(
     db.add(log)
     await db.commit()
     
-    await log_audit_action(db, "MEDICATION_TAKEN", user_id=current_patient.user_id, details={"medication": med.generic_name})
+    await log_audit_action(db, user_id=current_patient.user_id, action="MEDICATION_TAKEN", resource_type="MEDICATION", details={"medication": med.generic_name})
     
     return {"status": "success", "message": f"Logged {med.generic_name} intake."}
 
 @router.post("/set-password")
 async def set_patient_password(
     data: schemas.SetPasswordRequest,
-    current_patient: models.Patient = Depends(deps.get_current_patient),
+    current_patient: Any = Depends(deps.get_current_patient),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Updates the patient's login password and generates an Hospyn ID if missing."""
@@ -435,17 +464,18 @@ async def set_patient_password(
 @router.get("/dashboard")
 async def get_dashboard(
     hospital_id: Optional[uuid.UUID] = None,
-    current_patient: models.Patient = Depends(deps.get_current_patient),
+    current_patient: Any = Depends(deps.get_current_patient),
+    active_member_id: Optional[uuid.UUID] = Depends(deps.get_active_family_member_id),
     db: AsyncSession = Depends(deps.get_db)
 ):
     service = DashboardService(db)
-    return await service.get_dashboard(hospital_id, current_patient.id)
+    return await service.get_dashboard(hospital_id, current_patient.id, family_member_id=active_member_id)
 
 @router.post("/chat", response_model=schemas.ChatResponse)
 async def chat_with_chitti(
     request: Request,
     text: Optional[str] = Form(None),
-    family_member_id: Optional[uuid.UUID] = Form(None),
+    active_member_id: Optional[uuid.UUID] = Depends(deps.get_active_family_member_id),
     language_code: str = Form("en-IN"),
     file: Optional[UploadFile] = File(None),
     audio: Optional[UploadFile] = File(None),
@@ -455,6 +485,15 @@ async def chat_with_chitti(
 ):
     """Interactive AI chat with memory, vision, and voice capability."""
     conversation_id = f"chat_{current_user.id}"
+    
+    # --- LOAD SHEDDING (P3 Priority) ---
+    from app.services.health_service import system_health
+    if await system_health.should_shed_load(priority="P3"):
+        logger.warning(f"LOAD_SHEDDING: Disabling AI Chat for User {current_user.id}")
+        raise HTTPException(
+            status_code=503, 
+            detail="Chitti is temporarily offline to prioritize core clinical records. Please try again shortly."
+        )
     
     msg_content = text or "Attached media"
     image_bytes = None
@@ -483,7 +522,7 @@ async def chat_with_chitti(
         str(current_user.id), 
         conversation_id, 
         msg_content, 
-        family_member_id=family_member_id,
+        family_member_id=active_member_id,
         image_bytes=image_bytes, 
         audio_bytes=audio_bytes,
         language_code=language_code,
@@ -515,7 +554,7 @@ async def get_chat_history(
 
 @router.get("/pending-access")
 async def get_pending_access(
-    current_patient: models.Patient = Depends(deps.get_current_patient),
+    current_patient: Any = Depends(deps.get_current_patient),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Fetch any pending doctor access requests for the patient."""
@@ -539,7 +578,7 @@ async def get_pending_access(
 @router.post("/approve-access/{access_id}")
 async def approve_access(
     access_id: int,
-    current_patient: models.Patient = Depends(deps.get_current_patient),
+    current_patient: Any = Depends(deps.get_current_patient),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Approve a doctor's request to view medical records."""
@@ -558,14 +597,14 @@ async def approve_access(
     access_req.granted_at = datetime.now()
     
     await db.commit()
-    await log_audit_action(db, "ACCESS_GRANTED", user_id=current_patient.user_id, details={"doctor": access_req.doctor_name})
+    await log_audit_action(db, user_id=current_patient.user_id, action="ACCESS_GRANTED", resource_type="CONSENT", details={"doctor": access_req.doctor_name})
     
     return {"status": "success", "message": f"Access granted to {access_req.doctor_name}"}
 
 @router.post("/revoke-access/{access_id}")
 async def revoke_access(
     access_id: int,
-    current_patient: models.Patient = Depends(deps.get_current_patient),
+    current_patient: Any = Depends(deps.get_current_patient),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Revoke or reject a doctor's access."""
@@ -581,14 +620,14 @@ async def revoke_access(
     
     access_req.status = "revoked"
     await db.commit()
-    await log_audit_action(db, "ACCESS_REVOKED", user_id=current_patient.user_id, details={"doctor": access_req.doctor_name})
+    await log_audit_action(db, user_id=current_patient.user_id, action="ACCESS_REVOKED", resource_type="CONSENT", details={"doctor": access_req.doctor_name})
     
     return {"status": "success", "message": f"Access revoked for {access_req.doctor_name}"}
 
 @router.post("/share-record")
 async def share_record_with_doctor(
     data: schemas.ShareRecordRequest,
-    current_patient: models.Patient = Depends(deps.get_current_patient),
+    current_patient: Any = Depends(deps.get_current_patient),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Share a single specific medical record with a doctor (from Chitti AI chat)."""
@@ -638,11 +677,11 @@ async def share_record_with_doctor(
 
     await log_audit_action(
         db, 
-        "RECORD_SHARED", 
         user_id=current_patient.user_id, 
+        action="RECORD_SHARED", 
         resource_type="MEDICAL_RECORD",
+        resource_id=data.record_id,
         details={
-            "record_id": data.record_id, 
             "doctor_query": data.doctor_query,
             "expires_hours": data.expires_hours,
             "share_id": share.id
@@ -659,7 +698,7 @@ async def share_record_with_doctor(
 @router.get("/jobs/{job_id}")
 async def get_job_status(
     job_id: str,
-    current_patient: models.Patient = Depends(deps.get_current_patient),
+    current_patient: Any = Depends(deps.get_current_patient),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Polls the status of a background AI processing job."""

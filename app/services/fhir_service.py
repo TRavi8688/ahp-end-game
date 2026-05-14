@@ -1,89 +1,58 @@
-from typing import Dict, Any, List
-from datetime import datetime
-from app.models.models import MedicalRecord, Patient
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.models.models import FHIRResource, MedicalDevice, LabResult, Patient
+from sqlalchemy import select
+from app.core.logging import logger
 import uuid
 
 class FHIRService:
     """
-    HL7 FHIR R4 INTEROPERABILITY LAYER.
-    Maps internal Hospyn models to standardized FHIR resources.
+    CLINICAL INTEROPERABILITY ENGINE (Phase 3.1).
+    Ingests standardized data from hospital machines and wearables.
     """
-    
-    @staticmethod
-    def to_fhir_observation(record: MedicalRecord, patient: Patient) -> Dict[str, Any]:
-        """Maps a MedicalRecord (Vitals/Lab) to a FHIR Observation."""
-        return {
-            "resourceType": "Observation",
-            "id": str(record.id),
-            "status": "final",
-            "category": [
-                {
-                    "coding": [
-                        {
-                            "system": "http://terminology.hl7.org/CodeSystem/observation-category",
-                            "code": "vital-signs" if record.type == "vitals" else "laboratory"
-                        }
-                    ]
-                }
-            ],
-            "subject": {
-                "reference": f"Patient/{patient.hospyn_id}"
-            },
-            "effectiveDateTime": record.created_at.isoformat(),
-            "issued": datetime.utcnow().isoformat() + "Z",
-            "valueString": record.summary or "See attached report",
-            "note": [
-                {"text": record.notes}
-            ] if record.notes else []
-        }
+    def __init__(self, db: AsyncSession):
+        self.db = db
 
-    @staticmethod
-    def to_fhir_diagnostic_report(record: MedicalRecord, patient: Patient) -> Dict[str, Any]:
-        """Maps a MedicalRecord (Scan/Lab) to a FHIR DiagnosticReport."""
-        return {
-            "resourceType": "DiagnosticReport",
-            "id": str(record.id),
-            "status": "final",
-            "category": [
-                {
-                    "coding": [
-                        {
-                            "system": "http://terminology.hl7.org/CodeSystem/v2-0074",
-                            "code": "LAB" if record.type == "lab_report" else "RAD"
-                        }
-                    ]
-                }
-            ],
-            "subject": {
-                "reference": f"Patient/{patient.hospyn_id}"
-            },
-            "effectiveDateTime": record.created_at.isoformat(),
-            "issued": datetime.utcnow().isoformat() + "Z",
-            "conclusion": record.summary,
-            "presentedForm": [
-                {
-                    "contentType": "application/pdf" if record.file_url.endswith(".pdf") else "image/jpeg",
-                    "url": record.file_url
-                }
-            ] if record.file_url else []
-        }
-
-    @classmethod
-    def generate_bulk_export(cls, records: List[MedicalRecord], patient: Patient) -> List[Dict[str, Any]]:
-        """Generates a FHIR Bundle for bulk data portability."""
-        entries = []
-        for record in records:
-            if record.type in ["vitals", "lab_report"]:
-                entries.append({
-                    "fullUrl": f"urn:uuid:{record.id}",
-                    "resource": cls.to_fhir_observation(record, patient),
-                    "request": {"method": "POST", "url": "Observation"}
-                })
+    async def ingest_observation(self, device_serial: str, patient_id: uuid.UUID, fhir_data: dict):
+        """
+        Normalizes a machine observation into the Hospyn timeline.
+        """
+        # 1. Resolve Device
+        stmt = select(MedicalDevice).where(MedicalDevice.serial_number == device_serial)
+        result = await self.db.execute(stmt)
+        device = result.scalar_one_or_none()
         
-        return {
-            "resourceType": "Bundle",
-            "type": "transaction",
-            "entry": entries
-        }
+        if not device:
+            logger.error(f"UNRECOGNIZED_DEVICE: {device_serial}")
+            raise ValueError("DEVICE_NOT_REGISTERED")
 
-fhir_service = FHIRService()
+        # 2. Store the Raw FHIR Resource (Audit Trail)
+        resource = FHIRResource(
+            hospital_id=device.hospital_id,
+            patient_id=patient_id,
+            resource_type="Observation",
+            fhir_json=fhir_data,
+            source_device_id=device.id
+        )
+        self.db.add(resource)
+
+        # 3. Map to Longitudinal Clinical Data (Trending)
+        # FHIR Observations often contain LOINC codes or simple value/unit pairs.
+        test_name = fhir_data.get("code", {}).get("text", "Unknown Observation")
+        value = fhir_data.get("valueQuantity", {}).get("value")
+        unit = fhir_data.get("valueQuantity", {}).get("unit")
+
+        if value is not None:
+            lab_entry = LabResult(
+                patient_id=patient_id,
+                hospital_id=device.hospital_id,
+                test_name=test_name,
+                value=str(value),
+                unit=unit,
+                is_abnormal=False, # Logic: compare against ref range if available
+                observation_date=fhir_data.get("effectiveDateTime")
+            )
+            self.db.add(lab_entry)
+
+        await self.db.commit()
+        logger.info(f"FHIR_INGESTION_SUCCESS: {test_name} from {device.name}")
+        return True

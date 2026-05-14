@@ -114,4 +114,51 @@ class RedisService:
         val = await self.get(f"blacklist:{jti}")
         return val == "true"
 
+    # --- CHAOS ENGINEERING: DISTRIBUTED LOCKING ---
+    async def acquire_lock(self, lock_name: str, acquire_timeout: int = 10, lock_timeout: int = 60) -> Optional[str]:
+        """
+        Acquires a distributed lock to prevent race conditions (e.g. concurrent AI jobs).
+        Returns the lock identifier if successful, else None.
+        """
+        client = self.get_client()
+        if not client: 
+            return "mock_lock" if settings.ENVIRONMENT != "production" else None
+        
+        import uuid
+        import time
+        import asyncio
+        
+        identifier = str(uuid.uuid4())
+        end = time.time() + acquire_timeout
+        
+        while time.time() < end:
+            # Atomic set with NX (Not Exists) and EX (Expire)
+            if await client.set(lock_name, identifier, nx=True, ex=lock_timeout):
+                return identifier
+            await asyncio.sleep(0.1)
+        
+        return None
+
+    async def release_lock(self, lock_name: str, identifier: str) -> bool:
+        """
+        Releases a lock safely by checking the identifier.
+        Prevents a process from accidentally releasing a lock held by another process.
+        """
+        client = self.get_client()
+        if not client: return True
+        
+        # LUA script for atomic check-and-delete
+        script = """
+        if redis.call("get", KEYS[1]) == ARGV[1] then
+            return redis.call("del", KEYS[1])
+        else
+            return 0
+        end
+        """
+        try:
+            result = await client.eval(script, 1, lock_name, identifier)
+            return bool(result)
+        except Exception:
+            return False
+
 redis_service = RedisService()

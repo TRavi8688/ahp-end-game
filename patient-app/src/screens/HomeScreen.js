@@ -100,6 +100,16 @@ export default function HomeScreen({ navigation }) {
         );
     }, []);
 
+    // REAL-TIME SYNC: Listen for Doctor Access Requests
+    useEffect(() => {
+        if (lastMessage?.type === 'consent_request') {
+            console.log('[Sync] New access request received:', lastMessage);
+            setConsentData(lastMessage.data || lastMessage);
+            setShowConsent(true);
+            // Optionally play a sound or haptic
+        }
+    }, [lastMessage]);
+
     const animatedOrbStyle = useAnimatedStyle(() => ({
         transform: [{ scale: orbScale.value }],
         opacity: orbOpacity.value,

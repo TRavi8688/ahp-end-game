@@ -1,14 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-    View, Text, StyleSheet, FlatList, TouchableOpacity,
-    ActivityIndicator, Modal, Image, Alert, ScrollView, Linking, Platform
-} from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Modal, Image, Alert, ScrollView, Linking, Platform, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
-import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'expo-document-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import ApiService from '../utils/ApiService';
 import { useSocket } from '../contexts/SocketContext';
 import { Theme, GlobalStyles } from '../theme';
@@ -18,28 +12,19 @@ export default function RecordsScreen({ navigation }) {
     const { lastMessage } = useSocket();
     const [records, setRecords] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [isProcessing, setIsProcessing] = useState(false);
-    const [showAnalysis, setShowAnalysis] = useState(false);
-    const [analysisData, setAnalysisData] = useState(null);
-    const [uploadProgress, setUploadProgress] = useState(0);
-
-    // --- Record Detail Viewer ---
-    const [showDetail, setShowDetail] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState(null);
+    const [showDetail, setShowDetail] = useState(false);
 
     const fetchRecords = async () => {
         try {
             const data = await ApiService.getRecords();
-
-            const hiddenIdsStr = await AsyncStorage.getItem('hidden_records');
-            const hiddenIds = hiddenIdsStr ? JSON.parse(hiddenIdsStr) : [];
-            const visibleRecords = data.filter(r => !hiddenIds.includes(r.id));
-
-            setRecords(visibleRecords);
+            setRecords(data);
         } catch (error) {
-            console.error('Error fetching records:', error);
+            console.error('Fetch records error:', error);
         } finally {
             setIsLoading(false);
+            setRefreshing(false);
         }
     };
 
@@ -49,528 +34,127 @@ export default function RecordsScreen({ navigation }) {
         }, [])
     );
 
+    useEffect(() => {
+        if (lastMessage?.type === 'ANALYSIS_COMPLETE') {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            fetchRecords();
+        }
+    }, [lastMessage]);
+
+    const onRefresh = () => {
+        setRefreshing(true);
+        fetchRecords();
+    };
+
     const openRecord = (record) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         setSelectedRecord(record);
         setShowDetail(true);
     };
 
-    const handleUpload = async (type) => {
-        try {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            
-            let result;
-            if (type === 'camera') {
-                // Enterprise Rule: Strict Hardware Permission Audit
-                const { status } = await ImagePicker.requestCameraPermissionsAsync();
-                if (status !== 'granted') {
-                    Alert.alert(
-                        'Hardware Lock', 
-                        'Hospyn requires Camera access for clinical scanning. Please enable it in Settings.',
-                        [{ text: 'Settings', onPress: () => Linking.openSettings() }, { text: 'Cancel' }]
-                    );
-                    return;
-                }
-                
-                result = await ImagePicker.launchCameraAsync({
-                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                    allowsEditing: true,
-                    quality: 0.8,
-                    aspect: [4, 3],
-                });
-            } else if (type === 'gallery') {
-                const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                if (status !== 'granted') {
-                    Alert.alert(
-                        'Media Access Required', 
-                        'Permission is needed to select clinical documents from your gallery.',
-                        [{ text: 'Settings', onPress: () => Linking.openSettings() }, { text: 'Cancel' }]
-                    );
-                    return;
-                }
-                
-                result = await ImagePicker.launchImageLibraryAsync({
-                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                    quality: 0.8,
-                    selectionLimit: 1,
-                });
-            } else {
-                result = await DocumentPicker.getDocumentAsync({ 
-                    type: 'application/pdf',
-                    copyToCacheDirectory: true 
-                });
-            }
-
-            if (result.canceled || !result.assets || result.assets.length === 0) return;
-
-            const file = result.assets[0];
-            processFile(file);
-        } catch (error) {
-            console.error("HARDWARE_FAILURE:", error);
-            Alert.alert('System Error', 'Failed to initialize clinical hardware interface.');
-        }
-    };
-
-    // Listen for Real-time Analysis Completion
-    useEffect(() => {
-        if (lastMessage && lastMessage.type === 'ANALYSIS_COMPLETE') {
-            console.log('[Records] Report analysis finished!', lastMessage.payload);
-            setAnalysisData({
-                status: 'success',
-                record_name: lastMessage.payload.record_name || 'Medical Report',
-                hospital_name: lastMessage.payload.hospital_name || 'Unknown Facility',
-                summary: lastMessage.payload.summary,
-                extracted_data: lastMessage.payload.dashboard?.ai_extracted || {},
-                url: lastMessage.payload.url || selectedRecord?.file_url,
-                type: lastMessage.payload.type || 'Document'
-            });
-            setIsProcessing(false);
-            setUploadProgress(0);
-            setShowAnalysis(true);
-            fetchRecords();
-        }
-    }, [lastMessage]);
-
-    const processFile = async (file) => {
-        setIsProcessing(true);
-        setUploadProgress(10);
-
-        try {
-            const formData = new FormData();
-
-            const fileUri = file.uri;
-            const fileName = file.name || `upload_${Date.now()}.jpg`;
-            const fileType = file.mimeType || 'image/jpeg';
-
-            if (Platform.OS === 'web') {
-                const fetchRes = await fetch(fileUri);
-                const blob = await fetchRes.blob();
-                const realFile = new File([blob], fileName, { type: fileType });
-                formData.append('file', realFile);
-            } else {
-                formData.append('file', { uri: fileUri, name: fileName, type: fileType });
-            }
-
-            setUploadProgress(30);
-            const data = await ApiService.uploadReport(formData);
-            setUploadProgress(100);
-
-            if (data.status === 'success') {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                setAnalysisData(data);
-                setShowAnalysis(true);
-            } else {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                Alert.alert('Analysis Failed', data.message || 'Chitti could not read this document.');
-            }
-        } catch (error) {
-            console.error('Upload error:', error);
-            Alert.alert('Network Error', 'Could not reach Chitti. Please check your connection.');
-        } finally {
-            setIsProcessing(false);
-            setUploadProgress(0);
-            fetchRecords();
-        }
-    };
-
-    const confirmSave = async (shouldUpdateProfile) => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        try {
-            await ApiService.confirmReport({
-                analysis: {
-                    structured_data: analysisData.extracted_data,
-                    summary: analysisData.summary,
-                    doctor_summary: analysisData.doctor_summary || "",
-                    raw_text: analysisData.visual_findings || ""
-                },
-                record_name: analysisData.record_name,
-                hospital_name: analysisData.hospital_name,
-                s3_url: analysisData.url,
-                type: analysisData.type,
-                update_profile: shouldUpdateProfile
-            });
-
-            setShowAnalysis(false);
-            Alert.alert('Success', shouldUpdateProfile ? 'Record added to your clinical profile!' : 'Record stored safely in history.');
-            fetchRecords();
-        } catch (error) {
-            Alert.alert('Error', 'Failed to confirm record.');
-        }
-    };
-
-    // Parse ai_extracted field (JSON string or object)
-    const parseExtracted = (record) => {
-        if (!record) return { conditions: [], medications: [] };
-        try {
-            const raw = record.ai_extracted;
-            if (!raw) return { conditions: [], medications: [] };
-            const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-            return {
-                conditions: parsed.conditions || [],
-                medications: parsed.medications || [],
-                hospital: parsed.hospital_details || {}
-            };
-        } catch {
-            return { conditions: [], medications: [] };
-        }
-    };
-
-    const isImageUrl = (url) => {
-        if (!url) return false;
-        const lower = (url || '').toLowerCase();
-        return lower.endsWith('.jpg') || lower.endsWith('.jpeg') || lower.endsWith('.png') || lower.endsWith('.gif') || lower.endsWith('.webp');
-    };
-
-    const openFileInBrowser = (url) => {
-        if (url && !url.startsWith('local://') && !url.startsWith('simulated')) {
-            Linking.openURL(url);
-        } else {
-            Alert.alert('File not available', 'This file was stored locally and cannot be previewed.');
-        }
-    };
-
-    const downloadFile = (url) => {
-        if (url && !url.startsWith('local://') && !url.startsWith('simulated')) {
-            if (Platform.OS === 'web') {
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `Hospyn_Record_${Date.now()}`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            } else {
-                Linking.openURL(url);
-            }
-        } else {
-            Alert.alert('File not available', 'This file was stored locally and cannot be downloaded.');
-        }
-    };
-
-    const getRecordTypeIcon = (type) => {
+    const getIcon = (type) => {
         switch ((type || '').toLowerCase()) {
-            case 'prescription': return 'medical';
-            case 'lab': return 'flask';
-            case 'xray': case 'scan': return 'scan';
-            default: return 'document-text';
+            case 'prescription': return 'medkit-outline';
+            case 'lab': return 'flask-outline';
+            case 'scan': return 'scan-outline';
+            default: return 'document-text-outline';
         }
     };
 
-    const hideRecord = async (recordId) => {
-        const updateHiddenRecords = async () => {
-            try {
-                const hiddenIdsStr = await AsyncStorage.getItem('hidden_records');
-                const hiddenIds = hiddenIdsStr ? JSON.parse(hiddenIdsStr) : [];
-                if (!hiddenIds.includes(recordId)) {
-                    hiddenIds.push(recordId);
-                    await AsyncStorage.setItem('hidden_records', JSON.stringify(hiddenIds));
-                }
-                setRecords(prev => prev.filter(r => r.id !== recordId));
-            } catch (e) {
-                console.error("Error saving hidden record:", e);
-            }
-        };
-
-        if (Platform.OS === 'web') {
-            if (window.confirm('This record will be hidden from your view. Do you want to continue?')) {
-                updateHiddenRecords();
-            }
-        } else {
-            Alert.alert(
-                'Hide Record',
-                'This record will be hidden from your view. It will still be safely stored in the system. Do you want to continue?',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                        text: 'Hide', style: 'destructive', onPress: updateHiddenRecords
-                    }
-                ]
-            );
-        }
-    };
-
-    const renderRecordItem = ({ item }) => (
-        <TouchableOpacity style={styles.recordCard} onPress={() => openRecord(item)} activeOpacity={0.85}>
-            <LinearGradient colors={['#f5f3ff', '#ede9fe']} style={styles.recordIcon}>
-                <Ionicons
-                    name={getRecordTypeIcon(item.type)}
-                    size={24}
-                    color="#4c1d95"
-                />
-            </LinearGradient>
-            <View style={styles.recordContent}>
-                <Text style={styles.recordTitle} numberOfLines={1}>{item.record_name || (item.type === 'prescription' ? 'Prescription' : 'Medical Record')}</Text>
-                {item.hospital_name ? <Text style={styles.recordHospital}>{item.hospital_name}</Text> : null}
-                <Text style={styles.recordSummary} numberOfLines={1}>{item.ai_summary || 'Tap to view details'}</Text>
-                <Text style={styles.recordDate}>{new Date(item.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</Text>
+    const renderItem = ({ item }) => (
+        <TouchableOpacity 
+            style={[styles.recordCard, GlobalStyles.glass]} 
+            onPress={() => openRecord(item)}
+            activeOpacity={0.7}
+        >
+            <View style={styles.recordIconBox}>
+                <Ionicons name={getIcon(item.type)} size={24} color={Theme.colors.primary} />
             </View>
-            <TouchableOpacity
-                style={styles.hideBtn}
-                onPress={(e) => { e.stopPropagation(); hideRecord(item.id); }}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-                <Ionicons name="trash-outline" size={18} color="#ef4444" />
-            </TouchableOpacity>
-            <View style={styles.viewButton}>
-                <Ionicons name="chevron-forward" size={20} color="#7c3aed" />
+            <View style={styles.recordMain}>
+                <Text style={styles.recordTitle}>{item.record_name || 'Medical Record'}</Text>
+                <Text style={styles.recordSub}>{item.hospital_name || 'Hospyn Network'}</Text>
+                <Text style={styles.recordDate}>{new Date(item.created_at).toLocaleDateString()}</Text>
             </View>
+            <Ionicons name="chevron-forward" size={18} color="#475569" />
         </TouchableOpacity>
     );
 
-    const DetailModal = () => {
-        if (!selectedRecord) return null;
-        const extracted = parseExtracted(selectedRecord);
-        const fileUrl = selectedRecord.file_url;
-        const isImage = isImageUrl(fileUrl);
-        const hasRealFile = fileUrl && !fileUrl.startsWith('local://') && !fileUrl.startsWith('simulated');
-
-        return (
-            <Modal visible={showDetail} animationType="slide" onRequestClose={() => setShowDetail(false)}>
-                <View style={styles.detailContainer}>
-                    {/* Header */}
-                    <LinearGradient colors={['#4c1d95', '#7c3aed']} style={styles.detailHeader}>
-                        <TouchableOpacity onPress={() => setShowDetail(false)} style={styles.backBtn}>
-                            <Ionicons name="arrow-back" size={24} color="#fff" />
-                        </TouchableOpacity>
-                        <View style={styles.detailHeaderText}>
-                            <Text style={styles.detailHeaderTitle}>
-                                {selectedRecord.record_name || (selectedRecord.type === 'prescription' ? '💊 Prescription' : '📄 Medical Record')}
-                            </Text>
-                            {selectedRecord.hospital_name ? (
-                                <Text style={styles.detailHeaderHospital}>🏥 {selectedRecord.hospital_name}</Text>
-                            ) : null}
-                            <Text style={styles.detailHeaderDate}>
-                                {new Date(selectedRecord.created_at).toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
-                            </Text>
-                        </View>
-                    </LinearGradient>
-
-                    <ScrollView style={styles.detailScroll} showsVerticalScrollIndicator={false}>
-
-                        {/* File Preview */}
-                        {hasRealFile ? (
-                            <View style={styles.filePreviewBox}>
-                                {isImage ? (
-                                    <>
-                                        <Image
-                                            source={{ uri: fileUrl }}
-                                            style={styles.previewImage}
-                                            resizeMode="contain"
-                                        />
-                                        <TouchableOpacity style={styles.openFileBtn} onPress={() => openFileInBrowser(fileUrl)}>
-                                            <Ionicons name="open-outline" size={16} color="#4c1d95" />
-                                            <Text style={styles.openFileBtnText}>Open Full Image</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity style={styles.openFileBtn} onPress={() => downloadFile(fileUrl)}>
-                                            <Ionicons name="download-outline" size={16} color="#4c1d95" />
-                                            <Text style={styles.openFileBtnText}>Download Image</Text>
-                                        </TouchableOpacity>
-                                    </>
-                                ) : (
-                                    <View>
-                                        <TouchableOpacity style={styles.pdfPreviewBtn} onPress={() => openFileInBrowser(fileUrl)}>
-                                            <Ionicons name="document-attach" size={40} color="#4c1d95" />
-                                            <Text style={styles.pdfPreviewTitle}>View Document</Text>
-                                            <Text style={styles.pdfPreviewSub}>Tap to open in browser</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity style={styles.openFileBtn} onPress={() => downloadFile(fileUrl)}>
-                                            <Ionicons name="download-outline" size={16} color="#4c1d95" />
-                                            <Text style={styles.openFileBtnText}>Download Document</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                )}
-                            </View>
-                        ) : (
-                            <View style={styles.noFileBox}>
-                                <Ionicons name="cloud-offline-outline" size={40} color="#ccc" />
-                                <Text style={styles.noFileText}>File preview not available</Text>
-                                <Text style={styles.noFileSubText}>The original document was not stored online yet.</Text>
-                            </View>
-                        )}
-
-                        {/* Chitti Summary */}
-                        {selectedRecord.ai_summary ? (
-                            <View style={styles.summaryCard}>
-                                <View style={styles.summaryHeader}>
-                                    <Image source={require('../../assets/chitti_avatar.png')} style={styles.chittiAvatarSmall} />
-                                    <Text style={styles.summaryTitle}>Chitti's Summary</Text>
-                                </View>
-                                <Text style={styles.summaryText}>{selectedRecord.ai_summary}</Text>
-                            </View>
-                        ) : null}
-
-                        {/* Conditions */}
-                        {extracted.conditions.length > 0 && (
-                            <View style={styles.sectionCard}>
-                                <Text style={styles.sectionLabel}>🩺 CONDITIONS FOUND</Text>
-                                {extracted.conditions.map((c, i) => (
-                                    <View key={i} style={styles.itemRow}>
-                                        <View style={[styles.dot, { backgroundColor: '#dc2626' }]} />
-                                        <Text style={styles.itemText}>
-                                            {typeof c === 'string' ? c : c.name || JSON.stringify(c)}
-                                            {c.notes ? <Text style={styles.itemNotes}> — {c.notes}</Text> : null}
-                                        </Text>
-                                    </View>
-                                ))}
-                            </View>
-                        )}
-
-                        {/* Medications */}
-                        {extracted.medications.length > 0 && (
-                            <View style={styles.sectionCard}>
-                                <Text style={styles.sectionLabel}>💊 MEDICATIONS</Text>
-                                {extracted.medications.map((m, i) => (
-                                    <View key={i} style={styles.itemRow}>
-                                        <View style={[styles.dot, { backgroundColor: '#059669' }]} />
-                                        <Text style={styles.itemText}>
-                                            {typeof m === 'string' ? m : `${m.name || ''}${m.dosage ? ' – ' + m.dosage : ''}${m.frequency ? ', ' + m.frequency : ''}`}
-                                        </Text>
-                                    </View>
-                                ))}
-                            </View>
-                        )}
-
-                        {extracted.hospital && extracted.hospital.name && (
-                            <View style={styles.sectionCard}>
-                                <Text style={styles.sectionLabel}>🏥 HOSPITAL / CLINIC</Text>
-                                <Text style={styles.itemText}>{extracted.hospital.name}</Text>
-                                {extracted.hospital.address ? <Text style={styles.itemNotes}>{extracted.hospital.address}</Text> : null}
-                                {extracted.hospital.contact ? <Text style={styles.itemNotes}>📞 {extracted.hospital.contact}</Text> : null}
-                            </View>
-                        )}
-
-                        {/* Raw text */}
-                        {selectedRecord.raw_text ? (
-                            <View style={[styles.sectionCard, { marginBottom: 40 }]}>
-                                <Text style={styles.sectionLabel}>📝 ORIGINAL TEXT FROM DOCUMENT</Text>
-                                <Text style={styles.rawText}>{selectedRecord.raw_text}</Text>
-                            </View>
-                        ) : <View style={{ height: 40 }} />}
-
-                    </ScrollView>
-                </View>
-            </Modal>
-        );
-    };
-
     return (
-        <View style={styles.container}>
+        <View style={GlobalStyles.screen}>
+            <LinearGradient colors={['#0F172A', '#050810']} style={styles.header}>
+                <Text style={[GlobalStyles.heading, styles.headerTitle]}>CLINICAL VAULT</Text>
+                <TouchableOpacity style={styles.uploadBtn} onPress={() => navigation.navigate('Upload')}>
+                    <Ionicons name="cloud-upload" size={20} color="#fff" />
+                    <Text style={styles.uploadBtnText}>UPLOAD</Text>
+                </TouchableOpacity>
+            </LinearGradient>
+
             <FlatList
                 data={records}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={renderRecordItem}
-                contentContainerStyle={styles.listContainer}
+                keyExtractor={item => item.id.toString()}
+                renderItem={renderItem}
+                contentContainerStyle={styles.listContent}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.primary} />}
                 ListEmptyComponent={
                     !isLoading && (
-                        <View style={styles.emptyContainer}>
-                            <Ionicons name="documents-outline" size={64} color="#ccc" />
-                            <Text style={styles.emptyText}>No medical records yet.</Text>
-                            <Text style={styles.emptySubtext}>Upload your first report to start your history.</Text>
+                        <View style={styles.emptyBox}>
+                            <Ionicons name="documents-outline" size={60} color="#1E293B" />
+                            <Text style={styles.emptyText}>Your medical vault is empty.</Text>
+                            <TouchableOpacity style={styles.emptyBtn} onPress={() => navigation.navigate('Upload')}>
+                                <Text style={styles.emptyBtnText}>Add First Record</Text>
+                            </TouchableOpacity>
                         </View>
                     )
                 }
-                ListHeaderComponent={
-                    <View style={styles.uploadSection}>
-                        <Text style={styles.sectionTitle}>Add New Record</Text>
-                        <View style={styles.uploadGrid}>
-                            <TouchableOpacity style={styles.uploadBox} onPress={() => handleUpload('camera')}>
-                                <Ionicons name="camera" size={32} color="#4c1d95" />
-                                <Text style={styles.uploadLabel}>Camera</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.uploadBox} onPress={() => handleUpload('gallery')}>
-                                <Ionicons name="images" size={32} color="#4c1d95" />
-                                <Text style={styles.uploadLabel}>Gallery</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.uploadBox} onPress={() => handleUpload('file')}>
-                                <Ionicons name="document-attach" size={32} color="#4c1d95" />
-                                <Text style={styles.uploadLabel}>PDF/File</Text>
-                            </TouchableOpacity>
-                        </View>
-                        {records.length > 0 && (
-                            <Text style={styles.recordsCountLabel}>{records.length} record{records.length !== 1 ? 's' : ''} stored</Text>
-                        )}
-                    </View>
-                }
             />
 
-            {/* NEW: Record Detail Viewer */}
-            <DetailModal />
-
-            {/* Analysis Modal (after upload) */}
-            <Modal visible={showAnalysis} animationType="slide" transparent>
+            {/* Detail Modal */}
+            <Modal visible={showDetail} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
-                    <View style={styles.modalContainer}>
-                        <LinearGradient colors={['#4c1d95', '#7c3aed']} style={styles.modalHeader}>
-                            <Image source={require('../../assets/chitti_avatar.png')} style={[styles.chittiAvatarSmall, {marginRight: 10}]} />
-                            <Text style={styles.modalHeaderTitle}>Chitti's Analysis</Text>
-                            <TouchableOpacity onPress={() => setShowAnalysis(false)} style={styles.closeModal}>
-                                <Ionicons name="close" size={24} color="#fff" />
+                    <View style={[styles.modalContent, GlobalStyles.glass]}>
+                        <View style={styles.modalHeader}>
+                            <TouchableOpacity onPress={() => setShowDetail(false)}>
+                                <Ionicons name="close" size={28} color="#fff" />
                             </TouchableOpacity>
-                        </LinearGradient>
+                            <Text style={styles.modalTitle}>RECORD DETAILS</Text>
+                            <View style={{ width: 28 }} />
+                        </View>
 
-                        <ScrollView style={styles.modalContent}>
-                            <View style={styles.chittiBox}>
-                                    <Image source={require('../../assets/chitti_avatar.png')} style={styles.chittiAvatarLarge} />
-                                <View style={styles.chittiBubble}>
-                                    <Text style={styles.chittiText}>{analysisData?.summary}</Text>
-                                </View>
-                            </View>
-
-                            <Text style={styles.detailLabel}>EXTRACTED INFO:</Text>
-                            <View style={styles.analysisInfoBox}>
-                                <View style={styles.analysisField}>
-                                    <Text style={styles.analysisFieldLabel}>Record Name:</Text>
-                                    <Text style={styles.analysisFieldValue}>{analysisData?.record_name || 'N/A'}</Text>
-                                </View>
-                                <View style={styles.analysisField}>
-                                    <Text style={styles.analysisFieldLabel}>Hospital:</Text>
-                                    <Text style={styles.analysisFieldValue}>{analysisData?.hospital_name || 'N/A'}</Text>
-                                </View>
-                            </View>
-
-                            <View style={styles.entitiesBox}>
-                                {analysisData?.extracted_data?.conditions?.map((c, i) => (
-                                    <View key={i} style={styles.entityTag}><Text style={styles.entityTagText}>🤒 {c.name || c}</Text></View>
-                                ))}
-                                {analysisData?.extracted_data?.medications?.map((m, i) => (
-                                    <View key={i} style={[styles.entityTag, { backgroundColor: '#ecfdf5' }]}><Text style={[styles.entityTagText, { color: '#059669' }]}>💊 {m.name || m}</Text></View>
-                                ))}
-                            </View>
-
-                            <View style={styles.savePromptBox}>
-                                <Text style={styles.savePromptTitle}>Add to Clinical Profile?</Text>
-                                <Text style={styles.savePromptText}>
-                                    Checking "Yes" will add these conditions and medicines to your main health dashboard for doctors to see.
-                                </Text>
-
-                                <View style={styles.buttonRow}>
-                                    <TouchableOpacity
-                                        style={[styles.saveButton, { backgroundColor: '#eee' }]}
-                                        onPress={() => confirmSave(false)}
-                                    >
-                                        <Text style={[styles.saveButtonText, { color: '#666' }]}>Just store record</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={styles.saveButton}
-                                        onPress={() => confirmSave(true)}
-                                    >
-                                        <Text style={styles.saveButtonText}>Yes, Save to Profile</Text>
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            {selectedRecord?.file_url && (
+                                <View style={styles.previewBox}>
+                                    <Image source={{ uri: selectedRecord.file_url }} style={styles.previewImage} resizeMode="contain" />
+                                    <TouchableOpacity style={styles.fullViewBtn} onPress={() => Linking.openURL(selectedRecord.file_url)}>
+                                        <Text style={styles.fullViewText}>VIEW FULL RESOLUTION</Text>
                                     </TouchableOpacity>
                                 </View>
+                            )}
+
+                            <View style={styles.detailsBox}>
+                                <Text style={styles.label}>ANALYSIS SUMMARY</Text>
+                                <Text style={styles.summaryText}>{selectedRecord?.ai_summary || 'No summary available.'}</Text>
+                                
+                                <View style={styles.infoRow}>
+                                    <View style={styles.infoItem}>
+                                        <Text style={styles.label}>FACILITY</Text>
+                                        <Text style={styles.infoValue}>{selectedRecord?.hospital_name || 'N/A'}</Text>
+                                    </View>
+                                    <View style={styles.infoItem}>
+                                        <Text style={styles.label}>DATE</Text>
+                                        <Text style={styles.infoValue}>{new Date(selectedRecord?.created_at).toLocaleDateString()}</Text>
+                                    </View>
+                                </View>
+
+                                {selectedRecord?.raw_text && (
+                                    <View style={{ marginTop: 20 }}>
+                                        <Text style={styles.label}>RAW DATA EXTRACTED</Text>
+                                        <View style={styles.rawBox}>
+                                            <Text style={styles.rawText}>{selectedRecord.raw_text}</Text>
+                                        </View>
+                                    </View>
+                                )}
                             </View>
                         </ScrollView>
-                    </View>
-                </View>
-            </Modal>
-
-            {/* Processing Loader */}
-            <Modal visible={isProcessing} transparent>
-                <View style={styles.loaderOverlay}>
-                    <View style={styles.loaderBox}>
-                        <ActivityIndicator size="large" color="#4c1d95" />
-                        <Text style={styles.loaderText}>Chitti is reading your report...</Text>
-                        <View style={styles.progressBar}>
-                            <View style={[styles.progressFill, { width: `${uploadProgress}%` }]} />
-                        </View>
                     </View>
                 </View>
             </Modal>
@@ -579,482 +163,35 @@ export default function RecordsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f8f7ff',
-    },
-    listContainer: {
-        padding: 20,
-    },
-    sectionTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#1f2937',
-        marginBottom: 15,
-    },
-    uploadGrid: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 10,
-    },
-    uploadBox: {
-        flex: 1,
-        backgroundColor: '#f5f3ff',
-        borderRadius: 15,
-        padding: 15,
-        alignItems: 'center',
-        marginHorizontal: 5,
-        borderWidth: 1,
-        borderColor: '#e9d5ff',
-        borderStyle: 'dashed',
-    },
-    uploadLabel: {
-        marginTop: 8,
-        fontSize: 12,
-        fontWeight: 'bold',
-        color: '#4c1d95',
-    },
-    recordsCountLabel: {
-        fontSize: 12,
-        color: '#9ca3af',
-        textAlign: 'right',
-        marginBottom: 12,
-        marginTop: 4,
-    },
-    uploadSection: {
-        marginBottom: 10,
-    },
-    recordCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        borderRadius: 18,
-        padding: 15,
-        marginBottom: 12,
-        elevation: 3,
-        shadowColor: '#7c3aed',
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-    },
-    recordIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 14,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 14,
-    },
-    recordContent: {
-        flex: 1,
-    },
-    recordTitle: {
-        fontSize: 15,
-        fontWeight: 'bold',
-        color: '#374151',
-        marginBottom: 2,
-    },
-    recordHospital: {
-        fontSize: 12,
-        color: '#7c3aed',
-        fontWeight: '600',
-        marginBottom: 2,
-    },
-    recordSummary: {
-        fontSize: 12,
-        color: '#6b7280',
-        marginBottom: 4,
-        lineHeight: 16,
-    },
-    recordDate: {
-        fontSize: 10,
-        color: '#9ca3af',
-        fontWeight: '600',
-    },
-    hideBtn: {
-        padding: 8,
-        marginRight: 4,
-    },
-    viewButton: {
-        padding: 5,
-    },
-    emptyContainer: {
-        alignItems: 'center',
-        padding: 60,
-    },
-    emptyText: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#9ca3af',
-        marginTop: 15,
-    },
-    emptySubtext: {
-        fontSize: 14,
-        color: '#ccc',
-        textAlign: 'center',
-        marginTop: 5,
-    },
-
-    // ---- Detail Modal ----
-    detailContainer: {
-        flex: 1,
-        backgroundColor: '#f8f7ff',
-    },
-    detailHeader: {
-        paddingTop: Platform.OS === 'ios' ? 60 : 40,
-        paddingBottom: 20,
-        paddingHorizontal: 20,
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    backBtn: {
-        marginRight: 15,
-        padding: 4,
-    },
-    detailHeaderText: {
-        flex: 1,
-    },
-    detailHeaderTitle: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    detailHeaderHospital: {
-        color: 'rgba(255,255,255,0.9)',
-        fontSize: 13,
-        fontWeight: '600',
-        marginTop: 2,
-    },
-    detailHeaderDate: {
-        color: 'rgba(255,255,255,0.7)',
-        fontSize: 11,
-        marginTop: 2,
-    },
-    analysisInfoBox: {
-        backgroundColor: '#f9fafb',
-        borderRadius: 12,
-        padding: 12,
-        marginBottom: 15,
-        borderWidth: 1,
-        borderColor: '#f3f4f6',
-    },
-    analysisField: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 6,
-    },
-    analysisFieldLabel: {
-        fontSize: 12,
-        color: '#6b7280',
-        fontWeight: '600',
-    },
-    analysisFieldValue: {
-        fontSize: 12,
-        color: '#111827',
-        fontWeight: '700',
-        flex: 1,
-        textAlign: 'right',
-        marginLeft: 20,
-    },
-    detailScroll: {
-        flex: 1,
-        padding: 20,
-    },
-    filePreviewBox: {
-        backgroundColor: '#fff',
-        borderRadius: 20,
-        overflow: 'hidden',
-        marginBottom: 20,
-        elevation: 3,
-        shadowColor: '#000',
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-    },
-    previewImage: {
-        width: '100%',
-        height: 280,
-        backgroundColor: '#f3f4f6',
-    },
-    openFileBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 12,
-        borderTopWidth: 1,
-        borderColor: '#eee',
-        gap: 8,
-    },
-    openFileBtnText: {
-        color: '#4c1d95',
-        fontWeight: '700',
-        fontSize: 13,
-    },
-    pdfPreviewBtn: {
-        alignItems: 'center',
-        padding: 40,
-        gap: 8,
-    },
-    pdfPreviewTitle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#4c1d95',
-    },
-    pdfPreviewSub: {
-        fontSize: 12,
-        color: '#9ca3af',
-    },
-    noFileBox: {
-        backgroundColor: '#fff',
-        borderRadius: 20,
-        padding: 40,
-        alignItems: 'center',
-        marginBottom: 20,
-        gap: 8,
-    },
-    noFileText: {
-        fontSize: 15,
-        fontWeight: 'bold',
-        color: '#9ca3af',
-    },
-    noFileSubText: {
-        fontSize: 12,
-        color: '#d1d5db',
-        textAlign: 'center',
-    },
-    summaryCard: {
-        backgroundColor: '#fff',
-        borderRadius: 20,
-        padding: 18,
-        marginBottom: 14,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-    },
-    summaryHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 10,
-        gap: 8,
-    },
-    summaryTitle: {
-        fontSize: 14,
-        fontWeight: '900',
-        color: '#4c1d95',
-        letterSpacing: 0.5,
-    },
-    summaryText: {
-        fontSize: 14,
-        color: '#374151',
-        lineHeight: 22,
-        fontStyle: 'italic',
-    },
-    sectionCard: {
-        backgroundColor: '#fff',
-        borderRadius: 20,
-        padding: 18,
-        marginBottom: 14,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-    },
-    sectionLabel: {
-        fontSize: 11,
-        fontWeight: '900',
-        color: '#9ca3af',
-        letterSpacing: 1.5,
-        marginBottom: 14,
-    },
-    itemRow: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        marginBottom: 10,
-        gap: 10,
-    },
-    dot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        marginTop: 5,
-    },
-    itemText: {
-        flex: 1,
-        fontSize: 14,
-        color: '#374151',
-        fontWeight: '600',
-        lineHeight: 20,
-    },
-    itemNotes: {
-        fontSize: 12,
-        color: '#6b7280',
-        fontWeight: '400',
-    },
-    rawText: {
-        fontSize: 12,
-        color: '#6b7280',
-        lineHeight: 20,
-        fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
-    },
-
-    // ---- Analysis Modal (post-upload) ----
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'flex-end',
-    },
-    modalContainer: {
-        backgroundColor: '#fff',
-        borderTopLeftRadius: 30,
-        borderTopRightRadius: 30,
-        height: '85%',
-        overflow: 'hidden',
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 20,
-        paddingTop: 30,
-    },
-    modalHeaderTitle: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
-        flex: 1,
-    },
-    closeModal: {
-        padding: 5,
-    },
-    modalContent: {
-        padding: 20,
-    },
-    chittiBox: {
-        flexDirection: 'row',
-        marginBottom: 25,
-    },
-    chittiAvatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#f5f3ff',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 12,
-        borderWidth: 1,
-        borderColor: '#ddd',
-    },
-    chittiBubble: {
-        flex: 1,
-        backgroundColor: '#f3f4f6',
-        borderRadius: 15,
-        borderTopLeftRadius: 0,
-        padding: 15,
-    },
-    chittiText: {
-        fontSize: 14,
-        color: '#374151',
-        lineHeight: 20,
-        fontStyle: 'italic',
-    },
-    detailLabel: {
-        fontSize: 11,
-        fontWeight: '900',
-        color: '#9ca3af',
-        marginBottom: 10,
-        letterSpacing: 1,
-    },
-    entitiesBox: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        marginBottom: 25,
-    },
-    entityTag: {
-        backgroundColor: '#eff6ff',
-        borderRadius: 10,
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        marginRight: 8,
-        marginBottom: 8,
-    },
-    entityTagText: {
-        fontSize: 12,
-        color: '#1d4ed8',
-        fontWeight: 'bold',
-    },
-    savePromptBox: {
-        borderTopWidth: 1,
-        borderColor: '#eee',
-        paddingTop: 20,
-        paddingBottom: 40,
-    },
-    savePromptTitle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#111827',
-        marginBottom: 8,
-    },
-    savePromptText: {
-        fontSize: 13,
-        color: '#6b7280',
-        marginBottom: 20,
-        lineHeight: 18,
-    },
-    buttonRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    saveButton: {
-        flex: 1,
-        height: 50,
-        backgroundColor: '#4c1d95',
-        borderRadius: 15,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginHorizontal: 5,
-    },
-    saveButtonText: {
-        color: '#fff',
-        fontWeight: 'bold',
-        fontSize: 14,
-    },
-
-    // ---- Processing Loader ----
-    loaderOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(255,255,255,0.9)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    loaderBox: {
-        alignItems: 'center',
-        width: '80%',
-    },
-    loaderText: {
-        marginTop: 15,
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#4c1d95',
-    },
-    progressBar: {
-        height: 6,
-        width: '100%',
-        backgroundColor: '#eee',
-        borderRadius: 3,
-        marginTop: 20,
-        overflow: 'hidden',
-    },
-    progressFill: {
-        height: '100%',
-        backgroundColor: '#4c1d95',
-    },
-    chittiAvatarSmall: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-    },
-    chittiAvatarLarge: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-    },
+    header: { padding: 24, paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    headerTitle: { fontSize: 24, letterSpacing: 2 },
+    uploadBtn: { backgroundColor: Theme.colors.primary, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, py: 8, borderRadius: 12 },
+    uploadBtnText: { color: '#fff', fontSize: 12, fontWeight: '900' },
+    listContent: { padding: 24, paddingBottom: 100 },
+    recordCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20, marginBottom: 16 },
+    recordIconBox: { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(99, 102, 241, 0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+    recordMain: { flex: 1 },
+    recordTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+    recordSub: { color: '#64748B', fontSize: 12, marginTop: 2 },
+    recordDate: { color: Theme.colors.primary, fontSize: 10, fontWeight: 'bold', marginTop: 4 },
+    emptyBox: { alignItems: 'center', py: 100 },
+    emptyText: { color: '#475569', marginTop: 20, fontSize: 14 },
+    emptyBtn: { marginTop: 20, borderWidth: 1, borderColor: Theme.colors.primary, px: 20, py: 10, borderRadius: 12 },
+    emptyBtnText: { color: Theme.colors.primary, fontWeight: 'bold' },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'flex-end' },
+    modalContent: { height: '90%', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24 },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 },
+    modalTitle: { color: '#fff', fontSize: 14, fontWeight: '900', letterSpacing: 2 },
+    previewBox: { width: '100%', height: 300, backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 24, overflow: 'hidden', marginBottom: 30, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+    previewImage: { width: '100%', height: '100%' },
+    fullViewBtn: { position: 'absolute', bottom: 16, right: 16, backgroundColor: 'rgba(0,0,0,0.6)', px: 12, py: 6, borderRadius: 8 },
+    fullViewText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
+    detailsBox: { gap: 15 },
+    label: { color: '#64748B', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+    summaryText: { color: '#fff', fontSize: 16, lineHeight: 24 },
+    infoRow: { flexDirection: 'row', gap: 30, marginTop: 10 },
+    infoItem: { flex: 1 },
+    infoValue: { color: '#fff', fontSize: 14, fontWeight: 'bold', marginTop: 4 },
+    rawBox: { backgroundColor: 'rgba(0,0,0,0.3)', padding: 16, borderRadius: 16, marginTop: 8 },
+    rawText: { color: '#94A3B8', fontSize: 12, lineHeight: 18, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' }
 });

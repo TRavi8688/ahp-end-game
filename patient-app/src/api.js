@@ -9,7 +9,7 @@ const getBaseUrl = () => {
     if (envUrl) return envUrl.replace('/api/v1', '');
 
     // 2. Local Dev Fallback (matched to your current uvicorn port 8080)
-    return 'http://localhost:8080';
+    return 'https://hospyn-api-625745217419.asia-south1.run.app';
 };
 
 

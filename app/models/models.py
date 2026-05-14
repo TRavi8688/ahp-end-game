@@ -158,6 +158,7 @@ class Patient(Base, TenantScopedMixin, TimestampMixin):
     family_members: Mapped[List["FamilyMember"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
     dashboard: Mapped["PatientDashboard"] = relationship(back_populates="patient", uselist=False)
     patient_visits: Mapped[List["PatientVisit"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
+    lab_results: Mapped[List["LabResult"]] = relationship(back_populates="patient", cascade="all, delete-orphan")
 
     __mapper_args__ = {"version_id_col": version_id}
 
@@ -279,7 +280,14 @@ class MedicalRecord(Base, TenantScopedMixin):
     ai_processed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     record_checksum: Mapped[Optional[str]] = mapped_column(String(64), index=True) # SHA-256 Checksum
     
+    # Phase 3: Clinical Hardening & Security
+    ocr_confidence_score: Mapped[Optional[float]] = mapped_column(nullable=True)
+    needs_verification: Mapped[bool] = mapped_column(default=True) # Default true until doctor sign-off
+    verified_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("doctors.id"), nullable=True)
+    malware_scan_status: Mapped[str] = mapped_column(String(50), default="pending") # pending, clean, quarantined
+    
     patient: Mapped["Patient"] = relationship(back_populates="records")
+    lab_results: Mapped[List["LabResult"]] = relationship(back_populates="record", cascade="all, delete-orphan")
 
 class Condition(Base, TenantScopedMixin, TimestampMixin):
     __tablename__ = "conditions"
@@ -394,6 +402,7 @@ class PatientDashboard(Base):
     
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
     patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    family_member_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("family_members.id"), nullable=True, index=True)
     hospital_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("hospitals.id"), index=True, nullable=True)
     data: Mapped[dict] = mapped_column(JSON_TYPE)  # Aggregated dashboard data
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -575,28 +584,29 @@ class LabDiagnosticOrder(Base):
     
     results: Mapped[List["LabResult"]] = relationship(back_populates="order", cascade="all, delete-orphan")
 
-class LabResult(Base):
+
+class LabResult(Base, TenantScopedMixin, TimestampMixin):
     """
-    STRUCTURED OBSERVATIONS: The data engine for AI and Analytics.
-    Stores normalized lab metrics (e.g., Hemoglobin 14.2 g/dL).
+    STRUCTURED LAB NORMALIZATION:
+    Stores parsed clinical findings (e.g. Hemoglobin, Glucose) for trending and AI analysis.
     """
     __tablename__ = "lab_results"
+    
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
-    order_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("lab_diagnostic_orders.id"), index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    record_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("medical_records.id"), index=True)
+    family_member_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("family_members.id"), nullable=True)
     
-    test_name: Mapped[str] = mapped_column(String(100), index=True) # e.g., Hemoglobin
-    value: Mapped[float] = mapped_column()
-    unit: Mapped[str] = mapped_column(String(20)) # e.g., g/dL
+    test_name: Mapped[str] = mapped_column(String(255), index=True)
+    value: Mapped[str] = mapped_column(String(100))
+    unit: Mapped[Optional[str]] = mapped_column(String(50))
+    reference_range: Mapped[Optional[str]] = mapped_column(String(100))
+    is_abnormal: Mapped[bool] = mapped_column(default=False)
     
-    reference_range_min: Mapped[Optional[float]] = mapped_column()
-    reference_range_max: Mapped[Optional[float]] = mapped_column()
+    observation_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     
-    flag: Mapped[Optional[str]] = mapped_column(String(20)) # e.g., LOW, HIGH, CRITICAL
-    interpretation: Mapped[Optional[str]] = mapped_column(Text)
-    
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    
-    order: Mapped["LabDiagnosticOrder"] = relationship(back_populates="results")
+    patient: Mapped["Patient"] = relationship(back_populates="lab_results")
+    record: Mapped["MedicalRecord"] = relationship(back_populates="lab_results")
 
 class PharmacyStock(Base, TenantScopedMixin, TimestampMixin):
     __tablename__ = "pharmacy_stock"
@@ -746,3 +756,289 @@ class OTPVerification(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     is_verified: Mapped[bool] = mapped_column(default=False)
+
+class ClinicalJobTracker(Base, TimestampMixin):
+    """
+    P0 QUEUE DURABILITY GUARD.
+    Tracks the lifecycle of critical background jobs (OCR, AI).
+    Ensures that if Redis crashes, we can recover 'lost' jobs from the DB.
+    """
+    __tablename__ = "clinical_job_tracker"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    job_type: Mapped[str] = mapped_column(String(50)) # OCR, REPORT_AI
+    resource_id: Mapped[uuid.UUID] = mapped_column(index=True) # MedicalRecord ID
+    status: Mapped[str] = mapped_column(String(20), default="queued") # queued, processing, complete, failed
+    worker_id: Mapped[Optional[str]] = mapped_column(String(100))
+    error_log: Mapped[Optional[str]] = mapped_column(Text)
+    
+    # Heartbeat & Self-Healing (Section 8 Drift Defense)
+    last_heartbeat: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    retry_count: Mapped[int] = mapped_column(default=0)
+    retry_reason: Mapped[Optional[str]] = mapped_column(String(255))
+    
+    # Expiry for automatic cleanup of completed jobs
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    
+class NotificationQueue(Base, TimestampMixin):
+    """
+    P0 NOTIFICATION RESILIENCE (Section 3.2).
+    Stages all outgoing messages (SMS, WhatsApp) in Postgres.
+    Ensures clinical alerts (Abnormal Labs) are retried and escalated if providers fail.
+    """
+    __tablename__ = "notification_queue"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    patient_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("patients.id"), index=True)
+    provider: Mapped[str] = mapped_column(String(50)) # twilio, whatsapp, firebase
+    message_type: Mapped[str] = mapped_column(String(50)) # OTP, LAB_ALERT, APPOINTMENT
+    payload: Mapped[dict] = mapped_column(JSON_TYPE)
+    
+    status: Mapped[str] = mapped_column(String(20), default="pending") # pending, sent, failed, escalated
+    retry_count: Mapped[int] = mapped_column(default=0)
+    last_error: Mapped[Optional[str]] = mapped_column(Text)
+    
+    delivered_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+class PaymentStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    PAID = "PAID"
+    FAILED = "FAILED"
+    REFUNDED = "REFUNDED"
+
+class Payment(Base, TenantScopedMixin, VersionedMixin, TimestampMixin):
+    """
+    FINANCIAL INTEGRITY LAYER (Section 2.2).
+    Tracks every transaction with exactly-once semantic potential.
+    """
+    __tablename__ = "payments"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    
+    amount: Mapped[float] = mapped_column()
+    currency: Mapped[str] = mapped_column(String(10), default="INR")
+    status: Mapped[PaymentStatus] = mapped_column(SQLEnum(PaymentStatus), default=PaymentStatus.PENDING)
+    
+    provider: Mapped[str] = mapped_column(String(50)) # razorpay, stripe
+    provider_transaction_id: Mapped[Optional[str]] = mapped_column(String(100), index=True)
+    idempotency_key: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    
+    metadata_json: Mapped[dict] = mapped_column(JSON_TYPE) # Store billing items
+    
+    __mapper_args__ = {"version_id_col": VersionedMixin.version_id}
+
+class InsuranceClaim(Base, TenantScopedMixin, VersionedMixin, TimestampMixin):
+    """
+    REVENUE CYCLE MANAGEMENT (RCM).
+    Tracks claims submitted to TPAs.
+    """
+    __tablename__ = "insurance_claims"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    payment_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("payments.id"))
+    
+    tpa_name: Mapped[str] = mapped_column(String(100), index=True)
+    policy_number: Mapped[str] = mapped_column(StringEncryptedType(100))
+    claim_amount: Mapped[float] = mapped_column()
+    status: Mapped[str] = mapped_column(String(50), default="SUBMITTED") # SUBMITTED, APPROVED, REJECTED, DISBURSED
+    
+    rejection_reason: Mapped[Optional[str]] = mapped_column(Text)
+    
+    __mapper_args__ = {"version_id_col": VersionedMixin.version_id}
+
+class StockMovementType(str, enum.Enum):
+    INWARD = "INWARD" # Purchase / Return
+    OUTWARD = "OUTWARD" # Dispensed / Expired / Damaged
+    ADJUSTMENT = "ADJUSTMENT" # Manual correction
+
+class StockLedger(Base, TenantScopedMixin, TimestampMixin):
+    """
+    PHARMACY AUDIT TRAIL.
+    Permanent, immutable record of every stock movement.
+    Prevents inventory leakage (theft/unrecorded sales).
+    """
+    __tablename__ = "pharmacy_stock_ledger"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    stock_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("pharmacy_stock.id"), index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    
+    movement_type: Mapped[StockMovementType] = mapped_column(SQLEnum(StockMovementType))
+    quantity: Mapped[int] = mapped_column() # Change in quantity
+    balance_after: Mapped[int] = mapped_column() # Running balance for audit
+    
+    reference_type: Mapped[str] = mapped_column(String(50)) # e.g., PRESCRIPTION, PURCHASE_ORDER
+    reference_id: Mapped[Optional[str]] = mapped_column(String(100))
+    
+    actor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id")) # Who performed the move
+
+class PurchaseOrder(Base, TenantScopedMixin, VersionedMixin, TimestampMixin):
+    """
+    AUTOMATED PROCUREMENT ENGINE.
+    Staged when stock falls below min_stock_level.
+    """
+    __tablename__ = "purchase_orders"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    
+    supplier_name: Mapped[str] = mapped_column(String(255), index=True)
+    items_json: Mapped[dict] = mapped_column(JSON_TYPE) # List of meds and quantities
+    total_estimated_cost: Mapped[float] = mapped_column()
+    
+    status: Mapped[str] = mapped_column(String(50), default="DRAFT") # DRAFT, APPROVED, SENT, RECEIVED, CANCELLED
+    
+    __mapper_args__ = {"version_id_col": VersionedMixin.version_id}
+
+class DeviceType(str, enum.Enum):
+    SCANNER = "SCANNER" # MRI / CT / X-Ray
+    MONITOR = "MONITOR" # Bedside Pulse/Oxy
+    LAB_ANALYZER = "LAB_ANALYZER" # Blood testing machines
+    WEARABLE = "WEARABLE" # Apple Watch / Fitbit
+
+class MedicalDevice(Base, TenantScopedMixin, TimestampMixin):
+    """
+    HOSPYN MACHINE INTEGRATION.
+    Registers physical hardware in the hospital for HL7/FHIR data ingestion.
+    """
+    __tablename__ = "medical_devices"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    
+    name: Mapped[str] = mapped_column(String(255))
+    device_type: Mapped[DeviceType] = mapped_column(SQLEnum(DeviceType))
+    model_number: Mapped[Optional[str]] = mapped_column(String(100))
+    serial_number: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    
+    ip_address: Mapped[Optional[str]] = mapped_column(String(50)) # For local network discovery
+    last_ping: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(20), default="ONLINE")
+
+class FHIRResource(Base, TenantScopedMixin, TimestampMixin):
+    """
+    HL7/FHIR INTEROPERABILITY GATEWAY.
+    Stores standardized healthcare data for exchange with external systems.
+    Ensures Hospyn is compliant with international health data standards.
+    """
+    __tablename__ = "fhir_resources"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    
+    resource_type: Mapped[str] = mapped_column(String(100), index=True) # e.g., Observation, Condition, Procedure
+    fhir_json: Mapped[dict] = mapped_column(JSON_TYPE) # Full FHIR-compliant JSON
+    
+    source_device_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("medical_devices.id"))
+    external_id: Mapped[Optional[str]] = mapped_column(String(255), index=True) # ID in external system
+
+class TeleConsultStatus(str, enum.Enum):
+    SCHEDULED = "SCHEDULED"
+    ACTIVE = "ACTIVE"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+    MISSED = "MISSED"
+
+class TeleConsultation(Base, TenantScopedMixin, TimestampMixin):
+    """
+    DECENTRALIZED CARE GATEWAY.
+    Manages secure video session metadata.
+    """
+    __tablename__ = "tele_consultations"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    doctor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("doctors.id"), index=True)
+    
+    status: Mapped[TeleConsultStatus] = mapped_column(SQLEnum(TeleConsultStatus), default=TeleConsultStatus.SCHEDULED)
+    
+    meeting_provider: Mapped[str] = mapped_column(String(50)) # daily.co, zoom, twilio
+    meeting_id: Mapped[str] = mapped_column(String(255), unique=True)
+    meeting_url: Mapped[Optional[str]] = mapped_column(String(512))
+    
+    scheduled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+class WearableDataType(str, enum.Enum):
+    HEART_RATE = "HEART_RATE"
+    STEPS = "STEPS"
+    SLEEP = "SLEEP"
+    SPO2 = "SPO2"
+    BLOOD_GLUCOSE = "BLOOD_GLUCOSE"
+
+class WearableData(Base, TenantScopedMixin, TimestampMixin):
+    """
+    REMOTE PATIENT MONITORING (RPM).
+    Ingests longitudinal health data from Apple Health / Google Fit.
+    """
+    __tablename__ = "wearable_data"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    
+    data_type: Mapped[WearableDataType] = mapped_column(SQLEnum(WearableDataType))
+    value: Mapped[float] = mapped_column()
+    unit: Mapped[str] = mapped_column(String(50))
+    
+    source: Mapped[str] = mapped_column(String(50)) # apple_health, google_fit, garmin
+    measured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+class DailyHospitalMetrics(Base, TenantScopedMixin):
+    """
+    EXECUTIVE COMMAND CENTER (Phase 4.1).
+    Caches aggregated daily performance metrics for CEOs and Admins.
+    Ensures dashboard performance without heavy live query overhead.
+    """
+    __tablename__ = "daily_hospital_metrics"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    date: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    
+    # Financial Intelligence
+    total_revenue: Mapped[float] = mapped_column(default=0.0)
+    pharmacy_revenue: Mapped[float] = mapped_column(default=0.0)
+    insurance_pending_amount: Mapped[float] = mapped_column(default=0.0)
+    
+    # Operational Intelligence
+    total_patients_seen: Mapped[int] = mapped_column(default=0)
+    average_wait_time_minutes: Mapped[float] = mapped_column(default=0.0)
+    bed_occupancy_rate: Mapped[float] = mapped_column(default=0.0)
+    
+    # Clinical Intelligence
+    total_prescriptions_issued: Mapped[int] = mapped_column(default=0)
+    critical_alerts_triggered: Mapped[int] = mapped_column(default=0)
+    
+    metadata_snapshot: Mapped[dict] = mapped_column(JSON_TYPE) # Detailed breakdown
+
+class PatientRiskProfile(Base, TenantScopedMixin, TimestampMixin):
+    """
+    PREDICTIVE CLINICAL INTELLIGENCE (Phase 4.2).
+    Stores AI-calculated risk scores for proactive medical intervention.
+    The "Early Warning System" of the hospital.
+    """
+    __tablename__ = "patient_risk_profiles"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), unique=True, index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    
+    # AI Risk Scores (0.0 to 1.0)
+    readmission_risk: Mapped[float] = mapped_column(default=0.0)
+    critical_deterioration_risk: Mapped[float] = mapped_column(default=0.0) # Sepsis/Shock prediction
+    no_show_risk: Mapped[float] = mapped_column(default=0.0) # Appointment reliability
+    
+    # Reasoning & Evidence
+    risk_factors: Mapped[dict] = mapped_column(JSON_TYPE) # e.g., ["Uncontrolled Diabetes", "High Pulse Trend"]
+    last_evaluated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    
+    # Actionable Alerting
+    alert_triggered: Mapped[bool] = mapped_column(default=False)
+    clinical_priority: Mapped[str] = mapped_column(String(20), default="LOW") # LOW, MEDIUM, HIGH, CRITICAL

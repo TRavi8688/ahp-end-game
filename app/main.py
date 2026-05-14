@@ -81,11 +81,6 @@ app = FastAPI(
 # PROD_RULE: Only trust localhost/loopback or specific production ingress IPs
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["127.0.0.1", "::1"] if settings.ENVIRONMENT == "production" else ["*"])
 
-<<<<<<< Updated upstream
-# CORS (Hardened for Production - Fix 6: Resilience Shield)
-allowed_origins = settings.ALLOWED_ORIGINS
-env = settings.ENVIRONMENT
-=======
 # ════════════════════════════════════════════════════════════════
 # SECURITY MIDDLEWARE FUNCTIONS (before adding to app)
 # ════════════════════════════════════════════════════════════════
@@ -103,8 +98,16 @@ async def security_headers_middleware(request: Request, call_next):
     # Enable XSS protection
     response.headers["X-XSS-Protection"] = "1; mode=block"
     
-    # Content Security Policy (strict by default)
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'"
+    # Content Security Policy (Allowing documentation CDNs and local development)
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
+        "img-src 'self' data: https: fastly.jsdelivr.net; "
+        "font-src 'self' cdn.jsdelivr.net; "
+        "connect-src 'self' http://localhost:8000 http://localhost:8080; "
+        "frame-ancestors 'none'"
+    )
     
     # Referrer policy
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -129,39 +132,16 @@ async def https_redirect_middleware(request: Request, call_next):
 
 # 2. MIDDLEWARE CHAIN (Order is Critical: Security first, then routing)
 # HTTPS redirect (highest priority - must be first)
-app.add_middleware(lambda app: https_redirect_middleware)
 app.middleware("http")(https_redirect_middleware)
 
 # Security headers (second priority)
 app.middleware("http")(security_headers_middleware)
 
-# Traceability & Metrics
-app.add_middleware(RequestIDMiddleware)
-app.middleware("http")(instrument_request())
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
->>>>>>> Stashed changes
+# Idempotency Protection (Stateless Resilience)
+from app.core.middleware import IdempotencyMiddleware, TenantMiddleware
+app.add_middleware(IdempotencyMiddleware)
+app.add_middleware(TenantMiddleware)
 
-if env == "production":
-    if "*" in allowed_origins:
-        logger.critical("PRODUCTION_CORS_FAILURE: Wildcard '*' is strictly prohibited.")
-        raise RuntimeError("Insecure CORS configuration detected in production.")
-    final_origins = allowed_origins
-else:
-    final_origins = ["*"] if "*" in allowed_origins else allowed_origins
-
-# Outermost: CORS Handling
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=final_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["Content-Type", "Authorization", "authorization", "X-Requested-With", "Accept"],
-    expose_headers=["*"],
-    max_age=600
-)
-
-
-<<<<<<< Updated upstream
 # --- HARDENED CORS & ERROR RESILIENCE (SHIELD V7.0) ---
 
 @app.middleware("http")
@@ -170,20 +150,6 @@ async def cors_resilience_middleware(request: Request, call_next):
     ULTIMATE SHIELD: Ensures CORS headers are present even if the app crashes.
     """
     origin = request.headers.get("Origin")
-=======
-# --- GOOGLE-GRADE SRE PROBES ---
-
-@app.get("/healthz", tags=["Infrastructure"])
-async def liveness_probe():
-    """Liveness probe: Minimal check if the process is alive."""
-    return {"status": "alive", "timestamp": datetime.utcnow().isoformat()}
-
-@app.get("/readyz", tags=["Infrastructure"])
-async def readiness_probe(request: Request, db: AsyncSession = Depends(get_db)):
-    """Readiness probe: Checks if subsystems are ready. Secure diagnostics."""
-    status_code = 200
-    subsystems = {"db": "up"}
->>>>>>> Stashed changes
     
     if request.method == "OPTIONS":
         response = JSONResponse(content="OK")
@@ -227,7 +193,6 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 
-
 # --- ROUTERS ---
 from app.api import auth, patient, profile, doctor, admin, privacy, auth_onboarding, staff, governance, visit
 from app.api.v1.router import api_router as enterprise_v1_router
@@ -244,7 +209,7 @@ app.include_router(staff.router, prefix=settings.API_V1_STR, tags=["Staff"])
 app.include_router(governance.router, prefix=settings.API_V1_STR, tags=["Governance"])
 app.include_router(visit.router, prefix=settings.API_V1_STR, tags=["Visit"])
 
-# --- HEALTH ---
+# --- HEALTH & SRE PROBES ---
 @app.get("/health", tags=["Infrastructure"])
 async def health_check():
     boot_error = getattr(app.state, "boot_error", None)
@@ -256,8 +221,14 @@ async def health_check():
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
+@app.get("/healthz", tags=["Infrastructure"])
+async def liveness_probe():
+    """Liveness probe: Minimal check if the process is alive."""
+    return {"status": "alive", "timestamp": datetime.now(timezone.utc).isoformat()}
+
 @app.get("/readyz", tags=["Infrastructure"])
 async def readiness_check(db: AsyncSession = Depends(deps.get_db)):
+    """Readiness probe: Checks if subsystems are ready."""
     try:
         await db.execute(text("SELECT 1"))
         return {"status": "ready"}
@@ -286,3 +257,4 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
         manager.disconnect(websocket, user_id)
     except Exception:
         await websocket.close()
+

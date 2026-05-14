@@ -9,7 +9,7 @@ import { SocketProvider } from './contexts/SocketContext';
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
     <React.StrictMode>
-        <BrowserRouter basename="/doctor">
+        <BrowserRouter>
             <SocketProvider>
                 <App />
             </SocketProvider>

@@ -20,44 +20,75 @@ async def get_hospital_id(user: User = Depends(get_current_user)) -> uuid.UUID:
         )
     return user.staff_profile.hospital_id
 
-logger = logging.getLogger(__name__)
+from typing import List, Optional
+from app.models.models import User, Patient, Doctor, RoleEnum
+
+class RoleChecker:
+    """
+    ENTERPRISE RBAC GATE:
+    Generic dependency to enforce specific roles on endpoints.
+    Usage: Depends(RoleChecker([RoleEnum.doctor, RoleEnum.admin]))
+    """
+    def __init__(self, allowed_roles: List[RoleEnum]):
+        self.allowed_roles = allowed_roles
+
+    async def __call__(self, user: User = Depends(get_current_user)):
+        if user.role not in self.allowed_roles:
+            logger.warning(f"PERMISSION_DENIED: user_id={user.id} | required={self.allowed_roles} | actual={user.role}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error_code": "INSUFFICIENT_PERMISSIONS",
+                    "message": f"This action requires one of the following roles: {[r.value for r in self.allowed_roles]}",
+                    "required_roles": [r.value for r in self.allowed_roles]
+                }
+            )
+        return user
 
 async def get_db_user(user: User = Depends(get_current_user)) -> User:
-    """
-    Standard Enterprise Dependency to retrieve the full User model.
-    Reuses the User object already fetched and validated by the security layer.
-    """
+    """Standard Enterprise Dependency to retrieve the full User model."""
     return user
 
-async def get_current_patient(user: User = Depends(get_db_user), db: AsyncSession = Depends(get_db)) -> Patient:
+async def get_current_patient(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> Patient:
     """Gated dependency for Patient-only routes."""
-    if user.role != "patient":
-        raise HTTPException(status_code=403, detail="Route requires Patient role.")
+    if user.role != RoleEnum.patient:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Route requires Patient role."
+        )
     
     repo = PatientRepository(Patient, db)
     patient = await repo.get_by_user_id(user.id)
     if not patient:
-        raise HTTPException(status_code=404, detail="Patient profile not initialized.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Patient profile not initialized."
+        )
     return patient
 
-async def get_current_doctor(user: User = Depends(get_db_user), db: AsyncSession = Depends(get_db)) -> Doctor:
+async def get_current_doctor(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> Doctor:
     """Gated dependency for Doctor-only routes."""
-    if user.role != "doctor":
-        raise HTTPException(status_code=403, detail="Route requires Doctor role.")
+    if user.role != RoleEnum.doctor:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Route requires Doctor role."
+        )
     
     from sqlalchemy.orm import selectinload
-    stmt = select(Doctor).options(selectinload(Doctor.user).selectinload(User.staff_profile)).where(Doctor.user_id == user.id)
+    stmt = select(Doctor).options(selectinload(Doctor.user)).where(Doctor.user_id == user.id)
     result = await db.execute(stmt)
     doctor = result.scalar_one_or_none()
     
     if not doctor:
-        raise HTTPException(status_code=404, detail="Doctor profile not found.")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Doctor profile not found."
+        )
     return doctor
 
-
-async def get_super_admin(user: User = Depends(get_db_user)) -> User:
+async def get_super_admin(user: User = Depends(get_current_user)) -> User:
     """Strictly Gated dependency for Platform-level Super Admin routes."""
-    if user.role.value != "admin":
+    if user.role != RoleEnum.admin:
         logger.warning(f"UNAUTHORIZED_ADMIN_ACCESS_ATTEMPT: user_id={user.id}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, 
@@ -68,18 +99,38 @@ async def get_super_admin(user: User = Depends(get_db_user)) -> User:
         )
     return user
 
-
-async def get_active_family_member_id(request: Request) -> Optional[uuid.UUID]:
+async def get_active_family_member_id(
+    request: Request,
+    current_patient: Optional[Patient] = Depends(get_current_patient),
+    db: AsyncSession = Depends(get_db)
+) -> Optional[uuid.UUID]:
     """
-    Optional Dependency to extract the family member context from headers.
-    If provided, clinical queries will be scoped to this family member.
-    If not provided, queries default to the primary patient profile.
+    Extract and VALIDATE family member context from headers.
+    Ensures Patient A cannot access Patient B's family data via ID spoofing.
     """
-    from typing import Optional
     header_val = request.headers.get("X-Family-Member-ID")
-    if header_val and header_val not in ["null", "undefined", ""]:
-        try:
-            return uuid.UUID(header_val)
-        except ValueError:
-            return None
-    return None
+    if not header_val or header_val in ["null", "undefined", ""]:
+        return None
+        
+    try:
+        active_id = uuid.UUID(header_val)
+        
+        # OWNERSHIP VALIDATION GATE
+        from app.models.models import FamilyMember
+        stmt = select(FamilyMember).where(
+            FamilyMember.id == active_id,
+            FamilyMember.patient_id == current_patient.id
+        )
+        result = await db.execute(stmt)
+        exists = result.scalar_one_or_none()
+        
+        if not exists:
+            logger.warning(f"SPOOFING_ATTEMPT: Patient {current_patient.id} tried to access FamilyID {active_id}")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Unauthorized access to this family profile."
+            )
+            
+        return active_id
+    except (ValueError, AttributeError):
+        return None

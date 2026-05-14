@@ -9,11 +9,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Picker } from '@react-native-picker/picker';
 import { Theme, GlobalStyles } from '../theme';
 import ApiService from '../utils/ApiService';
+import { SecurityUtils } from '../utils/security';
 
 export default function FamilyProfilesScreen({ navigation }) {
     const [loading, setLoading] = useState(false);
     const [profiles, setProfiles] = useState([]);
     const [isAdding, setIsAdding] = useState(false);
+    const [activeMemberId, setActiveMemberId] = useState(null);
     
     const [newMember, setNewMember] = useState({
         fullName: '',
@@ -29,9 +31,23 @@ export default function FamilyProfilesScreen({ navigation }) {
     ];
 
     useEffect(() => {
-        // Fetch existing family profiles
-        // setProfiles([...]);
+        const init = async () => {
+            const activeId = await SecurityUtils.getActiveMemberId();
+            setActiveMemberId(activeId);
+            // Fetch profiles...
+        };
+        init();
     }, []);
+
+    const handleSwitch = async (id) => {
+        await SecurityUtils.saveActiveMemberId(id);
+        setActiveMemberId(id);
+        Alert.alert(
+            "Context Switched", 
+            id ? "Viewing records for family member." : "Viewing your primary profile.",
+            [{ text: "OK", onPress: () => navigation.navigate('Home') }]
+        );
+    };
 
     const handleAddMember = async () => {
         if (!newMember.fullName || !newMember.relation) {
@@ -124,6 +140,13 @@ export default function FamilyProfilesScreen({ navigation }) {
                     </View>
                 ) : (
                     <View style={styles.profilesList}>
+                        {activeMemberId && (
+                            <TouchableOpacity style={styles.resetBtn} onPress={() => handleSwitch(null)}>
+                                <Ionicons name="refresh-circle" size={20} color="#10B981" />
+                                <Text style={styles.resetBtnText}>SWITCH BACK TO MY PROFILE</Text>
+                            </TouchableOpacity>
+                        )}
+
                         {profiles.length === 0 ? (
                             <View style={styles.emptyState}>
                                 <Ionicons name="people-outline" size={60} color="rgba(255,255,255,0.1)" />
@@ -134,7 +157,7 @@ export default function FamilyProfilesScreen({ navigation }) {
                             </View>
                         ) : (
                             profiles.map(p => (
-                                <View key={p.id} style={styles.profileCard}>
+                                <View key={p.id} style={[styles.profileCard, activeMemberId === p.id && styles.activeCard]}>
                                     <View style={styles.profileIcon}>
                                         <Ionicons name="person" size={24} color="#fff" />
                                     </View>
@@ -142,8 +165,13 @@ export default function FamilyProfilesScreen({ navigation }) {
                                         <Text style={styles.profileName}>{p.fullName}</Text>
                                         <Text style={styles.profileRelation}>{p.relation}</Text>
                                     </View>
-                                    <TouchableOpacity style={styles.accessBtn}>
-                                        <Text style={styles.accessBtnText}>Manage Records</Text>
+                                    <TouchableOpacity 
+                                        style={styles.accessBtn} 
+                                        onPress={() => handleSwitch(p.id)}
+                                    >
+                                        <Text style={styles.accessBtnText}>
+                                            {activeMemberId === p.id ? "ACTIVE" : "SWITCH PROFILE"}
+                                        </Text>
                                     </TouchableOpacity>
                                 </View>
                             ))
@@ -331,6 +359,26 @@ const styles = StyleSheet.create({
     trustText: {
         color: '#10b981',
         fontSize: 9,
+        fontWeight: 'bold',
+        letterSpacing: 1,
+    },
+    activeCard: {
+        borderColor: '#6366F1',
+        backgroundColor: 'rgba(99, 102, 241, 0.05)',
+    },
+    resetBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        paddingVertical: 12,
+        borderRadius: 16,
+        marginBottom: 10,
+    },
+    resetBtnText: {
+        color: '#10B981',
+        fontSize: 10,
         fontWeight: 'bold',
         letterSpacing: 1,
     }

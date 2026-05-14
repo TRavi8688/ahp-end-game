@@ -20,6 +20,11 @@ import ProfileSetupScreen from './src/screens/ProfileSetupScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import MainTabs from './src/navigation/MainTabs';
 import RegistrationSuccessScreen from './src/screens/RegistrationSuccessScreen';
+import SharedAccessScreen from './src/screens/SharedAccessScreen';
+import SharingSettingsScreen from './src/screens/SharingSettingsScreen';
+import NotificationsScreen from './src/screens/NotificationsScreen';
+import AccessHistoryScreen from './src/screens/AccessHistoryScreen';
+import UploadScreen from './src/screens/UploadScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -68,7 +73,14 @@ function AppContent() {
                 <Stack.Screen name="RegistrationSuccess" component={RegistrationSuccessScreen} />
               </>
             ) : (
-              <Stack.Screen name="MainTabs" component={MainTabs} />
+              <>
+                <Stack.Screen name="MainTabs" component={MainTabs} />
+                <Stack.Screen name="SharedAccess" component={SharedAccessScreen} />
+                <Stack.Screen name="SharingSettings" component={SharingSettingsScreen} />
+                <Stack.Screen name="Notifications" component={NotificationsScreen} />
+                <Stack.Screen name="AccessHistory" component={AccessHistoryScreen} />
+                <Stack.Screen name="Upload" component={UploadScreen} />
+              </>
             )}
           </Stack.Navigator>
         </NavigationContainer>

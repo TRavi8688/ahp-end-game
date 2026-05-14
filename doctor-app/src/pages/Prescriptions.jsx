@@ -4,13 +4,13 @@ import { useLocation } from 'react-router-dom';
 import { API_BASE_URL } from '../api';
 
 // Icons
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import AddCircleOutlinedIcon from '@mui/icons-material/AddCircleOutlined';
 import SendIcon from '@mui/icons-material/Send';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import MedicationIcon from '@mui/icons-material/Medication';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 
@@ -227,7 +227,7 @@ export default function Prescriptions() {
                                             </Typography>
                                         </Box>
                                         <IconButton size="small" sx={{ color: '#ef4444', bgcolor: 'rgba(239, 68, 68, 0.05)', '&:hover': { bgcolor: 'rgba(239, 68, 68, 0.1)' } }} onClick={() => handleRemoveMed(i)}>
-                                            <DeleteOutlineIcon fontSize="small" />
+                                            <DeleteOutlinedIcon fontSize="small" />
                                         </IconButton>
                                     </Box>
                                 )) : (
@@ -307,7 +307,7 @@ export default function Prescriptions() {
                                 <Button
                                     variant="outlined"
                                     fullWidth
-                                    startIcon={<AddCircleOutlineIcon />}
+                                    startIcon={<AddCircleOutlinedIcon />}
                                     onClick={() => setShowNewMed(true)}
                                     sx={{ 
                                         color: '#0d9488', 

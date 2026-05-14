@@ -1,3 +1,4 @@
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -6,7 +7,7 @@ from app.schemas import schemas
 from app.models.models import Doctor, User, Patient, DoctorAccess, Allergy, QueueEntry, ClinicalAIEvent, ClinicianOverride
 from app.api.deps import get_current_doctor
 from app.repositories.base import PatientRepository
-from typing import List
+from typing import List, Any, Dict
 from app.core.limiter import limiter
 
 router = APIRouter(prefix="/doctor", tags=["Doctor"])
@@ -37,14 +38,14 @@ async def doctor_token(
     # Logic similar to auth.login but with different field names
     from app.core import security
     from app.api.auth import throw_auth_exception
-    from app.core.audit import log_audit_action
+    from app.core.audit import log_clinical_audit as log_audit_action
     from app.core.config import settings
     # Standard lookup
     result = await db.execute(select(User).where(User.email == username))
     user = result.scalars().first()
 
     if not user:
-        await log_audit_action(db, "LOGIN_FAILURE", resource_type="USER", details={"email": username})
+        await log_audit_action(db, user_id=None, action="LOGIN_FAILURE", resource_type="USER", details={"email": username})
         throw_auth_exception("User not found")
 
     if is_otp:
@@ -59,7 +60,7 @@ async def doctor_token(
             throw_auth_exception("Authentication system (Redis) is temporarily unavailable.")
             
         if not stored_otp or stored_otp != password:
-            await log_audit_action(db, "LOGIN_FAILURE", resource_type="USER", details={"email": username, "reason": "invalid_otp"})
+            await log_audit_action(db, user_id=None, action="LOGIN_FAILURE", resource_type="USER", details={"email": username, "reason": "invalid_otp"})
             throw_auth_exception("Invalid or expired OTP")
             
         # Cleanup
@@ -69,7 +70,7 @@ async def doctor_token(
             logger.warning(f"OTP_CLEANUP_FAILURE: {e}")
     else:
         if not security.verify_password(password, user.hashed_password):
-            await log_audit_action(db, "LOGIN_FAILURE", resource_type="USER", details={"email": username})
+            await log_audit_action(db, user_id=None, action="LOGIN_FAILURE", resource_type="USER", details={"email": username})
             throw_auth_exception("Invalid email or password")
             
     user.is_active = True
@@ -78,7 +79,7 @@ async def doctor_token(
     access_token = security.create_access_token(user.id, user.role)
     refresh_token = security.create_refresh_token(user.id, user.role)
     
-    await log_audit_action(db, "LOGIN_SUCCESS", user_id=user.id)
+    await log_audit_action(db, user_id=user.id, action="LOGIN_SUCCESS", resource_type="AUTH")
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -112,7 +113,7 @@ async def lookup_patient(
         raise HTTPException(status_code=404, detail="Patient not found")
     
     # 1. AUDIT: Record that a lookup occurred (Accountability)
-    from app.core.audit import log_audit_action
+    from app.core.audit import log_clinical_audit as log_audit_action
     
     # Check if access already exists (moved up to use in audit log)
     stmt = select(DoctorAccess).where(
@@ -125,8 +126,8 @@ async def lookup_patient(
 
     await log_audit_action(
         db=db,
-        action="PATIENT_LOOKUP",
         user_id=current_doctor.user_id,
+        action="PATIENT_LOOKUP",
         resource_type="PATIENT",
         resource_id=patient.id,
         details={
@@ -163,6 +164,16 @@ async def lookup_patient(
             "consent_required": True
         }
     
+    if existing_access:
+        await log_audit_action(
+            db=db,
+            user_id=current_doctor.user_id,
+            action="READ_PHI",
+            resource_type="PATIENT_PROFILE",
+            resource_id=patient.id,
+            patient_id=patient.id
+        )
+
     return {
         "profile": {"hospyn_id": patient.hospyn_id, "name": name},
         "allergies": [{"allergen": a.allergen, "severity": a.severity} for a in allergies],
@@ -173,13 +184,13 @@ async def lookup_patient(
 async def emergency_break_glass(
     request: schemas.DoctorScanRequest,
     db: AsyncSession = Depends(get_db),
-    current_doctor: Doctor = Depends(get_current_doctor)
+    current_doctor: Any = Depends(get_current_doctor)
 ):
     """
     CRITICAL: Bypasses patient consent for life-threatening emergencies.
     Triggers immediate high-priority audit alerts and forensic logging.
     """
-    from app.core.audit import log_audit_action
+    from app.core.audit import log_clinical_audit as log_audit_action
     
     repo = PatientRepository(Patient, db)
     patient = await repo.get_by_hospyn_id(request.hospyn_id)
@@ -202,8 +213,8 @@ async def emergency_break_glass(
     # 2. Forensic Audit Log (High Priority)
     await log_audit_action(
         db=db,
-        action="EMERGENCY_BREAK_GLASS_ACCESS",
         user_id=current_doctor.user_id,
+        action="EMERGENCY_BREAK_GLASS_ACCESS",
         resource_type="PATIENT_PHI",
         resource_id=patient.id,
         details={
@@ -225,7 +236,7 @@ async def emergency_break_glass(
 async def scan_patient(
     request: schemas.DoctorScanRequest,
     db: AsyncSession = Depends(get_db),
-    current_doctor: Doctor = Depends(get_current_doctor)
+    current_doctor: Any = Depends(get_current_doctor)
 ):
     """Initiate a clinical access request via QR scan/Hospyn ID."""
     repo = PatientRepository(Patient, db)
@@ -290,7 +301,7 @@ async def scan_patient(
 @router.get("/patients")
 async def list_patients(
     db: AsyncSession = Depends(get_db),
-    current_doctor: Doctor = Depends(get_current_doctor)
+    current_doctor: Any = Depends(get_current_doctor)
 ):
     """List patients that this doctor has clinical access to."""
     stmt = select(DoctorAccess, Patient, User).join(
@@ -312,6 +323,90 @@ async def list_patients(
             "granted_at": access.granted_at
         })
     return patients
+
+@router.get("/patient/{hospyn_id}/records", response_model=List[schemas.MedicalRecordResponse])
+async def get_patient_records(
+    hospyn_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_doctor: Any = Depends(get_current_doctor)
+):
+    """Fetch medical records for a patient if clinical access is granted."""
+    from app.models.models import MedicalRecord
+    from app.services.storage_service import get_secure_url
+    from app.core.audit import log_clinical_audit
+    
+    # 1. Verify Access
+    stmt_p = select(Patient).where(Patient.hospyn_id == hospyn_id)
+    patient = (await db.execute(stmt_p)).scalar_one_or_none()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient not found")
+        
+    stmt_a = select(DoctorAccess).where(
+        DoctorAccess.patient_id == patient.id,
+        DoctorAccess.doctor_user_id == current_doctor.user_id,
+        DoctorAccess.status == "granted"
+    )
+    access = (await db.execute(stmt_a)).scalar_one_or_none()
+    
+    if not access:
+        raise HTTPException(status_code=403, detail="Clinical access not granted for this patient.")
+        
+    # 2. Fetch Records
+    stmt_r = select(MedicalRecord).where(MedicalRecord.patient_id == patient.id)
+    records = (await db.execute(stmt_r)).scalars().all()
+    
+    # 3. Generate Signed URLs
+    for record in records:
+        try:
+            record.secure_url = await get_secure_url(record.file_url, expires_in=600)
+        except Exception:
+            record.secure_url = None
+            
+    # 4. Audit Log
+    await log_clinical_audit(
+        db,
+        user_id=current_doctor.user_id,
+        action="READ_PHI",
+        resource_type="MEDICAL_RECORD_LIST",
+        resource_id=patient.id,
+        patient_id=patient.id
+    )
+    
+    return records
+
+@router.post("/verify-record/{record_id}")
+async def verify_medical_record(
+    record_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_doctor: Any = Depends(get_current_doctor)
+):
+    """
+    Clinician Sign-off: Finalizes a provisional AI extraction.
+    This is the core of Clinical Governance.
+    """
+    stmt = select(MedicalRecord).where(MedicalRecord.id == record_id)
+    record = (await db.execute(stmt)).scalar_one_or_none()
+    
+    if not record:
+        raise HTTPException(status_code=404, detail="Medical record not found.")
+
+    # Update record status
+    record.needs_verification = False
+    record.verified_by_id = current_doctor.id
+    
+    await db.commit()
+    
+    # Audit trail
+    await log_clinical_audit(
+        db,
+        user_id=current_doctor.user_id,
+        action="VERIFY_PHI",
+        resource_type="MEDICAL_RECORD",
+        resource_id=record_id,
+        patient_id=record.patient_id
+    )
+    
+    return {"status": "success", "message": "Clinical record verified and finalized."}
 
 @router.get("/stats")
 async def get_doctor_stats(
@@ -556,40 +651,44 @@ async def override_ai_recommendation(
     Clinician Override: Allows formal correction of AI findings.
     Mandatory for medical-legal accountability.
     """
-    # 1. Verify AI Event exists
-    result = await db.execute(select(ClinicalAIEvent).where(ClinicalAIEvent.id == override.ai_event_id))
-    ai_event = result.scalars().first()
-    if not ai_event:
-        raise HTTPException(status_code=404, detail="AI Event not found for forensics replay.")
+    from app.services.ai_governance_service import AIGovernanceService
+    
+    try:
+        new_override = await AIGovernanceService.apply_clinician_override(
+            db, current_doctor, override
+        )
+        await db.commit()
+        return {"status": "overridden", "audit_id": str(new_override.id)}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        from app.core.logging import logger
+        logger.error(f"OVERRIDE_FAILURE: {e}")
+        raise HTTPException(status_code=500, detail="Failed to process clinical override.")
 
-    # 2. Record the Override
-    new_override = ClinicianOverride(
-        hospital_id=current_doctor.user.staff_profile.hospital_id,
-        ai_event_id=override.ai_event_id,
-        doctor_user_id=current_doctor.user_id,
-        override_type=override.override_type,
-        justification=override.justification,
-        correction_text=override.correction_text,
-        severity_impact=override.severity_impact
-    )
+@router.post("/records/{record_id}/verify")
+async def verify_record_findings(
+    record_id: uuid.UUID,
+    findings: Dict[str, Any],
+    db: AsyncSession = Depends(get_db),
+    current_doctor: Doctor = Depends(get_current_doctor)
+):
+    """
+    Allows a doctor to formally verify AI-extracted findings for a medical record.
+    This promotes 'provisional' AI data to 'clinically verified' status.
+    """
+    from app.services.ai_governance_service import AIGovernanceService
     
-    # 3. Mark the AI event as overridden
-    ai_event.overridden = True
-    
-    db.add(new_override)
-    await db.commit()
-    
-    # 4. Trigger Retraining/Alerting Pipeline
-    # (In a real system, this would push to a specialized queue for safety engineers)
-    from app.core.audit import log_audit_action
-    await log_audit_action(
-        db, 
-        action="AI_CLINICAL_OVERRIDE", 
-        user_id=current_doctor.user_id,
-        resource_type="AI_EVENT",
-        resource_id=ai_event.id,
-        details={"type": override.override_type, "severity": override.severity_impact}
-    )
-    
-    return {"status": "overridden", "audit_id": str(new_override.id)}
+    try:
+        await AIGovernanceService.verify_ai_extraction(
+            db, current_doctor, record_id, findings
+        )
+        await db.commit()
+        return {"status": "verified", "message": "Clinical findings promoted to verified status."}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        from app.core.logging import logger
+        logger.error(f"VERIFICATION_FAILURE: {e}")
+        raise HTTPException(status_code=500, detail="Failed to verify clinical findings.")
 

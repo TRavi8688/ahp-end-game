@@ -4,8 +4,13 @@ import uuid
 from typing import List, Optional
 from datetime import datetime
 
+# --- DEPLOYMENT SAFETY CONFIG (Section 8.6) ---
+# Allows Backend V1 to survive Frontend V2 partial rollouts by ignoring unknown fields.
+deploy_safe_config = ConfigDict(from_attributes=True, extra="ignore", populate_by_name=True)
+
 # Auth Schemas
 class Token(BaseModel):
+    model_config = deploy_safe_config
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
@@ -42,6 +47,7 @@ class OTPVerify(BaseModel):
 
 # User Schemas
 class UserBase(BaseModel):
+    model_config = deploy_safe_config
     email: str
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -67,11 +73,10 @@ class UserResponse(UserBase):
     id: uuid.UUID
     hospyn_id: Optional[str] = None
     created_at: datetime
-    class Config:
-        from_attributes = True
 
 # Patient Schemas
 class PatientBase(BaseModel):
+    model_config = deploy_safe_config
     hospyn_id: str
     phone_number: str
     date_of_birth: Optional[str] = None
@@ -112,6 +117,7 @@ class MedicalRecordResponse(MedicalRecordBase):
     ai_summary: Optional[str] = None
     patient_summary: Optional[str] = None
     doctor_summary: Optional[str] = None
+    secure_url: Optional[str] = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -224,19 +230,26 @@ class ReportConfirmSave(BaseModel):
     type: str
     update_profile: bool = False
 
-class PatientProfileResponse(BaseModel):
-    id: uuid.UUID
-    full_name: Optional[str] = "Patient"
-    email: Optional[EmailStr] = None
+# Family Schemas
+class FamilyMemberBase(BaseModel):
+    full_name: str
+    relation: str
     phone_number: Optional[str] = None
-    hospyn_id: str
-    age: Optional[int] = None
     blood_group: Optional[str] = None
     gender: Optional[str] = None
-    recent_records: List[MedicalRecordResponse] = []
-    care_circle: List["FamilyMemberResponse"] = []
-    is_family_member: bool = False
-    relation: Optional[str] = None
+    date_of_birth: Optional[str] = None
+
+class FamilyMemberCreate(FamilyMemberBase):
+    pass
+
+class FamilyMemberResponse(FamilyMemberBase):
+    id: uuid.UUID
+    linked_hospyn_id: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+
 
 class JobStatusResponse(BaseModel):
     job_id: str
@@ -269,24 +282,6 @@ class AISafetyResponse(BaseModel):
     trace_id: str
     provider_info: str
 
-# Care Circle / Family Member Schemas
-class FamilyMemberBase(BaseModel):
-    full_name: str
-    relation: str
-    phone_number: Optional[str] = None
-    blood_group: Optional[str] = None
-    gender: Optional[str] = None
-    date_of_birth: Optional[str] = None
-
-class FamilyMemberCreate(FamilyMemberBase):
-    pass
-
-class FamilyMemberResponse(FamilyMemberBase):
-    id: uuid.UUID
-    linked_hospyn_id: Optional[str] = None
-    
-    class Config:
-        from_attributes = True
 
 # Visit Schemas
 class VisitCreate(BaseModel):
@@ -309,4 +304,20 @@ class VisitResponse(BaseModel):
 
 class HospitalQRScan(BaseModel):
     qr_data: str # Contains hospital_id or short_code
+
+class PatientProfileResponse(BaseModel):
+    id: uuid.UUID
+    full_name: Optional[str] = "Patient"
+    email: Optional[EmailStr] = None
+    phone_number: Optional[str] = None
+    hospyn_id: str
+    age: Optional[int] = None
+    blood_group: Optional[str] = None
+    gender: Optional[str] = None
+    recent_records: List[MedicalRecordResponse] = []
+    care_circle: List[FamilyMemberResponse] = []
+    is_family_member: bool = False
+    relation: Optional[str] = None
+
+PatientProfileResponse.model_rebuild()
 

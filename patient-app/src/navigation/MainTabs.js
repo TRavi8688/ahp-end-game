@@ -7,53 +7,36 @@ import { LinearGradient } from 'expo-linear-gradient';
 // Screens
 import HomeScreen from '../screens/HomeScreen';
 import RecordsScreen from '../screens/RecordsScreen';
-import HealthIdScreen from '../screens/HealthIdScreen';
+import ShareDoctorScreen from '../screens/ShareDoctorScreen';
 import AiAssistScreen from '../screens/AiAssistScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import { Theme, GlobalStyles } from '../theme';
 
 const Tab = createBottomTabNavigator();
 
 const CustomTabBarButton = ({ children, onPress, focused }) => (
   <TouchableOpacity
     style={{
-      top: -20,
+      top: -30,
       justifyContent: 'center',
       alignItems: 'center',
-      ...styles.shadow
+      zIndex: 100
     }}
     onPress={onPress}
-    activeOpacity={0.8}
+    activeOpacity={0.9}
   >
-    <LinearGradient
-      colors={['#7c3aed', '#5b21b6']}
-      style={{
-        width: 70,
-        height: 70,
-        borderRadius: 35,
-        borderWidth: 2,
-        borderColor: 'rgba(255, 255, 255, 0.3)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 10,
-      }}
-    >
-      <Image 
-        source={require('../../assets/chitti_avatar.png')} 
-        style={{ 
-          width: 55, 
-          height: 55, 
-          borderRadius: 27.5,
-          borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.2)'
-        }} 
-      />
-    </LinearGradient>
-    <Text style={{ 
-      color: focused ? '#7c3aed' : '#94a3b8', 
-      fontSize: 10, 
-      fontWeight: 'bold',
-      marginTop: 2 
-    }}>Chitti AI</Text>
+    <View style={styles.aiButtonOuter}>
+        <LinearGradient
+        colors={[Theme.colors.primary, '#4338CA']}
+        style={styles.aiButtonInner}
+        >
+        <Image 
+            source={require('../../assets/chitti_avatar.png')} 
+            style={styles.aiAvatar} 
+        />
+        </LinearGradient>
+    </View>
+    <Text style={[styles.aiLabel, { color: focused ? Theme.colors.primary : '#64748B' }]}>CHITTI AI</Text>
   </TouchableOpacity>
 );
 
@@ -62,50 +45,39 @@ export default function MainTabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarShowLabel: true,
-        tabBarHideOnKeyboard: true, // Enterprise standard
-        tabBarActiveTintColor: '#7c3aed',
-        tabBarInactiveTintColor: '#64748b',
+        tabBarHideOnKeyboard: true,
+        tabBarActiveTintColor: Theme.colors.primary,
+        tabBarInactiveTintColor: '#475569',
         tabBarStyle: {
           position: 'absolute',
-          bottom: 20,
-          left: 15,
-          right: 15,
-          elevation: 5,
-          backgroundColor: 'rgba(255, 255, 255, 0.7)', // More glass-like
-          borderRadius: 30,
-          height: 65,
-          paddingBottom: 10,
+          bottom: 25,
+          left: 20,
+          right: 20,
+          backgroundColor: '#0F172A', // Deep Navy/Black
+          borderRadius: 24,
+          height: 70,
+          paddingBottom: 12,
           borderTopWidth: 0,
           borderWidth: 1,
-          borderColor: 'rgba(255, 255, 255, 0.4)', // Frosty border
+          borderColor: 'rgba(255, 255, 255, 0.05)',
           ...styles.shadow
         },
         tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '600',
-          marginBottom: 5,
-        },
-        headerStyle: {
-          backgroundColor: '#ffffff',
-          elevation: 0,
-          shadowOpacity: 0,
-          borderBottomWidth: 1,
-          borderBottomColor: '#f1f5f9',
-        },
-        headerTitleStyle: {
+          fontSize: 9,
           fontWeight: '900',
-          color: '#1e293b',
-          fontSize: 18,
+          marginBottom: 0,
+          letterSpacing: 1,
         },
+        headerShown: false, // Handle headers in screens for luxury feel
       })}
     >
       <Tab.Screen 
         name="Home" 
         component={HomeScreen} 
         options={{ 
-          title: 'Dashboard',
+          title: 'COMMAND',
           tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? 'grid' : 'grid-outline'} size={22} color={color} />
+            <Ionicons name={focused ? 'grid' : 'grid-outline'} size={20} color={color} />
           )
         }} 
       />
@@ -113,9 +85,9 @@ export default function MainTabs() {
         name="Records" 
         component={RecordsScreen} 
         options={{ 
-          title: 'Records',
+          title: 'VAULT',
           tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? 'folder-open' : 'folder-outline'} size={22} color={color} />
+            <Ionicons name={focused ? 'folder' : 'folder-outline'} size={20} color={color} />
           )
         }} 
       />
@@ -126,16 +98,15 @@ export default function MainTabs() {
           tabBarButton: (props) => (
             <CustomTabBarButton {...props} focused={props?.accessibilityState?.selected} />
           ),
-          headerTitle: 'Chitti Clinical AI'
         }} 
       />
       <Tab.Screen 
         name="My ID" 
-        component={HealthIdScreen} 
+        component={ShareDoctorScreen} 
         options={{ 
-          title: 'Passport',
+          title: 'CONNECT',
           tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? 'qr-code' : 'qr-code-outline'} size={22} color={color} />
+            <Ionicons name={focused ? 'qr-code' : 'qr-code-outline'} size={20} color={color} />
           )
         }} 
       />
@@ -143,9 +114,9 @@ export default function MainTabs() {
         name="Settings" 
         component={SettingsScreen} 
         options={{ 
-          title: 'More',
+          title: 'MORE',
           tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? 'ellipsis-horizontal' : 'ellipsis-horizontal-outline'} size={22} color={color} />
+            <Ionicons name={focused ? 'ellipsis-horizontal' : 'ellipsis-horizontal-outline'} size={20} color={color} />
           )
         }} 
       />
@@ -155,13 +126,42 @@ export default function MainTabs() {
 
 const styles = StyleSheet.create({
   shadow: {
-    shadowColor: '#7F5DF0',
-    shadowOffset: {
-      width: 0,
-      height: 10,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.5,
-    elevation: 5
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 20
+  },
+  aiButtonOuter: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
+    backgroundColor: '#050810',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
+  },
+  aiButtonInner: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  aiAvatar: { 
+    width: 48, 
+    height: 48, 
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)'
+  },
+  aiLabel: { 
+    fontSize: 9, 
+    fontWeight: '900',
+    marginTop: 6,
+    letterSpacing: 1
   }
 });

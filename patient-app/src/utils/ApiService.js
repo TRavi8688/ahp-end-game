@@ -49,20 +49,17 @@ class ApiService {
             async (error) => {
                 const { config, response } = error;
                 
-                // Disabled Retry logic for now to prevent "stuck" UI when backend is unstable.
-                // It's better to fail fast and use the local mock fallback.
-                /*
+                // PRODUCTION-GRADE RETRY: Exponential Backoff for Infrastructure Faults
                 if (!response || (response.status >= 500 && response.status <= 599)) {
                     config.__retryCount = config.__retryCount || 0;
                     if (config.__retryCount < 3) {
                         config.__retryCount += 1;
                         const delay = Math.pow(2, config.__retryCount) * 1000;
-                        console.warn(`RETRYING_API_CALL: ${config.url} (Attempt ${config.__retryCount}) in ${delay}ms`);
+                        console.warn(`RETRYING_CLINICAL_CALL: ${config.url} (Attempt ${config.__retryCount}) in ${delay}ms`);
                         await new Promise(res => setTimeout(res, delay));
                         return this.client(config);
                     }
                 }
-                */
 
                 if (response?.status === 401) {
                     console.error("AUTH_FAILURE: Session expired. (Mock Bypass - Not logging out)");
@@ -89,7 +86,9 @@ class ApiService {
             const response = await this.client.get('/patient/profile');
             return response.data;
         } catch (e) {
-            console.warn('Mocking getProfile due to API failure/Token mismatch');
+            // ONLY ALLOW MOCKS IN DEVELOPMENT
+            if (__DEV__) {
+                console.warn('DEV_MOCK: Falling back to local profile due to API failure.');
             
             // Load dynamic mock data from registration form to fix "Test User" bug
             const savedMockStr = await AsyncStorage.getItem('mock_profile');
@@ -108,12 +107,14 @@ class ApiService {
                 mockId = `HOSPYN-${randomNum}`;
                 await SecurityUtils.saveHospynId(mockId);
             }
-            return { 
-                full_name: "Patient Name", 
-                hospyn_id: mockId, 
-                phone_number: mockId.includes('HOSPYN') ? "+91 9999999999" : mockId, 
-                blood_group: "N/A" 
-            };
+                return { 
+                    full_name: "Patient Name", 
+                    hospyn_id: mockId, 
+                    phone_number: mockId.includes('HOSPYN') ? "+91 9999999999" : mockId, 
+                    blood_group: "N/A" 
+                };
+            }
+            throw e; // Fail-Safe in Production
         }
     }
 
@@ -126,11 +127,14 @@ class ApiService {
             await AsyncStorage.setItem('mock_profile', JSON.stringify(updated));
             return response.data;
         } catch (e) {
-            console.warn('Mocking updateProfile due to API failure');
-            const current = await this.getProfile();
-            const updated = { ...current, ...data };
-            await AsyncStorage.setItem('mock_profile', JSON.stringify(updated));
-            return updated;
+            if (__DEV__) {
+                console.warn('DEV_MOCK: Mocking updateProfile');
+                const current = await this.getProfile();
+                const updated = { ...current, ...data };
+                await AsyncStorage.setItem('mock_profile', JSON.stringify(updated));
+                return updated;
+            }
+            throw e;
         }
     }
 
@@ -150,8 +154,8 @@ class ApiService {
             const response = await this.client.get('/patient/clinical-summary');
             return response.data;
         } catch (e) {
-            console.warn('Mocking getClinicalSummary due to API failure');
-            return { metrics: [], recent_vitals: {} };
+            if (__DEV__) return { metrics: [], recent_vitals: {} };
+            throw e;
         }
     }
 
@@ -160,8 +164,8 @@ class ApiService {
             const response = await this.client.get('/clinical/timeline');
             return response.data;
         } catch (e) {
-            console.warn('Mocking getTimeline due to API failure');
-            return { events: [] };
+            if (__DEV__) return { events: [] };
+            throw e;
         }
     }
 
@@ -170,8 +174,8 @@ class ApiService {
             const response = await this.client.get('/patient/records');
             return response.data;
         } catch (e) {
-            console.warn('Mocking getRecords due to API failure');
-            return { records: [] };
+            if (__DEV__) return { records: [] };
+            throw e;
         }
     }
 
@@ -224,14 +228,24 @@ class ApiService {
         return response.data;
     }
 
-    async createVisit(hospitalId, reason, symptoms = '', dept = '', doctor = '') {
+    async createVisit(hospital_id, reason, symptoms = '', dept = '', doctor = '') {
         const response = await this.client.post('/visit/create', { 
-            hospital_id: hospitalId, 
+            hospital_id, 
             visit_reason: reason, 
             symptoms: symptoms,
             department: dept,
             doctor_name: doctor
         });
+        return response.data;
+    }
+
+    async getAccessHistory() {
+        const response = await this.client.get('/patient/access-history');
+        return response.data;
+    }
+
+    async getNotifications() {
+        const response = await this.client.get('/patient/notifications');
         return response.data;
     }
 }

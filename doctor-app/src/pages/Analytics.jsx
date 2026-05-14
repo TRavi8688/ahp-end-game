@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Grid, Card, CardContent } from '@mui/material';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import { API_BASE_URL } from '../api';
 
 export default function Analytics() {
@@ -182,7 +182,7 @@ const SafetyLogEntry = ({ drugA, allergen, patient, date, status, color, borderL
                         gap: 0.5
                     }}
                 >
-                    {status === 'Prevented' && <CheckCircleOutlineIcon fontSize="small" />}
+                    {status === 'Prevented' && <CheckCircleOutlinedIcon fontSize="small" />}
                     {status}
                 </Typography>
             </Box>

@@ -64,13 +64,17 @@ def create_access_token(
         try:
             return jwt.encode(payload, settings.JWT_PRIVATE_KEY, algorithm=ALGORITHM_RS256)
         except Exception as e:
-            logger.error(f"JWT_ENCODE_RS256_FAILURE: {str(e)} | KeyPrefix={settings.JWT_PRIVATE_KEY[:10]}...")
+            logger.error(f"JWT_ENCODE_RS256_FAILURE: {str(e)}")
+            if settings.ENVIRONMENT == "production":
+                # FAIL CLOSED in production. Do not allow insecure fallback.
+                raise RuntimeError("JWT_SIGNING_FAILURE: RS256 mandatory in production but failed.")
 
-            # If RS256 fails (e.g. malformed key), we must NOT return an invalid token.
-            # We fallback to HS256 to keep the platform alive but log a CRITICAL warning.
-            
-    # 2. Fallback to HS256 for Development/Recovery
-    logger.warning("JWT_ENCODE_FALLBACK: Using HS256 with SECRET_KEY.")
+    # 2. Fallback to HS256 ONLY in non-production environments
+    if settings.ENVIRONMENT == "production":
+        logger.critical("PRODUCTION_AUTH_VIOLATION: RS256 keys missing. Crashing service.")
+        raise RuntimeError("Production security violation: RS256 keys required.")
+        
+    logger.warning("JWT_ENCODE_FALLBACK: Using HS256 for development.")
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM_HS256)
 
 

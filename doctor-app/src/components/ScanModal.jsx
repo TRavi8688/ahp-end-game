@@ -258,7 +258,7 @@ export default function ScanModal({ open, onClose }) {
                         <Typography variant="h6" fontWeight="bold" gutterBottom>Waiting for Patient Approval</Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 4, px: 2 }}>
                             A request has been sent to <strong>{patientData?.name}</strong>.
-                            Please ask the patient to click <strong>"Approve"</strong> on their Nirixa App notification.
+                            Please ask the patient to click <strong>"Approve"</strong> on their Hospyn App notification.
                         </Typography>
 
                         <Box sx={{ p: 2, bgcolor: '#f0fdfa', borderRadius: 2, border: '1px dashed #0d9488', display: 'flex', alignItems: 'center', gap: 2 }}>

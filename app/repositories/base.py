@@ -1,3 +1,4 @@
+import uuid
 from typing import Generic, TypeVar, Type, List, Optional, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete

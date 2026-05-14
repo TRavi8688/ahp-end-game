@@ -5,25 +5,23 @@ from typing import Optional, Dict, Any
 from app.services.redis_service import redis_service
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.models import PatientDashboard, Patient, MedicalRecord, Condition, Medication, Allergy, AISummary
+from app.models.models import PatientDashboard, Patient, MedicalRecord, Condition, Medication, Allergy, AISummary, FamilyMember
 from app.core.config import settings
 from app.core.logging import logger
 
 class DashboardService:
     """
     Enterprise-grade Dashboard Service.
-    Implements multi-layer caching and strictly read-only retrieval for GET requests.
-    Side-effects (precomputation) are decoupled from the retrieval flow.
+    Implements multi-layer caching and profile-scoped clinical data aggregation.
     """
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_dashboard(self, hospital_id: uuid.UUID, patient_id: uuid.UUID) -> Dict[str, Any]:
+    async def get_dashboard(self, hospital_id: Optional[uuid.UUID], patient_id: uuid.UUID, family_member_id: Optional[uuid.UUID] = None) -> Dict[str, Any]:
         """
-        Retrieves patient dashboard from Redis cache or Precomputed Database table.
-        Strictly Read-Only: No commits in this flow.
+        Retrieves patient or family member dashboard with profile-level isolation.
         """
-        cache_key = f"dashboard:{patient_id}:{hospital_id}"
+        cache_key = f"dashboard:{patient_id}:{family_member_id}:{hospital_id}"
         
         # 1. Redis Tier
         try:
@@ -31,89 +29,80 @@ class DashboardService:
             if cached:
                 return json.loads(cached)
         except Exception as e:
-            logger.error(f"Redis retrieval failed for dashboard {hospital_id}:{patient_id}: {e}")
+            logger.error(f"Redis retrieval failed for dashboard {patient_id}:{family_member_id}: {e}")
 
-        # 2. Precomputed PostgreSQL Tier (Source of Truth)
+        # 2. Precomputed PostgreSQL Tier
         try:
             stmt = select(PatientDashboard).where(
-                PatientDashboard.patient_id == patient_id
+                PatientDashboard.patient_id == patient_id,
+                PatientDashboard.family_member_id == family_member_id
             )
             if hospital_id is not None:
                 stmt = stmt.where(PatientDashboard.hospital_id == hospital_id)
             else:
                 stmt = stmt.where(PatientDashboard.hospital_id.is_(None))
+                
             result = await self.db.execute(stmt)
             db_dashboard = result.scalar_one_or_none()
             
             if db_dashboard:
-                # Refresh Redis cache asynchronously
+                # Refresh Redis cache
                 try:
                     await redis_service.set(cache_key, json.dumps(db_dashboard.data), expire=3600)
                 except Exception:
                     pass
                 return db_dashboard.data
         except Exception as e:
-            logger.error(f"Postgres retrieval failed for dashboard {hospital_id}:{patient_id}: {e}")
+            logger.error(f"Postgres retrieval failed for dashboard {patient_id}:{family_member_id}: {e}")
 
-        # 3. Fallback: Aggregation ONLY if precomputed data is missing
-        # We compute, persist to DB (Source of Truth), and cache.
-        return await self.aggregate_dashboard_data(hospital_id, patient_id, persist=True)
+        # 3. Fallback: Aggregation
+        return await self.aggregate_dashboard_data(hospital_id, patient_id, family_member_id, persist=True)
 
-    async def aggregate_dashboard_data(self, hospital_id: uuid.UUID, patient_id: uuid.UUID, persist: bool = False) -> Dict[str, Any]:
+    async def aggregate_dashboard_data(self, hospital_id: Optional[uuid.UUID], patient_id: uuid.UUID, family_member_id: Optional[uuid.UUID] = None, persist: bool = False) -> Dict[str, Any]:
         """
-        Computes dashboard from raw clinical data.
-        Optional persistence allows decoupling of heavy writes from read requests.
+        Computes profile-scoped dashboard from raw clinical data.
         """
-        # Join Patient & User
-        stmt = select(Patient).where(Patient.id == patient_id).join(Patient.user)
-        result = await self.db.execute(stmt)
-        patient = result.scalar_one_or_none()
-        
-        if not patient:
-            return {"error": "Patient profile not found"}
-        
-        user = patient.user
-        
-        # Parallel aggregate fetches
-        # Fetching latest 5 records (Tenant-Scoped)
+        # Fetch profile context
+        if family_member_id:
+            stmt = select(FamilyMember).where(FamilyMember.id == family_member_id, FamilyMember.patient_id == patient_id)
+            profile = (await self.db.execute(stmt)).scalar_one_or_none()
+            name = profile.full_name if profile else "Family Member"
+            hospyn_id = profile.linked_hospyn_id or "CareCircle"
+        else:
+            stmt = select(Patient).where(Patient.id == patient_id).join(Patient.user)
+            patient = (await self.db.execute(stmt)).scalar_one_or_none()
+            if not patient:
+                return {"error": "Patient profile not found"}
+            name = f"{patient.user.first_name} {patient.user.last_name}"
+            hospyn_id = patient.hospyn_id
+
+        # Profile-Scoped clinical queries
         records_stmt = select(MedicalRecord).where(
-            MedicalRecord.patient_id == patient_id
-        )
-        if hospital_id is not None:
-            # Enforce strict isolation: Only show records created at THIS hospital
-            records_stmt = records_stmt.where(MedicalRecord.hospital_id == hospital_id)
-            
-        records_stmt = records_stmt.order_by(MedicalRecord.created_at.desc()).limit(5)
+            MedicalRecord.patient_id == patient_id,
+            MedicalRecord.family_member_id == family_member_id
+        ).order_by(MedicalRecord.created_at.desc()).limit(5)
         
-        # Fetching active conditions
         conditions_stmt = select(Condition).where(
-            Condition.patient_id == patient_id, 
+            Condition.patient_id == patient_id,
+            Condition.family_member_id == family_member_id,
             Condition.hidden_by_patient == False
         )
         
-        # Fetching active medications
         meds_stmt = select(Medication).where(
-            Medication.patient_id == patient_id, 
+            Medication.patient_id == patient_id,
+            Medication.family_member_id == family_member_id,
             Medication.active == True
         )
         
-        # Sequential execution is fine for now as these are low-latency indexed lookups
-        records_res = await self.db.execute(records_stmt)
-        conditions_res = await self.db.execute(conditions_stmt)
-        meds_res = await self.db.execute(meds_stmt)
-        
-        records = records_res.scalars().all()
-        conditions = conditions_res.scalars().all()
-        meds = meds_res.scalars().all()
+        records = (await self.db.execute(records_stmt)).scalars().all()
+        conditions = (await self.db.execute(conditions_stmt)).scalars().all()
+        meds = (await self.db.execute(meds_stmt)).scalars().all()
 
         dashboard_data = {
             "profile": {
-                "full_name": f"{user.first_name} {user.last_name}",
-                "hospyn_id": patient.hospyn_id,
-                "blood_group": patient.blood_group,
-                "phone": patient.phone_number,
-                "dob": patient.date_of_birth,
-                "gender": patient.gender
+                "full_name": name,
+                "hospyn_id": hospyn_id,
+                "is_family_member": family_member_id is not None
             },
             "latest_records": [
                 {
@@ -129,39 +118,31 @@ class DashboardService:
         }
 
         if persist:
-            # Atomic update of dashboard table (Upsert logic)
+            # Upsert
             stmt = select(PatientDashboard).where(
-                PatientDashboard.patient_id == patient_id
+                PatientDashboard.patient_id == patient_id,
+                PatientDashboard.family_member_id == family_member_id
             )
             if hospital_id is not None:
                 stmt = stmt.where(PatientDashboard.hospital_id == hospital_id)
             else:
                 stmt = stmt.where(PatientDashboard.hospital_id.is_(None))
             
-            stmt = stmt.with_for_update()
+            res = await self.db.execute(stmt)
+            db_dashboard = res.scalar_one_or_none()
             
-            async with self.db.begin_nested():
-                result = await self.db.execute(stmt)
-                db_dashboard = result.scalar_one_or_none()
-                
-                if db_dashboard:
-                    db_dashboard.data = dashboard_data
-                    db_dashboard.updated_at = datetime.utcnow()
-                else:
-                    db_dashboard = PatientDashboard(
-                        patient_id=patient_id,
-                        hospital_id=hospital_id,
-                        data=dashboard_data,
-                        updated_at=datetime.utcnow()
-                    )
-                    self.db.add(db_dashboard)
+            if db_dashboard:
+                db_dashboard.data = dashboard_data
+                db_dashboard.updated_at = datetime.utcnow()
+            else:
+                db_dashboard = PatientDashboard(
+                    patient_id=patient_id,
+                    family_member_id=family_member_id,
+                    hospital_id=hospital_id,
+                    data=dashboard_data
+                )
+                self.db.add(db_dashboard)
+            
             await self.db.commit()
-
-            # Now cache the fresh DB data
-            cache_key = f"dashboard:{patient_id}:{hospital_id}"
-            try:
-                await redis_service.set(cache_key, json.dumps(dashboard_data), expire=3600)
-            except Exception as e:
-                logger.error(f"Failed to cache aggregated dashboard {hospital_id}:{patient_id}: {e}")
 
         return dashboard_data

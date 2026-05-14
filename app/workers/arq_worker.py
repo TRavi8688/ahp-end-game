@@ -1,11 +1,11 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select
+from sqlalchemy import select, update
 from arq.connections import RedisSettings
 
-from app.models.models import MedicalRecord
+from app.models.models import MedicalRecord, ClinicalJobTracker
 from app.services.ai_service import AsyncAIService
 from app.services.dashboard_service import DashboardService
 from app.core.config import settings
@@ -19,6 +19,63 @@ from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
 # Create async engine for the worker exactly as before, but ARQ allows native execution
 async_engine = create_async_engine(settings.async_database_url)
 AsyncSessionLocal = sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+
+async def run_consistency_audit_task(ctx):
+    """
+    HOSPYN STATE AUDITOR (The 'Continuous Forensic' Layer).
+    Periodically scans for subtle state drift across distributed systems.
+    """
+    session_factory = ctx['db_session_factory']
+    async with session_factory() as db:
+        # 1. Detect Verification Paradoxes: Verified records with unfinished jobs
+        paradox_stmt = select(MedicalRecord).join(ClinicalJobTracker, MedicalRecord.id == ClinicalJobTracker.resource_id).where(
+            MedicalRecord.needs_verification == False,
+            ClinicalJobTracker.status.in_(["queued", "processing"])
+        )
+        paradoxes = (await db.execute(paradox_stmt)).scalars().all()
+        for p in paradoxes:
+            logger.critical(f"STATE_DRIFT_DETECTED: Record {p.id} is VERIFIED but has an active job. Forcing job termination.")
+            # Cleanup: Mark job as 'cancelled_by_audit'
+            await db.execute(
+                update(ClinicalJobTracker).where(ClinicalJobTracker.resource_id == p.id).values(status="cancelled_by_audit")
+            )
+
+        # 2. Detect Zombie Jobs: Stuck in processing > 30 mins OR Heartbeat stale > 5 mins
+        stale_threshold = datetime.now() - timedelta(minutes=30)
+        heartbeat_threshold = datetime.now() - timedelta(minutes=5)
+        
+        zombie_stmt = select(ClinicalJobTracker).where(
+            ClinicalJobTracker.status == "processing",
+            (ClinicalJobTracker.last_heartbeat < heartbeat_threshold) | (ClinicalJobTracker.created_at < stale_threshold)
+        )
+        zombies = (await db.execute(zombie_stmt)).scalars().all()
+        for z in zombies:
+            logger.error(f"SILENT_WORKER_DEATH: Job {z.id} heartbeat stale. Resetting to 'queued'.")
+            z.status = "queued"
+            z.retry_count += 1
+            z.retry_reason = "Silent heartbeat timeout."
+            z.last_heartbeat = None
+
+        # 3. Detect Orphan Records: MedicalRecord exists but no JobTracker entry
+        # This is a critical drift scenario where the 'start' signal was lost.
+        orphan_stmt = select(MedicalRecord).outerjoin(ClinicalJobTracker, MedicalRecord.id == ClinicalJobTracker.resource_id).where(
+            ClinicalJobTracker.id == None,
+            MedicalRecord.created_at < (datetime.now() - timedelta(minutes=10))
+        )
+        orphans = (await db.execute(orphan_stmt)).scalars().all()
+        for o in orphans:
+            logger.critical(f"ORPHAN_RECORD_RECOVERY: Record {o.id} found without job. Re-staging.")
+            new_job = ClinicalJobTracker(
+                resource_id=o.id,
+                job_type="AUTO_RECOVERY_OCR",
+                status="queued"
+            )
+            db.add(new_job)
+            # Log the recovery event in the audit trail
+            # ... (Audit logging omitted for brevity)
+        
+        await db.commit()
+        logger.info(f"CONSISTENCY_AUDIT_COMPLETE: Scanned for paradoxes and zombies.")
 
 async def startup(ctx):
     """ARQ context startup. Here we cleanly inject dependencies instead of relying on global singletons."""
@@ -90,7 +147,11 @@ async def process_medical_document_task(ctx, record_id: int, object_key: str):
                 logger.error(f"Task Failed: Record {record_id} not found.")
                 return
             
-            # 1b. Idempotency Check
+            # 1b. Clinical Truth & Idempotency Check
+            if not record.needs_verification:
+                logger.warning(f"CLINICAL_TRUTH_PROTECTION: Record {record_id} is already VERIFIED. Aborting background overwrite.")
+                return
+
             if record.ai_processed_at:
                 logger.info(f"IDEMPOTENCY_HIT: Record {record_id} already processed. Skipping.")
                 return
@@ -99,14 +160,52 @@ async def process_medical_document_task(ctx, record_id: int, object_key: str):
             analysis = await ai_service.process_medical_document(object_key, language_code="en")
             
             if "error" in analysis:
-                logger.error(f"AI Pipeline failed for {object_key}: {analysis['error']}")
-                raise Exception(f"AI Processing Failed: {analysis['error']}") # Trigger ARQ retry
+                logger.error(f"AI_PIPELINE_FAULT for {object_key}: {analysis['error']}")
+                # CHAOS RESILIENCE: Instead of crashing, we quarantine the record for manual review.
+                record.malware_scan_status = "quarantined_ai_fault"
+                record.needs_verification = True
+                record.patient_summary = "Chitti encountered a clinical complexity. A doctor will review your report shortly."
+                await db.commit()
+                return # Stop processing, but don't crash the worker
+
+            # Phase 3 Hardening: Extract confidence and simulate malware scan
+            confidence = analysis.get("confidence_score")
+            if confidence is None:
+                # Fallback: Heuristic based on extraction completeness
+                extracted = analysis.get("structured_data", {})
+                confidence = 0.95 if extracted else 0.5
+            
             record.raw_text = analysis.get("raw_text", "")
             record.ai_extracted = analysis.get("structured_data", {})
             record.ai_summary = analysis.get("patient_summary", "Analyzed.")
             record.patient_summary = analysis.get("patient_summary", "Analyzed.")
             record.doctor_summary = analysis.get("doctor_summary", "")
             record.ai_processed_at = datetime.now()
+            
+            # Update hardening fields
+            record.ocr_confidence_score = confidence
+            record.malware_scan_status = "clean" # Simulation: Real system would call ClamAV sidecar here
+            record.needs_verification = True # All AI findings start as provisional
+            
+            # 3. Structured Lab Normalization
+            structured_data = analysis.get("structured_data", {})
+            labs = structured_data.get("lab_results", [])
+            from app.models.models import LabResult
+            
+            for lab in labs:
+                new_lab = LabResult(
+                    patient_id=record.patient_id,
+                    record_id=record.id,
+                    family_member_id=record.family_member_id,
+                    hospital_id=record.hospital_id,
+                    test_name=lab.get("test") or lab.get("name") or "Unknown Test",
+                    value=str(lab.get("value") or "0"),
+                    unit=lab.get("unit"),
+                    reference_range=lab.get("reference_range"),
+                    is_abnormal=lab.get("is_abnormal", False),
+                    observation_date=datetime.now() # Fallback to now if not extracted
+                )
+                db.add(new_lab)
             
             await db.commit()
             

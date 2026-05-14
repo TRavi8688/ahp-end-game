@@ -5,10 +5,17 @@
   "targets": {
     "hospyn-495906-96438": {
       "hosting": {
-        "main-site": [
+        "patient": [
           "hospyn-495906-96438"
+        ],
+        "doctor": [
+          "hospyn-doctor-pro"
+        ],
+        "erp": [
+          "hospyn-erp-portal"
         ]
       }
     }
-  }
+  },
+  "etags": {}
 }

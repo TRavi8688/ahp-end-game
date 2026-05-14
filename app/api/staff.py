@@ -17,21 +17,13 @@ class StaffInviteCreate(BaseModel):
 @router.post("/invites", status_code=status.HTTP_201_CREATED)
 async def invite_staff(
     invite_data: StaffInviteCreate,
-    current_user: User = Depends(deps.get_db_user),
+    current_user: User = Depends(deps.RoleChecker([RoleEnum.hospital_admin, RoleEnum.admin])),
     db: AsyncSession = Depends(deps.get_db)
 ):
-    """
-    Hospital-side invitation endpoint. Only Owners and HR can invite staff.
-    """
-    # 1. Permission Check
-    if current_user.role not in [RoleEnum.hospital_admin, RoleEnum.admin]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only Owners or HR Managers can invite staff."
-        )
+    """Hospital-side invitation endpoint. Only Owners and HR can invite staff."""
+    from app.core.audit import log_clinical_audit
     
-    # 2. Trigger Invitation
-    # Get Hospital ID from Staff Profile
+    # 1. Trigger Invitation
     if not current_user.staff_profile:
          raise HTTPException(status_code=400, detail="Inviter has no linked hospital profile.")
 
@@ -45,16 +37,22 @@ async def invite_staff(
         department_id=invite_data.department_id
     )
     
+    await log_clinical_audit(
+        db, 
+        user_id=current_user.id, 
+        action="STAFF_INVITE_SENT", 
+        resource_type="STAFF_INVITE",
+        details={"invited_email": invite_data.email, "role": invite_data.role}
+    )
+    
     return {"message": "Invitation sent successfully", "token_preview": invite.token[:8] + "..."}
 
 @router.get("/members")
 async def list_staff(
-    current_user: User = Depends(deps.get_db_user),
+    current_user: User = Depends(deps.RoleChecker([RoleEnum.hospital_admin, RoleEnum.admin, RoleEnum.doctor])),
     db: AsyncSession = Depends(deps.get_db)
 ):
-    """
-    Returns the list of all staff members in the hospital.
-    """
+    """Returns the list of all staff members in the hospital."""
     if not current_user.staff_profile:
         return []
     return await StaffService.get_hospital_staff(db, current_user.staff_profile.hospital_id)

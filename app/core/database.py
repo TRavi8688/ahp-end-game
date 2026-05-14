@@ -49,9 +49,9 @@ def get_writer_engine():
     global _writer_engine
     if _writer_engine is None:
         _writer_engine = create_async_engine(
-            settings.DATABASE_URL,
-            pool_size=20,
-            max_overflow=10,
+            settings.async_database_url,
+            pool_size=settings.DB_POOL_SIZE,
+            max_overflow=settings.DB_MAX_OVERFLOW,
             pool_recycle=1800,
             connect_args={"ssl": get_ssl_context()} if "postgresql" in settings.DATABASE_URL else {}
         )
@@ -61,25 +61,64 @@ def get_reader_engine():
     global _reader_engine
     if _reader_engine is None:
         reader_url = settings.DATABASE_READER_URL or settings.DATABASE_URL
+        if "postgres" in reader_url and "asyncpg" not in reader_url:
+            reader_url = reader_url.replace("postgres://", "postgresql+asyncpg://", 1)
+            reader_url = reader_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            
         _reader_engine = create_async_engine(
             reader_url,
-            pool_size=40,
-            max_overflow=20,
+            pool_size=settings.DB_POOL_SIZE,
+            max_overflow=settings.DB_MAX_OVERFLOW,
             pool_recycle=1800,
             connect_args={"ssl": get_ssl_context()} if "postgresql" in reader_url else {}
         )
     return _reader_engine
 
 # --- DEPENDENCIES ---
+from sqlalchemy.orm import with_loader_criteria
+from app.core.context import get_current_hospital_id
+from app.models.mixins import TenantScopedMixin
+
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    async with sessionmaker(get_writer_engine(), class_=AsyncSession, expire_on_commit=False)() as session:
+    engine = get_writer_engine()
+    hospital_id = get_current_hospital_id()
+    
+    async with sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)() as session:
+        # --- THE RESILIENCE SHIELD: IMPLICIT TENANT FILTER ---
+        # Automatically filters EVERY query to only show data for the current hospital.
+        if hospital_id:
+            session.execute_options = {
+                "loader_criteria": [
+                    with_loader_criteria(
+                        TenantScopedMixin, 
+                        lambda cls: cls.hospital_id == hospital_id,
+                        include_subclasses=True
+                    )
+                ]
+            }
+            # Also set the DB context for RLS if needed
+            await set_tenant_context(session, str(hospital_id))
+            
         try:
             yield session
         finally:
             await session.close()
 
 async def get_read_db() -> AsyncGenerator[AsyncSession, None]:
-    async with sessionmaker(get_reader_engine(), class_=AsyncSession, expire_on_commit=False)() as session:
+    engine = get_reader_engine()
+    hospital_id = get_current_hospital_id()
+    
+    async with sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)() as session:
+        if hospital_id:
+            session.execute_options = {
+                "loader_criteria": [
+                    with_loader_criteria(
+                        TenantScopedMixin, 
+                        lambda cls: cls.hospital_id == hospital_id,
+                        include_subclasses=True
+                    )
+                ]
+            }
         try:
             yield session
         finally:
