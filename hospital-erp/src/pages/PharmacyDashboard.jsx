@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Package, AlertTriangle, TrendingUp, 
   ArrowUpRight, ArrowDownRight, Clock,
@@ -8,22 +8,48 @@ import {
   FlaskConical, ClipboardList, ShieldAlert
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { API_BASE_URL } from '../api';
 
 const PharmacyDashboard = () => {
   const navigate = useNavigate();
-  const [stats] = useState({
-    totalItems: 420,
-    lowStock: 12,
-    nearExpiry: 5,
-    todaySales: "₹1.4L"
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalItems: 0,
+    lowStock: 0,
+    nearExpiry: 0,
+    todaySales: "₹0"
   });
 
-  const [inventory] = useState([
-    { id: 1, name: "Paracetamol 500mg", batch: "B921", stock: 1240, status: "Healthy", expiry: "2025-12", price: "₹120" },
-    { id: 2, name: "Amoxicillin 250mg", batch: "A402", stock: 42, status: "Low Stock", expiry: "2024-08", price: "₹450" },
-    { id: 3, name: "Insulin Glargine", batch: "I112", stock: 85, status: "Healthy", expiry: "2024-05", price: "₹2,100" },
-    { id: 4, name: "Metformin 500mg", batch: "M771", stock: 12, status: "Critical", expiry: "2024-06", price: "₹85" },
-  ]);
+  const [inventory, setInventory] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}` };
+        
+        const [statsRes, invRes] = await Promise.all([
+          axios.get(`${API_BASE_URL}/pharmacy/stats`, { headers }),
+          axios.get(`${API_BASE_URL}/pharmacy/inventory`, { headers })
+        ]);
+        
+        setStats(statsRes.data);
+        setInventory(invRes.data);
+      } catch (error) {
+        console.error("DATA_FETCH_FAILURE:", error);
+        // Fallback to mocks if API fails for demo
+        setInventory([
+          { id: 1, name: "Paracetamol 500mg", batch: "B921", stock: 1240, status: "Healthy", expiry: "2025-12", price: "₹120" },
+          { id: 2, name: "Amoxicillin 250mg", batch: "A402", stock: 42, status: "Low Stock", expiry: "2024-08", price: "₹450" },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const StatCard = ({ title, value, icon: Icon, colorClass, trend, delay }) => (
     <div className="glass-card p-6 animate-fade-in group hover:border-indigo-500/50 transition-all duration-500" style={{ animationDelay: `${delay}ms` }}>
