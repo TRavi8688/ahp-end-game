@@ -115,6 +115,9 @@ jobs:
           ENCRYPTION_KEY: "Y2ktdGVzdC1lbmNyeXB0aW9uLWtleS1tdXN0LWJlLTMyLWJ5dGVz"
         run: |
           export PYTHONPATH=$PYTHONPATH:.
+          echo "🧹 Wiping database for Clean Slate..."
+          python3 wipe_db.py
+          echo "🏗️ Building clinical schema..."
           alembic upgrade head
 
       - name: Deploy API Service
