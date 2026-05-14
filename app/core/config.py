@@ -54,6 +54,9 @@ class Settings(BaseSettings):
 
     # --- 5. NETWORK & CORS ---
     ALLOWED_ORIGINS: Any = [
+        "https://hospyn-495906-96438.web.app",
+        "https://hospyn-doctor-pro.web.app",
+        "https://hospyn-erp-portal.web.app",
         "https://hospyn-495906.web.app",
         "https://app.hospyn.com",
         "http://localhost:8081",
