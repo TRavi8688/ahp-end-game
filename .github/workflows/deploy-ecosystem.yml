@@ -52,6 +52,7 @@ jobs:
     name: Deploy Backend & Database
     needs: run-tests
     runs-on: ubuntu-latest
+    environment: production
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -94,6 +95,14 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install asyncpg psycopg2-binary
+
+      - name: Validate Deployment Secrets
+        run: |
+          if [ -z "${{ secrets.DATABASE_URL_PROD }}" ] && [ -z "${{ secrets.DATABASE_URL }}" ]; then
+            echo "::error::CRITICAL: DATABASE_URL is missing from GitHub Secrets. Ensure it is set in Settings > Secrets > Actions."
+            exit 1
+          fi
+          echo "Database URL secret detected. Proceeding..."
 
       - name: Run Database Migrations (Alembic)
         env:
