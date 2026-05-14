@@ -16,15 +16,7 @@ import {
   Tooltip, ResponsiveContainer, BarChart, Bar 
 } from 'recharts';
 
-const chartData = [
-  { name: 'Mon', stock: 4000, demand: 2400 },
-  { name: 'Tue', stock: 3000, demand: 1398 },
-  { name: 'Wed', stock: 2000, demand: 9800 },
-  { name: 'Thu', stock: 2780, demand: 3908 },
-  { name: 'Fri', stock: 1890, demand: 4800 },
-  { name: 'Sat', stock: 2390, demand: 3800 },
-  { name: 'Sun', stock: 3490, demand: 4300 },
-];
+const chartData = []; // Purged: System waiting for real-time velocity data
 
 const PharmacyDashboard = () => {
   const navigate = useNavigate();
@@ -53,10 +45,7 @@ const PharmacyDashboard = () => {
         setInventory(invRes.data);
       } catch (error) {
         console.error("DATA_FETCH_FAILURE:", error);
-        setInventory([
-          { id: 1, name: "Paracetamol 500mg", batch: "B921", stock: 1240, status: "Healthy", expiry: "2025-12", price: "₹120" },
-          { id: 2, name: "Amoxicillin 250mg", batch: "A402", stock: 42, status: "Low Stock", expiry: "2024-08", price: "₹450" },
-        ]);
+        setInventory([]); // Clean State Enforcement
       } finally {
         setLoading(false);
       }
@@ -161,18 +150,25 @@ const PharmacyDashboard = () => {
                     </div>
                 </div>
                 <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={chartData}>
-                        <defs>
-                            <linearGradient id="colorStock" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                            </linearGradient>
-                        </defs>
-                        <XAxis dataKey="name" stroke="#475569" fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} />
-                        <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px' }} />
-                        <Area type="monotone" dataKey="stock" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorStock)" />
-                        <Area type="monotone" dataKey="demand" stroke="#10b981" strokeWidth={3} fillOpacity={0} />
-                    </AreaChart>
+                    {chartData.length > 0 ? (
+                        <AreaChart data={chartData}>
+                            <defs>
+                                <linearGradient id="colorStock" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
+                            <XAxis dataKey="name" stroke="#475569" fontSize={10} fontWeight="bold" axisLine={false} tickLine={false} />
+                            <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px' }} />
+                            <Area type="monotone" dataKey="stock" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorStock)" />
+                            <Area type="monotone" dataKey="demand" stroke="#10b981" strokeWidth={3} fillOpacity={0} />
+                        </AreaChart>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center h-full text-slate-600 gap-4">
+                            <TrendingUp size={48} className="opacity-20" />
+                            <span className="text-xs font-black tracking-widest uppercase opacity-40">Awaiting Real-time Velocity Data</span>
+                        </div>
+                    )}
                 </ResponsiveContainer>
             </div>
             

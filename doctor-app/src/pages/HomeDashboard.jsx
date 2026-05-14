@@ -235,34 +235,7 @@ export default function HomeDashboard({ onOpenScan }) {
                 </Grid>
             </Grid>
 
-            {/* Urgent Alert Panel (Full Width) */}
-            {urgentAlertsCount > 0 && (
-                <Card elevation={0} sx={{ border: '1px solid #fca5a5', bgcolor: '#fef2f2', borderRadius: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 3, flexWrap: 'wrap', gap: 2 }}>
-                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flex: 1, minWidth: 300 }}>
-                            <Box sx={{ p: 1, bgcolor: '#fee2e2', borderRadius: '50%', display: 'flex' }}>
-                                <WarningAmberIcon sx={{ color: '#dc2626', fontSize: 32 }} />
-                            </Box>
-                            <Box>
-                                <Typography variant="h6" fontWeight="bold" sx={{ color: '#b91c1c' }}>
-                                    Drug Interaction Alert — Rahul Sharma
-                                </Typography>
-                                <Typography variant="body2" sx={{ color: '#7f1d1d', mt: 0.5 }}>
-                                    New prescription includes Amoxicillin. Patient's Hospyn profile shows a Severe allergy to Penicillin. This requires immediate review.
-                                </Typography>
-                            </Box>
-                        </Box>
-                        <Box sx={{ display: 'flex', gap: 1.5 }}>
-                            <Button variant="outlined" color="error" sx={{ bgcolor: 'white' }}>
-                                Flag & Hold
-                            </Button>
-                            <Button variant="contained" color="error" onClick={() => navigate('/patient/Hospyn-IN-9284-7731')}>
-                                View Patient
-                            </Button>
-                        </Box>
-                    </Box>
-                </Card>
-            )}
+            {/* Alerts handled by dynamic engine - Purged hardcoded Rahul Sharma alert */}
         </Box>
     );
 }
