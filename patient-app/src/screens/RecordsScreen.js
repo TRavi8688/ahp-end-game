@@ -71,11 +71,21 @@ export default function RecordsScreen({ navigation }) {
                 <Ionicons name={getIcon(item.type)} size={24} color={Theme.colors.primary} />
             </View>
             <View style={styles.recordMain}>
-                <Text style={styles.recordTitle}>{item.record_name || 'Medical Record'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.recordTitle}>{item.record_name || 'Medical Record'}</Text>
+                    {!item.needs_verification && (
+                        <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                    )}
+                </View>
                 <Text style={styles.recordSub}>{item.hospital_name || 'Hospyn Network'}</Text>
                 <Text style={styles.recordDate}>{new Date(item.created_at).toLocaleDateString()}</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color="#475569" />
+            <View style={{ alignItems: 'flex-end' }}>
+                <Ionicons name="chevron-forward" size={18} color="#475569" />
+                {!item.needs_verification && (
+                    <Text style={{ fontSize: 8, color: '#10B981', fontWeight: 'bold', marginTop: 4 }}>VERIFIED</Text>
+                )}
+            </View>
         </TouchableOpacity>
     );
 

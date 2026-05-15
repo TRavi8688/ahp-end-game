@@ -32,9 +32,19 @@ export default function FamilyProfilesScreen({ navigation }) {
 
     useEffect(() => {
         const init = async () => {
+            setLoading(true);
             const activeId = await SecurityUtils.getActiveMemberId();
             setActiveMemberId(activeId);
-            // Fetch profiles...
+            try {
+                const response = await ApiService.get('/patient/care-circle');
+                if (response && Array.isArray(response)) {
+                    setProfiles(response);
+                }
+            } catch (e) {
+                console.error("Fetch Care Circle error:", e);
+            } finally {
+                setLoading(false);
+            }
         };
         init();
     }, []);
@@ -56,16 +66,25 @@ export default function FamilyProfilesScreen({ navigation }) {
         
         setLoading(true);
         try {
-            // Simulated success for now
-            setTimeout(() => {
+            const payload = {
+                full_name: newMember.fullName,
+                relation: newMember.relation,
+                phone_number: newMember.phone || null,
+                blood_group: "Unknown", // Default or add picker
+                gender: "Other" // Default or add picker
+            };
+            
+            const response = await ApiService.post('/patient/care-circle', payload);
+            if (response && response.id) {
                 Alert.alert("Success", `${newMember.fullName} has been added to your Care Circle.`);
-                setProfiles([...profiles, { ...newMember, id: Date.now().toString() }]);
+                setProfiles([...profiles, response]);
                 setIsAdding(false);
                 setNewMember({ fullName: '', relation: '', phone: '', dob: '', gender: '' });
-                setLoading(false);
-            }, 1000);
+            }
         } catch (e) {
             Alert.alert("Error", "Failed to add family member.");
+            console.error(e);
+        } finally {
             setLoading(false);
         }
     };

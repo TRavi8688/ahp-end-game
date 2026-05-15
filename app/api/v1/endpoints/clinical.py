@@ -153,3 +153,29 @@ async def record_lab_results(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+@router.post("/records/{record_id}/verify", status_code=status.HTTP_200_OK)
+async def verify_medical_record(
+    *,
+    db: AsyncSession = Depends(deps.get_db),
+    record_id: int,
+    hospital_id: int = Depends(deps.get_hospital_id),
+    current_user = Depends(deps.get_db_user)
+):
+    """
+    Formally verify an AI-extracted medical record. (Doctor only)
+    Once verified, the record is considered part of the official clinical history.
+    """
+    if current_user.role != RoleEnum.doctor:
+        raise HTTPException(status_code=403, detail="Only doctors can verify medical records")
+        
+    try:
+        return await clinical_service.verify_medical_record(
+            db=db,
+            record_id=record_id,
+            doctor_id=current_user.doctor_profile.id,
+            hospital_id=hospital_id
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))

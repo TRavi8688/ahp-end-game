@@ -121,6 +121,28 @@ export default function PatientDetailView() {
         }
     };
 
+    const handleVerifyRecord = async (recordId) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/clinical/records/${recordId}/verify`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (response.ok) {
+                setToastOpen(true);
+                fetchPatient();
+            } else {
+                const err = await response.json();
+                console.error("Verification failed:", err);
+            }
+        } catch (error) {
+            console.error("Error verifying record:", error);
+        }
+    };
+
     const StatusWord = ({ status }) => {
         const colors = {
             normal: { c: '#10b981', bg: '#d1fae5', text: 'Normal' },
@@ -512,7 +534,7 @@ export default function PatientDetailView() {
                                         </Typography>
                                     )}
                                 </Box>
-                                <Box sx={{ width: '15%', textAlign: 'right' }}>
+                                <Box sx={{ width: '15%', textAlign: 'right', display: 'flex', flexDirection: 'column', gap: 1 }}>
                                     <Button
                                         variant="outlined"
                                         size="small"
@@ -528,6 +550,31 @@ export default function PatientDetailView() {
                                     >
                                         OPEN
                                     </Button>
+                                    
+                                    {r.needs_verification ? (
+                                        <Button
+                                            variant="contained"
+                                            size="small"
+                                            startIcon={<CheckCircleOutlinedIcon />}
+                                            sx={{
+                                                bgcolor: '#14b8a6',
+                                                color: '#fff',
+                                                fontWeight: '900',
+                                                textTransform: 'none',
+                                                borderRadius: '10px',
+                                                fontSize: '0.7rem',
+                                                '&:hover': { bgcolor: '#0d9488' }
+                                            }}
+                                            onClick={() => handleVerifyRecord(r.id)}
+                                        >
+                                            VERIFY & SIGN
+                                        </Button>
+                                    ) : (
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: '#10b981', justifyContent: 'flex-end' }}>
+                                            <CheckCircleOutlinedIcon sx={{ fontSize: 16 }} />
+                                            <Typography variant="caption" sx={{ fontWeight: 900 }}>VERIFIED</Typography>
+                                        </Box>
+                                    )}
                                 </Box>
                             </Box>
                         )) : (

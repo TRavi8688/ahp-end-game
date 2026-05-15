@@ -311,3 +311,42 @@ class ClinicalService(BaseService):
             resource_id=entity_id,
             details={"hospital_id": hospital_id}
         )
+
+    async def verify_medical_record(
+        self,
+        db: AsyncSession,
+        record_id: int,
+        doctor_id: uuid.UUID,
+        hospital_id: int
+    ) -> Any:
+        """
+        DOCTOR VERIFICATION: Formally sign off on an AI-analyzed medical record.
+        """
+        from app.models.models import MedicalRecord
+        
+        result = await db.execute(
+            select(MedicalRecord).filter(MedicalRecord.id == record_id)
+        )
+        record = result.scalar()
+        
+        if not record:
+            raise ValueError("Medical record not found")
+            
+        record.needs_verification = False
+        record.verified_by_id = doctor_id
+        record.verified_at = datetime.now()
+        
+        # Log Immutable Clinical Event
+        await event_service.log_event(
+            db=db,
+            tenant_id=hospital_id,
+            patient_id=record.patient_id,
+            actor_id=str(doctor_id),
+            event_type="RECORD_VERIFIED",
+            aggregate_type="medical_record",
+            aggregate_id=str(record.id),
+            payload={"verified_by": str(doctor_id)}
+        )
+        
+        await self._audit(db, doctor_id, hospital_id, "VERIFY", "medical_record", record.id)
+        return record
