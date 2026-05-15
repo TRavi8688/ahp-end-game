@@ -3,6 +3,7 @@ import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from 'rea
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as Updates from 'expo-updates';
 
 // Core
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
@@ -39,6 +40,24 @@ function AppContent() {
 
   const [bootReady, setBootReady] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    const checkUpdates = async () => {
+      if (__DEV__) return;
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          setIsUpdating(true);
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch (e) {
+        console.log("Update check failed", e);
+      }
+    };
+    checkUpdates();
+  }, []);
 
   useEffect(() => {
     ApiService.setAuthFailureCallback(() => {
@@ -48,33 +67,34 @@ function AppContent() {
 
   useEffect(() => {
     const runBoot = async () => {
-      if (fontsLoaded && !isLoading) {
+      if (fontsLoaded && !isLoading && !isUpdating) {
         if (isAuthenticated) {
-          // PROD_RULE: Native Device Lock (Fingerprint/PIN)
           const { SecurityService } = require('./src/utils/SecurityService');
           const success = await SecurityService.authenticate('Unlock Hospyn Clinical Vault');
           if (success) {
             setIsUnlocked(true);
             setBootReady(true);
-          } else {
-            // Keep on splash or retry
-            console.log("Authentication failed.");
           }
         } else {
-          // Guest mode (login/register) doesn't need biometric yet
           setIsUnlocked(true);
           setBootReady(true);
         }
       }
     };
     runBoot();
-  }, [fontsLoaded, isLoading, isAuthenticated]);
+  }, [fontsLoaded, isLoading, isAuthenticated, isUpdating]);
 
-  if (!bootReady) {
+  if (isUpdating || !bootReady) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#050810', justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: '#6366F1', fontSize: 42, fontWeight: '900' }}>HOSPYN</Text>
-        <ActivityIndicator size="large" color="#6366F1" style={{ marginTop: 20 }} />
+      <View style={{ flex: 1, backgroundColor: '#050810', justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+        <Text style={{ color: '#6366F1', fontSize: 32, fontWeight: '900', letterSpacing: -1 }}>HOSPYN <Text style={{color: '#fff'}}>CORE</Text></Text>
+        <View style={{ marginTop: 40, alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#6366F1" />
+          <Text style={{ color: '#475569', fontSize: 12, marginTop: 20, fontWeight: 'bold', letterSpacing: 2 }}>
+            {isUpdating ? "SYNCING CLINICAL ASSETS..." : "INITIALIZING VAULT..."}
+          </Text>
+        </View>
+        <Text style={{ position: 'absolute', bottom: 40, color: '#1E293B', fontSize: 10, fontWeight: 'bold' }}>VERSION {Updates.updateId ? Updates.updateId.substring(0,8).toUpperCase() : '2.0.2-STABLE'}</Text>
       </View>
     );
   }
