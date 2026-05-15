@@ -191,11 +191,18 @@ async def cors_resilience_middleware(request: Request, call_next):
 def _add_cors_headers(response, origin: Optional[str]):
     if not origin:
         return
+        
+    # PRODUCTION LOCKDOWN: Only allow approved origins
+    allowed = settings.ALLOWED_ORIGINS
+    if settings.ENVIRONMENT == "production":
+        if origin not in allowed:
+            logger.warning(f"CORS_BLOCKED: Origin {origin} not in ALLOWED_ORIGINS")
+            return
+
     response.headers["Access-Control-Allow-Origin"] = origin
     response.headers["Access-Control-Allow-Credentials"] = "true"
-    response.headers["Access-Control-Allow-Methods"] = "*"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, authorization, X-Requested-With, Accept"
-
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, Accept, x-tenant-id"
     response.headers["Vary"] = "Origin"
 
 @app.exception_handler(RequestValidationError)

@@ -58,9 +58,11 @@ class Settings(BaseSettings):
         "https://hospyn-doctor-pro.web.app",
         "https://hospyn-erp-portal.web.app",
         "https://hospyn-495906.web.app",
+        "https://hospyn-admin-center.web.app",
         "https://app.hospyn.com",
         "http://localhost:8081",
-        "http://localhost:3000"
+        "http://localhost:3000",
+        "http://localhost:5173"
     ]
     TRUSTED_PROXIES: List[str] = ["*"]
     
