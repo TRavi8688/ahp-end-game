@@ -31,7 +31,6 @@
       ],
       "package": "com.hospyn.patient"
     },
-    "owner": "travi8688",
     "privacyPolicyUrl": "https://hospyn.com/privacy",
     "plugins": [
       "expo-font",
