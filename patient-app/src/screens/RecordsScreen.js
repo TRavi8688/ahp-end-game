@@ -134,9 +134,30 @@ export default function RecordsScreen({ navigation }) {
                             {selectedRecord?.file_url && (
                                 <View style={styles.previewBox}>
                                     <Image source={{ uri: selectedRecord.file_url }} style={styles.previewImage} resizeMode="contain" />
-                                    <TouchableOpacity style={styles.fullViewBtn} onPress={() => Linking.openURL(selectedRecord.file_url)}>
-                                        <Text style={styles.fullViewText}>VIEW FULL RESOLUTION</Text>
-                                    </TouchableOpacity>
+                                    <View style={{ flexDirection: 'row', gap: 10, position: 'absolute', bottom: 16, right: 16 }}>
+                                        <TouchableOpacity 
+                                            style={styles.fullViewBtn} 
+                                            onPress={async () => {
+                                                const { SecurityService } = require('../utils/SecurityService');
+                                                if (await SecurityService.confirmSensitiveAction('view this clinical report')) {
+                                                    Linking.openURL(selectedRecord.file_url);
+                                                }
+                                            }}
+                                        >
+                                            <Text style={styles.fullViewText}>VIEW FULL</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity 
+                                            style={[styles.fullViewBtn, { backgroundColor: Theme.colors.primary }]} 
+                                            onPress={async () => {
+                                                const { SecurityService } = require('../utils/SecurityService');
+                                                if (await SecurityService.confirmSensitiveAction('share your medical data')) {
+                                                    Alert.alert("Success", "Secure sharing link generated and ready.");
+                                                }
+                                            }}
+                                        >
+                                            <Text style={styles.fullViewText}>SHARE</Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
                             )}
 

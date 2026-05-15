@@ -38,6 +38,7 @@ function AppContent() {
   });
 
   const [bootReady, setBootReady] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(false);
 
   useEffect(() => {
     ApiService.setAuthFailureCallback(() => {
@@ -46,10 +47,28 @@ function AppContent() {
   }, [logout]);
 
   useEffect(() => {
-    if (fontsLoaded && !isLoading) {
-      setBootReady(true);
-    }
-  }, [fontsLoaded, isLoading]);
+    const runBoot = async () => {
+      if (fontsLoaded && !isLoading) {
+        if (isAuthenticated) {
+          // PROD_RULE: Native Device Lock (Fingerprint/PIN)
+          const { SecurityService } = require('./src/utils/SecurityService');
+          const success = await SecurityService.authenticate('Unlock Hospyn Clinical Vault');
+          if (success) {
+            setIsUnlocked(true);
+            setBootReady(true);
+          } else {
+            // Keep on splash or retry
+            console.log("Authentication failed.");
+          }
+        } else {
+          // Guest mode (login/register) doesn't need biometric yet
+          setIsUnlocked(true);
+          setBootReady(true);
+        }
+      }
+    };
+    runBoot();
+  }, [fontsLoaded, isLoading, isAuthenticated]);
 
   if (!bootReady) {
     return (
