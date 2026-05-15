@@ -109,3 +109,26 @@ async def get_global_audit_logs(
         } for l in logs])
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch audit logs: {str(e)}")
+
+from app.services.audit_service import AuditService
+
+@router.get("/patient/{patient_id}/forensic-export", response_model=APIResponse[dict])
+async def export_patient_forensic_trail(
+    patient_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_roles(RoleEnum.admin))
+):
+    """
+    SUPER ADMIN ONLY: Export the full, tamper-proof clinical history of a patient.
+    Used for medical compliance and forensic investigations.
+    """
+    try:
+        trail = await AuditService.get_patient_forensic_trail(db, patient_id)
+        if "error" in trail:
+            raise HTTPException(status_code=404, detail=trail["error"])
+        
+        return APIResponse(success=True, data=trail)
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Forensic export failed: {str(e)}")
