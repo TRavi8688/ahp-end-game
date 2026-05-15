@@ -115,8 +115,8 @@ jobs:
           ENCRYPTION_KEY: "Y2ktdGVzdC1lbmNyeXB0aW9uLWtleS1tdXN0LWJlLTMyLWJ5dGVz"
         run: |
           export PYTHONPATH=$PYTHONPATH:.
-          echo "🧹 Wiping database for Clean Slate..."
-          python3 wipe_db.py
+          # WIPE DISABLED FOR PRODUCTION DATA INTEGRITY
+          # python3 wipe_db.py
           echo "🏗️ Building clinical schema..."
           alembic upgrade head
 
@@ -178,9 +178,16 @@ jobs:
           npm install --legacy-peer-deps
           npm run build
 
+      - name: Build Super Admin Dashboard
+        run: |
+          cd super-admin-dashboard
+          npm install --legacy-peer-deps
+          npm run build
+
       - name: Deploy All Portals to Firebase
         run: |
           npx firebase-tools deploy --only hosting:patient --token ${{ secrets.FIREBASE_TOKEN }}
           npx firebase-tools deploy --only hosting:doctor --token ${{ secrets.FIREBASE_TOKEN }}
           npx firebase-tools deploy --only hosting:erp --token ${{ secrets.FIREBASE_TOKEN }}
+          npx firebase-tools deploy --only hosting:admin --token ${{ secrets.FIREBASE_TOKEN }}
           npx firebase-tools deploy --only hosting:landing --token ${{ secrets.FIREBASE_TOKEN }}
