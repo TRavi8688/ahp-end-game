@@ -27,7 +27,8 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.USE_BIOMETRIC",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.USE_FINGERPRINT"
       ],
       "package": "com.hospyn.patient"
     },
@@ -41,6 +42,12 @@
     ],
     "web": {
       "bundler": "webpack"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "3ef75e8f-a9b3-406c-95cc-785da240e295"
+      }
+    },
+    "owner": "hospyn"
   }
 }
