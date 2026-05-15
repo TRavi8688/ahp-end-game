@@ -8,6 +8,7 @@ from app.models.models import User, Hospital, Patient, MedicalRecord, AuditLog, 
 from app.schemas.common import APIResponse
 from pydantic import BaseModel
 from datetime import datetime
+from app.core.logging import logger
 
 router = APIRouter()
 
@@ -110,9 +111,15 @@ async def get_global_audit_logs(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch audit logs: {str(e)}")
 
+class HospitalCreate(BaseModel):
+    name: str
+    hospyn_id: str
+    registration_number: str
+    short_code: Optional[str] = None
+
 @router.post("/hospitals", response_model=APIResponse[dict])
 async def create_hospital_tenant(
-    data: dict,
+    data: HospitalCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(RoleEnum.admin))
 ):
@@ -121,10 +128,10 @@ async def create_hospital_tenant(
     """
     try:
         new_hospital = Hospital(
-            name=data["name"],
-            hospyn_id=data["hospyn_id"],
-            short_code=data.get("short_code", data["hospyn_id"][:10]),
-            registration_number=data["registration_number"],
+            name=data.name,
+            hospyn_id=data.hospyn_id,
+            short_code=data.short_code or data.hospyn_id[:10],
+            registration_number=data.registration_number,
             subscription_status="active"
         )
         db.add(new_hospital)
@@ -132,12 +139,13 @@ async def create_hospital_tenant(
         return APIResponse(success=True, data={"id": str(new_hospital.id)})
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=400, detail=f"Failed to create hospital: {str(e)}")
+        logger.error(f"Hospital creation failed: {str(e)}")
+        raise HTTPException(status_code=400, detail="Failed to create hospital tenant due to validation or duplicate entry.")
 
 @router.patch("/hospitals/{hospital_id}/status", response_model=APIResponse[dict])
 async def update_hospital_status(
     hospital_id: str,
-    status: str,
+    status: str = Query(..., regex="^(active|suspended|terminated)$"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles(RoleEnum.admin))
 ):
@@ -155,9 +163,12 @@ async def update_hospital_status(
         hospital.subscription_status = status
         await db.commit()
         return APIResponse(success=True, data={"id": str(hospital.id), "status": status})
+    except HTTPException:
+        raise
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=400, detail=f"Failed to update status: {str(e)}")
+        logger.error(f"Status update failed: {str(e)}")
+        raise HTTPException(status_code=400, detail="Internal integrity error during status transition.")
 
 @router.get("/analytics", response_model=APIResponse[dict])
 async def get_comprehensive_analytics(
