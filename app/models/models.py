@@ -126,7 +126,8 @@ class User(Base):
     # --- Enterprise: JWT Revocation ---
     # Incrementing this field instantly invalidates ALL existing tokens for
     # this user without a token blacklist. One-click revoke for any staff.
-    token_version: Mapped[int] = mapped_column(default=1, nullable=False)
+    token_version: Mapped[int] = mapped_column(Integer, default=1)
+    forensic_audit_trail: Mapped[Optional[str]] = mapped_column(StringEncryptedType(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     
     patient: Mapped["Patient"] = relationship(back_populates="user", uselist=False)
