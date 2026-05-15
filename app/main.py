@@ -21,8 +21,23 @@ from app.core.config import settings
 from app.core.logging import setup_logging, logger
 import app.api.deps as deps
 
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+
 # Initialize structured logging instantly
 setup_logging()
+
+# Initialize Sentry for production monitoring
+if settings.SENTRY_DSN and settings.ENVIRONMENT == "production":
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        integrations=[FastApiIntegration()],
+        environment=settings.ENVIRONMENT,
+        traces_sample_rate=0.2, # Record 20% of requests for performance profiling
+        profiles_sample_rate=0.1,
+    )
+    print(">>> HOSPYN_SENTRY_ACTIVE")
+
 print(">>> HOSPYN_IMPORT_COMPLETE")
 
 @asynccontextmanager

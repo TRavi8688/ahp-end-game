@@ -7,12 +7,12 @@ def validate_twilio_config():
     """Validates Twilio credentials at startup/first use."""
     sid = settings.TWILIO_ACCOUNT_SID
     token = settings.TWILIO_AUTH_TOKEN
-    from_num = settings.TWILIO_PHONE_NUMBER or settings.TWILIO_FROM_NUMBER
+    from_num = settings.TWILIO_FROM_NUMBER
 
     missing = []
     if not sid or "your_" in sid: missing.append("TWILIO_ACCOUNT_SID")
     if not token or "your_" in token: missing.append("TWILIO_AUTH_TOKEN")
-    if not from_num: missing.append("TWILIO_PHONE_NUMBER")
+    if not from_num: missing.append("TWILIO_FROM_NUMBER")
 
     if missing:
         error_msg = f"CRITICAL_TWILIO_CONFIG_MISSING: {', '.join(missing)}"
