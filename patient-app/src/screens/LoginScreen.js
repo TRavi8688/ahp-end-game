@@ -14,6 +14,7 @@ import { Theme, GlobalStyles } from '../theme';
 import { API_BASE_URL } from '../api';
 
 const LOGO = require('../../assets/logo.png');
+import { LOGO_B64 } from '../constants/Assets';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { HapticUtils } from '../utils/haptics';
@@ -64,7 +65,7 @@ export default function AuthScreen({ navigation }) {
                 <LinearGradient colors={['#050810', '#1E1B4B', '#050810']} style={StyleSheet.absoluteFill} />
                 <View style={styles.landingContent}>
                     <View style={styles.landingHeader}>
-                        <Image source={require('../../assets/logo.png')} style={styles.heroLogo} resizeMode="contain" />
+                        <Image source={{ uri: LOGO_B64 }} style={styles.heroLogo} resizeMode="contain" />
                     </View>
 
                     <View style={styles.landingActions}>

@@ -206,17 +206,33 @@ export default function SettingsScreen({ navigation }) {
 
                         <View style={styles.inputGroup}>
                             <Text style={styles.inputLabel}>FULL LEGAL NAME</Text>
-                            <TextInput style={styles.input} value={editName} onChangeText={setEditName} placeholderTextColor="#475569" color="#fff" />
+                            <TextInput 
+                                style={[styles.input, { color: '#fff' }]} 
+                                value={editName} 
+                                onChangeText={setEditName} 
+                                placeholderTextColor="#475569" 
+                            />
                         </View>
 
                         <View style={styles.inputGroup}>
                             <Text style={styles.inputLabel}>CONTACT NUMBER</Text>
-                            <TextInput style={styles.input} value={editPhone} onChangeText={setEditPhone} keyboardType="phone-pad" placeholderTextColor="#475569" color="#fff" />
+                            <TextInput 
+                                style={[styles.input, { color: '#fff' }]} 
+                                value={editPhone} 
+                                onChangeText={setEditPhone} 
+                                keyboardType="phone-pad" 
+                                placeholderTextColor="#475569" 
+                            />
                         </View>
 
                         <View style={styles.inputGroup}>
                             <Text style={styles.inputLabel}>BLOOD GROUP</Text>
-                            <TextInput style={styles.input} value={editBlood} onChangeText={setEditBlood} placeholderTextColor="#475569" color="#fff" />
+                            <TextInput 
+                                style={[styles.input, { color: '#fff' }]} 
+                                value={editBlood} 
+                                onChangeText={setEditBlood} 
+                                placeholderTextColor="#475569" 
+                            />
                         </View>
 
                         <TouchableOpacity style={styles.saveBtn} onPress={handleUpdateProfile} disabled={isUpdatingProfile}>
@@ -239,7 +255,7 @@ const styles = StyleSheet.create({
     onlineDot: { position: 'absolute', bottom: 5, right: 5, width: 18, height: 18, borderRadius: 9, backgroundColor: '#10B981', borderWidth: 3, borderColor: '#050810', zIndex: 10 },
     profileName: { color: '#fff', fontSize: 24, fontWeight: 'bold', marginTop: 15 },
     hospynIdText: { color: '#64748B', fontSize: 13, marginTop: 4, letterSpacing: 1, fontFamily: 'monospace' },
-    editBtn: { marginTop: 15, backgroundColor: 'rgba(255,255,255,0.05)', px: 15, py: 6, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    editBtn: { marginTop: 15, backgroundColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 15, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
     editBtnText: { color: '#fff', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
     content: { padding: 24, paddingBottom: 100 },
     sectionTitle: { color: '#475569', fontSize: 11, fontWeight: '900', letterSpacing: 2, marginBottom: 15, marginLeft: 5 },
@@ -248,7 +264,7 @@ const styles = StyleSheet.create({
     settingContent: { flex: 1 },
     settingLabel: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
     settingSub: { color: '#64748B', fontSize: 11, marginTop: 2 },
-    logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 40, py: 20, borderRadius: 20, backgroundColor: 'rgba(239, 68, 68, 0.05)', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.1)' },
+    logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 40, paddingVertical: 20, borderRadius: 20, backgroundColor: 'rgba(239, 68, 68, 0.05)', borderWidth: 1, borderColor: 'rgba(239, 68, 68, 0.1)' },
     logoutText: { color: '#EF4444', fontSize: 13, fontWeight: '900', letterSpacing: 1 },
     versionText: { textAlign: 'center', color: '#1E293B', fontSize: 9, fontWeight: '900', letterSpacing: 2, marginTop: 30 },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', padding: 24 },
@@ -257,7 +273,7 @@ const styles = StyleSheet.create({
     modalTitle: { color: '#fff', fontSize: 14, fontWeight: '900', letterSpacing: 2 },
     inputGroup: { marginBottom: 20 },
     inputLabel: { color: '#64748B', fontSize: 10, fontWeight: '900', marginBottom: 8, letterSpacing: 1 },
-    input: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 12, height: 50, px: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
+    input: { backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 12, height: 50, paddingHorizontal: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
     saveBtn: { backgroundColor: Theme.colors.primary, height: 55, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginTop: 10 },
     saveBtnText: { color: '#fff', fontWeight: 'bold', letterSpacing: 1 }
 });

@@ -11,9 +11,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
-const API_BASE_URL = window.location.origin.includes('localhost') 
-  ? 'http://localhost:8000/api/v1' 
-  : `${window.location.origin}/api/v1`;
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 const Login = () => {
   const [identifier, setIdentifier] = useState('');

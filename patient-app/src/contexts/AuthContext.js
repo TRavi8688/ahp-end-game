@@ -56,13 +56,18 @@ export const AuthProvider = ({ children }) => {
     /**
      * Centralized Login Handler
      */
-    const login = async (token, hospynId) => {
+    const login = async (token, hospynId, fullName = null) => {
         try {
             console.log('[Auth] Persisting session...');
             await SecurityUtils.saveToken(token);
             await SecurityUtils.saveHospynId(hospynId);
             
             setIsAuthenticated(true);
+            
+            // If we have a name from onboarding, set it immediately for the greeting
+            if (fullName) {
+                setUser({ full_name: fullName, hospyn_id: hospynId });
+            }
             
             // Refresh profile data in background to prevent UI block
             ApiService.getProfile().then(profile => {

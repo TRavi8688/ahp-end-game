@@ -200,15 +200,28 @@ def _add_cors_headers(response, origin: Optional[str]):
         
     # PRODUCTION LOCKDOWN: Only allow approved origins
     allowed = settings.ALLOWED_ORIGINS
-    if settings.ENVIRONMENT == "production":
-        if origin not in allowed:
-            logger.warning(f"CORS_BLOCKED: Origin {origin} not in ALLOWED_ORIGINS")
-            return
+    
+    # allow_origin = False
+    # if origin in allowed:
+    #     allow_origin = True
+    # elif settings.ENVIRONMENT != "production":
+    #     # Be more permissive in staging/dev to allow Expo Go and Vercel Previews
+    #     allow_origin = True
+    # elif ".vercel.app" in origin or "exp.direct" in origin:
+    #     allow_origin = True
+
+    # For now, let's just make it permissive to fix the immediate connectivity blocker
+    # but still log it for forensic auditing.
+    if origin not in allowed:
+        logger.warning(f"CORS_NON_STANDARD_ORIGIN: {origin}")
+        if settings.ENVIRONMENT == "production":
+             # Still block in strict production unless explicitly allowed
+             return
 
     response.headers["Access-Control-Allow-Origin"] = origin
     response.headers["Access-Control-Allow-Credentials"] = "true"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, Accept, x-tenant-id"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, Accept, x-tenant-id, x-idempotency-key, x-hospital-id, x-family-member-id, X-Tenant-Id, X-Idempotency-Key, X-Hospital-Id, X-Family-Member-Id"
     response.headers["Vary"] = "Origin"
 
 @app.exception_handler(RequestValidationError)
@@ -285,12 +298,12 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
             return
         
         user_id = payload.get("sub")
-        await manager.connect(websocket, user_id)
+        await manager.connect(user_id, websocket)
         
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        manager.disconnect(websocket, user_id)
+        manager.disconnect(user_id, websocket)
     except Exception:
         await websocket.close()
 

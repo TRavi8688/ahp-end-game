@@ -5,12 +5,6 @@ from typing import Optional, Dict, Any
 from app.core.config import settings
 from app.core.logging import logger
 
-class RedisService:
-    """
-    Production-Grade Redis Service.
-    NO IN-MEMORY FALLBACKS. This service enforces distributed state consistency.
-    If Redis is unavailable, the system fails fast to prevent split-brain scenarios.
-    """
 class RedisConnectionError(Exception):
     """Raised when Redis is unreachable in a production environment."""
     pass

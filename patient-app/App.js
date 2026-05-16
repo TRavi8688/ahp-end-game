@@ -1,17 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import * as Updates from 'expo-updates';
-import * as Sentry from '@sentry/react-native';
 
-// Initialize Sentry for production monitoring
-Sentry.init({
-  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN || "https://placeholder@sentry.io/hospyn-mobile",
-  debug: __DEV__, // If `true`, Sentry will try to print out useful debugging information if something goes wrong with sending the event. Set it to `false` in production
-  enableAutoSessionTracking: true,
-});
+// Platform-conditional imports (these crash on web)
+let Sentry = null;
+let Updates = null;
+try {
+  if (Platform.OS !== 'web') {
+    Sentry = require('@sentry/react-native');
+    Updates = require('expo-updates');
+    // Initialize Sentry for production monitoring
+    Sentry.init({
+      dsn: process.env.EXPO_PUBLIC_SENTRY_DSN || "https://placeholder@sentry.io/hospyn-mobile",
+      debug: __DEV__,
+      enableAutoSessionTracking: true,
+    });
+  }
+} catch (e) {
+  console.log("Native module load skipped", e);
+}
 
 
 // Core
@@ -62,7 +71,7 @@ function AppContent() {
 
   useEffect(() => {
     const checkUpdates = async () => {
-      if (__DEV__) return;
+      if (__DEV__ || Platform.OS === 'web' || !Updates) return;
       try {
         const update = await Updates.checkForUpdateAsync();
         if (update.isAvailable) {
@@ -114,7 +123,7 @@ function AppContent() {
             {isUpdating ? "SYNCING CLINICAL ASSETS..." : "INITIALIZING VAULT..."}
           </Text>
         </View>
-        <Text style={{ position: 'absolute', bottom: 40, color: '#1E293B', fontSize: 10, fontWeight: 'bold' }}>VERSION {Updates.updateId ? Updates.updateId.substring(0,8).toUpperCase() : '2.0.2-STABLE'}</Text>
+        <Text style={{ position: 'absolute', bottom: 40, color: '#1E293B', fontSize: 10, fontWeight: 'bold' }}>VERSION {Updates?.updateId ? Updates.updateId.substring(0,8).toUpperCase() : '2.0.2-STABLE'}</Text>
       </View>
     );
   }
@@ -157,10 +166,13 @@ function AppContent() {
   );
 }
 
-export default Sentry.wrap(function App() {
+function App() {
   return (
     <AuthProvider>
       <AppContent />
     </AuthProvider>
   );
-});
+}
+
+// Sentry.wrap is only available on native platforms
+export default (Sentry ? Sentry.wrap(App) : App);

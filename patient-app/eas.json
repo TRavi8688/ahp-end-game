@@ -12,7 +12,8 @@
       "distribution": "internal",
       "env": {
         "npm_config_legacy_peer_deps": "true",
-        "NODE_VERSION": "20.18.0"
+        "NODE_VERSION": "20.18.0",
+        "SENTRY_SKIP_AUTO_RELEASE": "true"
       },
       "android": {
         "buildType": "apk"
@@ -22,7 +23,8 @@
       "channel": "production",
       "env": {
         "EAS_BUILD_NO_EXPO_GO_WARNING": "true",
-        "npm_config_legacy_peer_deps": "true"
+        "npm_config_legacy_peer_deps": "true",
+        "SENTRY_SKIP_AUTO_RELEASE": "true"
       },
       "autoIncrement": true,
       "android": {

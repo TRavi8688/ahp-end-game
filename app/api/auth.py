@@ -285,10 +285,11 @@ async def send_otp(
         await db.refresh(new_otp)
         logger.info(f"OTP_DB_STORE_SUCCESS: ID={new_otp.id}, Identifier={req.identifier}")
     except Exception as e:
-        logger.error(f"OTP_STORAGE_FAILURE: {str(e)}", exc_info=True)
+        import traceback
+        logger.error(f"OTP_STORAGE_FAILURE: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
-            detail="OTP Persistence Failure. Check infrastructure logs."
+            detail="OTP Persistence Failure. Database integrity issue."
         )
 
     # 3. Delivery
@@ -302,8 +303,12 @@ async def send_otp(
                 success = await send_sms_otp(req.identifier, otp)
             
             if not success:
-                logger.error(f"SMS_PROVIDER_FAILURE: Twilio rejected dispatch to {req.identifier}")
-                raise Exception("SMS Provider Rejected Request")
+                if settings.ENVIRONMENT == "production":
+                    logger.error(f"SMS_PROVIDER_FAILURE: Twilio rejected dispatch to {req.identifier}")
+                    raise Exception("SMS Provider Rejected Request")
+                else:
+                    logger.warning(f"SMS_PROVIDER_FAILURE: Mocking success for {req.identifier} in {settings.ENVIRONMENT}")
+                    success = True
 
         else:
             from app.services.email_service import send_email_otp

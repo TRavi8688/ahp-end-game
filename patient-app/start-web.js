@@ -11,7 +11,7 @@
 const path = require('path');
 
 process.env.NODE_ENV = 'development';
-process.env.EXPO_WEBPACK_FAST_REFRESH = 'true';
+process.env.EXPO_WEBPACK_FAST_REFRESH = 'false';
 // Critical: tell Expo webpack config to NOT use Hermes for web
 process.env.EXPO_WEB_WEBPACK_TRANSPILE_WEB = '1';
 
@@ -25,7 +25,7 @@ async function start() {
     platform: 'web',
     mode: 'development',
     https: false,
-    port: 19006,
+    port: 19008,
   };
 
   console.log('[start-web] Building Webpack config...');
@@ -73,15 +73,11 @@ async function start() {
   const compiler = Webpack(config);
 
   const serverConfig = {
-    ...config.devServer,
-    port: 19006,
-    host: '0.0.0.0',
-    open: false,
-    hot: true,
+    client: {
+      overlay: true,
+    },
+    hot: false, // Disable HMR for stability
     historyApiFallback: true,
-    headers: {
-      "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' http://localhost:8080 ws://localhost:8080 http: ws:;"
-    }
   };
 
   const server = new WebpackDevServer(serverConfig, compiler);
@@ -91,8 +87,8 @@ async function start() {
       console.error('[start-web] COMPILATION FAILED:\n', stats.toString('errors-only'));
     } else {
       console.log('\n[start-web] Compiled successfully!');
-      console.log('[start-web] Patient App: http://localhost:19006');
-      console.log('[start-web] Mobile (Expo Go): exp://192.168.0.21:19006\n');
+      console.log('[start-web] Patient App: http://localhost:19008');
+      console.log('[start-web] Mobile (Expo Go): exp://192.168.0.21:19008\n');
     }
   });
 

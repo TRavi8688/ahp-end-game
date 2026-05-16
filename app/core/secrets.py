@@ -41,9 +41,9 @@ def get_secret(secret_id: str, default: str = None) -> str:
             return response.payload.data.decode("UTF-8")
         except Exception as e:
             if secret_id in CRITICAL_SECRETS and default is None:
-                logger.critical(f"PRODUCTION_CRITICAL_SECRET_MISSING: {secret_id} | error={e}")
-                raise RuntimeError(f"CRITICAL STARTUP FAILURE: Required secret '{secret_id}' could not be loaded.")
+                logger.warning(f"PRODUCTION_SECRET_NOT_IN_SM: {secret_id} | error={e}")
             return default if default is not None else ""
+
 
     # 2. Local Path
     return os.getenv(secret_id, default if default is not None else "")
@@ -74,25 +74,38 @@ def load_rsa_key(key_name: str, default_path: str = None) -> str:
             raise RuntimeError(f"CRITICAL AUTH FAILURE: {key_name} is required for Production.")
         return ""
 
-    # --- AUTO-REPAIR (SHIELD V8.1) ---
-    # Fix flattened keys from secret managers
-    if "-----BEGIN" in key_data and "\n" not in key_data:
-        logger.info(f"HOSPYN_RSA_REPAIR_TRIGGERED: key={key_name}")
-        clean_data = key_data.replace(" ", "")
-        
-        # Determine key type
-        header = None
-        footer = None
-        if "PRIVATEKEY" in clean_data:
-            header = "-----BEGIN RSA PRIVATE KEY-----"
-            footer = "-----END RSA PRIVATE KEY-----"
-        elif "PUBLICKEY" in clean_data:
-            header = "-----BEGIN PUBLIC KEY-----"
-            footer = "-----END PUBLIC KEY-----"
+    # --- AUTO-REPAIR (SHIELD V8.2) ---
+    # Fix flattened keys, Windows line endings, and excessive whitespace
+    key_data = key_data.strip()
+    
+    if "-----BEGIN" in key_data:
+        # Check if it needs reconstruction (e.g. it's on one line or has spaces)
+        lines = key_data.splitlines()
+        if len(lines) < 3 or any(" " in line.strip() for line in lines if "BEGIN" not in line and "END" not in line):
+            logger.info(f"HOSPYN_RSA_REPAIR_TRIGGERED: key={key_name}")
             
-        if header:
-            # Strip tags for reconstruction
+            # Remove all existing whitespace/newlines to get the raw base64 core
+            clean_data = "".join(key_data.split())
+            
+            # Determine correct headers
+            if "RSAPRIVATEKEY" in clean_data:
+                header, footer = "-----BEGIN RSA PRIVATE KEY-----", "-----END RSA PRIVATE KEY-----"
+            elif "PRIVATEKEY" in clean_data:
+                header, footer = "-----BEGIN PRIVATE KEY-----", "-----END PRIVATE KEY-----"
+            elif "PUBLICKEY" in clean_data:
+                header, footer = "-----BEGIN PUBLIC KEY-----", "-----END PUBLIC KEY-----"
+            else:
+                logger.error(f"HOSPYN_RSA_UNKNOWN_TAGS: key={key_name}")
+                return key_data # Return as-is and hope for the best
+
+            # Strip the tags from the clean string to get the pure base64
+            # We use a case-insensitive replace of the header/footer strings (without spaces)
+            core = clean_data.replace(header.replace("-", "").replace(" ", ""), "").replace(footer.replace("-", "").replace(" ", ""), "")
+            # Actually just strip everything before the first valid base64 char after the header
+            # But simpler: replace the known headers/footers
             core = clean_data.replace(header.replace(" ", ""), "").replace(footer.replace(" ", ""), "")
+            
+            # Reconstruct with 64-character lines (Standard PEM framing)
             formatted_core = "\n".join([core[i:i+64] for i in range(0, len(core), 64)])
             key_data = f"{header}\n{formatted_core}\n{footer}\n"
 

@@ -5,7 +5,7 @@ from typing import List
 from app.core.database import get_db
 from app.core.security import require_roles
 from app.schemas.admission import AdmissionCreate, AdmissionRead, BedRead
-from app.services.admission_service import admit_patient, assign_bed, discharge_patient
+from app.services.admission_service import AdmissionService
 
 router = APIRouter()
 

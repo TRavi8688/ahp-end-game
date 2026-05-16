@@ -110,19 +110,13 @@ class ApiService {
     async updateProfile(data) {
         try {
             const response = await this.client.post('/patient/profile/update', data);
-            // After successful API update, also update our local cache
+            // Synchronize local sovereign cache with fresh backend state
             const current = await this.getProfile();
             const updated = { ...current, ...data };
             await AsyncStorage.setItem('@hospyn_profile_cache', JSON.stringify(updated));
             return response.data;
         } catch (e) {
-            if (__DEV__) {
-                console.warn('DEV_MOCK: Mocking updateProfile');
-                const current = await this.getProfile();
-                const updated = { ...current, ...data };
-                await AsyncStorage.setItem('@hospyn_profile_cache', JSON.stringify(updated));
-                return updated;
-            }
+            console.error('[API] Profile update failed. Integrity check required.');
             throw e;
         }
     }

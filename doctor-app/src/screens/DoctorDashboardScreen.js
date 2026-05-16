@@ -34,18 +34,12 @@ export default function DoctorDashboardScreen({ navigation }) {
             });
         } catch (error) {
             console.error("Dashboard Fetch Error:", error);
-            // Fallback for demonstration if API isn't fully ready
-            if (patients.length === 0) {
-                setPatients([
-                    { id: '1', full_name: 'Rahul Sharma', room_no: '302', risk_level: 'HIGH', status: 'STABLE' },
-                    { id: '2', full_name: 'Anita Devi', room_no: 'ICU-1', risk_level: 'CRITICAL', status: 'UNSTABLE' }
-                ]);
-            }
         } finally {
             setLoading(false);
             setRefreshing(false);
         }
     };
+
 
     useEffect(() => {
         fetchData();
@@ -87,7 +81,7 @@ export default function DoctorDashboardScreen({ navigation }) {
             <View style={styles.header}>
                 <View>
                     <Text style={styles.welcomeText}>Clinical Command,</Text>
-                    <Text style={styles.docName}>Dr. Arjun Singh</Text>
+                    <Text style={styles.docName}>Clinical Provider</Text>
                 </View>
                 <TouchableOpacity style={styles.profileCircle}>
                     <Ionicons name="notifications-outline" size={24} color="#fff" />

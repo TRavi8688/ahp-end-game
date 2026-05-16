@@ -3,16 +3,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, CreditCard, Zap, X, UploadCloud, CheckCircle } from 'lucide-react';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 const ActivationWizard = ({ isOpen, onClose }) => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
-    phone: '',
-    address: '',
+    owner_email: '',
+    registration_number: '',
     staff_count: ''
   });
   const [file, setFile] = useState(null);
@@ -30,9 +29,9 @@ const ActivationWizard = ({ isOpen, onClose }) => {
     if (file) data.append('certificate', file);
 
     try {
-      // Simulate API call for the billionaire demo feel
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      // await axios.post(`${API_BASE_URL}/onboarding/register`, data);
+      await axios.post(`${API_BASE_URL}/onboarding/register`, data, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
       setStep(3);
     } catch (err) {
       alert("Synchronization Failure: Network disruption in clinical grid.");
@@ -109,11 +108,11 @@ const ActivationWizard = ({ isOpen, onClose }) => {
                     <form onSubmit={(e) => { e.preventDefault(); setStep(2); }} className="space-y-6">
                       <div className="grid grid-cols-2 gap-4">
                         <input id="name" onChange={handleInputChange} type="text" className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white focus:border-primary outline-none transition-all" placeholder="Hospital Name" required />
-                        <input id="staff_count" onChange={handleInputChange} type="text" className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white focus:border-primary outline-none transition-all" placeholder="Staff Count" required />
+                        <input id="staff_count" onChange={handleInputChange} type="number" className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white focus:border-primary outline-none transition-all" placeholder="Staff Count" required />
                       </div>
-                      <input id="email" onChange={handleInputChange} type="email" className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white focus:border-primary outline-none transition-all" placeholder="Admin Gmail" required />
-                      <input id="phone" onChange={handleInputChange} type="tel" className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white focus:border-primary outline-none transition-all" placeholder="Direct Contact" required />
-                      <textarea id="address" onChange={handleInputChange} className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white focus:border-primary outline-none transition-all h-32" placeholder="Full Clinical Address" required />
+                      <input id="owner_email" onChange={handleInputChange} type="email" className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white focus:border-primary outline-none transition-all" placeholder="Admin Gmail" required />
+                      <input id="registration_number" onChange={handleInputChange} type="text" className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-white focus:border-primary outline-none transition-all" placeholder="Gov Registration Number" required />
+
                       <button type="submit" className="btn-premium w-full !py-6 text-base">Continue to Evidence Audit</button>
                     </form>
                   )}

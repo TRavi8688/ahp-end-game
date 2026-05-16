@@ -9,6 +9,12 @@ export class SecurityService {
      */
     static async authenticate(reason = 'Authorize clinical data access') {
         try {
+            // Web Platform Override — browsers do not have biometric hardware
+            if (Platform.OS === 'web') {
+                console.log('[Security] Web platform detected — biometric auth skipped.');
+                return true;
+            }
+
             // Development Override
             if (__DEV__) {
                 return true;

@@ -3,10 +3,11 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
+import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 import ApiService from '../utils/ApiService';
 import { useSocket } from '../contexts/SocketContext';
 import { Theme, GlobalStyles } from '../theme';
-import { HapticUtils as Haptics } from '../utils/haptics';
+import HapticUtils from '../utils/HapticUtils';
 
 export default function RecordsScreen({ navigation }) {
     const { lastMessage } = useSocket();
@@ -36,18 +37,19 @@ export default function RecordsScreen({ navigation }) {
 
     useEffect(() => {
         if (lastMessage?.type === 'ANALYSIS_COMPLETE') {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            HapticUtils.success();
             fetchRecords();
         }
     }, [lastMessage]);
 
     const onRefresh = () => {
+        HapticUtils.light();
         setRefreshing(true);
         fetchRecords();
     };
 
     const openRecord = (record) => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        HapticUtils.selection();
         setSelectedRecord(record);
         setShowDetail(true);
     };
@@ -61,93 +63,103 @@ export default function RecordsScreen({ navigation }) {
         }
     };
 
-    const renderItem = ({ item }) => (
-        <TouchableOpacity 
-            style={[styles.recordCard, GlobalStyles.glass]} 
-            onPress={() => openRecord(item)}
-            activeOpacity={0.7}
-        >
-            <View style={styles.recordIconBox}>
-                <Ionicons name={getIcon(item.type)} size={24} color={Theme.colors.primary} />
-            </View>
-            <View style={styles.recordMain}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={styles.recordTitle}>{item.record_name || 'Medical Record'}</Text>
+    const renderItem = ({ item, index }) => (
+        <Animated.View entering={FadeInUp.delay(index * 100)}>
+            <TouchableOpacity 
+                style={[styles.recordCard, GlobalStyles.glass]} 
+                onPress={() => openRecord(item)}
+                activeOpacity={0.7}
+            >
+                <View style={[styles.recordIconBox, { backgroundColor: 'rgba(34, 211, 238, 0.05)' }]}>
+                    <Ionicons name={getIcon(item.type)} size={24} color={Theme.colors.primary} />
+                </View>
+                <View style={styles.recordMain}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={styles.recordTitle}>{item.record_name || 'Medical Record'}</Text>
+                        {!item.needs_verification && (
+                            <Ionicons name="checkmark-shield" size={14} color="#10B981" />
+                        )}
+                    </View>
+                    <Text style={styles.recordSub}>{item.hospital_name || 'Hospyn Network'}</Text>
+                    <Text style={styles.recordDate}>{new Date(item.created_at).toLocaleDateString()}</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                    <Ionicons name="chevron-forward" size={18} color="#475569" />
                     {!item.needs_verification && (
-                        <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                        <Text style={{ fontSize: 8, color: '#10B981', fontWeight: 'bold', marginTop: 4 }}>VERIFIED</Text>
                     )}
                 </View>
-                <Text style={styles.recordSub}>{item.hospital_name || 'Hospyn Network'}</Text>
-                <Text style={styles.recordDate}>{new Date(item.created_at).toLocaleDateString()}</Text>
-            </View>
-            <View style={{ alignItems: 'flex-end' }}>
-                <Ionicons name="chevron-forward" size={18} color="#475569" />
-                {!item.needs_verification && (
-                    <Text style={{ fontSize: 8, color: '#10B981', fontWeight: 'bold', marginTop: 4 }}>VERIFIED</Text>
-                )}
-            </View>
-        </TouchableOpacity>
+            </TouchableOpacity>
+        </Animated.View>
     );
 
     return (
         <View style={GlobalStyles.screen}>
             <LinearGradient colors={['#0F172A', '#050810']} style={styles.header}>
-                <Text style={[GlobalStyles.heading, styles.headerTitle]}>CLINICAL VAULT</Text>
-                <TouchableOpacity style={styles.uploadBtn} onPress={() => navigation.navigate('Upload')}>
-                    <Ionicons name="cloud-upload" size={20} color="#fff" />
-                    <Text style={styles.uploadBtnText}>UPLOAD</Text>
+                <View>
+                    <Text style={styles.headerTitle}>CLINICAL VAULT</Text>
+                    <Text style={styles.headerSub}>End-to-End Encrypted Records</Text>
+                </View>
+                <TouchableOpacity style={styles.uploadBtn} onPress={() => { HapticUtils.light(); navigation.navigate('Upload'); }}>
+                    <Ionicons name="cloud-upload" size={18} color="#fff" />
+                    <Text style={styles.uploadBtnText}>VAULT</Text>
                 </TouchableOpacity>
             </LinearGradient>
 
-            <FlatList
-                data={records}
-                keyExtractor={item => item.id.toString()}
-                renderItem={renderItem}
-                contentContainerStyle={styles.listContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.primary} />}
-                ListEmptyComponent={
-                    !isLoading && (
-                        <View style={styles.emptyBox}>
-                            <Ionicons name="documents-outline" size={60} color="#1E293B" />
-                            <Text style={styles.emptyText}>Your medical vault is empty.</Text>
-                            <TouchableOpacity style={styles.emptyBtn} onPress={() => navigation.navigate('Upload')}>
-                                <Text style={styles.emptyBtnText}>Add First Record</Text>
+            {isLoading ? (
+                <View style={styles.loader}>
+                    <ActivityIndicator color={Theme.colors.primary} size="large" />
+                    <Text style={styles.loaderText}>Syncing Clinical Ledger...</Text>
+                </View>
+            ) : (
+                <FlatList
+                    data={records}
+                    renderItem={renderItem}
+                    keyExtractor={item => item.id.toString()}
+                    contentContainerStyle={styles.listContent}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.primary} />
+                    }
+                    ListEmptyComponent={
+                        <Animated.View entering={FadeIn} style={styles.emptyContainer}>
+                            <View style={styles.chittiBox}>
+                                <Ionicons name="sparkles" size={40} color={Theme.colors.primary} />
+                            </View>
+                            <Text style={styles.emptyTitle}>Vault is Empty</Text>
+                            <Text style={styles.emptySub}>
+                                "Hello! I am Chitti. Your clinical vault is ready for ingestion. 
+                                Upload your prescriptions or lab reports to begin my neural analysis."
+                            </Text>
+                            <TouchableOpacity style={styles.emptyAction} onPress={() => navigation.navigate('Upload')}>
+                                <Text style={styles.emptyActionText}>DIGITALIZE FIRST RECORD</Text>
                             </TouchableOpacity>
-                        </View>
-                    )
-                }
-            />
+                        </Animated.View>
+                    }
+                />
+            )}
 
-            {/* Detail Modal */}
-            <Modal visible={showDetail} animationType="slide" transparent>
+            <Modal visible={showDetail} animationType="slide" transparent={true}>
                 <View style={styles.modalOverlay}>
-                    <View style={[styles.modalContent, GlobalStyles.glass]}>
+                    <View style={[styles.modalContent, { backgroundColor: '#0F172A' }]}>
                         <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Record Detail</Text>
                             <TouchableOpacity onPress={() => setShowDetail(false)}>
                                 <Ionicons name="close" size={28} color="#fff" />
                             </TouchableOpacity>
-                            <Text style={styles.modalTitle}>RECORD DETAILS</Text>
-                            <View style={{ width: 28 }} />
                         </View>
-
                         <ScrollView showsVerticalScrollIndicator={false}>
                             {selectedRecord?.file_url && (
                                 <View style={styles.previewBox}>
                                     <Image source={{ uri: selectedRecord.file_url }} style={styles.previewImage} resizeMode="contain" />
-                                    <View style={{ flexDirection: 'row', gap: 10, position: 'absolute', bottom: 16, right: 16 }}>
-                                        <TouchableOpacity 
-                                            style={styles.fullViewBtn} 
-                                            onPress={async () => {
-                                                const { SecurityService } = require('../utils/SecurityService');
-                                                if (await SecurityService.confirmSensitiveAction('view this clinical report')) {
-                                                    Linking.openURL(selectedRecord.file_url);
-                                                }
-                                            }}
+                                    <View style={{ position: 'absolute', bottom: 16, right: 16, flexDirection: 'row', gap: 8 }}>
+                                        <TouchableOpacity
+                                            style={[styles.fullViewBtn, { position: 'relative', bottom: 0, right: 0 }]}
+                                            onPress={() => {}}
                                         >
                                             <Text style={styles.fullViewText}>VIEW FULL</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity 
-                                            style={[styles.fullViewBtn, { backgroundColor: Theme.colors.primary }]} 
+                                            style={[styles.fullViewBtn, { position: 'relative', bottom: 0, right: 0, backgroundColor: Theme.colors.primary }]} 
                                             onPress={async () => {
                                                 const { SecurityService } = require('../utils/SecurityService');
                                                 if (await SecurityService.confirmSensitiveAction('share your medical data')) {

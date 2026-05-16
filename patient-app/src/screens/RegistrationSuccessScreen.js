@@ -1,19 +1,24 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Share } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Share, Image } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import QRCode from 'react-native-qrcode-svg';
 import { Theme, GlobalStyles } from '../theme';
-// import QRCode from 'react-native-qrcode-svg';
+import HapticUtils from '../utils/HapticUtils';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function RegistrationSuccessScreen({ navigation, route }) {
     const { hospyn_id, fullName } = route.params || { hospyn_id: 'Hospyn-IN-XXXX-XXXX-XX', fullName: 'Patient' };
+    const { setIsAuthenticated } = useAuth();
 
     const copyToClipboard = async () => {
+        HapticUtils.success();
         await Clipboard.setStringAsync(hospyn_id);
     };
 
     const onShare = async () => {
+        HapticUtils.medium();
         try {
             await Share.share({
                 message: `My Hospyn Health Passport ID is ${hospyn_id}. Scan this to view my medical history.`,
@@ -24,7 +29,7 @@ export default function RegistrationSuccessScreen({ navigation, route }) {
     };
 
     return (
-        <View style={[styles.container, { backgroundColor: Theme.colors.background }]}>
+        <View style={[styles.container, { backgroundColor: '#050810' }]}>
             <LinearGradient colors={['#050810', '#1E1B4B']} style={styles.header}>
                 <View style={styles.successIcon}>
                     <Ionicons name="checkmark-circle" size={80} color={Theme.colors.primary} />
@@ -36,7 +41,7 @@ export default function RegistrationSuccessScreen({ navigation, route }) {
 
             <View style={styles.content}>
                 <View style={[styles.idCard, GlobalStyles.glass]}>
-                    <Text style={styles.idLabel}>YOUR UNIQUE Hospyn ID</Text>
+                    <Text style={styles.idLabel}>YOUR UNIQUE HOSPYN ID</Text>
                     <View style={styles.idRow}>
                         <Text style={[styles.idValue, { color: '#fff' }]}>{hospyn_id}</Text>
                         <TouchableOpacity onPress={copyToClipboard} style={styles.copyBtn}>
@@ -45,10 +50,17 @@ export default function RegistrationSuccessScreen({ navigation, route }) {
                     </View>
 
                     <View style={styles.qrContainer}>
-                        <View style={[styles.qrPlaceholder, { backgroundColor: 'rgba(255,255,255,0.05)', padding: 15, borderRadius: 20 }]}>
-                            {/* Temporarily disabled QRCode for web stability */}
-                            <Ionicons name="qr-code-outline" size={150} color={Theme.colors.primary} />
-                            <Text style={[styles.qrText, { color: Theme.colors.primary, marginTop: 10 }]}>Scan to Connect</Text>
+                        <View style={styles.qrWrapper}>
+                            <QRCode
+                                value={hospyn_id}
+                                size={160}
+                                color="#fff"
+                                backgroundColor="transparent"
+                                logo={require('../../assets/logo.png')}
+                                logoSize={40}
+                                logoBackgroundColor='transparent'
+                            />
+                            <Text style={[styles.qrText, { color: Theme.colors.primary, marginTop: 15 }]}>SCAN TO CONNECT</Text>
                         </View>
                     </View>
                 </View>
@@ -65,7 +77,7 @@ export default function RegistrationSuccessScreen({ navigation, route }) {
                     </View>
                 </View>
 
-                <TouchableOpacity style={[styles.mainButton, { backgroundColor: Theme.colors.primary }]} onPress={() => navigation.replace('MainTabs')}>
+                <TouchableOpacity style={[styles.mainButton, { backgroundColor: Theme.colors.primary }]} onPress={() => { HapticUtils.heavy(); setIsAuthenticated(true); }}>
                     <Text style={styles.mainButtonText}>Go to Dashboard</Text>
                     <Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginLeft: 10 }} />
                 </TouchableOpacity>
@@ -80,7 +92,7 @@ export default function RegistrationSuccessScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f9fafb' },
+    container: { flex: 1, backgroundColor: '#050810' },
     header: {
         paddingTop: 80,
         paddingBottom: 40,
@@ -90,55 +102,48 @@ const styles = StyleSheet.create({
     },
     successIcon: {
         marginBottom: 20,
-        shadowColor: '#000',
-        shadowOpacity: 0.2,
-        shadowRadius: 10,
+        shadowColor: Theme.colors.primary,
+        shadowOpacity: 0.5,
+        shadowRadius: 20,
     },
     welcomeText: { color: 'rgba(255,255,255,0.8)', fontSize: 18, fontWeight: '600' },
     nameText: { color: '#fff', fontSize: 32, fontWeight: '900', marginTop: 5 },
     subtitle: { color: 'rgba(255,255,255,0.7)', fontSize: 14, marginTop: 10 },
     content: { padding: 25, flex: 1, justifyContent: 'space-between' },
     idCard: {
-        backgroundColor: '#fff',
         borderRadius: 30,
         padding: 25,
         marginTop: -60,
         alignItems: 'center',
-        elevation: 15,
-        shadowColor: '#4c1d95',
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
     },
-    idLabel: { color: '#6b7280', fontSize: 12, fontWeight: 'bold', letterSpacing: 2 },
+    idLabel: { color: '#22D3EE', fontSize: 10, fontWeight: 'bold', letterSpacing: 2 },
     idRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f3f4f6',
+        backgroundColor: 'rgba(255,255,255,0.05)',
         paddingHorizontal: 20,
         paddingVertical: 12,
         borderRadius: 15,
         marginTop: 15,
     },
-    idValue: { fontSize: 22, fontWeight: '900', color: '#111827', marginRight: 15, letterSpacing: 1 },
+    idValue: { fontSize: 20, fontWeight: '900', color: '#fff', marginRight: 15, letterSpacing: 1 },
     qrContainer: { marginTop: 25, alignItems: 'center' },
-    qrPlaceholder: {
-        width: 180,
-        height: 180,
-        backgroundColor: '#f5f3ff',
-        borderRadius: 20,
-        justifyContent: 'center',
+    qrWrapper: {
+        padding: 20,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderRadius: 24,
         alignItems: 'center',
-        borderWidth: 2,
-        borderColor: '#e5e7eb',
-        borderStyle: 'dashed',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
-    qrText: { marginTop: 10, color: '#4c1d95', fontSize: 12, fontWeight: 'bold' },
+    qrText: { marginTop: 10, color: '#22D3EE', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
     benefitSection: { marginTop: 20 },
-    benefitTitle: { fontSize: 18, fontWeight: 'bold', color: '#111827', marginBottom: 15 },
+    benefitTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff', marginBottom: 15 },
     benefitItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 15 },
-    benefitText: { fontSize: 14, color: '#4b5563', flex: 1, lineHeight: 20 },
+    benefitText: { fontSize: 14, color: '#94A3B8', flex: 1, lineHeight: 20 },
     mainButton: {
-        backgroundColor: '#4c1d95',
         height: 60,
         borderRadius: 20,
         flexDirection: 'row',
@@ -153,5 +158,5 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 15,
     },
-    shareButtonText: { color: '#4c1d95', fontSize: 14, fontWeight: 'bold', marginLeft: 8 },
+    shareButtonText: { color: '#22D3EE', fontSize: 14, fontWeight: 'bold', marginLeft: 8 },
 });

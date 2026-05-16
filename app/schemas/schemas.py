@@ -88,12 +88,12 @@ class PatientBase(BaseModel):
     language_code: str = "en"
 
 class PatientCreate(BaseModel):
-    first_name: str
-    last_name: str
-    phone_number: str
-    date_of_birth: Optional[str] = None
-    gender: Optional[str] = None
-    blood_group: Optional[str] = None
+    first_name: str = Field(..., min_length=1, max_length=50)
+    last_name: str = Field(..., min_length=1, max_length=50)
+    phone_number: str = Field(..., pattern=r"^\+91[6-9]\d{9}$")
+    date_of_birth: str = Field(..., pattern=r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$") # YYYY-MM-DD
+    gender: str = Field(..., pattern=r"^(Male|Female|Other)$")
+    blood_group: Optional[str] = Field(None, pattern=r"^(A|B|AB|O)[\+\-]$")
     language_code: str = "en"
     conditions: List[str] = []
     medications: List[str] = []

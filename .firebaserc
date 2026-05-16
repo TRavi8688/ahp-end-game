@@ -6,7 +6,7 @@
     "hospyn-495906-96438": {
       "hosting": {
         "patient": [
-          "hospyn-495906-96438"
+          "hospyn-patient-app"
         ],
         "doctor": [
           "hospyn-doctor-pro"
@@ -15,10 +15,7 @@
           "hospyn-erp-portal"
         ],
         "landing": [
-          "hospyn-495906-96438"
-        ],
-        "admin": [
-          "hospyn-admin-center"
+          "hospyn-gateway"
         ]
       }
     }

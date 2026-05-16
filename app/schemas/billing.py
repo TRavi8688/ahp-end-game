@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
-from app.models.models import InvoiceStatusEnum, PaymentMethodEnum
+from app.models.models import PaymentStatus, PaymentMethod
 
 class BillItemBase(BaseModel):
     description: str
@@ -32,7 +32,7 @@ class InvoiceCreate(InvoiceBase):
     discount_amount: float = 0.0
 
 class InvoiceUpdate(BaseModel):
-    status: Optional[InvoiceStatusEnum] = None
+    status: Optional[PaymentStatus] = None
     discount_amount: Optional[float] = None
     notes: Optional[str] = None
 
@@ -44,7 +44,7 @@ class Invoice(InvoiceBase):
     tax_amount: float
     payable_amount: float
     paid_amount: float
-    status: InvoiceStatusEnum
+    status: PaymentStatus
     created_at: datetime
     items: List[BillItem]
     
@@ -53,14 +53,15 @@ class Invoice(InvoiceBase):
 
 class PaymentCreate(BaseModel):
     amount: float
-    method: PaymentMethodEnum
+    method: PaymentMethod
     transaction_ref: Optional[str] = None
 
 class PaymentResponse(BaseModel):
     id: UUID
     amount: float
-    method: PaymentMethodEnum
+    method: PaymentMethod
     created_at: datetime
     
     class Config:
         from_attributes = True
+

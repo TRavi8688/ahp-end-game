@@ -3,8 +3,10 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, I
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence, FadeInUp, FadeInDown } from 'react-native-reanimated';
 import ApiService from '../utils/ApiService';
+import HapticUtils from '../utils/HapticUtils';
+import QRCode from 'react-native-qrcode-svg';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
 import { Theme, GlobalStyles } from '../theme';
@@ -37,8 +39,11 @@ export default function HomeScreen({ navigation }) {
     const orbOpacity = useSharedValue(0.6);
 
     const getGreeting = useCallback(() => {
+        if (summary?.profile?.greeting) {
+            return `${summary.profile.greeting}, ${summary.profile.first_name || 'Member'}`;
+        }
         const hour = new Date().getHours();
-        const name = summary?.patient_name || profile?.full_name || user?.full_name || 'Member';
+        const name = summary?.profile?.first_name || profile?.full_name?.split(' ')[0] || user?.full_name?.split(' ')[0] || 'Member';
         
         if (hour < 12) return `Good morning, ${name}`;
         if (hour < 17) return `Good afternoon, ${name}`;
@@ -49,7 +54,7 @@ export default function HomeScreen({ navigation }) {
 
     const handleBarCodeScanned = ({ data }) => {
         if (actionLoading) return;
-        HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Medium);
+        HapticUtils.medium();
         setManualQR(data);
         handleScanQR_Internal(data);
     };
@@ -58,9 +63,11 @@ export default function HomeScreen({ navigation }) {
         setActionLoading(true);
         try {
             const hospital = await ApiService.scanHospitalQR(qrData);
+            HapticUtils.success();
             setScannedHospital(hospital);
             setVisitStep(2);
         } catch (error) {
+            HapticUtils.error();
             Alert.alert("Scan Error", "Invalid Hospyn QR or hospital not found in the cloud.");
         } finally {
             setActionLoading(false);
@@ -133,13 +140,22 @@ export default function HomeScreen({ navigation }) {
         );
     }, []);
 
-    // REAL-TIME SYNC: Listen for Doctor Access Requests
+    // REAL-TIME SYNC: Listen for Clinical Events
     useEffect(() => {
-        if (lastMessage?.type === 'consent_request') {
-            console.log('[Sync] New access request received:', lastMessage);
+        if (!lastMessage) return;
+
+        if (lastMessage.type === 'consent_request') {
+            HapticUtils.heavy();
             setConsentData(lastMessage.data || lastMessage);
             setShowConsent(true);
-            // Optionally play a sound or haptic
+        } else if (lastMessage.type === 'health_update') {
+            HapticUtils.success();
+            // Trigger a soft refresh to show the product is "Alive"
+            fetchData();
+        } else if (lastMessage.type === 'medication_reminder') {
+            HapticUtils.medium();
+            // Show a temporary "Live" notification
+            Alert.alert("Medication Reminder", lastMessage.message || "Time for your next dose.");
         }
     }, [lastMessage]);
 
@@ -149,11 +165,14 @@ export default function HomeScreen({ navigation }) {
     }));
 
     const handleLogMedication = async (medId, medName) => {
+        HapticUtils.light();
         try {
             await ApiService.logMedication(medId);
+            HapticUtils.success();
             Alert.alert("Success", `Logged intake for ${medName}`);
             fetchData(); // Refresh to update "taken_today" status
         } catch (error) {
+            HapticUtils.error();
             Alert.alert("Error", "Failed to log medication.");
         }
     };
@@ -176,6 +195,7 @@ export default function HomeScreen({ navigation }) {
     };
 
     const onRefresh = () => {
+        HapticUtils.light();
         setRefreshing(true);
         fetchData();
     };
@@ -208,10 +228,12 @@ export default function HomeScreen({ navigation }) {
                 visitDept,
                 visitDoctor
             );
+            HapticUtils.success();
             setVisitResult(result);
             setVisitStep(3);
             fetchData(); 
         } catch (error) {
+            HapticUtils.error();
             Alert.alert("Error", "Failed to register visit.");
         } finally {
             setActionLoading(false);
@@ -250,13 +272,14 @@ export default function HomeScreen({ navigation }) {
                 <View style={styles.headerTop}>
                     <View style={styles.logoContainer}>
                         <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+                        <Text style={styles.logoText}>HOSPYN</Text>
                     </View>
                     <View style={styles.headerActions}>
-                        <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.iconBtn}>
+                        <TouchableOpacity onPress={() => { HapticUtils.light(); navigation.navigate('Notifications'); }} style={styles.iconBtn}>
                             <View style={styles.notificationBadge} />
                             <Ionicons name="notifications-outline" size={24} color="#fff" />
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.iconBtn}>
+                        <TouchableOpacity onPress={() => { HapticUtils.light(); navigation.navigate('Settings'); }} style={styles.iconBtn}>
                             <Ionicons name="person-outline" size={24} color="#fff" />
                         </TouchableOpacity>
                     </View>
@@ -264,8 +287,13 @@ export default function HomeScreen({ navigation }) {
                 <View style={styles.greetingSection}>
                     <Text style={styles.greetingText}>{greeting}</Text>
                     <View style={styles.subGreetingRow}>
-                        <LinearGradient colors={['rgba(99, 102, 241, 0.2)', 'rgba(15, 23, 42, 0)']} style={styles.shieldBadge}>
-                            <Ionicons name="shield-checkmark" size={12} color="#10b981" />
+                        <LinearGradient 
+                            colors={['rgba(34, 211, 238, 0.2)', 'rgba(52, 211, 153, 0.1)']} 
+                            start={{x: 0, y: 0}} 
+                            end={{x: 1, y: 0}} 
+                            style={styles.shieldBadge}
+                        >
+                            <Ionicons name="shield-checkmark" size={12} color={Theme.colors.primary} />
                             <Text style={styles.subGreeting}>{profile?.is_family_member ? `${profile.relation} Profile` : 'Personal Health Shield'}</Text>
                         </LinearGradient>
                         {profile?.is_family_member && (
@@ -284,7 +312,7 @@ export default function HomeScreen({ navigation }) {
                     activeOpacity={0.95}
                 >
                     <LinearGradient 
-                        colors={['#4F46E5', '#1E1B4B', '#050810']} 
+                        colors={['#050810', '#0F172A', '#1E293B']} 
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.heroCard}
@@ -298,12 +326,21 @@ export default function HomeScreen({ navigation }) {
 
                         <View style={styles.passportMain}>
                             <View style={styles.qrContainer}>
-                                <LinearGradient colors={['rgba(99, 102, 241, 0.3)', 'transparent']} style={styles.qrGlow} />
-                                <Ionicons name="qr-code" size={44} color="#fff" />
+                                <LinearGradient colors={['rgba(34, 211, 238, 0.3)', 'transparent']} style={styles.qrGlow} />
+                                <QRCode
+                                    value={profile?.hospyn_id || 'HOSPYN-PENDING'}
+                                    size={50}
+                                    color="#fff"
+                                    backgroundColor="transparent"
+                                />
                             </View>
                             <View style={styles.idSection}>
                                 <Text style={styles.idLabel}>CLINICAL IDENTITY</Text>
-                                <Text style={styles.passportId}>{profile?.hospyn_id || 'SYNCHRONIZING...'}</Text>
+                                <Text style={styles.passportId}>{profile?.hospyn_id || 'PROVISIONING...'}</Text>
+                                <View style={styles.syncIndicator}>
+                                    <View style={styles.syncDot} />
+                                    <Text style={styles.syncText}>LIVE SYNC ACTIVE</Text>
+                                </View>
                             </View>
                         </View>
 
@@ -318,6 +355,28 @@ export default function HomeScreen({ navigation }) {
                 </TouchableOpacity>
             </View>
 
+            {/* NEW: Vitality Section */}
+            <View style={styles.vitalitySection}>
+                <View style={styles.vitalityCard}>
+                    <View style={styles.orbWrapper}>
+                        <Animated.View style={[styles.vitalityOrb, animatedOrbStyle]}>
+                            <LinearGradient 
+                                colors={[Theme.colors.primary, Theme.colors.secondary]} 
+                                style={StyleSheet.absoluteFill} 
+                            />
+                        </Animated.View>
+                        <View style={styles.orbContent}>
+                            <Text style={styles.orbValue}>{summary?.vitality?.score || '85'}</Text>
+                            <Text style={styles.orbLabel}>HHI</Text>
+                        </View>
+                    </View>
+                    <View style={styles.vitalityInfo}>
+                        <Text style={styles.vitalityStatus}>VITALITY: {summary?.vitality?.status || 'OPTIMAL'}</Text>
+                        <Text style={styles.vitalityDesc}>Your clinical health index is synchronized with real-time biometric data.</Text>
+                    </View>
+                </View>
+            </View>
+
             {/* NEW: Quick Action - New Visit */}
             {/* 2.5 Quick Actions Row */}
             <View style={styles.section}>
@@ -327,7 +386,7 @@ export default function HomeScreen({ navigation }) {
                         onPress={startScan}
                     >
                         <LinearGradient 
-                            colors={[Theme.colors.primary, '#4c1d95']} 
+                            colors={[Theme.colors.primary, Theme.colors.secondary]} 
                             start={{x: 0, y: 0}} 
                             end={{x: 1, y: 0}}
                             style={styles.quickActionGradient}
@@ -340,7 +399,7 @@ export default function HomeScreen({ navigation }) {
                     <View style={styles.quickActionGrid}>
                         <TouchableOpacity 
                             style={styles.quickActionSmall}
-                            onPress={() => navigation.navigate('Billing')}
+                            onPress={() => { HapticUtils.light(); navigation.navigate('Billing'); }}
                         >
                             <View style={styles.smallActionInner}>
                                 <Ionicons name="receipt-outline" size={18} color={Theme.colors.primary} />
@@ -350,7 +409,7 @@ export default function HomeScreen({ navigation }) {
 
                         <TouchableOpacity 
                             style={styles.quickActionSmall}
-                            onPress={() => navigation.navigate('Prescriptions')}
+                            onPress={() => { HapticUtils.light(); navigation.navigate('Meds'); }}
                         >
                             <View style={styles.smallActionInner}>
                                 <MaterialCommunityIcons name="pill" size={18} color={Theme.colors.secondary} />
@@ -360,7 +419,7 @@ export default function HomeScreen({ navigation }) {
 
                         <TouchableOpacity 
                             style={styles.quickActionSmall}
-                            onPress={() => navigation.navigate('LabResults')}
+                            onPress={() => { HapticUtils.light(); navigation.navigate('Records'); }}
                         >
                             <View style={styles.smallActionInner}>
                                 <MaterialCommunityIcons name="flask-outline" size={18} color="#10B981" />
@@ -369,6 +428,22 @@ export default function HomeScreen({ navigation }) {
                         </TouchableOpacity>
                     </View>
                 </View>
+            </View>
+
+            {/* NEW: Chitti Insights Section */}
+            <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Chitti Intelligence</Text>
+                    <Ionicons name="sparkles" size={16} color={Theme.colors.primary} />
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                    {(summary?.chitti_insights || ["Synchronizing clinical data...", "Secure bridge active."]).map((insight, idx) => (
+                        <View key={idx} style={[styles.insightCard, GlobalStyles.glass]}>
+                            <Ionicons name="bulb-outline" size={20} color={Theme.colors.primary} style={{ marginBottom: 10 }} />
+                            <Text style={styles.insightText}>{insight}</Text>
+                        </View>
+                    ))}
+                </ScrollView>
             </View>
 
             {/* 3. Today's Medications (Priority Actions) */}
@@ -383,26 +458,33 @@ export default function HomeScreen({ navigation }) {
                 {summary?.today_medications?.length > 0 ? (
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
                         {summary.today_medications.map((med, index) => (
-                            <TouchableOpacity 
-                                key={index} 
-                                style={[styles.medCard, med.taken_today && styles.medCardTaken]}
-                                onPress={() => !med.taken_today && handleLogMedication(med.id, med.name)}
-                            >
-                                <View style={styles.medCardHeader}>
-                                    <Ionicons name="medkit" size={20} color={med.taken_today ? "#10b981" : Theme.colors.primary} />
-                                    {med.taken_today && <Ionicons name="checkmark-circle" size={16} color="#10b981" />}
-                                </View>
-                                <Text style={styles.medName} numberOfLines={1}>{med.name}</Text>
-                                <Text style={styles.medDosage}>{med.dosage}</Text>
-                                <Text style={styles.medTime}>{med.frequency}</Text>
+                            <Animated.View key={index} entering={FadeInRight.delay(index * 100)}>
                                 <TouchableOpacity 
-                                    style={[styles.takeBtn, med.taken_today && styles.takeBtnDisabled]}
-                                    onPress={() => handleLogMedication(med.id, med.name)}
-                                    disabled={med.taken_today}
+                                    style={[styles.medCard, med.taken_today && styles.medCardTaken]}
+                                    onPress={() => {
+                                        HapticUtils.selection();
+                                        !med.taken_today && handleLogMedication(med.id, med.name);
+                                    }}
                                 >
-                                    <Text style={styles.takeBtnText}>{med.taken_today ? 'DONE' : 'LOG DOSE'}</Text>
+                                    <View style={styles.medCardHeader}>
+                                        <Ionicons name="medkit" size={20} color={med.taken_today ? "#10b981" : Theme.colors.primary} />
+                                        {med.taken_today && <Ionicons name="checkmark-circle" size={16} color="#10b981" />}
+                                    </View>
+                                    <Text style={styles.medName} numberOfLines={1}>{med.name}</Text>
+                                    <Text style={styles.medDosage}>{med.dosage}</Text>
+                                    <Text style={styles.medTime}>{med.frequency}</Text>
+                                    <TouchableOpacity 
+                                        style={[styles.takeBtn, med.taken_today && styles.takeBtnDisabled]}
+                                        onPress={() => {
+                                            HapticUtils.medium();
+                                            handleLogMedication(med.id, med.name);
+                                        }}
+                                        disabled={med.taken_today}
+                                    >
+                                        <Text style={styles.takeBtnText}>{med.taken_today ? 'DONE' : 'LOG DOSE'}</Text>
+                                    </TouchableOpacity>
                                 </TouchableOpacity>
-                            </TouchableOpacity>
+                            </Animated.View>
                         ))}
                     </ScrollView>
                 ) : (
@@ -629,18 +711,18 @@ export default function HomeScreen({ navigation }) {
                                 </TouchableOpacity>
                             </ScrollView>
                         )}
-
-                        {visitStep === 3 && visitResult && (
+                        
+                        {visitStep === 3 && (
                             <View style={styles.visitStepContent}>
                                 <View style={styles.successAnimation}>
                                     <Ionicons name="checkmark-circle" size={80} color="#10b981" />
-                                    <Text style={styles.successTitle}>CHECK-IN SUCCESSFUL</Text>
-                                    <Text style={styles.successSub}>Your details have been shared with {scannedHospital?.name}</Text>
+                                    <Text style={styles.successTitle}>VISIT REGISTERED</Text>
+                                    <Text style={styles.successSub}>Your clinical identity has been synchronized with {scannedHospital?.name}.</Text>
                                 </View>
-                                
+
                                 <View style={styles.tokenCard}>
                                     <Text style={styles.tokenLabel}>QUEUE TOKEN</Text>
-                                    <Text style={styles.tokenValue}>{visitResult.queue_token}</Text>
+                                    <Text style={styles.tokenValue}>{visitResult?.token_number || 'T-100'}</Text>
                                     <Text style={styles.tokenHint}>Please wait for your turn. You will be notified.</Text>
                                 </View>
 
@@ -680,22 +762,20 @@ const styles = StyleSheet.create({
         marginBottom: 30,
     },
     logoContainer: {
-        width: 140,
-        height: 50,
-        backgroundColor: '#fff', // White background to match the official logo
-        borderRadius: 12,
-        padding: 5,
-        justifyContent: 'center',
+        flexDirection: 'row',
         alignItems: 'center',
-        elevation: 4,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
+        gap: 8,
     },
     logo: {
-        width: '100%',
-        height: '100%',
+        width: 40,
+        height: 40,
+    },
+    logoText: {
+        fontSize: 22,
+        fontWeight: '900',
+        color: '#fff',
+        letterSpacing: 1,
+        fontFamily: Theme.fonts.heading,
     },
     shieldBadge: {
         flexDirection: 'row',
@@ -1300,6 +1380,95 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 20,
         fontWeight: 'bold',
+    },
+    vitalitySection: {
+        paddingHorizontal: 24,
+        marginTop: -20,
+        marginBottom: 24,
+    },
+    vitalityCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        padding: 20,
+        borderRadius: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
+    },
+    orbWrapper: {
+        width: 60,
+        height: 60,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 20,
+    },
+    vitalityOrb: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        overflow: 'hidden',
+        opacity: 0.8,
+    },
+    orbContent: {
+        position: 'absolute',
+        alignItems: 'center',
+    },
+    orbValue: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
+    orbLabel: {
+        color: 'rgba(255,255,255,0.5)',
+        fontSize: 8,
+        fontWeight: 'bold',
+    },
+    vitalityInfo: {
+        flex: 1,
+    },
+    vitalityStatus: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: '900',
+        letterSpacing: 1,
+    },
+    vitalityDesc: {
+        color: '#64748B',
+        fontSize: 10,
+        marginTop: 4,
+        lineHeight: 14,
+    },
+    insightCard: {
+        width: 280,
+        padding: 20,
+        borderRadius: 24,
+        marginRight: 16,
+    },
+    insightText: {
+        color: '#fff',
+        fontSize: 13,
+        lineHeight: 20,
+    },
+    syncIndicator: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    syncText: {
+        color: '#10b981',
+        fontSize: 8,
+        fontWeight: '900',
+    },
+    syncDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#10b981',
+        marginRight: 6,
+        shadowColor: '#10b981',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 4,
     },
     statusDot: {
         position: 'absolute',

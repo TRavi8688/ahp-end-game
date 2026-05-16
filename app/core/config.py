@@ -57,7 +57,12 @@ class Settings(BaseSettings):
         "https://doctor.hospyn.com",
         "https://patient.hospyn.com",
         "https://erp.hospyn.com",
-        "https://admin.hospyn.com"
+        "https://admin.hospyn.com",
+        "http://localhost:8081",
+        "http://localhost:19006",
+        "http://localhost:19007",
+        "http://localhost:3000",
+        "http://localhost:5173"
     ]
     TRUSTED_PROXIES: List[str] = [] # Tighten for production; add specific proxy IPs if needed
     
@@ -148,7 +153,13 @@ class Settings(BaseSettings):
         if self.ENCRYPTION_KEY == "placeholder-key-for-booting-only-32chars!":
             self.ENCRYPTION_KEY = get_secret("ENCRYPTION_KEY", self.ENCRYPTION_KEY)
 
-        # 2. Production Safety Checks
+        # 2. Load Keys (Must happen before validation)
+        if not self.JWT_PRIVATE_KEY:
+            self.JWT_PRIVATE_KEY = load_rsa_key("JWT_PRIVATE_KEY", "priv.pem")
+        if not self.JWT_PUBLIC_KEY:
+            self.JWT_PUBLIC_KEY = load_rsa_key("JWT_PUBLIC_KEY", "pub.pem")
+
+        # 3. Production Safety Checks
         if self.ENVIRONMENT == "production":
             # Force Debug off in production regardless of input
             self.DEBUG = False
@@ -161,12 +172,6 @@ class Settings(BaseSettings):
             
             if not self.JWT_PRIVATE_KEY or "BEGIN RSA" not in self.JWT_PRIVATE_KEY:
                  raise ValueError("PRODUCTION_FAIL: Valid JWT_PRIVATE_KEY is required for Production.")
-
-        # 3. Load Keys
-        if not self.JWT_PRIVATE_KEY:
-            self.JWT_PRIVATE_KEY = load_rsa_key("JWT_PRIVATE_KEY", "priv.pem")
-        if not self.JWT_PUBLIC_KEY:
-            self.JWT_PUBLIC_KEY = load_rsa_key("JWT_PUBLIC_KEY", "pub.pem")
 
         return self
 

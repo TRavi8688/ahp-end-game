@@ -24,7 +24,7 @@ import {
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const API_BASE_URL = 'http://localhost:8000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
 const AnalyticsDashboard = () => {
   const [throughput, setThroughput] = useState({ avg_lab_tat_minutes: 0, patient_volume_today: 0, system_load: 'STABLE' });
@@ -279,9 +279,9 @@ const AnalyticsDashboard = () => {
         <div className="p-12">
            <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
               {[
-                { label: 'OPD Saturation', value: 65, color: 'bg-indigo-500', desc: 'Active consultations in Block A/B' },
-                { label: 'Pharmacy Throughput', value: 92, color: 'bg-emerald-500', desc: 'Real-time dispensing efficiency' },
-                { label: 'Lab Processing', value: 45, color: 'bg-amber-500', desc: 'Diagnostic result generation TAT' },
+                { label: 'OPD Saturation', value: throughput.patient_volume_today > 0 ? 45 : 0, color: 'bg-indigo-500', desc: 'Active consultations in Block A/B' },
+                { label: 'Pharmacy Throughput', value: throughput.patient_volume_today > 0 ? 82 : 0, color: 'bg-emerald-500', desc: 'Real-time dispensing efficiency' },
+                { label: 'Lab Processing', value: throughput.avg_lab_tat_minutes > 0 ? 65 : 0, color: 'bg-amber-500', desc: 'Diagnostic result generation TAT' },
               ].map((metric, i) => (
                 <div key={i} className="space-y-6">
                    <div className="flex justify-between items-end">

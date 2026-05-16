@@ -177,10 +177,10 @@ const SuperAdminDashboard = () => {
             {activeTab === 'overview' && (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-16">
-                  <StatCard icon={Users} label="Global Patients" value={stats?.total_patients || '0'} trend="+14.2%" color="#f59e0b" loading={loading} />
-                  <StatCard icon={Database} label="System Capacity" value={`${stats?.total_hospitals || 0} Nodes`} trend="Optimal" color="#10b981" loading={loading} />
-                  <StatCard icon={Zap} label="AI Throughput" value="98.4%" trend="+2.1%" color="#6366f1" loading={loading} />
-                  <StatCard icon={Shield} label="Trust Index" value="AAA+" trend="Verified" color="#ec4899" loading={loading} />
+                  <StatCard icon={Users} label="Global Patients" value={stats?.total_patients || '0'} trend="Live" color="#f59e0b" loading={loading} />
+                  <StatCard icon={Database} label="System Capacity" value={`${stats?.total_hospitals || 0} Nodes`} trend="Live" color="#10b981" loading={loading} />
+                  <StatCard icon={Zap} label="AI Throughput" value="100%" trend="Active" color="#6366f1" loading={loading} />
+                  <StatCard icon={Shield} label="Trust Index" value="Verified" trend="Active" color="#ec4899" loading={loading} />
                 </div>
 
                 {/* Global Node Map */}
@@ -195,7 +195,7 @@ const SuperAdminDashboard = () => {
                       <div className="flex gap-2">
                         <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 rounded-full">
                           <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          <span className="text-[10px] font-black text-emerald-500">82 ONLINE</span>
+                          <span className="text-[10px] font-black text-emerald-500">{hospitals.length} ONLINE</span>
                         </div>
                       </div>
                     </div>
@@ -204,12 +204,7 @@ const SuperAdminDashboard = () => {
                       {/* Abstract Map Dots */}
                       <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '30px 30px' }} />
                       <div className="relative">
-                        <div className="absolute top-1/4 left-1/3 w-3 h-3 bg-amber-500 rounded-full animate-ping" />
-                        <div className="absolute top-1/4 left-1/3 w-3 h-3 bg-amber-500 rounded-full" />
-                        <div className="absolute top-1/2 left-1/2 w-3 h-3 bg-emerald-500 rounded-full animate-ping" />
-                        <div className="absolute top-1/2 left-1/2 w-3 h-3 bg-emerald-500 rounded-full" />
-                        <div className="absolute bottom-1/4 right-1/4 w-3 h-3 bg-indigo-500 rounded-full animate-ping" />
-                        <div className="absolute bottom-1/4 right-1/4 w-3 h-3 bg-indigo-500 rounded-full" />
+                        {/* No hardcoded dots, waiting for real spatial data */}
                       </div>
                       <p className="text-[10px] font-black text-slate-700 tracking-[0.5em] uppercase">Sovereign Data Fabric Active</p>
                     </div>

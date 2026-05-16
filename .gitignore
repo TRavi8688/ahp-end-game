@@ -83,3 +83,9 @@ old-hospyn/
 key.json
 fresh_deploy_key.json
 error_logs.txt
+
+# Maintenance & Archives
+maintenance_archive/
+scratch_backup/
+backups/
+

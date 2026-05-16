@@ -5,6 +5,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#E8F4F8"
+    },
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
@@ -17,7 +22,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#050810"
+        "backgroundColor": "#E8F4F8"
       },
       "permissions": [
         "android.permission.CAMERA",
@@ -47,7 +52,8 @@
             "crunchPngs": false
           }
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "web": {
       "bundler": "webpack"

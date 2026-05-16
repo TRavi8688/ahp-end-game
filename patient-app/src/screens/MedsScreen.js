@@ -1,16 +1,49 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Theme, GlobalStyles } from '../theme';
+import ApiService from '../utils/ApiService';
 
 const { width } = Dimensions.get('window');
 
 export default function MedsScreen({ navigation }) {
-    const meds = [
-        { name: 'ATORVASTATIN', dose: '20MG', time: 'DINNER', status: 'Taken' },
-        { name: 'METFORMIN', dose: '500MG', time: 'LUNCH', status: 'Pending' },
-        { name: 'AMLODIPINE', dose: '5MG', time: 'MORNING', status: 'Pending' },
-    ];
+    const [meds, setMeds] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [adherence, setAdherence] = useState(0);
+
+    useEffect(() => {
+        const fetchMeds = async () => {
+            try {
+                const summary = await ApiService.getClinicalSummary();
+                const allMeds = summary.ongoing_medications || [];
+                setMeds(allMeds);
+                
+                const todayMeds = summary.today_medications || [];
+                const taken = todayMeds.filter(m => m.taken_today).length;
+                const total = todayMeds.length;
+                setAdherence(total > 0 ? Math.round((taken / total) * 100) : 0);
+            } catch (error) {
+                console.error("Failed to fetch meds", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchMeds();
+    }, []);
+
+    const handleLogMedication = async (medId, medName) => {
+        try {
+            await ApiService.logMedication(medId);
+            // Refresh adherence
+            const summary = await ApiService.getClinicalSummary();
+            const todayMeds = summary.today_medications || [];
+            const taken = todayMeds.filter(m => m.taken_today).length;
+            const total = todayMeds.length;
+            setAdherence(total > 0 ? Math.round((taken / total) * 100) : 0);
+        } catch (error) {
+            console.error("Log error", error);
+        }
+    };
 
     return (
         <View style={GlobalStyles.screen}>
@@ -27,32 +60,41 @@ export default function MedsScreen({ navigation }) {
 
                 {/* Protocol Progress */}
                 <View style={styles.progressSection}>
-                    <Text style={styles.progressLabel}>TODAY'S ADHERENCE — 12%</Text>
+                    <Text style={styles.progressLabel}>TODAY'S ADHERENCE — {adherence}%</Text>
                     <View style={styles.progressTrack}>
-                        <View style={[styles.progressFill, { width: '12%' }]} />
+                        <View style={[styles.progressFill, { width: `${adherence}%` }]} />
                     </View>
                 </View>
 
-                <View style={styles.list}>
-                    {meds.map((med, i) => (
-                        <View key={i} style={styles.medCard}>
-                            <View style={styles.medHeader}>
-                                <Text style={styles.medName}>{med.name}</Text>
-                                <View style={styles.timeBadge}>
-                                    <Text style={styles.timeBadgeText}>{med.time}</Text>
+                {loading ? (
+                    <ActivityIndicator color={Theme.colors.primary} />
+                ) : (
+                    <View style={styles.list}>
+                        {meds.length > 0 ? meds.map((med, i) => (
+                            <View key={i} style={styles.medCard}>
+                                <View style={styles.medHeader}>
+                                    <Text style={styles.medName}>{med.name}</Text>
+                                    <View style={styles.timeBadge}>
+                                        <Text style={styles.timeBadgeText}>{med.frequency}</Text>
+                                    </View>
+                                </View>
+                                <View style={styles.medFooter}>
+                                    <Text style={styles.medDose}>{med.dosage}</Text>
+                                    <TouchableOpacity 
+                                        style={[styles.statusToggle, med.taken_today && styles.statusTaken]}
+                                        onPress={() => !med.taken_today && handleLogMedication(med.id, med.name)}
+                                    >
+                                        <Text style={[styles.statusToggleText, med.taken_today && styles.statusTakenText]}>
+                                            {med.taken_today ? 'TAKEN' : 'LOG DOSE'}
+                                        </Text>
+                                    </TouchableOpacity>
                                 </View>
                             </View>
-                            <View style={styles.medFooter}>
-                                <Text style={styles.medDose}>{med.dose}</Text>
-                                <TouchableOpacity style={[styles.statusToggle, med.status === 'Taken' && styles.statusTaken]}>
-                                    <Text style={[styles.statusToggleText, med.status === 'Taken' && styles.statusTakenText]}>
-                                        {med.status.toUpperCase()}
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-                    ))}
-                </View>
+                        )) : (
+                            <Text style={styles.emptyText}>No active medications found in your clinical profile.</Text>
+                        )}
+                    </View>
+                )}
 
                 <View style={{ height: 100 }} />
             </ScrollView>

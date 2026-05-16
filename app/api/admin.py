@@ -95,3 +95,25 @@ async def get_admin_stats(
         "total_doctors": doctor_count.scalar() or 0,
         "active_sessions": 12 # Mocked for this view
     }
+
+@router.get("/hospitals")
+async def get_all_hospitals(
+    db: AsyncSession = Depends(deps.get_db),
+    current_admin: models.User = Depends(deps.get_super_admin),
+):
+    """
+    NETWORK GOVERNANCE: List all active clinical nodes and pending registrations.
+    """
+    from sqlalchemy import select
+    from app.models.models import Hospital
+    
+    # Fetch verified hospitals
+    verified_stmt = select(Hospital)
+    result = await db.execute(verified_stmt)
+    hospitals = result.scalars().all()
+    
+    return {
+        "data": hospitals,
+        "pending": [] # Pending logic handled via specific verify view if needed
+    }
+

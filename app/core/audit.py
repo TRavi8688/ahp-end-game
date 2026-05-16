@@ -18,7 +18,8 @@ async def log_clinical_audit(
     patient_id: Optional[uuid.UUID] = None,
     hospital_id: Optional[uuid.UUID] = None,
     details: Optional[Dict[str, Any]] = None,
-    request: Any = None
+    request: Any = None,
+    **kwargs
 ) -> None:
     """
     ENTERPRISE CLINICAL AUDIT:
@@ -33,6 +34,11 @@ async def log_clinical_audit(
             ip_address = request.client.host
             user_agent = request.headers.get("user-agent")
 
+        # Merge extra kwargs into details
+        audit_details = details or {}
+        if kwargs:
+            audit_details.update(kwargs)
+            
         # Create the audit record
         audit_entry = AuditLog(
             user_id=user_id,
@@ -41,7 +47,7 @@ async def log_clinical_audit(
             action=action,
             resource_type=resource_type,
             resource_id=resource_id,
-            details=details,
+            details=audit_details,
             ip_address=ip_address,
             user_agent=user_agent,
             timestamp=datetime.now(timezone.utc),
