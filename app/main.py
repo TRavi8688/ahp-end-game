@@ -26,9 +26,12 @@ import sentry_sdk
 from sentry_sdk.integrations.fastapi import FastApiIntegration
 
 # Initialize structured logging instantly
+print(">>> HOSPYN_LOGGING_INIT")
 setup_logging()
+print(">>> HOSPYN_LOGGING_SUCCESS")
 
 # Initialize Sentry for production monitoring
+print(f">>> HOSPYN_ENV_CHECK: {settings.ENVIRONMENT}")
 if settings.SENTRY_DSN and settings.ENVIRONMENT == "production":
     sentry_sdk.init(
         dsn=settings.SENTRY_DSN,
