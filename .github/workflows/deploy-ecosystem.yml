@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Product to deploy (all, patient, doctor, erp, admin, api, worker)'
+        required: true
+        default: 'all'
+        type: string
 
 jobs:
   run-tests:
@@ -159,33 +166,49 @@ jobs:
           node-version: 20
 
       - name: Build Patient App
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'patient' || github.event_name == 'push'
         run: |
           cd patient-app
           npm install --legacy-peer-deps
           npm run build
 
       - name: Build Doctor App
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'doctor' || github.event_name == 'push'
         run: |
           cd doctor-app
           npm install --legacy-peer-deps
           npm run build
 
       - name: Build Hospital ERP
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'erp' || github.event_name == 'push'
         run: |
           cd hospital-erp
           npm install --legacy-peer-deps
           npm run build
 
       - name: Build Super Admin Dashboard
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'admin' || github.event_name == 'push'
         run: |
           cd super-admin-dashboard
           npm install --legacy-peer-deps
           npm run build
 
-      - name: Deploy All Portals to Firebase
-        run: |
-          npx firebase-tools deploy --only hosting:patient --token ${{ secrets.FIREBASE_TOKEN }}
-          npx firebase-tools deploy --only hosting:doctor --token ${{ secrets.FIREBASE_TOKEN }}
-          npx firebase-tools deploy --only hosting:erp --token ${{ secrets.FIREBASE_TOKEN }}
-          npx firebase-tools deploy --only hosting:admin --token ${{ secrets.FIREBASE_TOKEN }}
-          npx firebase-tools deploy --only hosting:landing --token ${{ secrets.FIREBASE_TOKEN }}
+      - name: Deploy Patient App
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'patient' || github.event_name == 'push'
+        run: npx firebase-tools deploy --only hosting:patient --token ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: Deploy Doctor App
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'doctor' || github.event_name == 'push'
+        run: npx firebase-tools deploy --only hosting:doctor --token ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: Deploy Hospital ERP
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'erp' || github.event_name == 'push'
+        run: npx firebase-tools deploy --only hosting:erp --token ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: Deploy Super Admin
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'admin' || github.event_name == 'push'
+        run: npx firebase-tools deploy --only hosting:admin --token ${{ secrets.FIREBASE_TOKEN }}
+
+      - name: Deploy Landing Page
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'landing' || github.event_name == 'push'
+        run: npx firebase-tools deploy --only hosting:landing --token ${{ secrets.FIREBASE_TOKEN }}
