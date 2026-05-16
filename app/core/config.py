@@ -69,10 +69,10 @@ class Settings(BaseSettings):
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
     def assemble_origins(cls, v: Any) -> Any:
-        # Load from Secret Manager if available
-        sm_val = get_secret("ALLOWED_ORIGINS", default="")
-        if sm_val:
-            v = sm_val
+        # Load from ENV or Secret Manager if available
+        val = os.getenv("HOSPYN_ALLOWED_ORIGINS", get_secret("ALLOWED_ORIGINS", default=""))
+        if val:
+            v = val
 
         if isinstance(v, str):
             clean_v = v.strip()
