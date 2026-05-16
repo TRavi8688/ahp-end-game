@@ -7,6 +7,7 @@ from typing import Optional, Dict, Any
 from contextlib import asynccontextmanager
 
 
+import asyncio
 from fastapi import FastAPI, Request, HTTPException, status, WebSocket, WebSocketDisconnect, Depends
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -51,38 +52,22 @@ async def lifespan(app: FastAPI):
     boot_id = str(uuid.uuid4())[:8]
     logger.info(f"HOSPYN_BOOT_START [ID: {boot_id}] | ENV: {settings.ENVIRONMENT}")
     
-    try:
-        from app.core.database import get_writer_engine
-        
-        # STAGE 1: Infrastructure Connectivity
-        logger.info(f"HOSPYN_BOOT_STAGE_1: Verifying Infrastructure [ID: {boot_id}]")
+    # NON-BLOCKING BOOT: Bind port first, connect later
+    async def background_init():
         try:
+            from app.core.database import get_writer_engine
+            logger.info(f"HOSPYN_BOOT_STAGE_1: Background Infrastructure Sync [ID: {boot_id}]")
             engine = get_writer_engine()
             async with engine.connect() as conn:
                 await conn.execute(text("SELECT 1"))
-                
-                # Development Auto-Migration: Ensure tables exist
-                if settings.ENVIRONMENT == "development":
-                    logger.info("HOSPYN_BOOT_MIGRATION: Syncing local schema...")
-                    from app.models.models import Base
-                    def _sync_create(connection):
-                        Base.metadata.create_all(connection)
-                    await conn.run_sync(_sync_create)
-                    logger.info("HOSPYN_BOOT_MIGRATION: Success")
-
             logger.info(f"HOSPYN_BOOT_DB_SUCCESS: Connection Established [ID: {boot_id}]")
         except Exception as db_e:
-            logger.warning(f"HOSPYN_BOOT_DEGRADED: Database check failed (will retry): {db_e} [ID: {boot_id}]")
-            app.state.boot_error = f"Database degraded: {db_e}"
+            logger.warning(f"HOSPYN_BOOT_DEGRADED: Database check failed: {db_e} [ID: {boot_id}]")
+            app.state.boot_error = str(db_e)
 
-        # STAGE 2: Service Verification
-        logger.info(f"HOSPYN_BOOT_STAGE_2: Services Initialized [ID: {boot_id}]")
-        
-        logger.info(f"HOSPYN_BOOT_COMPLETE: FastAPI ready for Port Binding [ID: {boot_id}]")
-    except Exception as e:
-        logger.error(f"HOSPYN_BOOT_FATAL: Initialization Error: {e} [ID: {boot_id}]")
-        app.state.boot_error = str(e)
-        
+    # Start init in background, allow lifespan to finish instantly
+    asyncio.create_task(background_init())
+    logger.info(f"HOSPYN_BOOT_COMPLETE: Web Server Active [ID: {boot_id}]")
     yield
     logger.info(f"HOSPYN_SHUTDOWN: Process {boot_id} Terminated.")
 
