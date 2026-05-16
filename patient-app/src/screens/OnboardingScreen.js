@@ -384,32 +384,55 @@ export default function OnboardingScreen({ navigation }) {
         </View>
     );
 
-    const renderHealthStep = () => (
-        <View style={styles.stepContainer}>
-             <Text style={styles.stepTitle}>{steps[2].title}</Text>
-             <Text style={styles.stepSubtitle}>{steps[2].subtitle}</Text>
-             
-             <View style={styles.inputGroup}>
-                <Text style={styles.label}>BLOOD GROUP</Text>
-                <View style={styles.inputWrapper}>
-                    <Ionicons name="water-outline" size={20} color="#94A3B8" style={styles.inputIcon} />
-                    <TextInput
-                        style={styles.input}
-                        placeholder="e.g. O+ve"
-                        placeholderTextColor="#475569"
-                        value={formData.bloodGroup}
-                        onChangeText={(v) => setFormData({...formData, bloodGroup: v})}
-                    />
+    const renderHealthStep = () => {
+        const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+        return (
+            <View style={styles.stepContainer}>
+                 <Text style={styles.stepTitle}>{steps[2].title}</Text>
+                 <Text style={styles.stepSubtitle}>{steps[2].subtitle}</Text>
+                 
+                 <View style={styles.inputGroup}>
+                    <Text style={styles.label}>SELECT BLOOD GROUP</Text>
+                    <View style={styles.bloodGrid}>
+                        {bloodGroups.map(group => (
+                            <TouchableOpacity 
+                                key={group}
+                                style={[
+                                    styles.bloodItem, 
+                                    formData.bloodGroup === group && styles.bloodItemActive
+                                ]}
+                                onPress={() => {
+                                    HapticUtils.selection();
+                                    setFormData({...formData, bloodGroup: group});
+                                }}
+                            >
+                                <Ionicons 
+                                    name="water" 
+                                    size={24} 
+                                    color={formData.bloodGroup === group ? '#fff' : '#6366F1'} 
+                                />
+                                <Text style={[
+                                    styles.bloodText, 
+                                    formData.bloodGroup === group && styles.bloodTextActive
+                                ]}>{group}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
                 </View>
-            </View>
 
-             <TouchableOpacity style={styles.nextBtn} onPress={() => setStep(3)}>
-                <LinearGradient colors={[Theme.colors.primary, Theme.colors.secondary]} style={styles.gradientBtn}>
-                    <Text style={styles.btnText}>Continue to Care Circle</Text>
-                </LinearGradient>
-            </TouchableOpacity>
-        </View>
-    );
+                 <TouchableOpacity 
+                    style={[styles.nextBtn, !formData.bloodGroup && { opacity: 0.5 }]} 
+                    onPress={() => formData.bloodGroup && setStep(3)}
+                    disabled={!formData.bloodGroup}
+                 >
+                    <LinearGradient colors={[Theme.colors.primary, '#4F46E5']} style={styles.gradientBtn}>
+                        <Text style={styles.btnText}>Continue to Care Circle</Text>
+                        <Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginLeft: 10 }} />
+                    </LinearGradient>
+                </TouchableOpacity>
+            </View>
+        );
+    };
 
     const renderFamilyStep = () => (
         <View style={styles.stepContainer}>
@@ -417,17 +440,30 @@ export default function OnboardingScreen({ navigation }) {
             <Text style={styles.stepSubtitle}>{steps[3].subtitle}</Text>
             
             <View style={styles.inputGroup}>
-                <Text style={styles.label}>FAMILY MEMBERS (OPTIONAL)</Text>
-                <TouchableOpacity style={styles.inputWrapper} onPress={() => Alert.alert("Care Circle", "You can add family members after launching your passport in the Family tab.")}>
-                    <Ionicons name="people-outline" size={20} color="#94A3B8" style={styles.inputIcon} />
-                    <Text style={{ color: '#475569' }}>Skip for now...</Text>
+                <Text style={styles.label}>COORDINATED CARE</Text>
+                <TouchableOpacity 
+                    style={[styles.actionCard, GlobalStyles.glass]} 
+                    onPress={() => Alert.alert("Care Circle", "You can link family accounts instantly using their Hospyn ID after launching your passport.")}
+                >
+                    <View style={styles.actionIconWrapper}>
+                        <Ionicons name="person-add" size={24} color="#6366F1" />
+                    </View>
+                    <View style={styles.actionTextWrapper}>
+                        <Text style={styles.actionTitle}>Link Family Member</Text>
+                        <Text style={styles.actionDesc}>Sync records with siblings, parents, or kids.</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#475569" />
                 </TouchableOpacity>
             </View>
 
             <TouchableOpacity style={styles.nextBtn} onPress={handleFinalize} disabled={loading}>
-                <LinearGradient colors={[Theme.colors.primary, Theme.colors.secondary]} style={styles.gradientBtn}>
+                <LinearGradient colors={[Theme.colors.primary, '#4F46E5']} style={styles.gradientBtn}>
                     {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Launch Passport</Text>}
                 </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.skipLink} onPress={handleFinalize}>
+                <Text style={styles.skipLinkText}>Skip for now, I'll add them later</Text>
             </TouchableOpacity>
         </View>
     );
@@ -495,4 +531,47 @@ const styles = StyleSheet.create({
     errorText: { color: '#ef4444', fontSize: 10, marginTop: 4, marginLeft: 4 },
     logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     logoText: { fontSize: 20, fontWeight: 'bold', color: '#fff', letterSpacing: 1 },
+    bloodGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' },
+    bloodItem: { 
+        width: '22%', 
+        aspectRatio: 1, 
+        backgroundColor: 'rgba(255,255,255,0.03)', 
+        borderRadius: 20, 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        borderWidth: 1, 
+        borderColor: 'rgba(255,255,255,0.05)',
+        gap: 4
+    },
+    bloodItemActive: { 
+        backgroundColor: '#6366F1', 
+        borderColor: '#818CF8',
+        shadowColor: '#6366F1',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 8
+    },
+    bloodText: { color: '#94A3B8', fontSize: 12, fontWeight: 'bold' },
+    bloodTextActive: { color: '#fff' },
+    actionCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 20,
+        borderRadius: 24,
+        gap: 16
+    },
+    actionIconWrapper: {
+        width: 50,
+        height: 50,
+        borderRadius: 15,
+        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    actionTextWrapper: { flex: 1 },
+    actionTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+    actionDesc: { color: '#64748B', fontSize: 12, marginTop: 2 },
+    skipLink: { marginTop: 24, alignItems: 'center' },
+    skipLinkText: { color: '#64748B', fontSize: 14, fontWeight: 'bold', textDecorationLine: 'underline' },
 });

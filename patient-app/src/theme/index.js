@@ -1,8 +1,8 @@
 export const Theme = {
     colors: {
         background: '#050810',
-        primary: '#22D3EE', // Cyan-400
-        secondary: '#34D399', // Emerald-400
+        primary: '#6366F1', // Indigo-500 (Premium)
+        secondary: '#94A3B8', // Slate-400 (Sleek)
         positive: '#10B981',
         warning: '#F59E0B',
         critical: '#EF4444',
