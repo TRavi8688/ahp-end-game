@@ -337,6 +337,11 @@ const SuperAdminDashboard = () => {
                         </td>
                       </tr>
                     ))}
+                    {pendingRequests.length === 0 && (
+                      <tr>
+                        <td colSpan="4" className="p-12 text-center text-slate-500 font-bold">No pending registration requests.</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </section>
@@ -435,17 +440,6 @@ const SuperAdminDashboard = () => {
               </motion.div>
             </>
           )}
-        </AnimatePresence>
-                    {pendingRequests.length === 0 && (
-                      <tr>
-                        <td colSpan="4" className="p-12 text-center text-slate-500 font-bold">No pending registration requests.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </section>
-            )}
-          </motion.div>
         </AnimatePresence>
 
         {/* Invite Modal */}
