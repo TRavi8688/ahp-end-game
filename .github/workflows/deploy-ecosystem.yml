@@ -129,7 +129,7 @@ jobs:
             --project hospyn-495906 \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars "ASYNC_DATABASE_URL=${{ secrets.DATABASE_URL }},SECRET_KEY=${{ secrets.SECRET_KEY }},JWT_PRIVATE_KEY=${{ secrets.JWT_PRIVATE_KEY }},JWT_PUBLIC_KEY=${{ secrets.JWT_PUBLIC_KEY }},ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }},ENVIRONMENT=production,USE_REDIS=False,GCP_PROJECT_ID=hospyn-495906,GCS_BUCKET_NAME=hospyn-495906-vault,TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }},TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }},TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }},ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS || '[\"*\"]' }}"
+            --set-env-vars "ASYNC_DATABASE_URL=${{ secrets.DATABASE_URL }},HOSPYN_SECRET_KEY=${{ secrets.SECRET_KEY }},HOSPYN_PRIVATE_KEY=${{ secrets.JWT_PRIVATE_KEY }},HOSPYN_PUBLIC_KEY=${{ secrets.JWT_PUBLIC_KEY }},HOSPYN_ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }},ENVIRONMENT=production,USE_REDIS=False,GCP_PROJECT_ID=hospyn-495906,GCS_BUCKET_NAME=hospyn-495906-vault,TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }},TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }},TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }},ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS || '[\"*\"]' }}"
  
       - name: Deploy Worker Service
         run: |
@@ -143,7 +143,7 @@ jobs:
             --min-instances 0 \
             --command "bash" \
             --args "-c,python3 -m http.server \$PORT & arq app.workers.arq_worker.WorkerSettings" \
-            --set-env-vars "ASYNC_DATABASE_URL=${{ secrets.DATABASE_URL }},SECRET_KEY=${{ secrets.SECRET_KEY }},JWT_PRIVATE_KEY=${{ secrets.JWT_PRIVATE_KEY }},JWT_PUBLIC_KEY=${{ secrets.JWT_PUBLIC_KEY }},ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }},ENVIRONMENT=production,USE_REDIS=False,TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }},TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }},TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }},GCP_PROJECT_ID=hospyn-495906,GCS_BUCKET_NAME=hospyn-495906-vault,ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS || '[\"*\"]' }}"
+            --set-env-vars "ASYNC_DATABASE_URL=${{ secrets.DATABASE_URL }},HOSPYN_SECRET_KEY=${{ secrets.SECRET_KEY }},HOSPYN_PRIVATE_KEY=${{ secrets.JWT_PRIVATE_KEY }},HOSPYN_PUBLIC_KEY=${{ secrets.JWT_PUBLIC_KEY }},HOSPYN_ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }},ENVIRONMENT=production,USE_REDIS=False,TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }},TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }},TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }},GCP_PROJECT_ID=hospyn-495906,GCS_BUCKET_NAME=hospyn-495906-vault,ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS || '[\"*\"]' }}"
 
   deploy-frontends:
     name: Deploy Frontends to Firebase
