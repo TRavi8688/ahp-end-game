@@ -146,18 +146,15 @@ class Settings(BaseSettings):
     def validate_production_lockdown(self) -> "Settings":
         """SHIELD V10: Resilient post-init secret loading & DB URL transformation."""
         
-        # 1. Lazy load critical secrets from SM if they are still defaults
-        if self.SECRET_KEY == "placeholder-for-debug-only-change-in-production":
-            self.SECRET_KEY = get_secret("SECRET_KEY", self.SECRET_KEY)
-        
-        if self.ENCRYPTION_KEY == "placeholder-key-for-booting-only-32chars!":
-            self.ENCRYPTION_KEY = get_secret("ENCRYPTION_KEY", self.ENCRYPTION_KEY)
+        # 1. Lazy load critical secrets from SM/ENV if they are still defaults
+        self.SECRET_KEY = os.getenv("HOSPYN_SECRET_KEY", get_secret("SECRET_KEY", self.SECRET_KEY))
+        self.ENCRYPTION_KEY = os.getenv("HOSPYN_ENCRYPTION_KEY", get_secret("ENCRYPTION_KEY", self.ENCRYPTION_KEY))
 
         # 2. Load Keys (Must happen before validation)
         if not self.JWT_PRIVATE_KEY:
-            self.JWT_PRIVATE_KEY = load_rsa_key("JWT_PRIVATE_KEY", "priv.pem")
+            self.JWT_PRIVATE_KEY = os.getenv("HOSPYN_PRIVATE_KEY", load_rsa_key("JWT_PRIVATE_KEY", "priv.pem"))
         if not self.JWT_PUBLIC_KEY:
-            self.JWT_PUBLIC_KEY = load_rsa_key("JWT_PUBLIC_KEY", "pub.pem")
+            self.JWT_PUBLIC_KEY = os.getenv("HOSPYN_PUBLIC_KEY", load_rsa_key("JWT_PUBLIC_KEY", "pub.pem"))
 
         # 3. Production Safety Checks
         if self.ENVIRONMENT == "production":
