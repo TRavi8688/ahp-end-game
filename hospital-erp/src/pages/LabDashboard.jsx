@@ -159,7 +159,6 @@ const LabDashboard = () => {
             )}
           </div>
         </div>
-      </main>
    {/* Right: Order Details & Action */}
         <div className="main-content glass-card">
           {activeOrder ? (
@@ -234,6 +233,7 @@ const LabDashboard = () => {
           )}
         </div>
       </div>
+      </main>
 
       {/* MODAL: COLLECT SAMPLE */}
       {showCollectModal && (
