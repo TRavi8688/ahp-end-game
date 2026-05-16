@@ -222,29 +222,40 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 
-# --- ROUTERS ---
-from app.api import auth, patient, profile, doctor, admin, privacy, auth_onboarding, staff, governance, visit, billing, pharmacy, clinical, lab, ward, surgery
-from app.api.v1.endpoints import onboarding
-from app.api.v1.router import api_router as enterprise_v1_router
+# --- SAFE ROUTER INCLUSION (RESILIENCE MODE) ---
+def safe_include(router, name, prefix=settings.API_V1_STR, tags=None):
+    try:
+        app.include_router(router, prefix=prefix, tags=tags)
+        logger.info(f"ROUTER_LOAD_SUCCESS: {name}")
+    except Exception as e:
+        logger.error(f"ROUTER_LOAD_FAILURE: {name} | Error: {e}")
 
-app.include_router(auth.router, prefix=settings.API_V1_STR, tags=["Authentication"])
-app.include_router(patient.router, prefix=settings.API_V1_STR, tags=["Patient"])
-app.include_router(profile.router, prefix=settings.API_V1_STR, tags=["Profile"])
-app.include_router(enterprise_v1_router, prefix=settings.API_V1_STR)
-app.include_router(doctor.router, prefix=settings.API_V1_STR, tags=["Doctor"])
-app.include_router(admin.router, prefix=settings.API_V1_STR, tags=["Admin"])
-app.include_router(privacy.router, prefix=settings.API_V1_STR, tags=["Privacy"])
-app.include_router(auth_onboarding.router, prefix=settings.API_V1_STR, tags=["Onboarding"])
-app.include_router(staff.router, prefix=settings.API_V1_STR, tags=["Staff"])
-app.include_router(governance.router, prefix=settings.API_V1_STR, tags=["Governance"])
-app.include_router(visit.router, prefix=settings.API_V1_STR, tags=["Visit"])
-app.include_router(billing.router, prefix=settings.API_V1_STR, tags=["Billing"])
-app.include_router(pharmacy.router, prefix=settings.API_V1_STR, tags=["Pharmacy"])
-app.include_router(clinical.router, prefix=settings.API_V1_STR, tags=["Clinical"])
-app.include_router(lab.router, prefix=settings.API_V1_STR, tags=["Laboratory"])
-app.include_router(ward.router, prefix=settings.API_V1_STR + "/ward", tags=["Ward Management"])
-app.include_router(surgery.router, prefix=settings.API_V1_STR + "/surgery", tags=["Surgery Management"])
-app.include_router(onboarding.router, prefix=settings.API_V1_STR + "/onboarding", tags=["Premium Onboarding"])
+# Import everything inside a safe block
+try:
+    from app.api import auth, patient, profile, doctor, admin, privacy, auth_onboarding, staff, governance, visit, billing, pharmacy, clinical, lab, ward, surgery
+    from app.api.v1.endpoints import onboarding
+    from app.api.v1.router import api_router as enterprise_v1_router
+
+    safe_include(auth.router, "Authentication", tags=["Authentication"])
+    safe_include(patient.router, "Patient", tags=["Patient"])
+    safe_include(profile.router, "Profile", tags=["Profile"])
+    safe_include(enterprise_v1_router, "Enterprise V1")
+    safe_include(doctor.router, "Doctor", tags=["Doctor"])
+    safe_include(admin.router, "Admin", tags=["Admin"])
+    safe_include(privacy.router, "Privacy", tags=["Privacy"])
+    safe_include(auth_onboarding.router, "Onboarding", tags=["Onboarding"])
+    safe_include(staff.router, "Staff", tags=["Staff"])
+    safe_include(governance.router, "Governance", tags=["Governance"])
+    safe_include(visit.router, "Visit", tags=["Visit"])
+    safe_include(billing.router, "Billing", tags=["Billing"])
+    safe_include(pharmacy.router, "Pharmacy", tags=["Pharmacy"])
+    safe_include(clinical.router, "Clinical", tags=["Clinical"])
+    safe_include(lab.router, "Laboratory", tags=["Laboratory"])
+    safe_include(ward.router, "Ward Management", prefix=settings.API_V1_STR + "/ward", tags=["Ward Management"])
+    safe_include(surgery.router, "Surgery Management", prefix=settings.API_V1_STR + "/surgery", tags=["Surgery Management"])
+    safe_include(onboarding.router, "Premium Onboarding", prefix=settings.API_V1_STR + "/onboarding", tags=["Premium Onboarding"])
+except Exception as global_e:
+    logger.critical(f"GLOBAL_IMPORT_FAILURE: The system is running in DEGRADED MODE. Error: {global_e}")
 
 # --- HEALTH & SRE PROBES ---
 @app.get("/health", tags=["Infrastructure"])
