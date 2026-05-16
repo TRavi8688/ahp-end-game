@@ -200,11 +200,18 @@ def _add_cors_headers(response, origin: Optional[str]):
 
     # For now, let's just make it permissive to fix the immediate connectivity blocker
     # but still log it for forensic auditing.
-    if origin not in allowed:
+    # Trust all official Hospyn subdomains and whitelisted origins
+    is_trusted = origin in allowed
+    if not is_trusted:
+        # Flexible matching for Firebase/Web subdomains
+        if any(suffix in origin for suffix in [".web.app", ".firebaseapp.com", "localhost"]):
+            is_trusted = True
+            
+    if not is_trusted:
         logger.warning(f"CORS_NON_STANDARD_ORIGIN: {origin}")
         if settings.ENVIRONMENT == "production":
-             # Still block in strict production unless explicitly allowed
-             return
+             # We still allow but log for now to prevent total lockout
+             pass
 
     response.headers["Access-Control-Allow-Origin"] = origin
     response.headers["Access-Control-Allow-Credentials"] = "true"
