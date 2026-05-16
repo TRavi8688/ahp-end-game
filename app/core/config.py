@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     S3_BUCKET_NAME: Optional[str] = None
     
     # --- 4. DATABASE & CACHE ---
-    DATABASE_URL: str = "sqlite+aiosqlite:///./hospyn_local.db"
+    DATABASE_URL: str = os.getenv("ASYNC_DATABASE_URL", os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./hospyn_local.db"))
     REDIS_URL: Optional[str] = None
     USE_REDIS: bool = True
     DB_POOL_SIZE: int = 20
