@@ -65,7 +65,7 @@ export default function AuthScreen({ navigation }) {
                 <LinearGradient colors={['#050810', '#1E1B4B', '#050810']} style={StyleSheet.absoluteFill} />
                 <View style={styles.landingContent}>
                     <View style={styles.landingHeader}>
-                        <Image source={{ uri: LOGO_B64 }} style={styles.heroLogo} resizeMode="contain" />
+                        <Image source={require('../../assets/logo.png')} style={styles.heroLogo} resizeMode="contain" />
                     </View>
 
                     <View style={styles.landingActions}>
