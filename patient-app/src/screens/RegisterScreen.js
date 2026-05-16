@@ -150,8 +150,11 @@ export default function RegisterScreen({ navigation }) {
                                         style={styles.input}
                                         placeholder="Mobile Number"
                                         value={formData.phone}
-                                        onChangeText={(v) => setFormData({ ...formData, phone: v })}
-                                        keyboardType="phone-pad"
+                                        onChangeText={(v) => {
+                                            const cleaned = v.replace(/[^0-9]/g, '');
+                                            setFormData({ ...formData, phone: cleaned });
+                                        }}
+                                        keyboardType="number-pad"
                                         maxLength={10}
                                         placeholderTextColor="#aaa"
                                     />
@@ -339,8 +342,8 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     logoImage: {
-        width: 120,
-        height: 120,
+        width: 150,
+        height: 60,
         marginBottom: 10,
     },
     title: {

@@ -52,17 +52,19 @@ class Settings(BaseSettings):
     DB_POOL_SIZE: int = 20
     DB_MAX_OVERFLOW: int = 40
 
-    ALLOWED_ORIGINS: Any = [
-        "https://app.hospyn.com",
-        "https://doctor.hospyn.com",
-        "https://patient.hospyn.com",
-        "https://erp.hospyn.com",
-        "https://admin.hospyn.com",
-        "http://localhost:8081",
-        "http://localhost:19006",
-        "http://localhost:19007",
+    ALLOWED_ORIGINS: List[str] = [
         "http://localhost:3000",
-        "http://localhost:5173"
+        "http://localhost:19006",
+        "https://hospyn-patient-app.web.app",
+        "https://hospyn-patient-app.firebaseapp.com",
+        "https://hospyn-doctor-pro.web.app",
+        "https://hospyn-doctor-pro.firebaseapp.com",
+        "https://hospyn-erp-portal.web.app",
+        "https://hospyn-erp-portal.firebaseapp.com",
+        "https://hospyn-gateway.web.app",
+        "https://hospyn-gateway.firebaseapp.com",
+        "https://hospyn-495906-96438.web.app",
+        "https://hospyn-495906-96438.firebaseapp.com",
     ]
     TRUSTED_PROXIES: List[str] = [] # Tighten for production; add specific proxy IPs if needed
     

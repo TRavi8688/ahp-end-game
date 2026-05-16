@@ -50,7 +50,7 @@ const SuperAdminDashboard = () => {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 10000); // Polling for real-time forensics
+    const interval = setInterval(fetchData, 10000); 
     return () => clearInterval(interval);
   }, []);
 
@@ -66,7 +66,6 @@ const SuperAdminDashboard = () => {
       ]);
       
       setStats(statsRes.data);
-      // Backend returns { data: [...hospitals], pending: [...requests] }
       setHospitals(hospRes.data.data || []);
       setPendingRequests(hospRes.data.pending || []); 
       setAuditLogs(auditRes.data || []);
@@ -105,9 +104,13 @@ const SuperAdminDashboard = () => {
     }
   };
 
+  const getDocUrl = (path) => {
+    const root = API_BASE.replace('/api/v1', '');
+    return `${root}/${path}`;
+  };
+
   return (
     <div className="control-panel">
-      {/* Sidebar - Sovereign Navigation */}
       <aside className="sidebar">
         <div className="mb-12 flex items-center gap-4">
           <div className="p-2 bg-amber-500 rounded-xl shadow-[0_0_20px_rgba(245,158,11,0.4)]">
@@ -143,7 +146,6 @@ const SuperAdminDashboard = () => {
         </div>
       </aside>
 
-      {/* Main Command View */}
       <main className="main-view">
         <header className="flex justify-between items-end mb-16">
           <div>
@@ -173,7 +175,6 @@ const SuperAdminDashboard = () => {
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.3 }}
           >
-            {/* Stats Overview */}
             {activeTab === 'overview' && (
               <>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-16">
@@ -183,7 +184,6 @@ const SuperAdminDashboard = () => {
                   <StatCard icon={Shield} label="Trust Index" value="Verified" trend="Active" color="#ec4899" loading={loading} />
                 </div>
 
-                {/* Global Node Map */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-16">
                   <div className="lg:col-span-2 glass-card p-10 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-amber-500/10 transition-all duration-700" />
@@ -201,11 +201,7 @@ const SuperAdminDashboard = () => {
                     </div>
                     
                     <div className="aspect-[21/9] bg-white/[0.02] border border-white/5 rounded-[40px] flex items-center justify-center relative overflow-hidden">
-                      {/* Abstract Map Dots */}
                       <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '30px 30px' }} />
-                      <div className="relative">
-                        {/* No hardcoded dots, waiting for real spatial data */}
-                      </div>
                       <p className="text-[10px] font-black text-slate-700 tracking-[0.5em] uppercase">Sovereign Data Fabric Active</p>
                     </div>
                   </div>
@@ -349,7 +345,6 @@ const SuperAdminDashboard = () => {
           </motion.div>
         </AnimatePresence>
 
-        {/* Forensic Detail Sidebar */}
         <AnimatePresence>
           {selectedRequest && (
             <>
@@ -402,14 +397,14 @@ const SuperAdminDashboard = () => {
 
                   <div className="p-8 bg-white/[0.03] border border-white/5 rounded-[40px]">
                     <label className="text-[10px] font-black text-slate-500 tracking-widest uppercase block mb-6">Credential Evidence</label>
-                    <div className="aspect-video bg-black/60 border border-white/5 rounded-3xl flex flex-col items-center justify-center relative group overflow-hidden cursor-pointer border-dashed border-2">
+                    <div className="aspect-video bg-black border border-white/5 rounded-3xl flex flex-col items-center justify-center relative group overflow-hidden cursor-pointer border-dashed border-2">
                       {selectedRequest.certificate_url ? (
                         <div className="w-full h-full flex flex-col items-center justify-center p-4">
                            <Database className="text-amber-500 mb-2" size={32} />
                            <p className="text-[10px] font-black text-amber-500 tracking-[0.2em] uppercase">Document_Secure_Hash.pdf</p>
                            <div className="absolute inset-0 bg-amber-500/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                               <button 
-                                onClick={() => window.open(`${API_BASE.replace('/api/v1', '')}/${selectedRequest.certificate_url}`, '_blank')}
+                                onClick={() => window.open(getDocUrl(selectedRequest.certificate_url), '_blank')}
                                 className="bg-white text-black px-6 py-3 rounded-2xl font-black text-[10px] tracking-widest uppercase shadow-2xl"
                               >
                                 View Live Document
@@ -430,7 +425,7 @@ const SuperAdminDashboard = () => {
                   <div className="pt-10 flex gap-4">
                     <button 
                       onClick={() => handleApprove(selectedRequest.id)}
-                      className="flex-1 bg-emerald-600 p-5 rounded-3xl font-black text-[10px] tracking-widest uppercase shadow-2xl shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                      className="flex-1 bg-emerald-600 p-5 rounded-3xl font-black text-[10px] tracking-widest uppercase shadow-2xl shadow-emerald-500 hover:scale-[1.02] active:scale-[0.98] transition-all"
                     >
                       Approve Node Access
                     </button>
@@ -442,7 +437,6 @@ const SuperAdminDashboard = () => {
           )}
         </AnimatePresence>
 
-        {/* Invite Modal */}
         <AnimatePresence>
           {showInviteModal && (
             <motion.div 

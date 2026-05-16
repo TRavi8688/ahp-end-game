@@ -23,6 +23,7 @@ export default function OnboardingScreen({ navigation }) {
     const [step, setStep] = useState(0); // 0: OTP, 1: Basic, 2: Health, 3: Family
     const [loading, setLoading] = useState(false);
     const [showFamilyModal, setShowFamilyModal] = useState(false);
+    const [showBloodModal, setShowBloodModal] = useState(false);
     const [newFamilyMember, setNewFamilyMember] = useState({ name: '', relation: '' });
     
     // Form State
@@ -198,10 +199,13 @@ export default function OnboardingScreen({ navigation }) {
                         style={styles.input}
                         placeholder="Enter 10-digit number"
                         placeholderTextColor="#475569"
-                        keyboardType="phone-pad"
+                        keyboardType="number-pad"
                         maxLength={10}
                         value={formData.phone}
-                        onChangeText={(v) => setFormData({...formData, phone: v})}
+                        onChangeText={(v) => {
+                            const cleaned = v.replace(/[^0-9]/g, '');
+                            setFormData({...formData, phone: cleaned});
+                        }}
                     />
                     <TouchableOpacity onPress={handleSendOTP} disabled={loading}>
                         <Text style={styles.sendOtpText}>SEND CODE</Text>
@@ -392,33 +396,68 @@ export default function OnboardingScreen({ navigation }) {
                  <Text style={styles.stepSubtitle}>{steps[2].subtitle}</Text>
                  
                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>SELECT BLOOD GROUP</Text>
-                    <View style={styles.bloodGrid}>
-                        {bloodGroups.map(group => (
-                            <TouchableOpacity 
-                                key={group}
-                                style={[
-                                    styles.bloodItem, 
-                                    formData.bloodGroup === group && styles.bloodItemActive
-                                ]}
-                                onPress={() => {
-                                    HapticUtils.selection();
-                                    setFormData({...formData, bloodGroup: group});
-                                }}
-                            >
-                                <Ionicons 
-                                    name="water" 
-                                    size={24} 
-                                    color={formData.bloodGroup === group ? '#fff' : '#6366F1'} 
-                                />
-                                <Text style={[
-                                    styles.bloodText, 
-                                    formData.bloodGroup === group && styles.bloodTextActive
-                                ]}>{group}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
+                    <Text style={styles.label}>BLOOD GROUP</Text>
+                    <TouchableOpacity 
+                        style={[styles.inputWrapper, formData.bloodGroup && { borderColor: '#6366F1' }]} 
+                        onPress={() => setShowBloodModal(true)}
+                    >
+                        <Ionicons 
+                            name="water" 
+                            size={20} 
+                            color={formData.bloodGroup ? '#6366F1' : '#94A3B8'} 
+                            style={styles.inputIcon} 
+                        />
+                        <Text style={[styles.input, { color: formData.bloodGroup ? '#fff' : '#475569', paddingTop: 15 }]}>
+                            {formData.bloodGroup || 'Select your blood group'}
+                        </Text>
+                        <Ionicons name="chevron-down" size={20} color="#475569" />
+                    </TouchableOpacity>
                 </View>
+
+                {/* PREMIUM MODAL SELECTOR */}
+                <Modal
+                    visible={showBloodModal}
+                    transparent={true}
+                    animationType="slide"
+                    onRequestClose={() => setShowBloodModal(false)}
+                >
+                    <TouchableOpacity 
+                        style={styles.modalOverlay} 
+                        activeOpacity={1} 
+                        onPress={() => setShowBloodModal(false)}
+                    >
+                        <View style={[styles.modalContent, GlobalStyles.glass]}>
+                            <View style={styles.modalHeader}>
+                                <View style={styles.modalHandle} />
+                                <Text style={styles.modalTitle}>CLINICAL BASELINE</Text>
+                            </View>
+                            <ScrollView style={styles.modalScroll}>
+                                {bloodGroups.map(group => (
+                                    <TouchableOpacity 
+                                        key={group} 
+                                        style={[
+                                            styles.optionItem,
+                                            formData.bloodGroup === group && styles.optionItemActive
+                                        ]}
+                                        onPress={() => {
+                                            HapticUtils.selection();
+                                            setFormData({...formData, bloodGroup: group});
+                                            setShowBloodModal(false);
+                                        }}
+                                    >
+                                        <Text style={[
+                                            styles.optionText,
+                                            formData.bloodGroup === group && styles.optionTextActive
+                                        ]}>{group}</Text>
+                                        {formData.bloodGroup === group && (
+                                            <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                                        )}
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+                    </TouchableOpacity>
+                </Modal>
 
                  <TouchableOpacity 
                     style={[styles.nextBtn, !formData.bloodGroup && { opacity: 0.5 }]} 
@@ -440,31 +479,29 @@ export default function OnboardingScreen({ navigation }) {
             <Text style={styles.stepSubtitle}>{steps[3].subtitle}</Text>
             
             <View style={styles.inputGroup}>
-                <Text style={styles.label}>COORDINATED CARE</Text>
+                <Text style={styles.label}>ELITE CARE CIRCLE</Text>
                 <TouchableOpacity 
-                    style={[styles.actionCard, GlobalStyles.glass]} 
+                    style={[styles.actionCard, GlobalStyles.glass, { borderStyle: 'dashed', borderWidth: 1, borderColor: '#6366F1' }]} 
                     onPress={() => Alert.alert("Care Circle", "You can link family accounts instantly using their Hospyn ID after launching your passport.")}
                 >
                     <View style={styles.actionIconWrapper}>
                         <Ionicons name="person-add" size={24} color="#6366F1" />
                     </View>
                     <View style={styles.actionTextWrapper}>
-                        <Text style={styles.actionTitle}>Link Family Member</Text>
-                        <Text style={styles.actionDesc}>Sync records with siblings, parents, or kids.</Text>
+                        <Text style={styles.actionTitle}>Add Family Member</Text>
+                        <Text style={styles.actionDesc}>Sync clinical records across your household.</Text>
                     </View>
                     <Ionicons name="chevron-forward" size={20} color="#475569" />
                 </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.nextBtn} onPress={handleFinalize} disabled={loading}>
-                <LinearGradient colors={[Theme.colors.primary, '#4F46E5']} style={styles.gradientBtn}>
-                    {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Launch Passport</Text>}
-                </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.skipLink} onPress={handleFinalize}>
-                <Text style={styles.skipLinkText}>Skip for now, I'll add them later</Text>
-            </TouchableOpacity>
+            <View style={{ marginTop: 'auto', marginBottom: 20 }}>
+                <TouchableOpacity style={styles.nextBtn} onPress={handleFinalize} disabled={loading}>
+                    <LinearGradient colors={[Theme.colors.primary, '#4F46E5']} style={styles.gradientBtn}>
+                        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Launch Health Passport</Text>}
+                    </LinearGradient>
+                </TouchableOpacity>
+            </View>
         </View>
     );
 
@@ -476,10 +513,11 @@ export default function OnboardingScreen({ navigation }) {
                     <Ionicons name="chevron-back" size={24} color="#fff" />
                 </TouchableOpacity>
                 <View style={styles.logoRow}>
-                    <Image source={require('../../assets/logo.png')} style={{ width: 32, height: 32, resizeMode: 'contain' }} />
-                    <Text style={styles.logoText}>HOSPYN</Text>
+                    <Image source={require('../../assets/logo.png')} style={{ width: 100, height: 40, resizeMode: 'contain' }} />
                 </View>
-                <View style={{ width: 24 }} />
+                <TouchableOpacity onPress={handleFinalize} style={{ width: 44, alignItems: 'flex-end' }}>
+                   {step === 3 && <Text style={{ color: '#94A3B8', fontSize: 12, fontWeight: 'bold' }}>SKIP</Text>}
+                </TouchableOpacity>
             </View>
             {renderStepIndicator()}
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
@@ -531,29 +569,6 @@ const styles = StyleSheet.create({
     errorText: { color: '#ef4444', fontSize: 10, marginTop: 4, marginLeft: 4 },
     logoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     logoText: { fontSize: 20, fontWeight: 'bold', color: '#fff', letterSpacing: 1 },
-    bloodGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' },
-    bloodItem: { 
-        width: '22%', 
-        aspectRatio: 1, 
-        backgroundColor: 'rgba(255,255,255,0.03)', 
-        borderRadius: 20, 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        borderWidth: 1, 
-        borderColor: 'rgba(255,255,255,0.05)',
-        gap: 4
-    },
-    bloodItemActive: { 
-        backgroundColor: '#6366F1', 
-        borderColor: '#818CF8',
-        shadowColor: '#6366F1',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
-        elevation: 8
-    },
-    bloodText: { color: '#94A3B8', fontSize: 12, fontWeight: 'bold' },
-    bloodTextActive: { color: '#fff' },
     actionCard: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -574,4 +589,14 @@ const styles = StyleSheet.create({
     actionDesc: { color: '#64748B', fontSize: 12, marginTop: 2 },
     skipLink: { marginTop: 24, alignItems: 'center' },
     skipLinkText: { color: '#64748B', fontSize: 14, fontWeight: 'bold', textDecorationLine: 'underline' },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+    modalContent: { backgroundColor: '#0F172A', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40, borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    modalHandle: { width: 40, height: 4, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
+    modalHeader: { marginBottom: 20 },
+    modalTitle: { color: '#6366F1', fontSize: 12, fontWeight: 'bold', letterSpacing: 2, textAlign: 'center' },
+    modalScroll: { maxHeight: 400 },
+    optionItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 18, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.03)' },
+    optionItemActive: { backgroundColor: 'rgba(99, 102, 241, 0.05)' },
+    optionText: { color: '#94A3B8', fontSize: 18, fontWeight: '500' },
+    optionTextActive: { color: '#fff', fontWeight: 'bold' },
 });
