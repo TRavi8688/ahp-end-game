@@ -94,7 +94,7 @@ app = FastAPI(
 
 # --- MIDDLEWARE ---
 # PROD_RULE: Only trust localhost/loopback or specific production ingress IPs
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["127.0.0.1", "::1"] if settings.ENVIRONMENT == "production" else ["*"])
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=settings.TRUSTED_PROXIES)
 
 # ════════════════════════════════════════════════════════════════
 # SECURITY MIDDLEWARE FUNCTIONS (before adding to app)
@@ -179,10 +179,16 @@ async def cors_resilience_middleware(request: Request, call_next):
         import traceback
         error_trace = traceback.format_exc()
         logger.error(f"UNCAUGHT_SYSTEM_ERROR: {str(e)}")
-        logger.error(error_trace)
+        
+        # PRODUCTION LOCKDOWN: Never leak stack traces to the internet
+        content = {"detail": "Critical System Fault"}
+        if settings.ENVIRONMENT != "production":
+            content["error"] = str(e)
+            content["traceback"] = error_trace
+            
         response = JSONResponse(
             status_code=500,
-            content={"detail": "Critical System Fault", "error": str(e), "traceback": error_trace}
+            content=content
         )
         _add_cors_headers(response, origin)
         return response
@@ -216,7 +222,8 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 
 # --- ROUTERS ---
-from app.api import auth, patient, profile, doctor, admin, privacy, auth_onboarding, staff, governance, visit
+from app.api import auth, patient, profile, doctor, admin, privacy, auth_onboarding, staff, governance, visit, billing, pharmacy, clinical, lab, ward, surgery
+from app.api.v1.endpoints import onboarding
 from app.api.v1.router import api_router as enterprise_v1_router
 
 app.include_router(auth.router, prefix=settings.API_V1_STR, tags=["Authentication"])
@@ -230,6 +237,13 @@ app.include_router(auth_onboarding.router, prefix=settings.API_V1_STR, tags=["On
 app.include_router(staff.router, prefix=settings.API_V1_STR, tags=["Staff"])
 app.include_router(governance.router, prefix=settings.API_V1_STR, tags=["Governance"])
 app.include_router(visit.router, prefix=settings.API_V1_STR, tags=["Visit"])
+app.include_router(billing.router, prefix=settings.API_V1_STR, tags=["Billing"])
+app.include_router(pharmacy.router, prefix=settings.API_V1_STR, tags=["Pharmacy"])
+app.include_router(clinical.router, prefix=settings.API_V1_STR, tags=["Clinical"])
+app.include_router(lab.router, prefix=settings.API_V1_STR, tags=["Laboratory"])
+app.include_router(ward.router, prefix=settings.API_V1_STR + "/ward", tags=["Ward Management"])
+app.include_router(surgery.router, prefix=settings.API_V1_STR + "/surgery", tags=["Surgery Management"])
+app.include_router(onboarding.router, prefix=settings.API_V1_STR + "/onboarding", tags=["Premium Onboarding"])
 
 # --- HEALTH & SRE PROBES ---
 @app.get("/health", tags=["Infrastructure"])

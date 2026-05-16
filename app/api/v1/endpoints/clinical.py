@@ -1,16 +1,19 @@
 from typing import List, Optional
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import app.api.deps as deps
 from app.schemas.clinical import (
     PrescriptionCreate, 
-    PrescriptionResponse, 
+    PrescriptionResponse
+)
+from app.schemas.lab import (
     LabOrderCreate, 
     LabOrderResponse,
     LabStatusUpdate
 )
 from app.services.clinical_service import ClinicalService
-from app.models.models import RoleEnum, DigitalPrescription, LabDiagnosticOrder
+from app.models.models import RoleEnum
 
 router = APIRouter()
 clinical_service = ClinicalService()
@@ -20,8 +23,8 @@ async def create_prescription(
     *,
     db: AsyncSession = Depends(deps.get_db),
     prescription_in: PrescriptionCreate,
-    hospital_id: int = Depends(deps.get_hospital_id),
-    current_user = Depends(deps.get_db_user)
+    hospital_id: uuid.UUID = Depends(deps.get_hospital_id),
+    current_user = Depends(deps.get_current_user)
 ):
     """
     Issue a new digital prescription. (Doctor only)
@@ -45,17 +48,16 @@ async def create_prescription(
 async def fulfill_prescription(
     *,
     db: AsyncSession = Depends(deps.get_db),
-    prescription_id: int,
-    hospital_id: int = Depends(deps.get_hospital_id),
-    current_user = Depends(deps.get_db_user)
+    prescription_id: uuid.UUID,
+    hospital_id: uuid.UUID = Depends(deps.get_hospital_id),
+    current_user = Depends(deps.get_current_user)
 ):
     """
     Fulfill a digital prescription. (Pharmacist/Staff only)
     """
-    # Note: In a real system, we'd check for 'pharmacy' role specifically.
-    # For this architecture, we check if they are part of the hospital staff.
-    if not current_user.staff_profile:
-        raise HTTPException(status_code=403, detail="Unauthorized fulfillment")
+    # HARDENED RBAC: Only pharmacy or qualified staff
+    if current_user.role not in [RoleEnum.pharmacy, RoleEnum.admin] and not current_user.staff_profile:
+        raise HTTPException(status_code=403, detail="Unauthorized fulfillment. Pharmacy credentials required.")
         
     try:
         return await clinical_service.fulfill_prescription(
@@ -74,8 +76,8 @@ async def create_lab_order(
     *,
     db: AsyncSession = Depends(deps.get_db),
     order_in: LabOrderCreate,
-    hospital_id: int = Depends(deps.get_hospital_id),
-    current_user = Depends(deps.get_db_user)
+    hospital_id: uuid.UUID = Depends(deps.get_hospital_id),
+    current_user = Depends(deps.get_current_user)
 ):
     """
     Create a new lab diagnostic order. (Doctor only)
@@ -99,15 +101,15 @@ async def create_lab_order(
 async def update_lab_status(
     *,
     db: AsyncSession = Depends(deps.get_db),
-    order_id: int,
+    order_id: uuid.UUID,
     status_in: LabStatusUpdate,
-    hospital_id: int = Depends(deps.get_hospital_id),
-    current_user = Depends(deps.get_db_user)
+    hospital_id: uuid.UUID = Depends(deps.get_hospital_id),
+    current_user = Depends(deps.get_current_user)
 ):
     """
     Update the status of a lab order. (Lab Staff/Doctor only)
     """
-    if not current_user.staff_profile:
+    if current_user.role not in [RoleEnum.nurse, RoleEnum.admin] and not current_user.staff_profile:
         raise HTTPException(status_code=403, detail="Unauthorized status update")
         
     try:
@@ -127,14 +129,13 @@ async def update_lab_status(
 async def record_lab_results(
     *,
     db: AsyncSession = Depends(deps.get_db),
-    order_id: int,
+    order_id: uuid.UUID,
     results_in: List[dict],
-    hospital_id: int = Depends(deps.get_hospital_id),
-    current_user = Depends(deps.get_db_user)
+    hospital_id: uuid.UUID = Depends(deps.get_hospital_id),
+    current_user = Depends(deps.get_current_user)
 ):
     """
     Record structured observations for a lab order.
-    Triggers Clinical Rules Engine for anomaly detection.
     """
     if not current_user.staff_profile:
         raise HTTPException(status_code=403, detail="Unauthorized results recording")
@@ -153,17 +154,17 @@ async def record_lab_results(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 @router.post("/records/{record_id}/verify", status_code=status.HTTP_200_OK)
 async def verify_medical_record(
     *,
     db: AsyncSession = Depends(deps.get_db),
-    record_id: int,
-    hospital_id: int = Depends(deps.get_hospital_id),
-    current_user = Depends(deps.get_db_user)
+    record_id: uuid.UUID,
+    hospital_id: uuid.UUID = Depends(deps.get_hospital_id),
+    current_user = Depends(deps.get_current_user)
 ):
     """
     Formally verify an AI-extracted medical record. (Doctor only)
-    Once verified, the record is considered part of the official clinical history.
     """
     if current_user.role != RoleEnum.doctor:
         raise HTTPException(status_code=403, detail="Only doctors can verify medical records")

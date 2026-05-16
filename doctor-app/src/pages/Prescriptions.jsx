@@ -102,32 +102,37 @@ export default function Prescriptions() {
         setConflict(null); // reset check when meds change
     };
 
+    const [forensicSeal, setForensicSeal] = useState(null);
+
     const handleSend = async () => {
         if (!selectedPatient || medications.length === 0) return;
 
         setIsSending(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/doctor/patient/${selectedPatient.hospyn_id}/prescribe`, {
+            const response = await fetch(`${API_BASE_URL}/clinical/prescribe`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 },
                 body: JSON.stringify({
-                    items: medications.map(m => ({
-                        generic_name: m.name,
+                    patient_id: selectedPatient.id,
+                    visit_id: location.state?.visitId || null,
+                    diagnosis: diagnosis,
+                    medications: medications.map(m => ({
+                        name: m.name,
                         dosage: m.dose,
                         frequency: m.frequency,
-                        brand_name: "",
-                        dosage_unit: "",
-                        route: m.route || "Oral",
-                        indication: diagnosis
+                        duration: 'As directed',
+                        instructions: notes
                     })),
                     notes: notes
                 })
             });
 
             if (response.ok) {
+                const data = await response.json();
+                setForensicSeal(data.signature_hash);
                 setToastOpen(true);
                 // Reset form
                 setMedications([]);
@@ -412,6 +417,7 @@ export default function Prescriptions() {
                     '& .MuiAlert-icon': { color: '#fff' }
                 }}>
                     TRANSACTION CONFIRMED: PRESCRIPTION LEDGER UPDATED.
+                    {forensicSeal && <Box sx={{ mt: 1, fontSize: '0.65rem', opacity: 0.8, fontFamily: 'monospace' }}>SEAL: {forensicSeal}</Box>}
                 </Alert>
             </Snackbar>
 

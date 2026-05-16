@@ -166,19 +166,19 @@ def decode_token(token: str, token_type: str = "access") -> Optional[dict]:
 # Password Hashing
 # ---------------------------------------------------------------------------
 
-def _get_hashable_password(password: str) -> bytes:
-    sha256_hash = hashlib.sha256(password.encode("utf-8")).digest()
-    return base64.b64encode(sha256_hash)
-
 def verify_password(plain: str, hashed: str) -> bool:
+    """Verify a plain password against its bcrypt hash."""
     try:
-        return bcrypt.checkpw(_get_hashable_password(plain), hashed.encode("utf-8"))
-    except Exception:
+        # Use bcrypt's native byte-handling for the plain password
+        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception as e:
+        logger.error(f"PASSWORD_VERIFICATION_ERROR: {str(e)}")
         return False
 
 def get_password_hash(password: str) -> str:
-    pw_bytes = _get_hashable_password(password)
-    return bcrypt.hashpw(pw_bytes, bcrypt.gensalt()).decode("utf-8")
+    """Generate a bcrypt hash for a plain password."""
+    # Salt is generated automatically by bcrypt.hashpw
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(12)).decode("utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -189,22 +189,30 @@ reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl=f"{settings.API_V1_STR}/auth/login"
 )
 
-def require_roles(*roles: Union[str, List[str]]):
+def require_roles(*roles: Any):
     """
     Role-Based Access Control (RBAC) Dependency.
     Ensures the current authenticated user has one of the required roles.
-    Supports both require_roles(["admin"]) and require_roles("admin", "doctor").
+    Supports:
+        Depends(require_roles("admin"))
+        Depends(require_roles(["admin", "doctor"]))
+        Depends(require_roles("admin", "doctor"))
     """
     allowed_roles = []
     for r in roles:
         if isinstance(r, list):
-            allowed_roles.extend(r)
+            allowed_roles.extend([str(role) for role in r])
+        elif hasattr(r, 'value'): # Handle Enums
+            allowed_roles.append(str(r.value))
         else:
-            allowed_roles.append(r)
+            allowed_roles.append(str(r))
             
-    async def role_checker(current_user=Depends(get_current_user)):
-        if current_user.role not in allowed_roles:
-            logger.warning(f"RBAC_DENIED: user={current_user.id} | role={current_user.role} | required={allowed_roles}")
+    async def role_checker(current_user: Any = Depends(get_current_user)):
+        # Ensure user role is a string for comparison
+        user_role = str(current_user.role.value) if hasattr(current_user.role, 'value') else str(current_user.role)
+        
+        if user_role not in allowed_roles:
+            logger.warning(f"RBAC_DENIED: user={current_user.id} | role={user_role} | required={allowed_roles}")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Access denied. Required roles: {', '.join(allowed_roles)}"

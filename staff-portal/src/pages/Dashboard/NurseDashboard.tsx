@@ -9,7 +9,9 @@ import {
   Wind,
   ClipboardCheck,
   AlertCircle,
-  Plus
+  Plus,
+  Monitor,
+  LayoutGrid
 } from 'lucide-react';
 
 import { useStore } from '../../store/useStore';
@@ -28,177 +30,165 @@ const NurseDashboard: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen p-6 space-y-8 animate-in slide-in-from-bottom-8 duration-1000">
+    <div className="min-h-screen p-10 bg-[#050505] text-[#f8fafc] font-inter">
       
-      {/* Page Header */}
-      <div className="flex justify-between items-center">
-        <div className="space-y-1">
-          <h1 className="text-4xl font-black tracking-tighter text-white flex items-center gap-3 uppercase">
-            <span className="text-blue-500"><Activity size={36} /></span>
-            Nurse Triage Command
-          </h1>
-          <p className="text-slate-500 font-bold text-xs tracking-widest uppercase flex items-center gap-2">
-            Ward: <span className="text-blue-400">Main OPD Block</span> • Staff ID: <span className="text-slate-300">N-4290</span>
-          </p>
+      {/* Premium Header */}
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 mb-2">
+             <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+             <span className="text-[10px] font-black text-blue-500 tracking-[0.3em] uppercase">Ward Active: Main Block 4</span>
+          </div>
+          <h1 className="text-5xl font-black tracking-tighter outfit leading-none">Nursing Command</h1>
+          <p className="text-slate-500 text-sm font-medium">Coordinating care for {triageQueue.length} triage cases and active beds.</p>
         </div>
-        <button className="btn-cyber px-6 py-3 rounded-2xl flex items-center gap-2 text-sm">
-          <Plus size={18} />
-          <span>New Emergency Entry</span>
-        </button>
-      </div>
 
-      {/* Vitals HUD */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="flex items-center gap-4">
+           <button className="bg-white text-black px-8 py-4 rounded-2xl font-black text-[10px] tracking-widest uppercase hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-3">
+              <Plus size={18} />
+              New Admission
+           </button>
+        </div>
+      </header>
+
+      {/* Vitals Telemetry HUD */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
         {[
-          { label: 'Heart Rate', value: '72', unit: 'BPM', icon: Heart, color: 'text-red-500', glow: 'hsla(0, 84.2%, 60.2%, 0.1)' },
-          { label: 'Blood Oxygen', value: '98', unit: '%', icon: Wind, color: 'text-blue-500', glow: 'hsla(217, 91%, 60%, 0.1)' },
-          { label: 'Body Temp', value: '98.6', unit: '°F', icon: Thermometer, color: 'text-orange-500', glow: 'hsla(38, 92%, 50%, 0.1)' },
-          { label: 'Blood Pressure', value: '120/80', unit: 'mmHg', icon: Droplets, color: 'text-purple-500', glow: 'hsla(280, 91%, 60%, 0.1)' },
+          { label: 'Heart Rate', value: '72', unit: 'BPM', icon: Heart, color: 'text-rose-500', trend: 'STABLE' },
+          { label: 'SpO2 Level', value: '98', unit: '%', icon: Wind, color: 'text-blue-500', trend: 'OPTIMAL' },
+          { label: 'Core Temp', value: '98.6', unit: '°F', icon: Thermometer, color: 'text-amber-500', trend: 'NORMAL' },
+          { label: 'Pressure', value: '120/80', unit: 'mmHg', icon: Droplets, color: 'text-indigo-500', trend: 'SECURED' },
         ].map((stat, i) => (
-          <div key={i} className="glass-panel p-6 group hover:scale-105 transition-all cursor-pointer relative" style={{ background: stat.glow }}>
-            <div className="flex justify-between items-start mb-4">
-              <stat.icon className={`${stat.color} transition-transform group-hover:scale-110`} size={24} />
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Live Feed</span>
-            </div>
-            <div className="space-y-1">
-              <h2 className="text-3xl font-black tracking-tighter">{stat.value}</h2>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{stat.label} • {stat.unit}</p>
-            </div>
-            <div className={`absolute bottom-0 left-0 h-1 transition-all group-hover:w-full w-0 ${stat.color.replace('text-', 'bg-')}`} />
+          <div key={i} className="bg-white/[0.03] border border-white/5 rounded-[32px] p-8 hover:border-white/10 transition-all group relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-10 transition-opacity">
+                <stat.icon size={80} />
+             </div>
+             <div className="flex justify-between items-start mb-6">
+                <div className={`p-3 rounded-xl bg-white/5 ${stat.color}`}>
+                   <stat.icon size={24} />
+                </div>
+                <span className={`text-[10px] font-black tracking-widest ${stat.color}`}>{stat.trend}</span>
+             </div>
+             <h2 className="text-4xl font-black outfit tracking-tighter">{stat.value}<span className="text-sm font-medium text-slate-600 ml-1">{stat.unit}</span></h2>
+             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">{stat.label}</p>
           </div>
         ))}
       </div>
 
-      {/* Layout Grid */}
       <div className="grid grid-cols-12 gap-8">
         
-        {/* Left Column: Triage Matrix */}
-        <div className="col-span-12 lg:col-span-8 space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-black uppercase tracking-tighter flex items-center gap-2">
-              <ClipboardCheck size={20} className="text-blue-500" />
-              Triage Matrix
-            </h3>
-            <span className="text-[10px] font-black text-slate-500 bg-slate-900 px-3 py-1 rounded-full uppercase tracking-widest">
-              {triageQueue.length} Pending Vitals
-            </span>
-          </div>
-
-          <div className="space-y-4">
-            {triageQueue.map((p) => (
-              <div key={p.id} className="glass-card-premium p-6 flex items-center justify-between group">
-                <div className="flex items-center gap-6">
-                  <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center font-black text-slate-400 group-hover:bg-blue-600/10 group-hover:text-blue-500 transition-all">
-                    {p.name[0]}
-                  </div>
-                  <div>
-                    <h4 className="font-black text-lg text-white">{p.name}</h4>
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-tighter">
-                      ID: <span className="text-slate-300">{p.id}</span> • Checked In: <span className="text-blue-400">{p.time}</span>
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-6">
-                  <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded border ${
-                    p.priority === 'High' ? 'bg-red-500/10 text-red-500 border-red-500/20 pulse-emergency' : 'bg-slate-800 text-slate-400 border-slate-700'
-                  }`}>
-                    {p.priority} Priority
-                  </span>
-                  <button className="btn-outline-cyber px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 transition-all">
-                    Initiate Vitals
-                  </button>
-                </div>
+        {/* Triage Matrix */}
+        <div className="col-span-12 lg:col-span-8">
+           <div className="bg-white/[0.03] border border-white/5 rounded-[40px] overflow-hidden">
+              <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/[0.01]">
+                 <div className="flex items-center gap-3">
+                    <ClipboardCheck className="text-blue-500" size={22} />
+                    <h3 className="text-xl font-black outfit tracking-tight">Pending Triage Cases</h3>
+                 </div>
+                 <span className="px-4 py-2 bg-blue-500/10 text-blue-500 rounded-xl text-[10px] font-black tracking-widest uppercase">
+                    {triageQueue.length} Active Requests
+                 </span>
               </div>
-            ))}
-          </div>
-          
-          {/* Bedside Task Grid */}
-          <div className="mt-12 space-y-6">
-            <h3 className="text-lg font-black uppercase tracking-tighter flex items-center gap-2">
-              <AlertCircle size={20} className="text-orange-500" />
-              Doctor Issued Bedside Tasks
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {bedsideTasks.map((task) => (
-                <div key={task.id} className="glass-panel p-6 border-l-4 border-l-blue-600 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-black text-white">{task.patient}</h4>
-                      <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">{task.ward}</p>
+              
+              <div className="divide-y divide-white/5">
+                 {triageQueue.map((p) => (
+                    <div key={p.id} className="p-8 flex items-center justify-between group hover:bg-white/[0.02] transition-all">
+                       <div className="flex items-center gap-8">
+                          <div className={`w-16 h-16 rounded-[22px] flex items-center justify-center font-black text-2xl outfit transition-all ${
+                             p.priority === 'High' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20 shadow-[0_0_30px_rgba(244,63,94,0.1)]' : 'bg-white/5 text-slate-500'
+                          }`}>
+                             {p.name[0]}
+                          </div>
+                          
+                          <div className="space-y-1">
+                             <div className="flex items-center gap-3">
+                                <h4 className="text-2xl font-black outfit tracking-tight text-white">{p.name}</h4>
+                                {p.priority === 'High' && (
+                                   <span className="text-[10px] px-3 py-1 bg-rose-500/10 text-rose-500 rounded-full font-black uppercase tracking-widest border border-rose-500/20">URGENT</span>
+                                )}
+                             </div>
+                             <div className="flex items-center gap-4 text-xs font-bold text-slate-500 uppercase tracking-tighter">
+                                <span className="font-mono text-slate-400">{p.id}</span>
+                                <div className="w-1 h-1 rounded-full bg-slate-800" />
+                                <span>WAIT: <span className="text-blue-500">{p.time}</span></span>
+                             </div>
+                          </div>
+                       </div>
+
+                       <button className="bg-white/5 hover:bg-blue-600 text-white px-8 py-4 rounded-2xl font-black text-[10px] tracking-widest uppercase transition-all">
+                          Initiate Intake
+                       </button>
                     </div>
-                    <span className={`text-[10px] font-black px-2 py-1 rounded ${
-                      task.status === 'DUE NOW' ? 'bg-orange-500/10 text-orange-500' : 'bg-slate-800 text-slate-500'
-                    }`}>
-                      {task.status}
-                    </span>
-                  </div>
-                  <p className="text-sm font-medium text-slate-400 leading-relaxed italic">
-                    "{task.instruction}"
-                  </p>
-                  <button className="w-full py-2.5 rounded-xl bg-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-300 hover:bg-slate-700 transition-all">
-                    Mark as Completed
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
+                 ))}
+              </div>
+           </div>
         </div>
 
-        {/* Right Column: Ward Stats & Occupancy */}
+        {/* Ward Intelligence */}
         <div className="col-span-12 lg:col-span-4 space-y-8">
-          <div className="glass-panel p-8 space-y-6">
-            <div className="flex items-center gap-3">
-              <Bed className="text-blue-500" size={24} />
-              <h3 className="font-black uppercase tracking-tighter text-xl">Ward Occupancy</h3>
-            </div>
+           
+           <div className="bg-white/[0.03] border border-white/5 rounded-[40px] p-8">
+              <div className="flex items-center gap-4 mb-10">
+                 <div className="w-12 h-12 rounded-[18px] bg-blue-600 flex items-center justify-center text-white shadow-2xl shadow-blue-500/30">
+                    <Bed size={24} />
+                 </div>
+                 <div>
+                    <h3 className="text-xl font-black outfit tracking-tight text-white">Ward Capacity</h3>
+                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mt-0.5">80% Occupancy</p>
+                 </div>
+              </div>
 
-            <div className="space-y-2">
-              <div className="flex justify-between items-end">
-                <span className="text-4xl font-black text-white">12 <span className="text-sm font-medium text-slate-600 tracking-normal uppercase">/ 15</span></span>
-                <span className="text-xs font-black text-blue-500 uppercase tracking-widest mb-1">80% Capacity</span>
+              <div className="grid grid-cols-5 gap-4 mb-8">
+                 {[...Array(15)].map((_, i) => (
+                    <div 
+                       key={i} 
+                       className={`h-12 rounded-xl border transition-all duration-500 ${
+                          i < 12 ? 'bg-blue-500/20 border-blue-500/30' : 'bg-white/5 border-white/10'
+                       }`}
+                    />
+                 ))}
               </div>
-              <div className="h-3 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
-                <div className="h-full bg-blue-600 shadow-[0_0_15px_rgba(37,99,235,0.5)] transition-all duration-1000" style={{ width: '80%' }} />
-              </div>
-            </div>
 
-            <div className="grid grid-cols-5 gap-3 pt-4">
-              {[...Array(15)].map((_, i) => (
-                <div 
-                  key={i} 
-                  className={`h-10 rounded-xl border transition-all duration-500 ${
-                    i < 12 ? 'bg-blue-600/20 border-blue-600/30 shadow-[inset_0_0_10px_rgba(37,99,235,0.1)]' : 'bg-slate-900/50 border-slate-800'
-                  }`}
-                />
-              ))}
-            </div>
+              <div className="space-y-4 pt-6 border-t border-white/5">
+                 <div className="flex justify-between items-center text-[10px] font-black tracking-widest uppercase">
+                    <span className="text-slate-500">Critical Care Beds</span>
+                    <span className="text-rose-500">01 FREE</span>
+                 </div>
+                 <div className="flex justify-between items-center text-[10px] font-black tracking-widest uppercase">
+                    <span className="text-slate-500">General Ward</span>
+                    <span className="text-emerald-500">02 FREE</span>
+                 </div>
+              </div>
+           </div>
 
-            <div className="pt-6 border-t border-slate-800/50 space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Critical Beds Free</span>
-                <span className="text-xs font-black text-red-500">01</span>
+           {/* Bedside Task Feed */}
+           <div className="bg-white/[0.03] border border-white/5 rounded-[40px] p-8">
+              <div className="flex items-center gap-3 mb-8">
+                 <Monitor className="text-blue-500" size={20} />
+                 <h3 className="text-lg font-black outfit uppercase tracking-tight text-white">Active Tasks</h3>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Isolation Rooms</span>
-                <span className="text-xs font-black text-green-500">02</span>
+              
+              <div className="space-y-6">
+                 {bedsideTasks.map((task) => (
+                    <div key={task.id} className="p-6 bg-white/5 rounded-3xl border border-white/5 space-y-4 hover:border-blue-500/30 transition-all">
+                       <div className="flex justify-between items-start">
+                          <div>
+                             <p className="text-sm font-black text-white">{task.patient}</p>
+                             <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{task.ward}</p>
+                          </div>
+                          <span className={`text-[10px] font-black px-2 py-1 rounded ${
+                             task.status === 'DUE NOW' ? 'bg-rose-500/10 text-rose-500' : 'bg-white/5 text-slate-500'
+                          }`}>
+                             {task.status}
+                          </span>
+                       </div>
+                       <p className="text-xs font-medium text-slate-400 italic leading-relaxed">
+                          "{task.instruction}"
+                       </p>
+                    </div>
+                 ))}
               </div>
-            </div>
-          </div>
-
-          {/* Nurse Shift Summary */}
-          <div className="glass-panel p-6 bg-blue-600/5 border-blue-600/10">
-            <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Active Shift Intelligence</h4>
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="w-1.5 h-10 bg-green-500 rounded-full" />
-                <div>
-                  <p className="text-sm font-black text-white uppercase tracking-tight">On Schedule</p>
-                  <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tighter">0/4 Medication delays</p>
-                </div>
-              </div>
-            </div>
-          </div>
+           </div>
         </div>
       </div>
     </div>

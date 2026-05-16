@@ -6,6 +6,7 @@ interface User {
   email: string;
   role: 'doctor' | 'nurse' | 'admin' | 'hospital_admin' | 'owner';
   hospital_id?: string;
+  hospital_status?: string;
 }
 
 interface AuthContextType {
@@ -32,6 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: payload.email,
           role: payload.role,
           hospital_id: payload.hospital_id,
+          hospital_status: payload.hospital_status || 'pending',
         });
       } catch (e) {
         console.error('Invalid token', e);

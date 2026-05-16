@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
+from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.services.onboarding_service import OnboardingService
@@ -55,4 +56,42 @@ async def create_hospital_invite(
     return {
         "raw_token": raw_token,
         "onboarding_url": onboarding_url
+    }
+from app.schemas.admin import AuditLog as AuditLogSchema, AdminStats
+
+@router.get("/audit-logs", response_model=List[AuditLogSchema])
+async def get_audit_logs(
+    db: AsyncSession = Depends(deps.get_db),
+    current_admin: models.User = Depends(deps.get_super_admin),
+    limit: int = 50
+):
+    """
+    SUPER ADMIN FORENSICS:
+    Streams the latest cryptographically signed audit logs from the immutable ledger.
+    """
+    from sqlalchemy import select, desc
+    stmt = select(models.AuditLog).order_by(desc(models.AuditLog.timestamp)).limit(limit)
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+@router.get("/stats", response_model=AdminStats)
+async def get_admin_stats(
+    db: AsyncSession = Depends(deps.get_db),
+    current_admin: models.User = Depends(deps.get_super_admin),
+):
+    """
+    NETWORK GOVERNANCE STATS:
+    Aggregated health metrics across all clinical nodes.
+    """
+    from sqlalchemy import func
+    
+    hospital_count = await db.execute(select(func.count(models.Hospital.id)))
+    patient_count = await db.execute(select(func.count(models.Patient.id)))
+    doctor_count = await db.execute(select(func.count(models.Doctor.id)))
+    
+    return {
+        "total_hospitals": hospital_count.scalar() or 0,
+        "total_patients": patient_count.scalar() or 0,
+        "total_doctors": doctor_count.scalar() or 0,
+        "active_sessions": 12 # Mocked for this view
     }

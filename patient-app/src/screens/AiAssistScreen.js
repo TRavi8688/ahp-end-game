@@ -276,13 +276,13 @@ export default function AiAssistScreen({ navigation }) {
                     left: 15, 
                     right: 15, 
                     elevation: 5, 
-                    backgroundColor: 'rgba(255, 255, 255, 0.7)', 
+                    backgroundColor: '#0F172A', 
                     borderRadius: 30, 
                     height: 65, 
                     paddingBottom: 10, 
                     borderTopWidth: 0, 
                     borderWidth: 1, 
-                    borderColor: 'rgba(255, 255, 255, 0.4)' 
+                    borderColor: 'rgba(255, 255, 255, 0.1)' 
                 } 
             });
         }, [])
@@ -352,11 +352,13 @@ export default function AiAssistScreen({ navigation }) {
             let errorText = 'I had a small hiccup connecting to my medical intelligence network. 🔄';
             
             if (!error.response) {
-                errorText = 'I cannot reach the server. Please ensure the backend is running and the API URL is correct. 🌐';
+                errorText = 'I cannot reach the clinical cloud right now. Please check your internet connection and try again. 🌐';
             } else if (error.response.status === 401) {
-                errorText = 'Your session has expired. Please log in again to continue our conversation. 🔐';
-            } else if (error.response.status === 500) {
-                errorText = 'My central medical brain is experiencing a temporary internal error. Please try again in a moment. 🧠';
+                errorText = 'Your medical session has expired for security. Please log in again to continue. 🔐';
+            } else if (error.response.status === 429) {
+                errorText = 'I am processing many requests right now. Please give me a few seconds to catch up! ⏳';
+            } else if (error.response.status >= 500) {
+                errorText = 'My central medical brain is experiencing a temporary internal error. Our engineers have been notified. 🧠';
             }
 
             const errMsg = {
@@ -714,8 +716,8 @@ export default function AiAssistScreen({ navigation }) {
                         <Ionicons name="folder-open-outline" size={22} color="#7c3aed" />
                     </TouchableOpacity>
 
-                    {/* Send / Doc Upload */}
-                    {inputText.trim().length > 0 || selectedRecords.length > 0 ? (
+                    {/* Send Button - Always Visible if text exists or records selected */}
+                    {(inputText.trim().length > 0 || selectedRecords.length > 0) ? (
                         <TouchableOpacity
                             style={styles.sendBtn}
                             onPress={() => sendMessage(inputText.trim(), null, selectedRecords)}
@@ -724,7 +726,7 @@ export default function AiAssistScreen({ navigation }) {
                             <Ionicons name="send" size={20} color="#fff" />
                         </TouchableOpacity>
                     ) : (
-                        <TouchableOpacity style={styles.sendBtn} onPress={pickDocument} id="chitti-doc-btn">
+                        <TouchableOpacity style={[styles.sendBtn, { backgroundColor: '#334155' }]} onPress={pickDocument} id="chitti-doc-btn">
                             <Ionicons name="document-attach-outline" size={20} color="#fff" />
                         </TouchableOpacity>
                     )}
@@ -997,7 +999,7 @@ export default function AiAssistScreen({ navigation }) {
 const styles = StyleSheet.create({
     root: {
         flex: 1,
-        backgroundColor: '#f1f5f9',
+        backgroundColor: '#050810',
     },
 
     // ── Header ──────────────────────────────────────────────────────────────
@@ -1170,10 +1172,10 @@ const styles = StyleSheet.create({
     },
     bubbleAi: {
         alignSelf: 'flex-start',
-        backgroundColor: '#fff',
+        backgroundColor: '#1E1B4B',
         borderBottomLeftRadius: 4,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
+        borderColor: 'rgba(255, 255, 255, 0.1)',
     },
     bubbleText: {
         fontSize: 15,
@@ -1183,7 +1185,7 @@ const styles = StyleSheet.create({
         color: '#fff',
     },
     bubbleTextAi: {
-        color: '#1e293b',
+        color: '#E2E8F0',
     },
 
     // ── Typing dots ──────────────────────────────────────────────────────────
@@ -1264,11 +1266,11 @@ const styles = StyleSheet.create({
     attachedBar: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f0f9ff',
+        backgroundColor: '#1E293B',
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderTopWidth: 1,
-        borderTopColor: '#e0e7ff',
+        borderTopColor: 'rgba(255, 255, 255, 0.1)',
         gap: 8,
     },
     attachedBarText: {
@@ -1286,11 +1288,11 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         paddingBottom: Platform.OS === 'web' ? 20 : (Platform.OS === 'ios' ? 28 : 12),
         marginBottom: 80, // CRITICAL: Clear the floating tab bar
-        backgroundColor: 'rgba(255, 255, 255, 0.6)',
+        backgroundColor: '#0F172A',
         borderRadius: 20,
         marginHorizontal: 10,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.3)',
+        borderColor: 'rgba(255, 255, 255, 0.1)',
         gap: 6,
     },
     langChip: {
@@ -1306,7 +1308,7 @@ const styles = StyleSheet.create({
     },
     textInputWrapper: {
         flex: 1,
-        backgroundColor: '#f1f5f9',
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
         borderRadius: 22,
         paddingHorizontal: 14,
         paddingVertical: 6,
@@ -1315,7 +1317,7 @@ const styles = StyleSheet.create({
     },
     textInput: {
         fontSize: 15,
-        color: '#1e293b',
+        color: '#fff',
         maxHeight: 100,
     },
     inputAction: {

@@ -46,7 +46,6 @@ export const GlobalStyles = {
         backgroundColor: 'rgba(255, 255, 255, 0.04)',
         borderWidth: 1,
         borderColor: 'rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(10px)', // Only works on web, but good for design spec
     },
     shadow: {
         shadowColor: '#6366F1',

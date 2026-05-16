@@ -12,6 +12,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { SecurityUtils } from '../utils/security';
 import { Theme, GlobalStyles } from '../theme';
 import { API_BASE_URL } from '../api';
+
+const LOGO = require('../../assets/logo.png');
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { HapticUtils } from '../utils/haptics';

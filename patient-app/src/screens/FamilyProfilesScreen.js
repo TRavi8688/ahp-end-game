@@ -36,9 +36,9 @@ export default function FamilyProfilesScreen({ navigation }) {
             const activeId = await SecurityUtils.getActiveMemberId();
             setActiveMemberId(activeId);
             try {
-                const response = await ApiService.get('/patient/care-circle');
-                if (response && Array.isArray(response)) {
-                    setProfiles(response);
+                const response = await ApiService.client.get('/patient/care-circle');
+                if (response.data && Array.isArray(response.data)) {
+                    setProfiles(response.data);
                 }
             } catch (e) {
                 console.error("Fetch Care Circle error:", e);
@@ -74,10 +74,10 @@ export default function FamilyProfilesScreen({ navigation }) {
                 gender: "Other" // Default or add picker
             };
             
-            const response = await ApiService.post('/patient/care-circle', payload);
-            if (response && response.id) {
+            const response = await ApiService.client.post('/patient/care-circle', payload);
+            if (response.data && response.data.id) {
                 Alert.alert("Success", `${newMember.fullName} has been added to your Care Circle.`);
-                setProfiles([...profiles, response]);
+                setProfiles([...profiles, response.data]);
                 setIsAdding(false);
                 setNewMember({ fullName: '', relation: '', phone: '', dob: '', gender: '' });
             }

@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TextInput,
-    TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Image
+    TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Image, Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Audio } from 'expo-av';
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { SecurityUtils } from '../utils/security';
-
+import { Theme, GlobalStyles } from '../theme';
 import { API_BASE_URL } from '../api';
+
+const { width } = Dimensions.get('window');
 
 const LANGUAGES = [
     { id: 'en-IN', name: 'English', flag: '🇬🇧' },
@@ -43,12 +44,11 @@ export default function ChittiAiScreen() {
                 const name = resp.data.full_name?.split(' ')[0] || 'there';
                 setUserName(name);
                 
-                // Elite Proactive Greeting
                 setMessages([
                     { 
                         id: '1', 
                         sender: 'ai', 
-                        text: `Namaste ${name}! 🌿 I am Chitti, your Hospyn clinical companion. I've just synced with your health dashboard. You're looking stable! Is there anything specific you'd like to discuss or a report you'd like me to analyze?` 
+                        text: `Namaste ${name}! 🌿 I am Chitti, your Hospyn clinical companion. I've just synced with your health dashboard. You're looking stable! Is there anything specific you'd like to discuss?` 
                     }
                 ]);
             } catch (e) {
@@ -75,7 +75,6 @@ export default function ChittiAiScreen() {
                     fetchUserData();
                 }
             } catch (e) {
-                console.log("History fetch failed", e);
                 fetchUserData();
             }
         };
@@ -106,46 +105,25 @@ export default function ChittiAiScreen() {
             }
 
             if (imageFile) {
-                if (Platform.OS === 'web') {
-                    const response = await fetch(imageFile.uri);
-                    const blob = await response.blob();
-                    formData.append('file', blob, 'chat_upload.jpg');
-                } else {
-                    formData.append('file', {
-                        uri: imageFile.uri,
-                        name: 'chat_upload.jpg',
-                        type: 'image/jpeg'
-                    });
-                }
+                formData.append('file', {
+                    uri: imageFile.uri,
+                    name: 'chat_upload.jpg',
+                    type: 'image/jpeg'
+                });
             }
 
             const response = await axios.post(`${API_BASE_URL}/patient/chat`, formData, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                headers: { 'Authorization': `Bearer ${token}` }
             });
 
             const aiMsg = { id: (Date.now() + 1).toString(), sender: 'ai', text: response.data.ai_text };
             setMessages(prev => [...prev, aiMsg]);
 
         } catch (error) {
-            console.error('Chat error:', error);
-            const errorMsg = { id: (Date.now() + 1).toString(), sender: 'ai', text: 'Oops! I had a little hiccup. Can you try saying that again?' };
+            const errorMsg = { id: (Date.now() + 1).toString(), sender: 'ai', text: 'I encountered an issue connecting to the clinical engine. Please try again.' };
             setMessages(prev => [...prev, errorMsg]);
         } finally {
             setIsTyping(false);
-        }
-    };
-
-    const pickImage = async () => {
-        let result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            quality: 0.8,
-        });
-
-        if (!result.canceled) {
-            sendMessage(null, null, result.assets[0]);
         }
     };
 
@@ -155,8 +133,6 @@ export default function ChittiAiScreen() {
             await Audio.setAudioModeAsync({
                 allowsRecordingIOS: true,
                 playsInSilentModeIOS: true,
-                shouldDuckAndroid: true,
-                playThroughEarpieceAndroid: false
             });
             const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
             setRecording(recording);
@@ -182,10 +158,7 @@ export default function ChittiAiScreen() {
     const renderItem = ({ item }) => (
         <View style={[styles.messageRow, item.sender === 'user' ? styles.userRow : styles.aiRow]}>
             {item.sender === 'ai' && (
-                <Image 
-                    source={require('../../assets/chitti_avatar.png')} 
-                    style={styles.chittiAvatar} 
-                />
+                <Image source={require('../../assets/chitti_avatar.png')} style={styles.chittiAvatar} />
             )}
             <View style={[styles.messageBubble, item.sender === 'user' ? styles.userBubble : styles.aiBubble]}>
                 <Text style={[styles.messageText, item.sender === 'user' ? styles.userText : styles.aiText]}>
@@ -198,84 +171,83 @@ export default function ChittiAiScreen() {
     const CurrentLang = LANGUAGES.find(l => l.id === selectedLang);
 
     return (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : null}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-        >
-            <LinearGradient colors={['#4c1d95', '#7c3aed']} style={styles.header}>
-                <View style={styles.headerProfile}>
-                    <Image source={require('../../assets/chitti_avatar.png')} style={styles.headerAvatar} />
-                    <View>
-                        <Text style={styles.headerName}>Chitti AI</Text>
-                        <View style={styles.statusRow}>
-                            <View style={styles.statusDot} />
-                            <Text style={styles.statusText}>Online & Ready</Text>
+        <View style={styles.container}>
+            <LinearGradient colors={['#050810', '#1E1B4B']} style={StyleSheet.absoluteFill} />
+            
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : null}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+            >
+                <View style={styles.header}>
+                    <View style={styles.headerProfile}>
+                        <Image source={require('../../assets/chitti_avatar.png')} style={styles.headerAvatar} />
+                        <View>
+                            <Text style={styles.headerName}>Chitti AI</Text>
+                            <View style={styles.statusRow}>
+                                <View style={styles.statusDot} />
+                                <Text style={styles.statusText}>Clinical Core Active</Text>
+                            </View>
                         </View>
                     </View>
                 </View>
-            </LinearGradient>
 
-            <FlatList
-                ref={flatListRef}
-                data={messages}
-                renderItem={renderItem}
-                keyExtractor={item => item.id}
-                contentContainerStyle={styles.listContent}
-                onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
-            />
+                <FlatList
+                    ref={flatListRef}
+                    data={messages}
+                    renderItem={renderItem}
+                    keyExtractor={item => item.id}
+                    contentContainerStyle={styles.listContent}
+                    onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+                />
 
-            {isTyping && (
-                <View style={styles.typingContainer}>
-                    <ActivityIndicator size="small" color="#4c1d95" />
-                    <Text style={styles.typingText}>Chitti is reviewing your clinical context...</Text>
-                </View>
-            )}
-
-            <View style={styles.inputContainer}>
-                <View style={styles.inputWrapper}>
-                    <TouchableOpacity style={styles.langInside} onPress={() => setShowLangModal(true)}>
-                        <Text style={{ fontSize: 22 }}>{CurrentLang.flag}</Text>
-                        <Ionicons name="chevron-down" size={12} color="#64748b" />
-                    </TouchableOpacity>
-
-                    <TextInput
-                        style={styles.input}
-                        placeholder={`Ask your friend Chitti...`}
-                        placeholderTextColor="#94a3b8"
-                        value={inputText}
-                        onChangeText={setInputText}
-                        multiline
-                    />
-
-                    <TouchableOpacity style={styles.actionIcon} onPress={pickImage}>
-                        <Ionicons name="image-outline" size={24} color="#4c1d95" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={[styles.actionIcon, { marginLeft: 5 }]} onPress={pickImage}>
-                        <Ionicons name="document-text-outline" size={24} color="#4c1d95" />
-                    </TouchableOpacity>
-                </View>
-
-                <TouchableOpacity
-                    style={[styles.micButton, isRecording && styles.micActive]}
-                    onLongPress={startRecording}
-                    onPressOut={stopRecording}
-                >
-                    <Ionicons name={isRecording ? "mic" : "mic-outline"} size={26} color="#fff" />
-                </TouchableOpacity>
-
-                {inputText.length > 0 && (
-                    <TouchableOpacity style={styles.sendButton} onPress={() => sendMessage(inputText)}>
-                        <Ionicons name="send" size={24} color="#fff" />
-                    </TouchableOpacity>
+                {isTyping && (
+                    <View style={styles.typingContainer}>
+                        <ActivityIndicator size="small" color={Theme.colors.primary} />
+                        <Text style={styles.typingText}>Reviewing clinical context...</Text>
+                    </View>
                 )}
-            </View>
 
-            <Modal visible={showLangModal} transparent animationType="slide">
+                <View style={styles.inputContainer}>
+                    <View style={styles.inputWrapper}>
+                        <TouchableOpacity style={styles.langInside} onPress={() => setShowLangModal(true)}>
+                            <Text style={{ fontSize: 20 }}>{CurrentLang.flag}</Text>
+                        </TouchableOpacity>
+
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Type a message..."
+                            placeholderTextColor="#475569"
+                            value={inputText}
+                            onChangeText={setInputText}
+                            multiline
+                        />
+                        
+                        <TouchableOpacity style={styles.actionIcon} onPress={() => {}}>
+                            <Ionicons name="camera-outline" size={24} color="#94A3B8" />
+                        </TouchableOpacity>
+                    </View>
+
+                    <TouchableOpacity
+                        style={[styles.micButton, isRecording && styles.micActive]}
+                        onLongPress={startRecording}
+                        onPressOut={stopRecording}
+                    >
+                        <Ionicons name={isRecording ? "mic" : "mic-outline"} size={24} color="#fff" />
+                    </TouchableOpacity>
+
+                    {inputText.length > 0 && (
+                        <TouchableOpacity style={styles.sendButton} onPress={() => sendMessage(inputText)}>
+                            <Ionicons name="send" size={20} color="#fff" />
+                        </TouchableOpacity>
+                    )}
+                </View>
+            </KeyboardAvoidingView>
+
+            <Modal visible={showLangModal} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Choose Language</Text>
+                        <Text style={styles.modalTitle}>Switch Context Language</Text>
                         {LANGUAGES.map(lang => (
                             <TouchableOpacity
                                 key={lang.id}
@@ -283,32 +255,73 @@ export default function ChittiAiScreen() {
                                 onPress={() => { setSelectedLang(lang.id); setShowLangModal(false); }}
                             >
                                 <Text style={styles.langText}>{lang.flag} {lang.name}</Text>
-                                {selectedLang === lang.id && <Ionicons name="checkmark-circle" size={24} color="#4c1d95" />}
+                                {selectedLang === lang.id && <Ionicons name="checkmark-circle" size={24} color={Theme.colors.primary} />}
                             </TouchableOpacity>
                         ))}
                         <TouchableOpacity style={styles.closeButton} onPress={() => setShowLangModal(false)}>
-                            <Text style={styles.closeButtonText}>Close</Text>
+                            <Text style={styles.closeButtonText}>Dismiss</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
-        </KeyboardAvoidingView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8fafc',
+        backgroundColor: '#050810',
+    },
+    header: {
+        paddingTop: Platform.OS === 'ios' ? 60 : 40,
+        paddingBottom: 20,
+        paddingHorizontal: 25,
+        borderBottomWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
+    },
+    headerProfile: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    headerAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        marginRight: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
+    },
+    headerName: {
+        color: '#fff',
+        fontSize: 18,
+        fontFamily: Theme.fonts.headingSemi,
+    },
+    statusRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 2,
+    },
+    statusDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#10b981',
+        marginRight: 6,
+    },
+    statusText: {
+        color: '#94A3B8',
+        fontSize: 11,
+        fontFamily: Theme.fonts.label,
+        letterSpacing: 1,
     },
     listContent: {
         padding: 20,
         paddingBottom: 40,
     },
-
     messageRow: {
         flexDirection: 'row',
-        marginBottom: 15,
+        marginBottom: 20,
         alignItems: 'flex-end',
     },
     userRow: {
@@ -318,202 +331,153 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-start',
     },
     chittiAvatar: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        marginRight: 8,
-        backgroundColor: '#ede9fe',
-    },
-    header: {
-        paddingTop: Platform.OS === 'ios' ? 60 : 40,
-        paddingBottom: 20,
-        paddingHorizontal: 20,
-    },
-    headerProfile: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    headerAvatar: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        marginRight: 12,
-        borderWidth: 2,
-        borderColor: 'rgba(255,255,255,0.3)',
-    },
-    headerName: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
-    },
-    statusRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 2,
-    },
-    statusDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: '#10b981',
-        marginRight: 6,
-    },
-    statusText: {
-        color: 'rgba(255,255,255,0.7)',
-        fontSize: 12,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        marginRight: 10,
+        backgroundColor: 'rgba(99, 102, 241, 0.1)',
     },
     messageBubble: {
         maxWidth: '80%',
-        padding: 15,
-        borderRadius: 20,
-        elevation: 1,
+        padding: 16,
+        borderRadius: 24,
     },
     userBubble: {
-        alignSelf: 'flex-end',
-        backgroundColor: '#4c1d95',
+        backgroundColor: Theme.colors.primary,
         borderBottomRightRadius: 4,
     },
     aiBubble: {
-        alignSelf: 'flex-start',
-        backgroundColor: '#fff',
+        backgroundColor: 'rgba(15, 23, 42, 0.8)',
         borderBottomLeftRadius: 4,
         borderWidth: 1,
-        borderColor: '#e2e8f0',
-        shadowColor: '#4c1d95',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     messageText: {
         fontSize: 16,
-        lineHeight: 22,
+        lineHeight: 24,
+        fontFamily: Theme.fonts.body,
     },
     userText: {
         color: '#fff',
     },
     aiText: {
-        color: '#1e293b',
+        color: '#E2E8F0',
     },
     typingContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 20,
-        marginBottom: 10,
+        paddingHorizontal: 25,
+        marginBottom: 15,
     },
     typingText: {
-        marginLeft: 10,
-        fontSize: 13,
+        marginLeft: 12,
+        fontSize: 12,
         color: '#64748b',
-        fontStyle: 'italic',
+        fontFamily: Theme.fonts.label,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 10,
+        paddingHorizontal: 15,
+        paddingVertical: 15,
+        backgroundColor: 'rgba(5, 8, 16, 0.95)',
         borderTopWidth: 1,
-        borderTopColor: '#e2e8f0',
-        backgroundColor: '#fff',
-        paddingBottom: Platform.OS === 'ios' ? 30 : 12,
+        borderColor: 'rgba(255,255,255,0.05)',
+        paddingBottom: Platform.OS === 'ios' ? 40 : 15,
     },
     inputWrapper: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f1f5f9',
-        borderRadius: 25,
-        paddingHorizontal: 12,
-        marginRight: 8,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderRadius: 20,
+        paddingHorizontal: 15,
+        marginRight: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     langInside: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingRight: 8,
+        paddingRight: 10,
         borderRightWidth: 1,
-        borderRightColor: '#cbd5e1',
-        marginRight: 8,
+        borderColor: 'rgba(255,255,255,0.1)',
+        marginRight: 10,
     },
     input: {
         flex: 1,
-        paddingVertical: 10,
+        paddingVertical: 12,
         fontSize: 16,
-        color: '#1e293b',
-        maxHeight: 100,
+        color: '#FFFFFF',
+        fontFamily: Theme.fonts.body,
+        maxHeight: 120,
     },
     actionIcon: {
         padding: 5,
     },
-    sendButton: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: '#4c1d95',
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 2,
-        marginLeft: 8,
-    },
     micButton: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: '#7c3aff',
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        backgroundColor: 'rgba(255,255,255,0.05)',
         justifyContent: 'center',
         alignItems: 'center',
-        elevation: 2,
     },
     micActive: {
-        backgroundColor: '#ef4444',
+        backgroundColor: '#EF4444',
     },
-    iconButton: {
-        padding: 8,
-        backgroundColor: '#f1f5f9',
-        borderRadius: 24,
+    sendButton: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        backgroundColor: Theme.colors.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginLeft: 10,
     },
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        justifyContent: 'flex-end',
+        backgroundColor: 'rgba(0,0,0,0.85)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 40,
     },
     modalContent: {
-        backgroundColor: '#fff',
-        borderTopLeftRadius: 30,
-        borderTopRightRadius: 30,
-        padding: 25,
-        paddingBottom: 40,
+        width: '100%',
+        backgroundColor: '#0F172A',
+        borderRadius: 32,
+        padding: 30,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
     },
     modalTitle: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        color: '#1e293b',
-        marginBottom: 20,
+        fontSize: 22,
+        fontFamily: Theme.fonts.headingSemi,
+        color: '#FFFFFF',
+        marginBottom: 25,
         textAlign: 'center',
     },
     langOption: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: 15,
+        paddingVertical: 18,
         borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
-    },
-    langOptionActive: {
-        backgroundColor: '#f8fafc',
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     langText: {
         fontSize: 18,
-        color: '#334155',
+        color: '#E2E8F0',
+        fontFamily: Theme.fonts.body,
     },
     closeButton: {
-        marginTop: 20,
-        backgroundColor: '#f1f5f9',
-        padding: 15,
-        borderRadius: 15,
+        marginTop: 25,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        padding: 18,
+        borderRadius: 18,
         alignItems: 'center',
     },
     closeButtonText: {
-        color: '#475569',
-        fontWeight: '600',
+        color: '#94A3B8',
+        fontFamily: Theme.fonts.headingSemi,
         fontSize: 16,
     },
 });

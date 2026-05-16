@@ -55,7 +55,7 @@ class TenantScopedRepository(AsyncBaseRepository[T]):
     Enterprise Guard: Automatically enforces tenant (hospital) isolation.
     Every query and mutation is gated by the hospital_id.
     """
-    def __init__(self, model: Type[T], db: AsyncSession, hospital_id: int):
+    def __init__(self, model: Type[T], db: AsyncSession, hospital_id: uuid.UUID):
         super().__init__(model, db)
         self.hospital_id = hospital_id
 

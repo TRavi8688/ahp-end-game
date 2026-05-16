@@ -74,7 +74,7 @@ const styles = StyleSheet.create({
     qrInner: { padding: 20, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 20, marginBottom: 20 },
     idLabel: { color: '#64748B', fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 5 },
     idValue: { color: '#fff', fontSize: 20, fontWeight: 'bold', fontFamily: 'monospace' },
-    shareBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 40, backgroundColor: Theme.colors.primary, px: 30, py: 15, borderRadius: 20 },
+    shareBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 40, backgroundColor: Theme.colors.primary, paddingHorizontal: 30, paddingVertical: 15, borderRadius: 20 },
     shareBtnText: { color: '#fff', fontWeight: 'bold' },
     securityBox: { flexDirection: 'row', gap: 15, marginTop: 'auto', padding: 20, backgroundColor: 'rgba(99, 102, 241, 0.05)', borderRadius: 20, alignItems: 'center' },
     securityText: { flex: 1, color: '#64748B', fontSize: 12, lineHeight: 18 }

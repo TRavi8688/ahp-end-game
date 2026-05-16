@@ -1,67 +1,90 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.models import PharmacyStock, StockLedger, StockMovementType, PrescriptionItem
-from sqlalchemy import select, update
-from app.core.logging import logger
 import uuid
+import logging
+from typing import Optional
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, update
+from app.models.models import PharmacyStock, InventoryTransaction, InventoryTransactionType
+
+logger = logging.getLogger(__name__)
 
 class PharmacyService:
-    """
-    ENTERPRISE PHARMACY ENGINE (Phase 2.3).
-    Ensures zero-leakage inventory management and atomic dispensing.
-    """
-    def __init__(self, db: AsyncSession):
-        self.db = db
-
-    async def dispense_medication(self, item_id: uuid.UUID, quantity: int, actor_id: uuid.UUID):
+    @staticmethod
+    async def deduct_stock(
+        db: AsyncSession,
+        hospital_id: uuid.UUID,
+        stock_id: uuid.UUID,
+        quantity: int,
+        reference_id: Optional[uuid.UUID] = None,
+        staff_id: Optional[uuid.UUID] = None
+    ) -> bool:
         """
-        Atomsically dispenses medication and updates the ledger.
+        ATOMIC STOCK DEDUCTION:
+        Subtracts inventory and records the transaction ledger.
         """
-        # 1. Fetch Item and Stock (with lock)
-        item = await self.db.get(PrescriptionItem, item_id)
-        if not item or not item.medication_id:
-            raise ValueError("INVALID_PRESCRIPTION_ITEM")
-
-        # 2. SELECT FOR UPDATE to prevent race conditions (Over-Dispensing)
-        stmt = select(PharmacyStock).where(PharmacyStock.id == item.medication_id).with_for_update()
-        result = await self.db.execute(stmt)
-        stock = result.scalar_one_or_none()
-
-        if not stock:
-            raise ValueError("STOCK_NOT_FOUND")
-
-        if stock.quantity < quantity:
-            logger.warning(f"STOCK_OUT: {stock.medication_name} | Required: {quantity}, Available: {stock.quantity}")
-            item.status = "out_of_stock"
-            await self.db.commit()
-            raise ValueError("INSUFFICIENT_STOCK")
-
-        # 3. DEDUCT STOCK
-        old_balance = stock.quantity
-        stock.quantity -= quantity
-        new_balance = stock.quantity
+        stmt = select(PharmacyStock).where(
+            PharmacyStock.id == stock_id, 
+            PharmacyStock.hospital_id == hospital_id
+        ).with_for_update() # ROW-LEVEL LOCK FOR CONCURRENCY
         
-        # 4. CREATE IMMUTABLE LEDGER ENTRY
-        ledger = StockLedger(
-            stock_id=stock.id,
-            hospital_id=stock.hospital_id,
-            movement_type=StockMovementType.OUTWARD,
-            quantity=-quantity,
-            balance_after=new_balance,
-            reference_type="PRESCRIPTION",
-            reference_id=str(item.prescription_id),
-            actor_id=actor_id
+        result = await db.execute(stmt)
+        item = result.scalar_one_or_none()
+        
+        if not item:
+            raise ValueError(f"Medication {stock_id} not found in inventory.")
+            
+        if item.quantity < quantity:
+            raise ValueError(f"Insufficient stock for {item.medication_name}. Requested: {quantity}, Available: {item.quantity}")
+
+        # 1. Update Stock
+        item.quantity -= quantity
+        
+        # 2. Record Transaction Ledger
+        transaction = InventoryTransaction(
+            hospital_id=hospital_id,
+            inventory_item_id=stock_id,
+            transaction_type=InventoryTransactionType.DISPENSE,
+            quantity=-float(quantity),
+            reference_id=reference_id,
+            notes=f"Dispensed via Invoice {reference_id}" if reference_id else "Direct dispense"
         )
-        self.db.add(ledger)
+        db.add(transaction)
+        
+        # 3. Alert on Low Stock
+        if item.quantity <= item.min_stock_level:
+            logger.warning(f"LOW_STOCK_ALERT: {item.medication_name} | Remaining: {item.quantity}")
+            # In a real app, send a notification to the pharmacy manager here
+            
+        return True
 
-        # 5. UPDATE ITEM STATUS
-        item.status = "dispensed"
+    @staticmethod
+    async def add_stock(
+        db: AsyncSession,
+        hospital_id: uuid.UUID,
+        stock_id: uuid.UUID,
+        quantity: int,
+        staff_id: uuid.UUID
+    ) -> bool:
+        """
+        RESTOCKING Logic.
+        """
+        stmt = select(PharmacyStock).where(
+            PharmacyStock.id == stock_id, 
+            PharmacyStock.hospital_id == hospital_id
+        ).with_for_update()
+        
+        result = await db.execute(stmt)
+        item = result.scalar_one_or_none()
+        
+        if not item:
+            raise ValueError("Item not found")
 
-        # 6. TRIGGER AUTOMATED PROCUREMENT (If needed)
-        if new_balance <= stock.min_stock_level:
-            logger.info(f"LOW_STOCK_ALERT: {stock.medication_name} reached threshold.")
-            # Logic: Stage a Purchase Order for this item if one doesn't exist
-            # ... (Procurement logic omitted)
-
-        await self.db.commit()
-        logger.info(f"DISPENSED: {quantity} {stock.unit} of {stock.medication_name}")
+        item.quantity += quantity
+        
+        transaction = InventoryTransaction(
+            hospital_id=hospital_id,
+            inventory_item_id=stock_id,
+            transaction_type=InventoryTransactionType.RESTOCK,
+            quantity=float(quantity)
+        )
+        db.add(transaction)
         return True

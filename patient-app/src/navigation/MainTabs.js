@@ -53,20 +53,25 @@ export default function MainTabs() {
           bottom: 25,
           left: 20,
           right: 20,
-          backgroundColor: '#0F172A', // Deep Navy/Black
-          borderRadius: 24,
-          height: 70,
-          paddingBottom: 12,
+          backgroundColor: 'rgba(15, 23, 42, 0.8)', // Translucent Deep Navy
+          borderRadius: 30,
+          height: 75,
+          paddingBottom: 15,
           borderTopWidth: 0,
           borderWidth: 1,
-          borderColor: 'rgba(255, 255, 255, 0.05)',
-          ...styles.shadow
+          borderColor: 'rgba(255, 255, 255, 0.1)',
+          elevation: 10,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 10 },
+          shadowOpacity: 0.3,
+          shadowRadius: 20,
         },
         tabBarLabelStyle: {
-          fontSize: 9,
+          fontSize: 10,
           fontWeight: '900',
           marginBottom: 0,
-          letterSpacing: 1,
+          letterSpacing: 1.2,
+          textTransform: 'uppercase',
         },
         headerShown: false, // Handle headers in screens for luxury feel
       })}

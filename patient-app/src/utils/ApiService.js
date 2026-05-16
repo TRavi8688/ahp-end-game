@@ -79,42 +79,31 @@ class ApiService {
         this.onAuthFailure = callback;
     }
 
+    // --- Convenience Methods ---
+    async get(url, config = {}) { return (await this.client.get(url, config)).data; }
+    async post(url, data = {}, config = {}) { return (await this.client.post(url, data, config)).data; }
+    async put(url, data = {}, config = {}) { return (await this.client.put(url, data, config)).data; }
+    async delete(url, config = {}) { return (await this.client.delete(url, config)).data; }
+
     // --- Clinical Endpoints ---
     
     async getProfile() {
         try {
             const response = await this.client.get('/patient/profile');
+            // Cache the successful profile fetch
+            await AsyncStorage.setItem('@hospyn_profile_cache', JSON.stringify(response.data));
             return response.data;
         } catch (e) {
-            // ONLY ALLOW MOCKS IN DEVELOPMENT
-            if (__DEV__) {
-                console.warn('DEV_MOCK: Falling back to local profile due to API failure.');
-            
-            // Load dynamic mock data from registration form to fix "Test User" bug
-            const savedMockStr = await AsyncStorage.getItem('mock_profile');
-            if (savedMockStr) {
+            console.warn('[API] Network failure, attempting to load offline profile...');
+            const cachedStr = await AsyncStorage.getItem('@hospyn_profile_cache');
+            if (cachedStr) {
                 try {
-                    const savedMock = JSON.parse(savedMockStr);
-                    if (savedMock && savedMock.full_name) {
-                        return savedMock;
-                    }
-                } catch (parseErr) {}
+                    return JSON.parse(cachedStr);
+                } catch (parseErr) {
+                    console.error('Cache corrupted:', parseErr);
+                }
             }
-
-            let mockId = await SecurityUtils.getHospynId();
-            if (!mockId || mockId === 'Hospyn-Test') {
-                const randomNum = Math.floor(100000 + Math.random() * 900000);
-                mockId = `HOSPYN-${randomNum}`;
-                await SecurityUtils.saveHospynId(mockId);
-            }
-                return { 
-                    full_name: "Patient Name", 
-                    hospyn_id: mockId, 
-                    phone_number: mockId.includes('HOSPYN') ? "+91 9999999999" : mockId, 
-                    blood_group: "N/A" 
-                };
-            }
-            throw e; // Fail-Safe in Production
+            throw e; // If no cache exists, throw the actual error to be handled by the UI
         }
     }
 
@@ -124,14 +113,14 @@ class ApiService {
             // After successful API update, also update our local cache
             const current = await this.getProfile();
             const updated = { ...current, ...data };
-            await AsyncStorage.setItem('mock_profile', JSON.stringify(updated));
+            await AsyncStorage.setItem('@hospyn_profile_cache', JSON.stringify(updated));
             return response.data;
         } catch (e) {
             if (__DEV__) {
                 console.warn('DEV_MOCK: Mocking updateProfile');
                 const current = await this.getProfile();
                 const updated = { ...current, ...data };
-                await AsyncStorage.setItem('mock_profile', JSON.stringify(updated));
+                await AsyncStorage.setItem('@hospyn_profile_cache', JSON.stringify(updated));
                 return updated;
             }
             throw e;
@@ -152,9 +141,12 @@ class ApiService {
     async getClinicalSummary() {
         try {
             const response = await this.client.get('/patient/clinical-summary');
+            await AsyncStorage.setItem('@cache_clinical_summary', JSON.stringify(response.data));
             return response.data;
         } catch (e) {
-            if (__DEV__) return { metrics: [], recent_vitals: {} };
+            console.warn('[API] Failed to fetch clinical summary. Loading offline cache...');
+            const cachedStr = await AsyncStorage.getItem('@cache_clinical_summary');
+            if (cachedStr) return JSON.parse(cachedStr);
             throw e;
         }
     }
@@ -162,9 +154,12 @@ class ApiService {
     async getTimeline() {
         try {
             const response = await this.client.get('/clinical/timeline');
+            await AsyncStorage.setItem('@cache_timeline', JSON.stringify(response.data));
             return response.data;
         } catch (e) {
-            if (__DEV__) return { events: [] };
+            console.warn('[API] Timeline offline mode...');
+            const cachedStr = await AsyncStorage.getItem('@cache_timeline');
+            if (cachedStr) return JSON.parse(cachedStr);
             throw e;
         }
     }
@@ -172,9 +167,12 @@ class ApiService {
     async getRecords() {
         try {
             const response = await this.client.get('/patient/records');
+            await AsyncStorage.setItem('@cache_records', JSON.stringify(response.data));
             return response.data;
         } catch (e) {
-            if (__DEV__) return { records: [] };
+            console.warn('[API] Records offline mode...');
+            const cachedStr = await AsyncStorage.getItem('@cache_records');
+            if (cachedStr) return JSON.parse(cachedStr);
             throw e;
         }
     }
@@ -246,6 +244,43 @@ class ApiService {
 
     async getNotifications() {
         const response = await this.client.get('/patient/notifications');
+        return response.data;
+    }
+
+    // --- Phase 4 & 5.5: Billing & Clinical Bridge ---
+    
+    async getInvoices() {
+        const response = await this.client.get('/billing/invoices');
+        return response.data;
+    }
+
+    async getInvoiceDetail(invoiceId) {
+        const response = await this.client.get(`/billing/invoices/${invoiceId}`);
+        return response.data;
+    }
+
+    async getPrescriptions() {
+        const response = await this.client.get('/clinical/prescriptions');
+        return response.data;
+    }
+
+    async getPrescriptionDetail(prescriptionId) {
+        const response = await this.client.get(`/clinical/prescriptions/${prescriptionId}`);
+        return response.data;
+    }
+
+    async getLabReports() {
+        const response = await this.client.get('/lab/reports');
+        return response.data;
+    }
+
+    async getLabReportDetail(orderId) {
+        const response = await this.client.get(`/lab/orders/${orderId}/results`);
+        return response.data;
+    }
+
+    async exportProfileData() {
+        const response = await this.client.post('/patient/export-data');
         return response.data;
     }
 }

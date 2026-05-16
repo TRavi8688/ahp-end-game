@@ -4,6 +4,15 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Updates from 'expo-updates';
+import * as Sentry from '@sentry/react-native';
+
+// Initialize Sentry for production monitoring
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN || "https://placeholder@sentry.io/hospyn-mobile",
+  debug: __DEV__, // If `true`, Sentry will try to print out useful debugging information if something goes wrong with sending the event. Set it to `false` in production
+  enableAutoSessionTracking: true,
+});
+
 
 // Core
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
@@ -26,6 +35,15 @@ import SharingSettingsScreen from './src/screens/SharingSettingsScreen';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import AccessHistoryScreen from './src/screens/AccessHistoryScreen';
 import UploadScreen from './src/screens/UploadScreen';
+import BillingScreen from './src/screens/BillingScreen';
+import InvoiceDetailScreen from './src/screens/InvoiceDetailScreen';
+import PrescriptionScreen from './src/screens/PrescriptionScreen';
+import PrescriptionDetailScreen from './src/screens/PrescriptionDetailScreen';
+import FamilyProfilesScreen from './src/screens/FamilyProfilesScreen';
+import RecordsScreen from './src/screens/RecordsScreen';
+import ActivityLogScreen from './src/screens/ActivityLogScreen';
+import CEODashboardScreen from './src/screens/CEODashboardScreen';
+import MedsScreen from './src/screens/MedsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -73,8 +91,10 @@ function AppContent() {
           const success = await SecurityService.authenticate('Unlock Hospyn Clinical Vault');
           if (success) {
             setIsUnlocked(true);
-            setBootReady(true);
+          } else {
+            logout(); // Kick back to login screen to protect data
           }
+          setBootReady(true);
         } else {
           setIsUnlocked(true);
           setBootReady(true);
@@ -119,6 +139,15 @@ function AppContent() {
                 <Stack.Screen name="Notifications" component={NotificationsScreen} />
                 <Stack.Screen name="AccessHistory" component={AccessHistoryScreen} />
                 <Stack.Screen name="Upload" component={UploadScreen} />
+                <Stack.Screen name="Billing" component={BillingScreen} />
+                <Stack.Screen name="InvoiceDetail" component={InvoiceDetailScreen} />
+                <Stack.Screen name="Prescriptions" component={PrescriptionScreen} />
+                <Stack.Screen name="PrescriptionDetail" component={PrescriptionDetailScreen} />
+                <Stack.Screen name="FamilyProfiles" component={FamilyProfilesScreen} />
+                <Stack.Screen name="LabResults" component={RecordsScreen} />
+                <Stack.Screen name="ActivityLog" component={ActivityLogScreen} />
+                <Stack.Screen name="CEODashboard" component={CEODashboardScreen} />
+                <Stack.Screen name="Meds" component={MedsScreen} />
               </>
             )}
           </Stack.Navigator>
@@ -128,10 +157,10 @@ function AppContent() {
   );
 }
 
-export default function App() {
+export default Sentry.wrap(function App() {
   return (
     <AuthProvider>
       <AppContent />
     </AuthProvider>
   );
-}
+});

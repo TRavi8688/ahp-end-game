@@ -49,22 +49,17 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite+aiosqlite:///./hospyn_local.db"
     REDIS_URL: Optional[str] = None
     USE_REDIS: bool = True
-    DB_POOL_SIZE: int = 5
-    DB_MAX_OVERFLOW: int = 10
+    DB_POOL_SIZE: int = 20
+    DB_MAX_OVERFLOW: int = 40
 
-    # --- 5. NETWORK & CORS ---
     ALLOWED_ORIGINS: Any = [
-        "https://hospyn-495906-96438.web.app",
-        "https://hospyn-doctor-pro.web.app",
-        "https://hospyn-erp-portal.web.app",
-        "https://hospyn-495906.web.app",
-        "https://hospyn-admin-center.web.app",
         "https://app.hospyn.com",
-        "http://localhost:8081",
-        "http://localhost:3000",
-        "http://localhost:5173"
+        "https://doctor.hospyn.com",
+        "https://patient.hospyn.com",
+        "https://erp.hospyn.com",
+        "https://admin.hospyn.com"
     ]
-    TRUSTED_PROXIES: List[str] = ["*"]
+    TRUSTED_PROXIES: List[str] = [] # Tighten for production; add specific proxy IPs if needed
     
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
@@ -94,6 +89,11 @@ class Settings(BaseSettings):
     GROQ_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
     SARVAM_KEY: Optional[str] = None
+    
+    # --- 7. PREMIUM SERVICES ---
+    RAZORPAY_KEY_ID: str = os.getenv("RAZORPAY_KEY_ID", "rzp_test_placeholder")
+    RAZORPAY_KEY_SECRET: str = os.getenv("RAZORPAY_KEY_SECRET", "placeholder_secret")
+    SENDGRID_API_KEY: Optional[str] = os.getenv("SENDGRID_API_KEY", None)
     
     # --- LOGIC & VALIDATION ---
 
@@ -150,17 +150,17 @@ class Settings(BaseSettings):
 
         # 2. Production Safety Checks
         if self.ENVIRONMENT == "production":
-            if self.DEBUG:
-                raise ValueError("PRODUCTION_FAIL: DEBUG must be False")
+            # Force Debug off in production regardless of input
+            self.DEBUG = False
             
             if "localhost" in self.DATABASE_URL or "127.0.0.1" in self.DATABASE_URL:
                 raise ValueError("PRODUCTION_FAIL: Managed database (RDS/Cloud SQL) must be used.")
             
-            if not self.REDIS_URL or "localhost" in self.REDIS_URL:
-                logger.warning("PRODUCTION_WARN: Using local Redis or Redis disabled. Managed Redis recommended.")
-
-            if len(self.SECRET_KEY) < 32:
-                raise ValueError("PRODUCTION_FAIL: SECRET_KEY too short.")
+            if len(self.SECRET_KEY) < 32 or "placeholder" in self.SECRET_KEY:
+                raise ValueError("PRODUCTION_FAIL: SECRET_KEY is missing or insecure.")
+            
+            if not self.JWT_PRIVATE_KEY or "BEGIN RSA" not in self.JWT_PRIVATE_KEY:
+                 raise ValueError("PRODUCTION_FAIL: Valid JWT_PRIVATE_KEY is required for Production.")
 
         # 3. Load Keys
         if not self.JWT_PRIVATE_KEY:

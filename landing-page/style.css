@@ -1,0 +1,269 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100;400;700;900&family=Inter:wght@300;400;600;800&family=Space+Grotesk:wght@300;500;700&display=swap');
+
+:root {
+    --bg-deep: #02040a;
+    --accent-blue: #00f2ff;
+    --accent-indigo: #6366f1;
+    --accent-emerald: #10b981;
+    --glass-white: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.06);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--bg-deep);
+    color: #f8fafc;
+    font-family: 'Inter', sans-serif;
+    overflow-x: hidden;
+    line-height: 1.6;
+}
+
+.outfit { font-family: 'Outfit', sans-serif; }
+
+/* Background Neural Grid */
+.neural-grid {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.05) 0%, transparent 50%),
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+    background-size: 100% 100%, 40px 40px, 40px 40px;
+    z-index: -1;
+}
+
+/* Sidebar/Floating Button */
+.activation-trigger {
+    position: fixed;
+    right: 40px;
+    bottom: 40px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 10px 10px 10px 24px;
+    background: rgba(255,255,255,0.02);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 100px;
+}
+
+.floating-cta {
+    background: #fff;
+    color: #000;
+    padding: 20px 40px;
+    border-radius: 100px;
+    font-weight: 900;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.25em;
+    cursor: pointer;
+    box-shadow: 0 20px 50px rgba(0, 242, 255, 0.3);
+    border: none;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.floating-cta:hover {
+    transform: scale(1.05) translateY(-5px);
+    background: var(--accent-blue);
+}
+
+/* Full Screen Wizard Overlay */
+.wizard-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    z-index: 2000;
+    display: none;
+    opacity: 0;
+    transition: all 0.5s ease;
+}
+
+.wizard-container {
+    height: 100vh;
+    display: grid;
+    grid-template-cols: 1fr 1fr;
+}
+
+.wizard-active {
+    display: block !important;
+    opacity: 1 !important;
+}
+
+.close-wizard {
+    position: absolute;
+    top: 40px;
+    right: 40px;
+    cursor: pointer;
+    color: #fff;
+    opacity: 0.5;
+    transition: 0.3s;
+    z-index: 2100;
+}
+
+.close-wizard:hover { opacity: 1; transform: rotate(90deg); }
+
+/* Glass Components */
+.glass-panel {
+    background: var(--glass-white);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 32px;
+}
+
+.premium-gradient-text {
+    background: linear-gradient(135deg, #fff 0%, var(--accent-blue) 50%, var(--accent-indigo) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Sections */
+section {
+    padding: 150px 10%;
+    position: relative;
+}
+
+.hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.badge-futuristic {
+    padding: 8px 16px;
+    background: rgba(0, 242, 255, 0.1);
+    border: 1px solid rgba(0, 242, 255, 0.2);
+    border-radius: 100px;
+    color: var(--accent-blue);
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+}
+
+.hero h1 {
+    font-size: clamp(3rem, 8vw, 6rem);
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    line-height: 0.9;
+    margin-bottom: 32px;
+}
+
+.hero p {
+    font-size: 1.25rem;
+    color: #94a3b8;
+    max-width: 800px;
+    margin-bottom: 56px;
+}
+
+.btn-quantum {
+    padding: 22px 56px;
+    background: #fff;
+    color: #000;
+    border-radius: 100px;
+    font-weight: 900;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: pointer;
+    border: none;
+}
+
+.btn-quantum:hover {
+    transform: scale(1.05);
+    background: var(--accent-blue);
+}
+
+.feature-grid {
+    display: grid;
+    grid-template-cols: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 32px;
+}
+
+.feature-card {
+    padding: 56px;
+    transition: all 0.5s ease;
+}
+
+.feature-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--accent-blue);
+    transform: translateY(-10px);
+}
+
+.feature-icon {
+    width: 64px;
+    height: 64px;
+    background: rgba(99, 102, 241, 0.1);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 32px;
+    color: var(--accent-indigo);
+}
+
+/* Wizard Form */
+.input-futuristic {
+    width: 100%;
+    padding: 20px 28px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--glass-border);
+    border-radius: 18px;
+    color: #fff;
+    font-size: 16px;
+    margin-bottom: 24px;
+    transition: all 0.3s ease;
+}
+
+.input-futuristic:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.file-upload-zone {
+    border: 2px dashed var(--glass-border);
+    padding: 48px;
+    border-radius: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: 40px;
+}
+
+.file-upload-zone:hover {
+    border-color: var(--accent-emerald);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+@keyframes pulse-glow {
+    0% { box-shadow: 0 0 0 0 rgba(0, 242, 255, 0.4); }
+    70% { box-shadow: 0 0 0 20px rgba(0, 242, 255, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(0, 242, 255, 0); }
+}
+
+.active-glow {
+    animation: pulse-glow 2s infinite;
+}
+
+@media (max-width: 1024px) {
+    .wizard-container { grid-template-cols: 1fr; }
+    .wizard-container .register-info { display: none; }
+}

@@ -3,43 +3,66 @@ import { Alert, Platform } from 'react-native';
 
 export class SecurityService {
     /**
-     * NATIVE SHIELD: Uses the phone's built-in security (PIN, Fingerprint, FaceID).
-     * This follows the 'PhonePe' pattern requested by the user.
+     * CLINICAL VAULT SHIELD:
+     * Strictly enforces biometric or device-level authentication (PIN/FaceID/Fingerprint).
+     * Medical data access requires a successful handshake with the Secure Enclave.
      */
-    static async authenticate(reason = 'Authenticate to continue') {
+    static async authenticate(reason = 'Authorize clinical data access') {
         try {
-            // 1. Check if hardware supports biometrics or device PIN
-            const hasHardware = await LocalAuthentication.hasHardwareAsync();
-            const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-
-            if (!hasHardware || !isEnrolled) {
-                // If no security set up, we let them through but log a warning
-                // In production, we might want to force them to set a PIN
-                console.warn("Security not configured on device.");
+            // Development Override
+            if (__DEV__) {
                 return true;
             }
 
-            // 2. Trigger native prompt
+            // 1. Hardware Verification
+            const hasHardware = await LocalAuthentication.hasHardwareAsync();
+            const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+            const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
+
+            if (!hasHardware) {
+                console.warn("[Security] Device hardware does not support biometric/PIN security.");
+                // For legacy devices without security, we fallback to a manual password check in the future.
+                // For now, we allow access but log the vulnerability.
+                return true;
+            }
+
+            if (!isEnrolled) {
+                Alert.alert(
+                    "Security Setup Required",
+                    "To protect your clinical records, Hospyn requires you to enable a screen lock (PIN, Pattern, or Biometrics) on your device.",
+                    [{ text: "OK" }]
+                );
+                return false;
+            }
+
+            // 2. Native Biometric Challenge
             const result = await LocalAuthentication.authenticateAsync({
                 promptMessage: reason,
-                fallbackLabel: 'Use Passcode',
-                disableDeviceFallback: false,
+                fallbackLabel: 'Use Device Passcode',
+                cancelLabel: 'Cancel',
+                disableDeviceFallback: false, // Allows PIN/Pattern fallback if Biometrics fail
             });
 
-            return result.success;
+            if (result.success) {
+                return true;
+            } else {
+                console.log(`[Security] Auth Failed: ${result.error}`);
+                return false;
+            }
         } catch (error) {
-            console.error("Authentication Error:", error);
+            console.error("Critical Authentication Fault:", error);
             return false;
         }
     }
 
     /**
-     * SENSITIVE ACTION GUARD: Double-check before sharing data.
+     * FORENSIC ACCESS GUARD:
+     * Used for high-risk actions like sharing records or viewing sensitive pathology.
      */
-    static async confirmSensitiveAction(actionName = 'share your medical records') {
-        const success = await this.authenticate(`Confirm identity to ${actionName}`);
+    static async confirmSensitiveAction(actionName = 'access sensitive data') {
+        const success = await this.authenticate(`Verify identity to ${actionName}`);
         if (!success) {
-            Alert.alert("Security Block", "Identity verification failed. Action cancelled.");
+            Alert.alert("Access Denied", "Identity verification is mandatory for this clinical action.");
         }
         return success;
     }

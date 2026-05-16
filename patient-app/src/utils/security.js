@@ -91,18 +91,48 @@ const HospynSecurity = {
 
   // --- Native Capability Shims (Prevent Web Crashes) ---
   enableScreenshotProtection: async () => {
-    // Not possible on web, just log and skip
-    console.log('[Security] Screenshot protection skip (web)');
-    return true;
+    if (Platform.OS === 'web') {
+      console.log('[Security] Screenshot protection skip (web)');
+      return true;
+    }
+    try {
+      const ScreenCapture = require('expo-screen-capture');
+      await ScreenCapture.preventScreenCaptureAsync();
+      return true;
+    } catch (e) {
+      console.warn('[Security] Could not enable screenshot protection:', e);
+      return false;
+    }
   },
 
   isBiometricAvailable: async () => {
-    // Biometrics handled differently on web (WebAuthn), returning false for now
-    return false;
+    if (Platform.OS === 'web') return false;
+    try {
+      const LocalAuthentication = require('expo-local-authentication');
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      return hasHardware && isEnrolled;
+    } catch (e) {
+      console.warn('[Security] Biometric check failed:', e);
+      return false;
+    }
   },
 
   authenticateWithBiometrics: async () => {
-    return false;
+    if (Platform.OS === 'web') return false;
+    try {
+      const LocalAuthentication = require('expo-local-authentication');
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Authenticate to access Hospyn Secure Records',
+        fallbackLabel: 'Use Passcode',
+        cancelLabel: 'Cancel',
+        disableDeviceFallback: false,
+      });
+      return result.success;
+    } catch (e) {
+      console.error('[Security] Biometric authentication failed:', e);
+      return false;
+    }
   }
 };
 

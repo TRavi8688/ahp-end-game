@@ -6,6 +6,7 @@ import { SecurityUtils } from '../utils/security';
 import { HapticUtils } from '../utils/haptics';
 import ApiService from '../utils/ApiService';
 import { Theme, GlobalStyles } from '../theme';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function SettingsScreen({ navigation }) {
     const [profile, setProfile] = useState(null);
@@ -40,6 +41,8 @@ export default function SettingsScreen({ navigation }) {
         fetchProfileData();
     }, []);
 
+    const { logout } = useAuth();
+
     const handleLogout = async () => {
         HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Heavy);
         Alert.alert('Logout', 'Are you sure you want to logout from your Hospyn Shield?', [
@@ -48,8 +51,7 @@ export default function SettingsScreen({ navigation }) {
                 text: 'Logout',
                 style: 'destructive',
                 onPress: async () => {
-                    await SecurityUtils.deleteToken();
-                    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+                    await logout();
                 }
             }
         ]);
@@ -118,11 +120,17 @@ export default function SettingsScreen({ navigation }) {
             <LinearGradient colors={['#0F172A', '#050810']} style={styles.header}>
                 <View style={styles.profileBox}>
                     <View style={styles.avatarBox}>
-                        <Text style={styles.avatarText}>{profile?.full_name?.charAt(0) || 'P'}</Text>
+                        {profile?.avatar_url ? (
+                            <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} />
+                        ) : (
+                            <LinearGradient colors={['#6366F1', '#4F46E5']} style={styles.avatarGradient}>
+                                <Text style={styles.avatarText}>{profile?.full_name?.charAt(0) || 'P'}</Text>
+                            </LinearGradient>
+                        )}
                         <View style={styles.onlineDot} />
                     </View>
-                    <Text style={styles.profileName}>{profile?.full_name || 'Hospyn User'}</Text>
-                    <Text style={styles.hospynIdText}>{hospynId || 'HOSPYN-ID-PENDING'}</Text>
+                    <Text style={styles.profileName}>{profile?.full_name || 'Hospyn Member'}</Text>
+                    <Text style={styles.hospynIdText}>{profile?.hospyn_id || hospynId || 'SYNCHRONIZING...'}</Text>
                     <TouchableOpacity style={styles.editBtn} onPress={() => setShowEditModal(true)}>
                         <Text style={styles.editBtnText}>EDIT PROFILE</Text>
                     </TouchableOpacity>
@@ -224,9 +232,11 @@ export default function SettingsScreen({ navigation }) {
 const styles = StyleSheet.create({
     header: { padding: 40, paddingTop: 80, alignItems: 'center', borderBottomLeftRadius: 40, borderBottomRightRadius: 40 },
     profileBox: { alignItems: 'center' },
-    avatarBox: { width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(99, 102, 241, 0.1)', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: Theme.colors.primary, position: 'relative' },
-    avatarText: { fontSize: 42, fontWeight: '900', color: Theme.colors.primary },
-    onlineDot: { position: 'absolute', bottom: 5, right: 5, width: 18, height: 18, borderRadius: 9, backgroundColor: '#10B981', borderWidth: 3, borderColor: '#050810' },
+    avatarBox: { width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(99, 102, 241, 0.1)', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: Theme.colors.primary, position: 'relative', overflow: 'hidden' },
+    avatarGradient: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },
+    avatarImg: { width: '100%', height: '100%' },
+    avatarText: { fontSize: 42, fontWeight: '900', color: '#fff' },
+    onlineDot: { position: 'absolute', bottom: 5, right: 5, width: 18, height: 18, borderRadius: 9, backgroundColor: '#10B981', borderWidth: 3, borderColor: '#050810', zIndex: 10 },
     profileName: { color: '#fff', fontSize: 24, fontWeight: 'bold', marginTop: 15 },
     hospynIdText: { color: '#64748B', fontSize: 13, marginTop: 4, letterSpacing: 1, fontFamily: 'monospace' },
     editBtn: { marginTop: 15, backgroundColor: 'rgba(255,255,255,0.05)', px: 15, py: 6, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },

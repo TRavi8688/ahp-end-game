@@ -18,6 +18,8 @@ from app.core.logging import logger
 from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.audit import log_audit_action
+from google.oauth2 import id_token
+from google.auth.transport import requests
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -192,6 +194,60 @@ async def login(
         "refresh_token": refresh_token,
         "token_type": "bearer"
     }
+
+@router.post("/google", response_model=schemas.Token)
+async def google_login(
+    req: schemas.GoogleLoginRequest,
+    db: AsyncSession = Depends(deps.get_db)
+):
+    """
+    GOOGLE OAUTH LOGIN:
+    Verifies the Google ID Token and issues a Hospyn JWT.
+    """
+    try:
+        # Verify the ID token
+        idinfo = id_token.verify_oauth2_token(req.token, requests.Request(), settings.GCP_PROJECT_ID)
+
+        # ID token is valid. Get the user's Google ID and email.
+        email = idinfo['email']
+        first_name = idinfo.get('given_name', '')
+        last_name = idinfo.get('family_name', '')
+
+        # Check if user exists
+        stmt = select(models.User).where(models.User.email == email)
+        result = await db.execute(stmt)
+        user = result.scalars().first()
+
+        if not user:
+            # Auto-register Google user
+            user = models.User(
+                email=email,
+                hashed_password=security.get_password_hash(secrets.token_urlsafe(32)), # Random password
+                first_name=first_name,
+                last_name=last_name,
+                role=models.RoleEnum.patient, # Default role
+                is_active=True
+            )
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+            logger.info(f"GOOGLE_REGISTRATION_SUCCESS: Email={email}")
+        
+        # Issue tokens
+        access_token = security.create_access_token(user.id, user.role)
+        refresh_token = security.create_refresh_token(user.id, user.role)
+        
+        await log_audit_action(db, "GOOGLE_LOGIN_SUCCESS", user_id=user.id, resource_type="USER")
+        
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer"
+        }
+
+    except ValueError:
+        # Invalid token
+        throw_auth_exception("Invalid Google Token")
 
 # --- MASTER BYPASS AND DEMO LOGIC REMOVED PER ARCHITECTURAL DIRECTIVE ---
 

@@ -99,6 +99,15 @@ async def get_super_admin(user: User = Depends(get_current_user)) -> User:
         )
     return user
 
+async def get_current_hospital_admin(user: User = Depends(get_current_user)) -> User:
+    """Dependency for Hospital-level Admin routes (Onboarding, Staff mgmt)."""
+    if user.role not in [RoleEnum.admin, RoleEnum.hospital_admin]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Hospital Admin privileges are required for this action."
+        )
+    return user
+
 async def get_active_family_member_id(
     request: Request,
     current_patient: Optional[Patient] = Depends(get_current_patient),

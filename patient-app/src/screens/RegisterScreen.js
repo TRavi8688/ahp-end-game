@@ -177,14 +177,21 @@ export default function RegisterScreen({ navigation }) {
                                                 />
                                             </View>
                                         ) : (
-                                            <TouchableOpacity onPress={() => setShowDatePicker(true)} style={{ flex: 1, height: '100%', justifyContent: 'center' }}>
-                                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                                    <Ionicons name="calendar-outline" size={18} color="#666" style={{ marginRight: 8 }} />
-                                                    <Text style={{ fontSize: 14, color: formData.age ? '#FFFFFF' : '#aaa' }}>
-                                                        {formData.age ? formData.age : 'Date of Birth'}
-                                                    </Text>
-                                                </View>
-                                            </TouchableOpacity>
+                                            <TouchableOpacity 
+                                            onPress={() => {
+                                                console.log("Opening DatePicker");
+                                                setShowDatePicker(true);
+                                            }} 
+                                            style={{ flex: 1, height: '100%', justifyContent: 'center', minHeight: 56 }}
+                                            activeOpacity={0.7}
+                                        >
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', pointerEvents: 'none' }}>
+                                                <Ionicons name="calendar-outline" size={18} color="#666" style={{ marginRight: 8 }} />
+                                                <Text style={{ fontSize: 14, color: formData.age ? '#FFFFFF' : '#aaa' }}>
+                                                    {formData.age ? formData.age : 'Date of Birth'}
+                                                </Text>
+                                            </View>
+                                        </TouchableOpacity>
                                         )}
                                         {showDatePicker && Platform.OS !== 'web' && (
                                             <DateTimePicker

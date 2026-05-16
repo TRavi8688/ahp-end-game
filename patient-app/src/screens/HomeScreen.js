@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Image, Modal, ActivityIndicator, Alert, Dimensions, TextInput } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence } from 'react-native-reanimated';
 import ApiService from '../utils/ApiService';
@@ -37,13 +38,45 @@ export default function HomeScreen({ navigation }) {
 
     const getGreeting = useCallback(() => {
         const hour = new Date().getHours();
-        if (!summary?.patient_name && !profile?.full_name) return "Welcome to Hospyn";
+        const name = summary?.patient_name || profile?.full_name || user?.full_name || 'Member';
         
-        const name = summary?.patient_name || profile?.full_name || 'there';
         if (hour < 12) return `Good morning, ${name}`;
         if (hour < 17) return `Good afternoon, ${name}`;
         return `Good evening, ${name}`;
-    }, [summary, profile]);
+    }, [summary, profile, user]);
+
+    const [permission, requestPermission] = useCameraPermissions();
+
+    const handleBarCodeScanned = ({ data }) => {
+        if (actionLoading) return;
+        HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Medium);
+        setManualQR(data);
+        handleScanQR_Internal(data);
+    };
+
+    const handleScanQR_Internal = async (qrData) => {
+        setActionLoading(true);
+        try {
+            const hospital = await ApiService.scanHospitalQR(qrData);
+            setScannedHospital(hospital);
+            setVisitStep(2);
+        } catch (error) {
+            Alert.alert("Scan Error", "Invalid Hospyn QR or hospital not found in the cloud.");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const startScan = async () => {
+        if (!permission?.granted) {
+            const res = await requestPermission();
+            if (!res.granted) {
+                Alert.alert("Permission Required", "Please enable camera access to scan hospital codes.");
+                return;
+            }
+        }
+        setShowVisitModal(true);
+    };
 
     const fetchData = async () => {
         if (!isAuthenticated) return;
@@ -212,12 +245,15 @@ export default function HomeScreen({ navigation }) {
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.primary} />}
             showsVerticalScrollIndicator={false}
         >
-            {/* 1. Premium Header */}
+            {/* 1. Cinematic Header */}
             <View style={styles.header}>
                 <View style={styles.headerTop}>
-                    <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+                    <View style={styles.logoContainer}>
+                        <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
+                    </View>
                     <View style={styles.headerActions}>
                         <TouchableOpacity onPress={() => navigation.navigate('Notifications')} style={styles.iconBtn}>
+                            <View style={styles.notificationBadge} />
                             <Ionicons name="notifications-outline" size={24} color="#fff" />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.iconBtn}>
@@ -228,7 +264,10 @@ export default function HomeScreen({ navigation }) {
                 <View style={styles.greetingSection}>
                     <Text style={styles.greetingText}>{greeting}</Text>
                     <View style={styles.subGreetingRow}>
-                        <Text style={styles.subGreeting}>{profile?.is_family_member ? `${profile.relation} Profile` : 'Personal Health Shield'}</Text>
+                        <LinearGradient colors={['rgba(99, 102, 241, 0.2)', 'rgba(15, 23, 42, 0)']} style={styles.shieldBadge}>
+                            <Ionicons name="shield-checkmark" size={12} color="#10b981" />
+                            <Text style={styles.subGreeting}>{profile?.is_family_member ? `${profile.relation} Profile` : 'Personal Health Shield'}</Text>
+                        </LinearGradient>
                         {profile?.is_family_member && (
                             <TouchableOpacity style={styles.backToMeBtn} onPress={() => handleSwitchProfile(null)}>
                                 <Text style={styles.backToMeText}>Back to Me</Text>
@@ -238,51 +277,98 @@ export default function HomeScreen({ navigation }) {
                 </View>
             </View>
 
-            {/* 2. Hero Section (Digital Health Passport) */}
+            {/* 2. Premium Digital Health Passport Card */}
             <View style={styles.heroContainer}>
                 <TouchableOpacity 
                     onPress={() => Alert.alert("Digital Health Passport", `Your unique Hospyn ID: ${profile?.hospyn_id}\n\nThis passport allows hospitals to instantly sync your clinical history securely.`)}
-                    activeOpacity={0.9}
+                    activeOpacity={0.95}
                 >
-                    <LinearGradient colors={['#1E293B', '#0F172A']} style={styles.heroCard}>
-                        {/* Security Badge */}
-                        <View style={styles.securityBadge}>
-                            <Ionicons name="shield-checkmark" size={12} color="#10b981" />
-                            <Text style={styles.securityText}>AES-256 SECURED</Text>
+                    <LinearGradient 
+                        colors={['#4F46E5', '#1E1B4B', '#050810']} 
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.heroCard}
+                    >
+                        <Image source={require('../../assets/logo.png')} style={[styles.cardWatermark, { opacity: 0.05 }]} />
+                        
+                        <View style={styles.cardTop}>
+                            <Text style={styles.passportTitle}>HOSPYN PASS</Text>
+                            <View style={styles.chip} />
                         </View>
 
                         <View style={styles.passportMain}>
                             <View style={styles.qrContainer}>
-                                <View style={styles.qrRing} />
-                                <View style={styles.qrRingOuter} />
-                                <Animated.View style={[styles.glowOrb, animatedOrbStyle]} />
-                                <Ionicons name="qr-code" size={40} color={Theme.colors.primary} />
+                                <LinearGradient colors={['rgba(99, 102, 241, 0.3)', 'transparent']} style={styles.qrGlow} />
+                                <Ionicons name="qr-code" size={44} color="#fff" />
                             </View>
-                            
-                            <Text style={styles.passportTitle}>DIGITAL HEALTH PASSPORT</Text>
-                            <Text style={styles.passportId}>{profile?.hospyn_id || 'HOSPYN-000000-TEST'}</Text>
+                            <View style={styles.idSection}>
+                                <Text style={styles.idLabel}>CLINICAL IDENTITY</Text>
+                                <Text style={styles.passportId}>{profile?.hospyn_id || 'SYNCHRONIZING...'}</Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.cardBottom}>
+                            <View style={styles.secureRow}>
+                                <Ionicons name="lock-closed" size={10} color="#10b981" />
+                                <Text style={styles.secureText}>QUANTUM ENCRYPTION ACTIVE</Text>
+                            </View>
+                            <Text style={styles.expiryText}>VALUED MEMBER</Text>
                         </View>
                     </LinearGradient>
                 </TouchableOpacity>
             </View>
 
             {/* NEW: Quick Action - New Visit */}
+            {/* 2.5 Quick Actions Row */}
             <View style={styles.section}>
-                <TouchableOpacity 
-                    style={styles.newVisitBtn}
-                    onPress={() => setShowVisitModal(true)}
-                >
-                    <LinearGradient 
-                        colors={[Theme.colors.primary, '#4c1d95']} 
-                        start={{x: 0, y: 0}} 
-                        end={{x: 1, y: 0}}
-                        style={styles.newVisitGradient}
+                <View style={styles.quickActionsContainer}>
+                    <TouchableOpacity 
+                        style={[styles.quickActionMain]}
+                        onPress={startScan}
                     >
-                        <Ionicons name="add-circle" size={24} color="#fff" />
-                        <Text style={styles.newVisitText}>NEW HOSPITAL VISIT</Text>
-                        <Ionicons name="scan-outline" size={20} color="#fff" style={{ marginLeft: 'auto' }} />
-                    </LinearGradient>
-                </TouchableOpacity>
+                        <LinearGradient 
+                            colors={[Theme.colors.primary, '#4c1d95']} 
+                            start={{x: 0, y: 0}} 
+                            end={{x: 1, y: 0}}
+                            style={styles.quickActionGradient}
+                        >
+                            <Ionicons name="add-circle" size={24} color="#fff" />
+                            <Text style={styles.quickActionText}>NEW VISIT</Text>
+                        </LinearGradient>
+                    </TouchableOpacity>
+
+                    <View style={styles.quickActionGrid}>
+                        <TouchableOpacity 
+                            style={styles.quickActionSmall}
+                            onPress={() => navigation.navigate('Billing')}
+                        >
+                            <View style={styles.smallActionInner}>
+                                <Ionicons name="receipt-outline" size={18} color={Theme.colors.primary} />
+                                <Text style={styles.smallActionText}>BILLING</Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity 
+                            style={styles.quickActionSmall}
+                            onPress={() => navigation.navigate('Prescriptions')}
+                        >
+                            <View style={styles.smallActionInner}>
+                                <MaterialCommunityIcons name="pill" size={18} color={Theme.colors.secondary} />
+                                <Text style={styles.smallActionText}>MEDS</Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity 
+                            style={styles.quickActionSmall}
+                            onPress={() => navigation.navigate('LabResults')}
+                        >
+                            <View style={styles.smallActionInner}>
+                                <MaterialCommunityIcons name="flask-outline" size={18} color="#10B981" />
+                                <Text style={styles.smallActionText}>LABS</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+                </View>
             </View>
 
             {/* 3. Today's Medications (Priority Actions) */}
@@ -435,9 +521,19 @@ export default function HomeScreen({ navigation }) {
 
                         {visitStep === 1 && (
                             <View style={styles.visitStepContent}>
-                                <View style={styles.scanPlaceholder}>
-                                    <Ionicons name="scan" size={60} color={Theme.colors.primary} />
-                                    <Text style={styles.scanHint}>Scan Hospital QR Code</Text>
+                                <View style={styles.cameraContainer}>
+                                    <CameraView
+                                        style={styles.camera}
+                                        onBarcodeScanned={handleBarCodeScanned}
+                                        barcodeScannerSettings={{
+                                            barcodeTypes: ["qr"],
+                                        }}
+                                    >
+                                        <View style={styles.scanOverlay}>
+                                            <View style={styles.scanFrame} />
+                                            <Text style={styles.scanText}>ALIGN QR CODE IN FRAME</Text>
+                                        </View>
+                                    </CameraView>
                                 </View>
                                 <View style={styles.manualInputGroup}>
                                     <Text style={styles.inputLabel}>OR ENTER HOSPITAL CODE</Text>
@@ -452,18 +548,9 @@ export default function HomeScreen({ navigation }) {
                                             autoCapitalize="characters"
                                         />
                                     </View>
-                                    <View style={styles.demoCodes}>
-                                        <Text style={styles.demoTitle}>Demo Hospital Codes:</Text>
-                                        <TouchableOpacity onPress={() => setManualQR('CITY-001')}>
-                                            <Text style={styles.demoCode}>CITY-001 (City General Hospital)</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity onPress={() => setManualQR('APOLLO-01')}>
-                                            <Text style={styles.demoCode}>APOLLO-01 (Apollo Healthcare)</Text>
-                                        </TouchableOpacity>
-                                    </View>
                                     <TouchableOpacity 
                                         style={[styles.primaryBtn, !manualQR && styles.btnDisabled]} 
-                                        onPress={handleScanQR}
+                                        onPress={() => handleScanQR_Internal(manualQR)}
                                         disabled={!manualQR || actionLoading}
                                     >
                                         {actionLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>VERIFY HOSPITAL</Text>}
@@ -592,9 +679,45 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 30,
     },
+    logoContainer: {
+        width: 140,
+        height: 50,
+        backgroundColor: '#fff', // White background to match the official logo
+        borderRadius: 12,
+        padding: 5,
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+    },
     logo: {
-        width: 44,
-        height: 44,
+        width: '100%',
+        height: '100%',
+    },
+    shieldBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(16, 185, 129, 0.2)',
+    },
+    notificationBadge: {
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#EF4444',
+        borderWidth: 2,
+        borderColor: '#050810',
+        zIndex: 1,
     },
     headerActions: {
         flexDirection: 'row',
@@ -647,100 +770,170 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         marginBottom: 25,
     },
+    heroContainer: {
+        paddingHorizontal: 24,
+        marginBottom: 35,
+    },
     heroCard: {
-        borderRadius: 24,
+        height: 220,
+        borderRadius: 32,
         padding: 24,
-        height: 180,
+        justifyContent: 'space-between',
         position: 'relative',
-        justifyContent: 'center',
-        alignItems: 'center',
+        overflow: 'hidden',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
+        borderColor: 'rgba(255, 255, 255, 0.15)',
+        elevation: 20,
+        shadowColor: '#4F46E5',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.4,
+        shadowRadius: 24,
     },
-    securityBadge: {
+    cardWatermark: {
         position: 'absolute',
-        top: 16,
-        right: 16,
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
-        gap: 5,
+        right: -50,
+        top: -50,
+        width: 300,
+        height: 300,
+        tintColor: '#fff',
     },
-    securityText: {
-        color: '#10b981',
-        fontSize: 9,
+    cardTop: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    passportTitle: {
+        color: 'rgba(255,255,255,0.6)',
+        fontSize: 12,
         fontWeight: '900',
+        letterSpacing: 4,
+    },
+    chip: {
+        width: 45,
+        height: 35,
+        backgroundColor: '#F59E0B',
+        borderRadius: 6,
+        opacity: 0.8,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.1)',
     },
     passportMain: {
+        flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 10,
+        gap: 20,
     },
     qrContainer: {
         width: 80,
         height: 80,
-        borderRadius: 40,
-        backgroundColor: 'rgba(99, 102, 241, 0.05)',
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 16,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 15,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
         position: 'relative',
     },
-    qrRing: {
+    qrGlow: {
         position: 'absolute',
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        borderWidth: 1,
-        borderColor: 'rgba(99, 102, 241, 0.1)',
+        width: '100%',
+        height: '100%',
+        borderRadius: 16,
     },
-    qrRingOuter: {
-        position: 'absolute',
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        borderWidth: 1,
-        borderColor: 'rgba(99, 102, 241, 0.05)',
+    idSection: {
+        flex: 1,
     },
-    passportTitle: {
-        color: '#fff',
-        fontSize: 18,
+    idLabel: {
+        color: 'rgba(255,255,255,0.4)',
+        fontSize: 9,
         fontWeight: '900',
         letterSpacing: 2,
-        textAlign: 'center',
+        marginBottom: 4,
     },
     passportId: {
-        color: '#64748B',
-        fontSize: 11,
-        fontWeight: '500',
-        marginTop: 4,
+        color: '#fff',
+        fontSize: 20,
+        fontWeight: '900',
         letterSpacing: 1,
+        fontFamily: 'monospace',
     },
-    glowOrb: {
-        position: 'absolute',
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: Theme.colors.primary,
-        opacity: 0.1,
+    cardBottom: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
-    newVisitBtn: {
-        borderRadius: 20,
-        overflow: 'hidden',
-    },
-    newVisitGradient: {
+    secureRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 20,
-        gap: 15,
+        gap: 6,
+        backgroundColor: 'rgba(0,0,0,0.2)',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 20,
     },
-    newVisitText: {
+    secureText: {
+        color: '#10b981',
+        fontSize: 8,
+        fontWeight: '900',
+        letterSpacing: 1,
+    },
+    expiryText: {
+        color: 'rgba(255,255,255,0.4)',
+        fontSize: 9,
+        fontWeight: '900',
+        letterSpacing: 1,
+    },
+    quickActionsContainer: {
+        flexDirection: 'row',
+        gap: 12,
+        alignItems: 'center',
+    },
+    quickActionMain: {
+        flex: 1.5,
+        borderRadius: 24,
+        overflow: 'hidden',
+        elevation: 8,
+        shadowColor: Theme.colors.primary,
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 6 },
+    },
+    quickActionGradient: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 24,
+        gap: 12,
+    },
+    quickActionText: {
         color: '#fff',
         fontSize: 16,
         fontWeight: '900',
-        letterSpacing: 1,
+        letterSpacing: 1.5,
+    },
+    quickActionGrid: {
+        flex: 2,
+        flexDirection: 'row',
+        gap: 8,
+    },
+    quickActionSmall: {
+        flex: 1,
+        backgroundColor: '#0F172A',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
+        overflow: 'hidden',
+    },
+    smallActionInner: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 18,
+        gap: 8,
+    },
+    smallActionText: {
+        color: '#94A3B8',
+        fontSize: 9,
+        fontWeight: '900',
+        letterSpacing: 0.5,
     },
     modalOverlay: {
         flex: 1,
@@ -770,21 +963,38 @@ const styles = StyleSheet.create({
     visitStepContent: {
         flex: 1,
     },
-    scanPlaceholder: {
-        height: 200,
-        backgroundColor: 'rgba(255,255,255,0.03)',
+    cameraContainer: {
+        height: 300,
+        backgroundColor: '#000',
         borderRadius: 24,
+        overflow: 'hidden',
+        marginBottom: 30,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    camera: {
+        flex: 1,
+    },
+    scanOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 2,
-        borderStyle: 'dashed',
-        borderColor: 'rgba(99, 102, 241, 0.3)',
-        marginBottom: 30,
     },
-    scanHint: {
-        color: '#94A3B8',
-        fontSize: 14,
-        marginTop: 10,
+    scanFrame: {
+        width: 200,
+        height: 200,
+        borderWidth: 2,
+        borderColor: '#fff',
+        borderRadius: 20,
+        backgroundColor: 'transparent',
+    },
+    scanText: {
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: '900',
+        marginTop: 20,
+        letterSpacing: 2,
     },
     manualInputGroup: {
         gap: 15,

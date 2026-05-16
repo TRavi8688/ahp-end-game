@@ -19,6 +19,9 @@ class TokenPayload(BaseModel):
     sub: Optional[str] = None # email
     role: Optional[str] = None
 
+class GoogleLoginRequest(BaseModel):
+    token: str
+
 class OTPRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     

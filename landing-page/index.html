@@ -3,142 +3,458 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hospyn 2.0 | Clinical Intelligence Ecosystem</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>Hospyn 2.0 | Sovereign Clinical Intelligence</title>
+    <link rel="stylesheet" href="style.css">
     <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        body {
-            font-family: 'Outfit', sans-serif;
-            background-color: #020617;
-            color: #f8fafc;
-            overflow-x: hidden;
-        }
-        .syne { font-family: 'Syne', sans-serif; }
-        .glass {
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(24px) saturate(180%);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-        .aurora-1 {
-            position: fixed;
-            top: -10%;
-            right: -5%;
-            width: 60%;
-            height: 60%;
-            background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
-            filter: blur(120px);
-            z-index: -1;
-        }
-        .aurora-2 {
-            position: fixed;
-            bottom: -10%;
-            left: -5%;
-            width: 50%;
-            height: 50%;
-            background: radial-gradient(circle, rgba(14, 165, 233, 0.1) 0%, transparent 70%);
-            filter: blur(120px);
-            z-index: -1;
-        }
-        .card-hover:hover {
-            transform: translateY(-12px) scale(1.02);
-            border-color: rgba(99, 102, 241, 0.5);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 40px rgba(99, 102, 241, 0.1);
-        }
-        @keyframes pulse-slow {
-            0%, 100% { opacity: 0.3; transform: scale(1); }
-            50% { opacity: 0.6; transform: scale(1.05); }
-        }
-        .animate-pulse-slow { animation: pulse-slow 8s infinite; }
-    </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-6">
-    <div class="aurora-1 animate-pulse-slow"></div>
-    <div class="aurora-2"></div>
+<body>
 
-    <!-- Header -->
-    <header class="fixed top-0 w-full p-8 flex justify-between items-center z-50">
-        <div class="flex items-center gap-4">
-            <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/40">
-                <i data-lucide="shield" class="text-white w-6 h-6"></i>
+    <div class="neural-grid"></div>
+
+    <!-- STICKY ACTIVATION TRIGGER (RIGHT SIDE) -->
+    <div class="activation-trigger">
+        <div style="text-align: right;">
+            <p style="font-size: 10px; font-weight: 900; color: var(--accent-blue); letter-spacing: 0.3em; text-transform: uppercase; margin-bottom: 2px;">Node Status: Ready</p>
+            <p style="font-size: 11px; font-weight: 600; color: #64748b; letter-spacing: 0.05em;">Provision Your Hospital Node</p>
+        </div>
+        <button class="floating-cta active-glow" onclick="toggleWizard(true)">Connect Node</button>
+    </div>
+
+    <!-- QUANTUM NAVIGATION -->
+    <nav class="glass-panel" style="position: fixed; top: 30px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 1300px; z-index: 1000; padding: 20px 50px; display: flex; justify-content: space-between; align-items: center;">
+        <a href="#" class="outfit" style="text-decoration: none; font-size: 28px; font-weight: 900; color: #fff; letter-spacing: -1.5px;">HOSPYN<span style="color: var(--accent-blue);">.</span></a>
+        <div style="display: flex; gap: 40px; align-items: center;">
+            <a href="#vision" style="color: #64748b; text-decoration: none; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.3em; transition: 0.3s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#64748b'">The Future</a>
+            <a href="#services" style="color: #64748b; text-decoration: none; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.3em; transition: 0.3s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#64748b'">Intelligence</a>
+            <a href="#journey" style="color: #64748b; text-decoration: none; font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.3em; transition: 0.3s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#64748b'">Our Journey</a>
+        </div>
+    </nav>
+
+    <!-- HERO SECTION -->
+    <section class="hero" id="home">
+        <div class="badge-futuristic">Sovereign Clinical Protocol v2.0</div>
+        <h1 class="outfit premium-gradient-text">The End of Traditional <br> Hospital Management.</h1>
+        <p>Hospyn is a global neural network for medicine. We provide the forensic infrastructure that allows clinical leaders to reclaim their time, their revenue, and their focus on patient care.</p>
+        <div style="display: flex; gap: 24px;">
+            <button onclick="toggleWizard(true)" class="btn-quantum">Initialize Node Onboarding</button>
+            <a href="#vision" class="btn-quantum" style="background: transparent; border: 1px solid var(--glass-border); color: #fff;">Read the Manifesto</a>
+        </div>
+    </section>
+
+    <!-- VISION SECTION: DEEP CONTENT -->
+    <section id="vision">
+        <div style="max-width: 1200px; margin: 0 auto; text-align: center; margin-bottom: 100px;">
+            <div class="badge-futuristic">The Vision</div>
+            <h2 class="outfit" style="font-size: 4rem; font-weight: 900; margin-bottom: 40px; line-height: 1;">A Neural Grid for Global Health.</h2>
+            <p style="color: #64748b; font-size: 1.2rem; max-width: 900px; margin: 0 auto;">In the current landscape, hospitals are isolated silos of data. Hospyn 2.0 synchronizes every bed, every pharmacy dispense, and every clinical note into a single, forensic clinical ledger.</p>
+        </div>
+
+        <div style="display: grid; grid-template-cols: 1fr 1fr; gap: 80px; align-items: center;">
+            <div class="glass-panel p-10" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.05), transparent);">
+                <h3 class="outfit" style="font-size: 2.5rem; margin-bottom: 30px; color: var(--accent-blue);">01. Sovereign Data</h3>
+                <p style="color: #94a3b8; line-height: 2; margin-bottom: 40px;">Your hospital owns its data. Our localized nodes ensure that even if the global internet fails, your clinical operations continue at full capacity. We synchronize when you're back online.</p>
+                <div style="display: flex; gap: 20px;">
+                    <div style="text-align: center;">
+                        <h4 class="outfit" style="color: #fff; font-size: 2rem;">20ms</h4>
+                        <p style="font-size: 9px; font-weight: 900; color: #475569; text-transform: uppercase;">Sync Latency</p>
+                    </div>
+                    <div style="text-align: center; margin-left: 40px;">
+                        <h4 class="outfit" style="color: #fff; font-size: 2rem;">AES-256</h4>
+                        <p style="font-size: 9px; font-weight: 900; color: #475569; text-transform: uppercase;">Encrypted Storage</p>
+                    </div>
+                </div>
             </div>
-            <h1 class="text-3xl font-black tracking-tighter syne">Hospyn<span class="text-indigo-500">.</span></h1>
+            <div>
+                <img src="https://img.freepik.com/free-photo/modern-hospital-hallway-with-futuristic-design_23-2151040001.jpg" style="width: 100%; border-radius: 48px; border: 1px solid var(--glass-border); box-shadow: 0 40px 100px rgba(0,0,0,0.5);" alt="Futuristic Hospital">
+            </div>
         </div>
-        <div class="hidden md:flex gap-8 text-xs font-black tracking-widest uppercase text-slate-500">
-            <a href="#" class="hover:text-white transition-colors">Infrastructure</a>
-            <a href="#" class="hover:text-white transition-colors">Governance</a>
-            <a href="#" class="hover:text-white transition-colors">AI Core</a>
+    </section>
+
+    <!-- INTELLIGENCE SECTION: SERVICE SPECTRUM -->
+    <section id="services" style="background: rgba(255,255,255,0.01);">
+        <div style="text-align: center; margin-bottom: 100px;">
+            <div class="badge-futuristic">The Service Portfolio</div>
+            <h2 class="outfit" style="font-size: 4rem; font-weight: 900; margin-bottom: 24px;">How We Take Over Operations.</h2>
         </div>
-    </header>
 
-    <!-- Hero Section -->
-    <main class="max-w-7xl w-full text-center mt-20 mb-20">
-        <div class="inline-block px-4 py-1.5 rounded-full glass border-indigo-500/20 mb-8 animate-bounce">
-            <span class="text-[10px] font-black text-indigo-400 tracking-widest uppercase">Ecosystem 2.0 Live</span>
+        <div class="feature-grid">
+            <div class="feature-card glass-panel">
+                <div class="feature-icon"><i data-lucide="brain"></i></div>
+                <h3 class="outfit" style="font-size: 1.8rem; margin-bottom: 20px;">AI Risk Monitor</h3>
+                <p style="color: #64748b; font-size: 15px;">Real-time clinical audit that predicts patient deterioration before the first alarm sounds. Total visibility into clinical risk across all wards.</p>
+            </div>
+            <div class="feature-card glass-panel">
+                <div class="feature-icon"><i data-lucide="database"></i></div>
+                <h3 class="outfit" style="font-size: 1.8rem; margin-bottom: 20px;">Forensic Ledger</h3>
+                <p style="color: #64748b; font-size: 15px;">Every drug dispensed, every scan billed. Our forensic ledger ensures 100% revenue capture with cryptographic certainty. No more leaks.</p>
+            </div>
+            <div class="feature-card glass-panel">
+                <div class="feature-icon"><i data-lucide="network"></i></div>
+                <h3 class="outfit" style="font-size: 1.8rem; margin-bottom: 20px;">Staff Command</h3>
+                <p style="color: #64748b; font-size: 15px;">A unified staff portal for Doctors, Nurses, and Lab Techs. Orchestrate your entire workforce with automated task provisioning and shifts.</p>
+            </div>
         </div>
-        <h2 class="text-6xl md:text-8xl font-black syne mb-8 tracking-tighter">
-            One Core<span class="text-slate-700">.</span> <br />
-            <span class="text-indigo-500">Three Fronts.</span>
-        </h2>
-        <p class="text-xl text-slate-400 max-w-2xl mx-auto mb-16 font-medium">
-            The end-game clinical operating system. Seamlessly bridging the gap between patients, doctors, and hospital logistics through AI-driven synchronization.
-        </p>
+    </section>
 
-        <!-- Product Grid -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 px-4">
-            <!-- Patient App -->
-            <a href="https://hospyn-495906-96438.web.app" target="_blank" class="glass p-10 rounded-[40px] text-left card-hover transition-all duration-500 group">
-                <div class="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-emerald-500/20 transition-all">
-                    <i data-lucide="user" class="text-emerald-500 w-8 h-8"></i>
+    <!-- OUR JOURNEY SECTION -->
+    <section id="journey">
+        <div style="display: grid; grid-template-cols: 1fr 1fr; gap: 100px; align-items: center;">
+            <div>
+                <div class="badge-futuristic">The Evolution</div>
+                <h2 class="outfit" style="font-size: 4rem; font-weight: 900; margin-bottom: 40px; line-height: 1;">Built from the <br> Trenches of Clinical Care.</h2>
+                <div style="space-y-10">
+                    <div style="padding-left: 30px; border-left: 2px solid var(--accent-blue); position: relative; margin-bottom: 40px;">
+                        <div style="position: absolute; left: -6px; top: 0; width: 10px; height: 10px; border-radius: 50%; background: var(--accent-blue);"></div>
+                        <h4 class="outfit" style="color: #fff; font-size: 1.5rem;">2024: The Genesis</h4>
+                        <p style="color: #64748b; font-size: 14px;">Identified the fragmentation of Indian clinical infrastructure. Developed the first forensic ledger prototype.</p>
+                    </div>
+                    <div style="padding-left: 30px; border-left: 2px solid var(--accent-indigo); position: relative; margin-bottom: 40px;">
+                        <div style="position: absolute; left: -6px; top: 0; width: 10px; height: 10px; border-radius: 50%; background: var(--accent-indigo);"></div>
+                        <h4 class="outfit" style="color: #fff; font-size: 1.5rem;">2025: The Neural Pivot</h4>
+                        <p style="color: #64748b; font-size: 14px;">Integrated AI Risk Stratification. Onboarded the first 50 pilot nodes with 0% revenue loss recorded.</p>
+                    </div>
+                    <div style="padding-left: 30px; border-left: 2px solid var(--accent-emerald); position: relative;">
+                        <div style="position: absolute; left: -6px; top: 0; width: 10px; height: 10px; border-radius: 50%; background: var(--accent-emerald);"></div>
+                        <h4 class="outfit" style="color: #fff; font-size: 1.5rem;">2026: Sovereign Activation</h4>
+                        <p style="color: #64748b; font-size: 14px;">Launched Hospyn 2.0. A global clinical grid designed for the next century of healthcare.</p>
+                    </div>
                 </div>
-                <h3 class="text-3xl font-black mb-4 syne">Patient Passport</h3>
-                <p class="text-slate-400 mb-8 font-medium leading-relaxed">
-                    Personal clinical records, AI health insights, and universal health ID.
-                </p>
-                <div class="flex items-center gap-2 text-xs font-black text-emerald-500 tracking-widest uppercase">
-                    Launch Identity <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </div>
+            <div class="glass-panel p-16 text-center">
+                <div class="badge-futuristic" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border-color: rgba(16, 185, 129, 0.2);">Global Expansion</div>
+                <h3 class="outfit" style="font-size: 3rem; margin-top: 30px;">500+ Nodes</h3>
+                <p style="color: #94a3b8; margin-top: 10px; text-transform: uppercase; font-weight: 900; letter-spacing: 0.3em; font-size: 10px;">Projected Q4 2026</p>
+                <div style="margin-top: 60px; height: 250px; display: flex; align-items: flex-end; justify-content: center; gap: 15px;">
+                    <div style="width: 20px; height: 40px; background: #fff; opacity: 0.1; border-radius: 5px;"></div>
+                    <div style="width: 20px; height: 80px; background: #fff; opacity: 0.2; border-radius: 5px;"></div>
+                    <div style="width: 20px; height: 120px; background: #fff; opacity: 0.3; border-radius: 5px;"></div>
+                    <div style="width: 20px; height: 180px; background: var(--accent-blue); border-radius: 5px; box-shadow: 0 0 30px var(--accent-blue);"></div>
                 </div>
-            </a>
-
-            <!-- Doctor App -->
-            <a href="https://hospyn-doctor-pro.web.app" target="_blank" class="glass p-10 rounded-[40px] text-left card-hover transition-all duration-500 group border-indigo-500/20">
-                <div class="w-16 h-16 bg-indigo-500/10 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-indigo-500/20 transition-all">
-                    <i data-lucide="stethoscope" class="text-indigo-500 w-8 h-8"></i>
-                </div>
-                <h3 class="text-3xl font-black mb-4 syne">Doctor Pro</h3>
-                <p class="text-slate-400 mb-8 font-medium leading-relaxed">
-                    Advanced clinical terminal for consultations, prescriptions, and QR screening.
-                </p>
-                <div class="flex items-center gap-2 text-xs font-black text-indigo-500 tracking-widest uppercase">
-                    Launch Terminal <i data-lucide="arrow-right" class="w-4 h-4"></i>
-                </div>
-            </a>
-
-            <!-- ERP App -->
-            <a href="https://hospyn-erp-portal.web.app" target="_blank" class="glass p-10 rounded-[40px] text-left card-hover transition-all duration-500 group">
-                <div class="w-16 h-16 bg-cyan-500/10 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-cyan-500/20 transition-all">
-                    <i data-lucide="layout-dashboard" class="text-cyan-500 w-8 h-8"></i>
-                </div>
-                <h3 class="text-3xl font-black mb-4 syne">Clinical ERP</h3>
-                <p class="text-slate-400 mb-8 font-medium leading-relaxed">
-                    Hospital command center for pharmacy, billing, and queue management.
-                </p>
-                <div class="flex items-center gap-2 text-xs font-black text-cyan-500 tracking-widest uppercase">
-                    Launch Command < i data-lucide="arrow-right" class="w-4 h-4"></i>
-                </div>
-            </a>
+            </div>
         </div>
-    </main>
+    </section>
 
-    <!-- Footer -->
-    <footer class="mt-auto p-12 text-center">
-        <p class="text-slate-600 text-[10px] font-black tracking-[0.4em] uppercase">
-            &copy; 2026 Hospyn Enterprise | Restricted Access | Secure Protocol Active
-        </p>
+    <!-- FULL SCREEN WIZARD OVERLAY -->
+    <div id="activationWizard" class="wizard-overlay">
+        <div class="close-wizard" onclick="toggleWizard(false)"><i data-lucide="x" size="48"></i></div>
+        
+        <div class="wizard-container">
+            <div class="register-info" style="display: flex; flex-direction: column; justify-content: center; padding: 100px;">
+                <div class="badge-futuristic">Provisioning Console</div>
+                <h2 class="outfit" style="font-size: 4rem; font-weight: 900; margin-bottom: 40px; line-height: 1;">Activate Your <br> Clinical Node.</h2>
+                <p style="color: #94a3b8; font-size: 1.1rem; margin-bottom: 60px;">To ensure the integrity of the clinical grid, we require forensic identification and clinical verification. Provisioning takes 2-4 hours.</p>
+                
+                <div style="background: rgba(255,255,255,0.02); padding: 40px; border-radius: 40px; border: 1px solid var(--glass-border);">
+                    <div style="display: flex; gap: 24px; margin-bottom: 40px;">
+                        <div style="width: 48px; height: 48px; border-radius: 16px; background: var(--accent-blue); display: flex; align-items: center; justify-content: center; color: #000;"><i data-lucide="shield-check"></i></div>
+                        <div>
+                            <p style="font-weight: 900; color: #fff; text-transform: uppercase; font-size: 12px; letter-spacing: 0.1em;">Legal Audit</p>
+                            <p style="color: #64748b; font-size: 14px;">Verification of NABH/MCI credentials.</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 24px;">
+                        <div style="width: 48px; height: 48px; border-radius: 16px; background: var(--accent-indigo); display: flex; align-items: center; justify-content: center; color: #fff;"><i data-lucide="credit-card"></i></div>
+                        <div>
+                            <p style="font-weight: 900; color: #fff; text-transform: uppercase; font-size: 12px; letter-spacing: 0.1em;">Node Activation Fee</p>
+                            <p style="color: #64748b; font-size: 14px;">Initial ₹1 verification fee for activation.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="register-form wizard-form-content" style="display: flex; flex-direction: column; justify-content: center; padding: 100px; background: rgba(255,255,255,0.01);">
+                <form id="registrationForm" onsubmit="handleRegistration(event)">
+                    <div style="display: grid; grid-template-cols: 1fr 1fr; gap: 24px;">
+                        <input type="text" id="hospitalName" class="input-futuristic" placeholder="Hospital Entity Name" required>
+                        <input type="text" id="staffCount" class="input-futuristic" placeholder="Estimated Staff Count" required>
+                    </div>
+                    <input type="email" id="email" class="input-futuristic" placeholder="Administrator Gmail" required>
+                    <input type="tel" id="phone" class="input-futuristic" placeholder="Direct Contact Number" required>
+                    <textarea id="address" class="input-futuristic" style="height: 120px;" placeholder="Full Clinical Address & Landmark" required></textarea>
+                    
+                    <div class="file-upload-zone" id="dropZone" onclick="document.getElementById('certificate').click()">
+                        <i data-lucide="upload-cloud" style="margin-bottom: 16px; color: var(--accent-blue);"></i>
+                        <p style="font-size: 12px; font-weight: 900; color: #fff; text-transform: uppercase; letter-spacing: 0.2em;">Upload Clinical Evidence</p>
+                        <p style="font-size: 10px; color: #64748b; margin-top: 8px;">PDF or Image of Hospital Registration</p>
+                        <p id="fileName" style="font-size: 11px; color: var(--accent-emerald); font-weight: 800; margin-top: 15px;"></p>
+                        <input type="file" id="certificate" style="display: none;" onchange="handleFile(this)">
+                    </div>
+
+                    <button type="submit" class="btn-quantum w-full" style="width: 100%; height: 90px; font-size: 16px; background: var(--accent-blue);">Initialize Activation</button>
+                    <p style="text-align: center; margin-top: 30px; font-size: 9px; font-weight: 900; color: #475569; text-transform: uppercase; letter-spacing: 0.3em;">Sovereign Protocol Encrypted</p>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- LIVE NODE NETWORK MAP -->
+    <section id="network" style="background: rgba(0,242,255,0.02); overflow: hidden;">
+        <div style="display: grid; grid-template-cols: 1fr 1.5fr; gap: 80px; align-items: center;">
+            <div>
+                <div class="badge-futuristic">Global Intelligence</div>
+                <h2 class="outfit" style="font-size: 3.5rem; font-weight: 900; margin-bottom: 30px; line-height: 1.1;">The Real-time Clinical Grid.</h2>
+                <p style="color: #64748b; line-height: 1.8; margin-bottom: 40px;">Hospyn 2.0 operates as a decentralized network of clinical nodes. Each pulsing point represents a hospital operating at peak efficiency through sovereign activation.</p>
+                
+                <div class="glass-panel p-8" style="border-color: rgba(0,242,255,0.1);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                        <span style="font-size: 10px; font-weight: 900; color: #475569; text-transform: uppercase;">Active Nodes</span>
+                        <span style="font-size: 10px; font-weight: 900; color: var(--accent-blue); text-transform: uppercase;">Streaming Live</span>
+                    </div>
+                    <div style="space-y-4">
+                        <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--glass-border);">
+                            <span style="font-size: 13px; color: #fff;">Bangalore Cluster</span>
+                            <span style="font-size: 13px; color: var(--accent-emerald);">● ONLINE</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--glass-border);">
+                            <span style="font-size: 13px; color: #fff;">Hyderabad Node Alpha</span>
+                            <span style="font-size: 13px; color: var(--accent-emerald);">● ONLINE</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 12px 0;">
+                            <span style="font-size: 13px; color: #fff;">Mumbai Medical Grid</span>
+                            <span style="font-size: 13px; color: var(--accent-emerald);">● ONLINE</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="position: relative; height: 600px; display: flex; align-items: center; justify-content: center;">
+                <!-- Simplified SVG Map with Pulsing Dots -->
+                <svg viewBox="0 0 800 800" style="width: 100%; height: 100%; opacity: 0.6;">
+                    <path d="M400 100 L500 200 L550 400 L500 600 L400 700 L300 600 L250 400 L300 200 Z" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
+                    <!-- Pulsing Node 1 (Bangalore) -->
+                    <circle cx="420" cy="550" r="4" fill="var(--accent-blue)">
+                        <animate attributeName="r" values="4;12;4" dur="2s" repeatCount="indefinite" />
+                        <animate attributeName="opacity" values="1;0;1" dur="2s" repeatCount="indefinite" />
+                    </circle>
+                    <!-- Pulsing Node 2 (Hyderabad) -->
+                    <circle cx="430" cy="480" r="4" fill="var(--accent-blue)">
+                        <animate attributeName="r" values="4;15;4" dur="2.5s" repeatCount="indefinite" />
+                        <animate attributeName="opacity" values="1;0;1" dur="2.5s" repeatCount="indefinite" />
+                    </circle>
+                    <!-- Pulsing Node 3 (Mumbai) -->
+                    <circle cx="320" cy="450" r="4" fill="var(--accent-blue)">
+                        <animate attributeName="r" values="4;10;4" dur="3s" repeatCount="indefinite" />
+                        <animate attributeName="opacity" values="1;0;1" dur="3s" repeatCount="indefinite" />
+                    </circle>
+                    <!-- Pulsing Node 4 (Delhi) -->
+                    <circle cx="400" cy="250" r="4" fill="var(--accent-blue)">
+                        <animate attributeName="r" values="4;18;4" dur="1.8s" repeatCount="indefinite" />
+                        <animate attributeName="opacity" values="1;0;1" dur="1.8s" repeatCount="indefinite" />
+                    </circle>
+                </svg>
+                <div style="position: absolute; bottom: 40px; right: 40px;" class="glass-panel p-6">
+                    <p style="font-size: 24px; font-weight: 900;" class="outfit">1,402</p>
+                    <p style="font-size: 10px; font-weight: 900; color: #475569; text-transform: uppercase; letter-spacing: 0.2em;">Global Peak TPS</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FORENSIC SECURITY MATRIX -->
+    <section id="security" style="padding: 100px 10%;">
+        <div style="text-align: center; margin-bottom: 80px;">
+            <div class="badge-futuristic">Hardened Architecture</div>
+            <h2 class="outfit" style="font-size: 3rem; font-weight: 900;">Forensic Security Matrix.</h2>
+            <p style="color: #64748b; max-width: 700px; margin: 20px auto;">We maintain the highest standards of clinical data security, ensuring your hospital's node is an impenetrable fortress.</p>
+        </div>
+
+        <div style="display: grid; grid-template-cols: repeat(auto-fit, minmax(250px, 1fr)); gap: 30px;">
+            <div class="glass-panel p-8 hover:border-accent-emerald transition-all">
+                <i data-lucide="lock" style="color: var(--accent-emerald); margin-bottom: 20px;"></i>
+                <h4 class="outfit" style="margin-bottom: 10px;">AES-256 Vaults</h4>
+                <p style="font-size: 13px; color: #64748b;">Every byte of patient data is encrypted at rest using military-grade standards.</p>
+            </div>
+            <div class="glass-panel p-8 hover:border-accent-blue transition-all">
+                <i data-lucide="fingerprint" style="color: var(--accent-blue); margin-bottom: 20px;"></i>
+                <h4 class="outfit" style="margin-bottom: 10px;">Identity Ledger</h4>
+                <p style="font-size: 13px; color: #64748b;">Multi-factor biometric authentication for all staff clinical access.</p>
+            </div>
+            <div class="glass-panel p-8 hover:border-accent-indigo transition-all">
+                <i data-lucide="history" style="color: var(--accent-indigo); margin-bottom: 20px;"></i>
+                <h4 class="outfit" style="margin-bottom: 10px;">Forensic Audit</h4>
+                <p style="font-size: 13px; color: #64748b;">Every single click is logged in an immutable ledger for legal compliance.</p>
+            </div>
+            <div class="glass-panel p-8 hover:border-rose-500 transition-all">
+                <i data-lucide="zap-off" style="color: #f43f5e; margin-bottom: 20px;"></i>
+                <h4 class="outfit" style="margin-bottom: 10px;">Zero-Trust Grid</h4>
+                <p style="font-size: 13px; color: #64748b;">No single point of failure. Your node operates even during global grid outages.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer style="padding: 100px 5%; text-align: center; border-top: 1px solid var(--glass-border);">
+        <a href="#" class="outfit" style="text-decoration: none; font-size: 32px; font-weight: 900; color: #fff; letter-spacing: -2px;">HOSPYN.</a>
+        <p style="margin-top: 40px; font-size: 12px; font-weight: 800; color: #475569; letter-spacing: 0.3em; text-transform: uppercase;">© 2026 Sovereign Clinical Grid. All Rights Reserved.</p>
     </footer>
+
+    <!-- STICKY ACTIVATION TRIGGER (RIGHT SIDE) -->
+    <div class="activation-trigger">
+        <div style="text-align: right;">
+            <p id="nodeStatusText" style="font-size: 10px; font-weight: 900; color: var(--accent-blue); letter-spacing: 0.3em; text-transform: uppercase; margin-bottom: 2px;">Node Status: Ready</p>
+            <p id="nodeStatusSubtext" style="font-size: 11px; font-weight: 600; color: #64748b; letter-spacing: 0.05em;">Provision Your Hospital Node</p>
+        </div>
+        <button id="mainActionBtn" class="floating-cta active-glow" onclick="handleMainAction()">Connect Node</button>
+    </div>
+
+    <!-- ... existing nav and sections ... -->
+
+    <!-- FULL SCREEN WIZARD OVERLAY -->
+    <div id="activationWizard" class="wizard-overlay">
+        <div class="close-wizard" onclick="toggleWizard(false)"><i data-lucide="x" size="48"></i></div>
+        
+        <div class="wizard-container">
+            <!-- Left: Contextual Info -->
+            <div id="wizardInfoSidebar" class="register-info" style="display: flex; flex-direction: column; justify-content: center; padding: 100px;">
+                <!-- Content injected via JS -->
+            </div>
+
+            <!-- Right: The Content Area -->
+            <div id="wizardContentArea" class="register-form wizard-form-content" style="display: flex; flex-direction: column; justify-content: center; padding: 100px; background: rgba(255,255,255,0.01);">
+                <!-- Forms or Tracking injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ... existing footer ... -->
 
     <script>
         lucide.createIcons();
+
+        // Application State Management
+        let appState = localStorage.getItem('hospyn_app_state') || 'unregistered'; // 'unregistered', 'pending', 'verified'
+
+        function updateUIState() {
+            const btn = document.getElementById('mainActionBtn');
+            const statusText = document.getElementById('nodeStatusText');
+            const statusSub = document.getElementById('nodeStatusSubtext');
+
+            if (appState === 'pending') {
+                btn.textContent = "Track Application";
+                btn.style.background = "var(--accent-indigo)";
+                btn.style.color = "#fff";
+                statusText.textContent = "Node Status: Auditing";
+                statusText.style.color = "var(--accent-indigo)";
+                statusSub.textContent = "Clinical Review in Progress";
+            } else if (appState === 'verified') {
+                btn.textContent = "View Credentials";
+                btn.style.background = "var(--accent-emerald)";
+                statusText.textContent = "Node Status: Active";
+                statusText.style.color = "var(--accent-emerald)";
+                statusSub.textContent = "Sovereign Grid Connected";
+            }
+        }
+
+        function handleMainAction() {
+            if (appState === 'unregistered') {
+                showRegistrationForm();
+            } else {
+                showTrackingView();
+            }
+            toggleWizard(true);
+        }
+
+        function toggleWizard(show) {
+            const wizard = document.getElementById('activationWizard');
+            if (show) {
+                wizard.classList.add('wizard-active');
+                document.body.style.overflow = 'hidden';
+            } else {
+                wizard.classList.remove('wizard-active');
+                document.body.style.overflow = 'auto';
+            }
+        }
+
+        function showRegistrationForm() {
+            const sidebar = document.getElementById('wizardInfoSidebar');
+            const content = document.getElementById('wizardContentArea');
+
+            sidebar.innerHTML = `
+                <div class="badge-futuristic">Provisioning Console</div>
+                <h2 class="outfit" style="font-size: 4rem; font-weight: 900; margin-bottom: 40px; line-height: 1;">Connect Your <br> Clinical Node.</h2>
+                <p style="color: #94a3b8; font-size: 1.1rem; margin-bottom: 60px;">To ensure the integrity of the clinical grid, we require forensic identification and clinical verification.</p>
+                <div style="background: rgba(255,255,255,0.02); padding: 40px; border-radius: 40px; border: 1px solid var(--glass-border);">
+                    <div style="display: flex; gap: 24px; margin-bottom: 40px;">
+                        <div style="width: 48px; height: 48px; border-radius: 16px; background: var(--accent-blue); display: flex; align-items: center; justify-content: center; color: #000;"><i data-lucide="shield-check"></i></div>
+                        <div><p style="font-weight: 900; color: #fff; text-transform: uppercase; font-size: 12px;">Legal Audit</p><p style="color: #64748b; font-size: 14px;">Credential Verification.</p></div>
+                    </div>
+                </div>
+            `;
+
+            content.innerHTML = `
+                <form id="registrationForm" onsubmit="handleRegistration(event)">
+                    <div style="display: grid; grid-template-cols: 1fr 1fr; gap: 24px;">
+                        <input type="text" id="hospitalName" class="input-futuristic" placeholder="Hospital Name" required>
+                        <input type="text" id="staffCount" class="input-futuristic" placeholder="Staff Count" required>
+                    </div>
+                    <input type="email" id="email" class="input-futuristic" placeholder="Admin Email" required>
+                    <input type="tel" id="phone" class="input-futuristic" placeholder="Phone" required>
+                    <textarea id="address" class="input-futuristic" style="height: 100px;" placeholder="Full Address" required></textarea>
+                    <div class="file-upload-zone" id="dropZone" onclick="document.getElementById('certificate').click()">
+                        <i data-lucide="upload-cloud" style="margin-bottom: 16px; color: var(--accent-blue);"></i>
+                        <p style="font-size: 12px; font-weight: 900; color: #fff; text-transform: uppercase;">Upload Clinical Proof</p>
+                        <p id="fileName" style="font-size: 11px; color: var(--accent-emerald); margin-top: 10px;"></p>
+                        <input type="file" id="certificate" style="display: none;" onchange="handleFile(this)">
+                    </div>
+                    <button type="submit" class="btn-quantum w-full" style="width: 100%; height: 80px; background: var(--accent-blue);">Initialize Activation</button>
+                </form>
+            `;
+            lucide.createIcons();
+        }
+
+        function showTrackingView() {
+            const sidebar = document.getElementById('wizardInfoSidebar');
+            const content = document.getElementById('wizardContentArea');
+
+            sidebar.innerHTML = `
+                <div class="badge-futuristic">Node Tracking</div>
+                <h2 class="outfit" style="font-size: 4rem; font-weight: 900; margin-bottom: 40px; line-height: 1;">Audit in <br> Progress.</h2>
+                <p style="color: #94a3b8; font-size: 1.1rem;">Our clinical governance team is currently reviewing your forensic evidence. Your node will be activated shortly.</p>
+            `;
+
+            content.innerHTML = `
+                <div style="space-y-12">
+                    <div style="display: flex; gap: 30px; align-items: center; opacity: 1; margin-bottom: 50px;">
+                        <div style="width: 60px; height: 60px; border-radius: 50%; background: var(--accent-emerald); display: flex; align-items: center; justify-content: center; color: #000;"><i data-lucide="check"></i></div>
+                        <div><h4 class="outfit" style="font-size: 1.5rem; color: #fff;">Profile Submitted</h4><p style="color: #64748b; font-size: 14px;">Credentials ingested into forensic ledger.</p></div>
+                    </div>
+                    <div style="display: flex; gap: 30px; align-items: center; opacity: 1; margin-bottom: 50px;">
+                        <div style="width: 60px; height: 60px; border-radius: 50%; background: var(--accent-indigo); display: flex; align-items: center; justify-content: center; color: #fff;" class="active-glow"><i data-lucide="refresh-cw"></i></div>
+                        <div><h4 class="outfit" style="font-size: 1.5rem; color: #fff;">Verification Process</h4><p style="color: #64748b; font-size: 14px;">Clinical license audit and node provisioning.</p></div>
+                    </div>
+                    <div style="display: flex; gap: 30px; align-items: center; opacity: 0.3;">
+                        <div style="width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center; color: #64748b;"><i data-lucide="award"></i></div>
+                        <div><h4 class="outfit" style="font-size: 1.5rem; color: #64748b;">Activation Complete</h4><p style="color: #475569; font-size: 14px;">Sovereign Intelligence Hub unlocked.</p></div>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        async function handleRegistration(event) {
+            event.preventDefault();
+            const btn = event.target.querySelector('button');
+            btn.textContent = "SYNCHRONIZING...";
+            btn.disabled = true;
+
+            // Simulate successful registration for the demo
+            setTimeout(() => {
+                localStorage.setItem('hospyn_app_state', 'pending');
+                appState = 'pending';
+                updateUIState();
+                showTrackingView();
+            }, 2000);
+        }
+
+        function handleFile(input) {
+            const fileNameDisplay = document.getElementById('fileName');
+            if (input.files.length > 0) {
+                fileNameDisplay.textContent = `READY: ${input.files[0].name}`;
+                document.getElementById('dropZone').style.borderColor = 'var(--accent-emerald)';
+            }
+        }
+
+        // Initialize UI
+        updateUIState();
     </script>
 </body>
 </html>

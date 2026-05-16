@@ -1,0 +1,67 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100;400;700;900&family=Inter:wght@300;400;600;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-background: #02040a;
+  --color-primary: #00f2ff;
+  --color-secondary: #6366f1;
+  --color-accent: #10b981;
+  --color-surface: rgba(255, 255, 255, 0.03);
+  --color-glass-border: rgba(255, 255, 255, 0.06);
+  
+  --font-outfit: "Outfit", sans-serif;
+  --font-inter: "Inter", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-slate-200 font-inter antialiased overflow-x-hidden;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/[0.03] backdrop-blur-2xl border border-white/[0.06] rounded-[32px] transition-all duration-500;
+  }
+  
+  .premium-gradient-text {
+    @apply bg-gradient-to-br from-white via-primary to-secondary bg-clip-text text-transparent;
+  }
+  
+  .btn-premium {
+    @apply px-8 py-4 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-full 
+           hover:scale-105 active:scale-95 transition-all duration-300 shadow-2xl shadow-primary/20 hover:shadow-primary/40;
+  }
+
+  .btn-outline {
+    @apply px-8 py-4 border border-white/10 text-white font-black uppercase tracking-widest text-[10px] rounded-full 
+           hover:bg-white/5 transition-all duration-300;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #02040a;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
+.neural-grid {
+  background-image: 
+    radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.05) 0%, transparent 50%),
+    linear-gradient(rgba(255, 255, 255, 0.01) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.01) 1px, transparent 1px);
+  background-size: 100% 100%, 40px 40px, 40px 40px;
+}
+
+.badge-futuristic {
+  @apply px-4 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-[10px] font-black tracking-[0.4em] text-primary uppercase;
+}

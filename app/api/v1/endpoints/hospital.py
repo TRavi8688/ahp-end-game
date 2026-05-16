@@ -53,18 +53,22 @@ async def create_hospital(
 
 @router.post("/{hospital_id}/departments", response_model=APIResponse[DepartmentResponse], status_code=201)
 async def create_department(
-    hospital_id: int,
+    hospital_id: uuid.UUID,
     dept_data: DepartmentCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_roles("hospital_admin", "admin")),
-    _tenant: User = Depends(require_tenant_access(0)),  # hospital_id injected at runtime
+    _tenant: User = Depends(require_tenant_access(None)),
     trace_id: str = Depends(generate_trace_id)
 ):
     """
     Create a new Department (Zone) within the Hospital.
     Requires Hospital Admin privileges scoped to this tenant.
     """
-    # TODO: Add granular RBAC check here to ensure current_user is admin of hospital_id
+    if current_user.role != "admin":
+        if not hasattr(current_user, "staff_profile") or not current_user.staff_profile:
+            raise HTTPException(status_code=403, detail="Staff profile missing.")
+        if str(current_user.staff_profile.hospital_id) != str(hospital_id):
+            raise HTTPException(status_code=403, detail="Cross-tenant access denied. You are not an admin of this hospital.")
     
     try:
         dept = await HospitalService.add_department(db, hospital_id, dept_data)
