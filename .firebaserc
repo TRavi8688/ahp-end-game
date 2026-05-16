@@ -16,6 +16,9 @@
         ],
         "landing": [
           "hospyn-gateway"
+        ],
+        "admin": [
+          "hospyn-495906-96438"
         ]
       }
     }
