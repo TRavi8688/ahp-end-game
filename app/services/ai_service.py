@@ -288,6 +288,9 @@ class AsyncAIService:
     async def _call_insforge_ai(self, model: str, prompt: str, image_bytes: bytes = None, mime_type: str = "image/jpeg", force_json: bool = False) -> str:
         """Call InsForge's OpenAI-compatible AI endpoint."""
         provider = "insforge"
+        if not self.anon_key or not self.base_url:
+            return "MISSING_KEY"
+            
         url = f"{self.base_url}/api/ai/chat/completion"
         headers = {
             "Authorization": f"Bearer {self.anon_key}",
@@ -442,15 +445,23 @@ class AsyncAIService:
         if not final_result:
              # ENTERPRISE RECOVERY: Clinical Safe Mode
              logger.critical(f"TOTAL_AI_OUTAGE: trace_id={trace_id}")
-             safe_fallback = (
-                 "⚠️ [CLINICAL SAFE MODE ACTIVE]\n\n"
-                 "I am currently experiencing connectivity issues with my central medical intelligence network. "
-                 "To ensure your safety, I am operating in a restricted mode.\n\n"
-                 "ACTION REQUIRED:\n"
-                 "1. If this is an emergency, contact your local emergency services immediately.\n"
-                 "2. Please consult your physical medical records or your physician for urgent clinical decisions.\n"
-                 "3. I will be fully available once my secure connection is restored."
-             )
+             
+             if image_bytes:
+                 safe_fallback = (
+                     "I'm sorry, but my clinical vision systems are currently experiencing heavy load, so I cannot analyze this image right now. "
+                     "Please try again in a few minutes, or describe the image to me using text! 🔄"
+                 )
+             else:
+                 safe_fallback = (
+                     "⚠️ [CLINICAL SAFE MODE ACTIVE]\n\n"
+                     "I am currently experiencing connectivity issues with my central medical intelligence network. "
+                     "To ensure your safety, I am operating in a restricted mode.\n\n"
+                     "ACTION REQUIRED:\n"
+                     "1. If this is an emergency, contact your local emergency services immediately.\n"
+                     "2. Please consult your physical medical records or your physician for urgent clinical decisions.\n"
+                     "3. I will be fully available once my secure connection is restored."
+                 )
+                 
              return {
                  "success": False, 
                  "error": "ALL_PROVIDERS_FAILED", 
