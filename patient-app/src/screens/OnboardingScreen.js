@@ -30,7 +30,8 @@ export default function OnboardingScreen({ navigation }) {
     const [formData, setFormData] = useState({
         phone: '',
         otp: '',
-        fullName: '',
+        firstName: '',
+        lastName: '',
         dob: '',
         gender: '',
         bloodGroup: '',
@@ -123,10 +124,10 @@ export default function OnboardingScreen({ navigation }) {
         try {
             // High-Integrity Registration Pipeline
             const registerResp = await axios.post(`${API_BASE_URL}/auth/register`, {
-                email: formData.phone,
+                phone_number: formData.phone,
                 password: formData.password,
-                first_name: formData.fullName.split(' ')[0] || 'Patient',
-                last_name: formData.fullName.split(' ').slice(1).join(' ') || '',
+                first_name: formData.firstName || 'Patient',
+                last_name: formData.lastName || '',
                 role: 'patient'
             });
 
@@ -141,8 +142,8 @@ export default function OnboardingScreen({ navigation }) {
 
             // Setup Profile according to Phase 2 hardened schema
             await axios.post(`${API_BASE_URL}/patient/profile/update`, {
-                first_name: formData.fullName.split(' ')[0] || 'Patient',
-                last_name: formData.fullName.split(' ').slice(1).join(' ') || '',
+                first_name: formData.firstName || 'Patient',
+                last_name: formData.lastName || '',
                 phone_number: `+91${formData.phone}`,
                 date_of_birth: formData.dob,
                 gender: formData.gender,
@@ -155,11 +156,12 @@ export default function OnboardingScreen({ navigation }) {
             
             // Persist session but don't trigger global auth state yet
             // This allows us to show the Success screen first
-            await login(token, hospyn_id, formData.fullName);
+            const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+            await login(token, hospyn_id, fullName);
             
             navigation.replace('RegistrationSuccess', { 
                 hospyn_id: hospyn_id, 
-                fullName: formData.fullName 
+                fullName: fullName 
             });
 
         } catch (e) {
@@ -242,17 +244,32 @@ export default function OnboardingScreen({ navigation }) {
             <Text style={styles.stepTitle}>{steps[1].title}</Text>
             <Text style={styles.stepSubtitle}>{steps[1].subtitle}</Text>
 
-            <View style={styles.inputGroup}>
-                <Text style={styles.label}>FULL NAME</Text>
-                <View style={styles.inputWrapper}>
-                    <Ionicons name="person-outline" size={20} color="#94A3B8" style={styles.inputIcon} />
-                    <TextInput
-                        style={styles.input}
-                        placeholder="John Doe"
-                        placeholderTextColor="#475569"
-                        value={formData.fullName}
-                        onChangeText={(v) => setFormData({...formData, fullName: v})}
-                    />
+            <View style={styles.row}>
+                <View style={[styles.inputGroup, { flex: 1 }]}>
+                    <Text style={styles.label}>FIRST NAME</Text>
+                    <View style={styles.inputWrapper}>
+                        <Ionicons name="person-outline" size={20} color="#94A3B8" style={styles.inputIcon} />
+                        <TextInput
+                            style={styles.input}
+                            placeholder="John"
+                            placeholderTextColor="#475569"
+                            value={formData.firstName}
+                            onChangeText={(v) => setFormData({...formData, firstName: v})}
+                        />
+                    </View>
+                </View>
+                <View style={[styles.inputGroup, { flex: 1 }]}>
+                    <Text style={styles.label}>LAST NAME</Text>
+                    <View style={styles.inputWrapper}>
+                        <Ionicons name="person-outline" size={20} color="#94A3B8" style={styles.inputIcon} />
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Doe"
+                            placeholderTextColor="#475569"
+                            value={formData.lastName}
+                            onChangeText={(v) => setFormData({...formData, lastName: v})}
+                        />
+                    </View>
                 </View>
             </View>
 

@@ -15,11 +15,11 @@ import { API_BASE_URL } from '../api';
 export default function RegisterScreen({ navigation }) {
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
-        fullName: '',
+        firstName: '',
+        lastName: '',
         age: '',
         gender: '',
         bloodGroup: '',
-        abhaNumber: '',
         phone: '',
         password: '',
         confirmPassword: ''
@@ -37,8 +37,8 @@ export default function RegisterScreen({ navigation }) {
     };
 
     const handleNext = async () => {
-        const { fullName, phone, password, confirmPassword } = formData;
-        if (!fullName || !phone || !password || !confirmPassword) return Alert.alert('Missing Info', 'Please fill in Name, Phone, and Password.');
+        const { firstName, lastName, phone, password, confirmPassword } = formData;
+        if (!firstName || !lastName || !phone || !password || !confirmPassword) return Alert.alert('Missing Info', 'Please fill in First Name, Last Name, Phone, and Password.');
         if (phone.length < 10) return Alert.alert('Invalid Phone', 'Please enter a valid 10-digit phone number.');
         const passwordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*.,+=\-_]).{6,}$/;
         if (!passwordRegex.test(password)) {
@@ -60,12 +60,11 @@ export default function RegisterScreen({ navigation }) {
             }
 
             // Register the user first so they exist in the DB for OTP verification
-            const names = fullName.split(' ');
             await axios.post(`${API_BASE_URL}/auth/register`, {
-                email: phone,
+                phone_number: phone,
                 password: password,
-                first_name: names[0] || 'Unknown',
-                last_name: names.length > 1 ? names.slice(1).join(' ') : 'Unknown',
+                first_name: firstName || 'Unknown',
+                last_name: lastName || '',
                 role: 'patient'
             });
 
@@ -89,18 +88,13 @@ export default function RegisterScreen({ navigation }) {
             const { access_token } = resp.data;
 
             // Immediately complete profile setup
-            const names = formData.fullName.split(" ");
-            const firstName = names[0] || "Unknown";
-            const lastName = names.length > 1 ? names.slice(1).join(" ") : "";
-
             const setupPayload = {
                 phone_number: formData.phone,
-                first_name: firstName,
-                last_name: lastName,
+                first_name: formData.firstName || 'Unknown',
+                last_name: formData.lastName || '',
                 date_of_birth: formData.age || null,
-                gender: formData.gender || "Unknown",
-                blood_group: "Unknown",
-                abha_number: null,
+                gender: formData.gender || 'Unknown',
+                blood_group: 'Unknown',
                 password: formData.password,
                 conditions: [],
                 medications: []
@@ -115,7 +109,8 @@ export default function RegisterScreen({ navigation }) {
             await SecurityUtils.saveHospynId(hospyn_id);
 
             // Navigate to Success Screen instead of Main Dashboard
-            navigation.replace('RegistrationSuccess', { hospyn_id, fullName: formData.fullName });
+            const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+            navigation.replace('RegistrationSuccess', { hospyn_id, fullName });
 
         } catch (err) {
             console.error(err);
@@ -137,15 +132,27 @@ export default function RegisterScreen({ navigation }) {
 
                         {step === 1 ? (
                             <>
-                                <View style={styles.inputBox}>
-                                    <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
-                                    <TextInput
-                                        style={styles.input}
-                                        placeholder="Full Name"
-                                        value={formData.fullName}
-                                        onChangeText={(v) => setFormData({ ...formData, fullName: v })}
-                                        placeholderTextColor="#aaa"
-                                    />
+                                <View style={{ flexDirection: 'row', gap: 10 }}>
+                                    <View style={[styles.inputBox, { flex: 1 }]}>
+                                        <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="First Name"
+                                            value={formData.firstName}
+                                            onChangeText={(v) => setFormData({ ...formData, firstName: v })}
+                                            placeholderTextColor="#aaa"
+                                        />
+                                    </View>
+                                    <View style={[styles.inputBox, { flex: 1 }]}>
+                                        <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
+                                        <TextInput
+                                            style={styles.input}
+                                            placeholder="Last Name"
+                                            value={formData.lastName}
+                                            onChangeText={(v) => setFormData({ ...formData, lastName: v })}
+                                            placeholderTextColor="#aaa"
+                                        />
+                                    </View>
                                 </View>
                                 <View style={styles.inputBox}>
                                     <Ionicons name="call-outline" size={20} color="#666" style={styles.inputIcon} />
