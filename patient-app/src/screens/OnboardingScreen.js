@@ -96,7 +96,8 @@ export default function OnboardingScreen({ navigation }) {
         } catch (e) {
             HapticUtils.error();
             console.error("OTP Error:", e);
-            Alert.alert('Error', 'Failed to send OTP. Please check your network and try again.');
+            const errMsg = e.response?.data?.detail || e.response?.data?.message || 'Failed to send OTP. Please check your network and try again.';
+            Alert.alert('Delivery Failed', errMsg);
         } finally {
             setLoading(false);
         }

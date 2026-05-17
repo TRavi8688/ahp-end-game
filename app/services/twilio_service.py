@@ -51,4 +51,4 @@ def send_sms_otp(phone_number: str, otp: str) -> bool:
         return True
     except Exception as e:
         logger.error("SMS_DISPATCH_FAILURE", error=str(e), recipient=phone_number)
-        return False
+        raise e

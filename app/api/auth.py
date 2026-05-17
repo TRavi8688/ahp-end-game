@@ -319,12 +319,24 @@ async def send_otp(
             success = await send_sms_otp(req.identifier, otp)
             
             if not success:
-                if settings.ENVIRONMENT == "production":
-                    logger.error(f"SMS_PROVIDER_FAILURE: Twilio rejected dispatch to {req.identifier}")
-                    raise Exception("SMS Provider Rejected Request")
-                else:
-                    logger.warning(f"SMS_PROVIDER_FAILURE: Mocking success for {req.identifier} in {settings.ENVIRONMENT}")
-                    success = True
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="SMS delivery failed. Please verify your Twilio credentials, phone balance, or number eligibility."
+                )
+    except Exception as e:
+        err_msg = str(e).lower()
+        if "unverified" in err_msg or "trial" in err_msg:
+            detail_msg = f"Twilio Trial Account Restriction: Phone number {req.identifier} is unverified. Please verify it in your Twilio Console or use a verified number."
+        elif "permission" in err_msg or "geo" in err_msg or "country" in err_msg:
+            detail_msg = "Twilio geo-permission restriction: SMS delivery to this country code is not enabled in your Twilio Console."
+        else:
+            detail_msg = f"Twilio SMS delivery failed: {str(e)}"
+            
+        logger.error(f"SMS_DISPATCH_FAILURE_EXPOSED: {detail_msg}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=detail_msg
+        )
 
         else:
             from app.services.email_service import send_email_otp
