@@ -3,7 +3,7 @@ import uuid
 from typing import List, Optional, Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request, Form
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, func
 
 import app.api.deps as deps
 from app.models import models
@@ -33,10 +33,10 @@ async def patient_login_hospyn(
     from app.core import security
     from app.api.auth import throw_auth_exception
     
-    hospyn_id = req.hospyn_id.upper().strip()
+    hospyn_id = req.hospyn_id.strip()
 
     # 1. Atomic Search: Local Database is the ONLY Source of Truth
-    result_p = await db.execute(select(models.Patient).where(models.Patient.hospyn_id == hospyn_id))
+    result_p = await db.execute(select(models.Patient).where(func.lower(models.Patient.hospyn_id) == hospyn_id.lower()))
     patient = result_p.scalars().first()
     
     if not patient:

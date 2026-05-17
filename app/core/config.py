@@ -96,6 +96,8 @@ class Settings(BaseSettings):
     GROQ_API_KEY: Optional[str] = None
     ANTHROPIC_API_KEY: Optional[str] = None
     SARVAM_KEY: Optional[str] = None
+    INSFORGE_BASE_URL: str = "https://api.insforge.com"
+    INSFORGE_ANON_KEY: Optional[str] = None
     
     # --- 7. PREMIUM SERVICES ---
     RAZORPAY_KEY_ID: str = os.getenv("RAZORPAY_KEY_ID", "rzp_test_placeholder")
