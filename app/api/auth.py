@@ -334,6 +334,17 @@ async def send_otp(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="SMS delivery failed. Please verify your Twilio credentials, phone balance, or number eligibility."
                 )
+        else:
+            from app.services.email_service import send_email_otp
+            logger.info(f"EMAIL_DISPATCH_INITIATED: To={req.identifier}")
+            success = send_email_otp(req.identifier, otp)
+            if not success:
+                logger.error(f"EMAIL_PROVIDER_FAILURE: SMTP failure for {req.identifier}")
+                raise Exception("Email Provider Rejected Request")
+        
+        logger.info(f"OTP_DISPATCH_SUCCESS: Method={req.method}, To={req.identifier}")
+    except HTTPException as he:
+        raise he
     except Exception as e:
         err_msg = str(e).lower()
         if "unverified" in err_msg or "trial" in err_msg:
@@ -347,22 +358,6 @@ async def send_otp(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=detail_msg
-        )
-
-        else:
-            from app.services.email_service import send_email_otp
-            logger.info(f"EMAIL_DISPATCH_INITIATED: To={req.identifier}")
-            success = send_email_otp(req.identifier, otp)
-            if not success:
-                logger.error(f"EMAIL_PROVIDER_FAILURE: SMTP failure for {req.identifier}")
-                raise Exception("Email Provider Rejected Request")
-        
-        logger.info(f"OTP_DISPATCH_SUCCESS: Method={req.method}, To={req.identifier}")
-    except Exception as e:
-        logger.error(f"OTP_DELIVERY_CRASH: {str(e)}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
-            detail=f"Communication Fault: {str(e)}"
         )
     
     return {"success": True, "message": "OTP sent successfully"}
