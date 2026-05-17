@@ -43,10 +43,14 @@ class DistributedCircuitBreaker:
         return True
 
     async def get_state(self) -> CircuitState:
-        state = await redis_service.get(self.state_key)
-        if not state:
+        try:
+            state = await redis_service.get(self.state_key)
+            if not state:
+                return CircuitState.CLOSED
+            return CircuitState(int(state))
+        except Exception as e:
+            logger.error(f"CIRCUIT_BREAKER_STATE_ERROR: {e}")
             return CircuitState.CLOSED
-        return CircuitState(int(state))
 
     async def _set_state(self, state: CircuitState):
         await redis_service.set(self.state_key, str(state.value), expire=self.recovery_timeout * 2)
@@ -74,23 +78,29 @@ class DistributedCircuitBreaker:
             raise e
 
     async def _on_success(self):
-        state = await self.get_state()
-        if state == CircuitState.HALF_OPEN:
-            # In a real system, we'd count successful calls in half-open
-            # For simplicity, first success closes it
-            logger.info(f"CIRCUIT_BREAKER: {self.name} recovered. Closing circuit.")
-            await self._set_state(CircuitState.CLOSED)
-            await redis_service.delete(self.fail_key)
-        elif state == CircuitState.CLOSED:
-            await redis_service.delete(self.fail_key)
+        try:
+            state = await self.get_state()
+            if state == CircuitState.HALF_OPEN:
+                # In a real system, we'd count successful calls in half-open
+                # For simplicity, first success closes it
+                logger.info(f"CIRCUIT_BREAKER: {self.name} recovered. Closing circuit.")
+                await self._set_state(CircuitState.CLOSED)
+                await redis_service.delete(self.fail_key)
+            elif state == CircuitState.CLOSED:
+                await redis_service.delete(self.fail_key)
+        except Exception as e:
+            logger.error(f"CIRCUIT_BREAKER_SUCCESS_ERROR: {e}")
 
     async def _on_failure(self, error: Exception):
-        fails = await redis_service.incr(self.fail_key)
-        await redis_service.set(self.last_failure_key, str(time.time()), expire=self.recovery_timeout)
-        
-        if fails >= self.failure_threshold:
-            logger.critical(f"CIRCUIT_BREAKER: {self.name} TRIPPED! Threshold {self.failure_threshold} reached. Error: {error}")
-            await self._set_state(CircuitState.OPEN)
+        try:
+            fails = await redis_service.incr(self.fail_key)
+            await redis_service.set(self.last_failure_key, str(time.time()), expire=self.recovery_timeout)
+            
+            if fails >= self.failure_threshold:
+                logger.critical(f"CIRCUIT_BREAKER: {self.name} TRIPPED! Threshold {self.failure_threshold} reached. Error: {error}")
+                await self._set_state(CircuitState.OPEN)
+        except Exception as e:
+            logger.error(f"CIRCUIT_BREAKER_FAILURE_ERROR: {e}")
 
 async def with_retry(
     func: Callable, 
