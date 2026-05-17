@@ -82,7 +82,10 @@ export default function RegisterScreen({ navigation }) {
         if (!otp) return Alert.alert('Enter OTP', 'Please enter the 6-digit code sent to your phone.');
         setLoading(true);
         try {
-            const resp = await axios.post(`${API_BASE_URL}/auth/verify-otp?email=${formData.phone}&otp=${otp}`);
+            const resp = await axios.post(`${API_BASE_URL}/auth/verify-otp`, {
+                identifier: formData.phone,
+                otp: otp
+            });
             const { access_token } = resp.data;
 
             // Immediately complete profile setup

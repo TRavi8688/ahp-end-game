@@ -96,7 +96,7 @@ export default function OnboardingScreen({ navigation }) {
                 identifier: formData.phone,
                 otp: formData.otp
             });
-            if (resp.data.valid) {
+            if (resp.data.success || resp.data.valid) {
                 HapticUtils.success();
                 setStep(1);
             } else {
@@ -364,7 +364,13 @@ export default function OnboardingScreen({ navigation }) {
                         }
 
                         if (formData.password.length < 6) {
-                            newErrors.password = 'Password too short (min 6 chars)';
+                            newErrors.password = 'Min 6 chars required';
+                            hasError = true;
+                        } else if (!/[0-9]/.test(formData.password)) {
+                            newErrors.password = 'Must contain at least 1 number';
+                            hasError = true;
+                        } else if (!/[!@#$%^&*.,]/.test(formData.password)) {
+                            newErrors.password = 'Must contain at least 1 special character (!@#$%^&*.)';
                             hasError = true;
                         }
                         if (formData.password !== formData.confirmPassword) {
