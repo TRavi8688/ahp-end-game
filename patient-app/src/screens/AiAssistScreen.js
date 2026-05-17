@@ -137,6 +137,8 @@ export default function AiAssistScreen({ navigation }) {
     const [showVaultPicker, setShowVaultPicker]   = useState(false);
     const [showShareModal, setShowShareModal]     = useState(false);
     const [showContextPanel, setShowContextPanel] = useState(false);
+    const [showSidebar, setShowSidebar]           = useState(false);
+    const [selectedScanDetail, setSelectedScanDetail] = useState(null);
 
     // Health context
     const [healthContext, setHealthContext]   = useState(null);
@@ -577,6 +579,22 @@ export default function AiAssistScreen({ navigation }) {
                             </View>
                         )}
                     </TouchableOpacity>
+
+                    {/* Scan Wallet trigger */}
+                    <TouchableOpacity
+                        style={[styles.contextBtn, { marginLeft: 8, backgroundColor: 'rgba(52, 211, 153, 0.2)' }]}
+                        onPress={() => setShowSidebar(true)}
+                        id="chitti-scan-wallet-btn"
+                    >
+                        <Ionicons name="images" size={18} color="#34d399" />
+                        {vaultRecords.filter(r => r.type === 'Chitti Scan').length > 0 && (
+                            <View style={[styles.contextBadge, { backgroundColor: '#34d399' }]}>
+                                <Text style={styles.contextBadgeText}>
+                                    {vaultRecords.filter(r => r.type === 'Chitti Scan').length}
+                                </Text>
+                            </View>
+                        )}
+                    </TouchableOpacity>
                 </View>
 
                 {/* Context Pills — what Chitti "knows" */}
@@ -991,6 +1009,118 @@ export default function AiAssistScreen({ navigation }) {
                                 </>
                             )}
                         </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* ═══════════════════════════════════════════════════════════
+                MODAL 5 — Chitti Scan Wallet (Sidebar Drawer)
+            ═══════════════════════════════════════════════════════════ */}
+            <Modal visible={showSidebar} transparent animationType="slide" onRequestClose={() => setShowSidebar(false)}>
+                <View style={styles.sheetOverlay}>
+                    <View style={[styles.sheet, { maxHeight: '85%' }]}>
+                        <View style={styles.sheetHandle} />
+                        <View style={styles.contextPanelHeader}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <Ionicons name="images" size={22} color="#34d399" />
+                                <Text style={styles.sheetTitle}>Scan Wallet</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setShowSidebar(false)}>
+                                <Ionicons name="close" size={22} color="#475569" />
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={styles.sheetSubtitle}>Your past Chitti AI camera scans and summaries are stored here securely.</Text>
+                        
+                        <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 12 }}>
+                            {vaultRecords.filter(r => r.type === 'Chitti Scan').length === 0 ? (
+                                <View style={styles.vaultEmpty}>
+                                    <Ionicons name="camera-outline" size={48} color="#cbd5e1" />
+                                    <Text style={styles.vaultEmptyText}>No scans stored yet.</Text>
+                                    <Text style={styles.vaultEmptySubText}>Send a picture to Chitti to automatically log it in your wallet!</Text>
+                                </View>
+                            ) : (
+                                vaultRecords.filter(r => r.type === 'Chitti Scan').map((scan, i) => (
+                                    <TouchableOpacity
+                                        key={scan.id.toString()}
+                                        style={styles.scanRowItem}
+                                        onPress={() => {
+                                            setSelectedScanDetail(scan);
+                                            setShowSidebar(false);
+                                        }}
+                                    >
+                                        {scan.secure_url || scan.file_url ? (
+                                            <Image source={{ uri: scan.secure_url || scan.file_url }} style={styles.scanThumbnail} />
+                                        ) : (
+                                            <View style={styles.scanThumbnailFallback}>
+                                                <Ionicons name="image-outline" size={20} color="#64748b" />
+                                            </View>
+                                        )}
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.scanRowTitle} numberOfLines={1}>{scan.title || scan.record_name || 'Chitti Scan'}</Text>
+                                            <Text style={styles.scanRowSummary} numberOfLines={2}>{scan.patient_summary || scan.ai_summary || 'Tap to view details'}</Text>
+                                            <Text style={styles.scanRowDate}>
+                                                {new Date(scan.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                            </Text>
+                                        </View>
+                                        <Ionicons name="chevron-forward" size={18} color="#94a3b8" />
+                                    </TouchableOpacity>
+                                ))
+                            )}
+                            <View style={{ height: 30 }} />
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* ═══════════════════════════════════════════════════════════
+                MODAL 6 — Scan Detail Viewer
+            ═══════════════════════════════════════════════════════════ */}
+            <Modal visible={!!selectedScanDetail} transparent animationType="fade" onRequestClose={() => setSelectedScanDetail(null)}>
+                <View style={[styles.sheetOverlay, { justifyContent: 'center', paddingHorizontal: 20 }]}>
+                    <View style={[styles.sheet, { borderRadius: 24, maxHeight: '80%', paddingBottom: 24 }]}>
+                        <View style={styles.contextPanelHeader}>
+                            <Text style={styles.sheetTitle}>Scan Details</Text>
+                            <TouchableOpacity onPress={() => setSelectedScanDetail(null)}>
+                                <Ionicons name="close" size={22} color="#475569" />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        {selectedScanDetail && (
+                            <ScrollView showsVerticalScrollIndicator={false}>
+                                {(selectedScanDetail.secure_url || selectedScanDetail.file_url) && (
+                                    <Image
+                                        source={{ uri: selectedScanDetail.secure_url || selectedScanDetail.file_url }}
+                                        style={styles.detailScanImage}
+                                        resizeMode="contain"
+                                    />
+                                )}
+                                <Text style={styles.detailScanTitle}>{selectedScanDetail.title || selectedScanDetail.record_name || 'Chitti Vision Scan'}</Text>
+                                <Text style={styles.detailScanDate}>
+                                    Logged on {new Date(selectedScanDetail.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                </Text>
+                                
+                                <View style={styles.detailScanSummaryBox}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                                        <Ionicons name="sparkles" size={16} color="#7c3aed" />
+                                        <Text style={styles.detailScanSummaryHeader}>CHITTI ANALYSIS</Text>
+                                    </View>
+                                    <Text style={styles.detailScanSummaryText}>
+                                        {selectedScanDetail.patient_summary || selectedScanDetail.ai_summary}
+                                    </Text>
+                                </View>
+                                
+                                <TouchableOpacity
+                                    style={styles.detailScanShareBtn}
+                                    onPress={() => {
+                                        initiateShare(selectedScanDetail);
+                                        setSelectedScanDetail(null);
+                                    }}
+                                >
+                                    <Ionicons name="share-social-outline" size={18} color="#fff" />
+                                    <Text style={styles.detailScanShareText}>Share with a Doctor</Text>
+                                </TouchableOpacity>
+                            </ScrollView>
+                        )}
                     </View>
                 </View>
             </Modal>
@@ -1772,5 +1902,96 @@ const styles = StyleSheet.create({
         color: '#94a3b8',
         fontSize: 12,
         fontWeight: '600',
+    },
+    scanRowItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
+        gap: 12,
+    },
+    scanThumbnail: {
+        width: 50,
+        height: 50,
+        borderRadius: 8,
+        backgroundColor: '#e2e8f0',
+    },
+    scanThumbnailFallback: {
+        width: 50,
+        height: 50,
+        borderRadius: 8,
+        backgroundColor: '#f1f5f9',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#e2e8f0',
+    },
+    scanRowTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#1e293b',
+    },
+    scanRowSummary: {
+        fontSize: 12,
+        color: '#64748b',
+        marginTop: 2,
+    },
+    scanRowDate: {
+        fontSize: 10,
+        color: '#94a3b8',
+        marginTop: 4,
+    },
+    detailScanImage: {
+        width: '100%',
+        height: 240,
+        borderRadius: 16,
+        backgroundColor: '#f8fafc',
+        marginBottom: 16,
+    },
+    detailScanTitle: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: '#1e293b',
+    },
+    detailScanDate: {
+        fontSize: 12,
+        color: '#64748b',
+        marginTop: 4,
+        marginBottom: 16,
+    },
+    detailScanSummaryBox: {
+        backgroundColor: '#f5f3ff',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#e9d5ff',
+    },
+    detailScanSummaryHeader: {
+        fontSize: 11,
+        fontWeight: '900',
+        color: '#7c3aed',
+        letterSpacing: 0.8,
+    },
+    detailScanSummaryText: {
+        fontSize: 14,
+        color: '#4c1d95',
+        lineHeight: 22,
+    },
+    detailScanShareBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#7c3aed',
+        paddingVertical: 14,
+        borderRadius: 14,
+        gap: 8,
+    },
+    detailScanShareText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '700',
     },
 });
