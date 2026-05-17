@@ -114,6 +114,23 @@ export default function OnboardingScreen({ navigation }) {
             });
             if (resp.data.success || resp.data.valid) {
                 HapticUtils.success();
+                
+                if (resp.data.user_exists) {
+                    Alert.alert(
+                        'Welcome Back',
+                        'You already have an account. We will log you in now.',
+                        [
+                            { 
+                                text: 'Continue', 
+                                onPress: async () => {
+                                    await login(resp.data.access_token, resp.data.hospyn_id, "Patient");
+                                }
+                            }
+                        ]
+                    );
+                    return;
+                }
+                
                 setStep(1);
             } else {
                 HapticUtils.error();
@@ -131,38 +148,20 @@ export default function OnboardingScreen({ navigation }) {
         HapticUtils.heavy();
         setLoading(true);
         try {
-            // High-Integrity Registration Pipeline
+            // High-Integrity Registration Pipeline (Atomic)
             const registerResp = await axios.post(`${API_BASE_URL}/auth/register`, {
                 phone_number: formData.phone,
                 password: formData.password,
                 first_name: formData.firstName || 'Patient',
                 last_name: formData.lastName || '',
-                role: 'patient'
-            });
-
-            const hospyn_id = registerResp.data.hospyn_id;
-
-            const loginFormData = new FormData();
-            loginFormData.append('username', formData.phone);
-            loginFormData.append('password', formData.password);
-
-            const loginResp = await axios.post(`${API_BASE_URL}/auth/login`, loginFormData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-            const token = loginResp.data.access_token;
-
-            // Setup Profile according to Phase 2 hardened schema
-            await axios.post(`${API_BASE_URL}/patient/profile/update`, {
-                first_name: formData.firstName || 'Patient',
-                last_name: formData.lastName || '',
-                full_name: `${formData.firstName || 'Patient'} ${formData.lastName || ''}`.trim(),
-                phone_number: `+91${formData.phone}`,
+                role: 'patient',
                 date_of_birth: formData.dob,
                 gender: formData.gender,
                 blood_group: formData.bloodGroup
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
             });
+
+            const hospyn_id = registerResp.data.hospyn_id;
+            const token = registerResp.data.access_token;
 
             HapticUtils.notificationAsync(HapticUtils.NotificationFeedbackType.Success);
             

@@ -118,13 +118,20 @@ async def register(
                 user_id=new_user.id,
                 hospyn_id=hospyn_id,
                 phone_number=phone,
-                language_code="en"
+                language_code="en",
+                date_of_birth=getattr(user_in, 'date_of_birth', None),
+                gender=getattr(user_in, 'gender', None),
+                blood_group=getattr(user_in, 'blood_group', None)
             )
             db.add(skeleton_patient)
             new_user.hospyn_id = hospyn_id
 
         await db.commit()
         await db.refresh(new_user)
+        
+        access_token = security.create_access_token(new_user.id, new_user.role)
+        refresh_token = security.create_refresh_token(new_user.id, new_user.role)
+        
         await log_audit_action(
             db=db,
             user_id=new_user.id,
@@ -141,7 +148,10 @@ async def register(
             "role": new_user.role,
             "is_active": new_user.is_active,
             "hospyn_id": hospyn_id,
-            "created_at": new_user.created_at
+            "created_at": new_user.created_at,
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer"
         }
     except HTTPException:
         raise
