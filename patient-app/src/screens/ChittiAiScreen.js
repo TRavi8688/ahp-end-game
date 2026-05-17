@@ -33,7 +33,6 @@ export default function ChittiAiScreen() {
     const [selectedLang, setSelectedLang] = useState('en-IN');
     const [showLangModal, setShowLangModal] = useState(false);
     const [userName, setUserName] = useState('');
-    const [vitality, setVitality] = useState(null);
 
     const flatListRef = useRef();
 
@@ -41,16 +40,18 @@ export default function ChittiAiScreen() {
         const fetchContext = async () => {
             try {
                 const token = await SecurityUtils.getToken();
-                const resp = await axios.get(`${API_BASE_URL}/patient/profile`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
+                const activeMemberId = await SecurityUtils.getActiveMemberId();
+                const headers = { Authorization: `Bearer ${token}` };
+                if (activeMemberId) {
+                    headers['X-Family-Member-ID'] = activeMemberId;
+                }
+
+                const resp = await axios.get(`${API_BASE_URL}/patient/profile`, { headers });
                 const name = resp.data.full_name?.split(' ')[0] || 'there';
                 setUserName(name);
                 
                 // Fetch history if available
-                const historyResp = await axios.get(`${API_BASE_URL}/patient/chat-history`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
+                const historyResp = await axios.get(`${API_BASE_URL}/patient/chat-history`, { headers });
                 
                 if (historyResp.data.length > 0) {
                     const formatted = historyResp.data.map((m, i) => ({
@@ -90,6 +91,12 @@ export default function ChittiAiScreen() {
 
         try {
             const token = await SecurityUtils.getToken();
+            const activeMemberId = await SecurityUtils.getActiveMemberId();
+            const headers = { 'Authorization': `Bearer ${token}` };
+            if (activeMemberId) {
+                headers['X-Family-Member-ID'] = activeMemberId;
+            }
+
             const formData = new FormData();
             if (text) formData.append('text', text);
             formData.append('language_code', selectedLang);
@@ -110,9 +117,7 @@ export default function ChittiAiScreen() {
                 });
             }
 
-            const response = await axios.post(`${API_BASE_URL}/patient/chat`, formData, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await axios.post(`${API_BASE_URL}/patient/chat`, formData, { headers });
 
             HapticUtils.success();
             const aiMsg = { id: (Date.now() + 1).toString(), sender: 'ai', text: response.data.ai_text };
@@ -275,7 +280,7 @@ export default function ChittiAiScreen() {
                                 style={[styles.langOption, selectedLang === lang.id && styles.langOptionActive]}
                                 onPress={() => { HapticUtils.selection(); setSelectedLang(lang.id); setShowLangModal(false); }}
                             >
-                                <Text style={styles.langText}>{lang.flag} {lang.name}</Text>
+                                <Text style={lang.id === selectedLang ? { ...styles.langText, color: Theme.colors.primary, fontWeight: 'bold' } : styles.langText}>{lang.flag} {lang.name}</Text>
                                 {selectedLang === lang.id && <Ionicons name="shield-checkmark" size={20} color={Theme.colors.primary} />}
                             </TouchableOpacity>
                         ))}
@@ -311,6 +316,7 @@ const styles = StyleSheet.create({
     aiBubble: { backgroundColor: 'rgba(15, 23, 42, 0.6)', borderBottomLeftRadius: 4, borderColor: 'rgba(255,255,255,0.05)' },
     messageText: { fontSize: 15, lineHeight: 22, color: '#E2E8F0' },
     userText: { color: '#fff', fontWeight: '500' },
+    aiText: { color: '#E2E8F0' },
     typingContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, marginBottom: 20, gap: 12 },
     typingText: { fontSize: 11, color: '#64748B', fontWeight: 'bold' },
     inputContainer: { flexDirection: 'row', alignItems: 'center', padding: 12, margin: 16, borderRadius: 24, gap: 10 },
@@ -328,307 +334,4 @@ const styles = StyleSheet.create({
     langText: { fontSize: 16, color: '#fff', fontWeight: '500' },
     closeButton: { marginTop: 24, padding: 16, alignItems: 'center' },
     closeButtonText: { color: '#64748B', fontSize: 12, fontWeight: '900', letterSpacing: 1 }
-});
-
-                <FlatList
-                    ref={flatListRef}
-                    data={messages}
-                    renderItem={renderItem}
-                    keyExtractor={item => item.id}
-                    contentContainerStyle={styles.listContent}
-                    onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
-                />
-
-                {isTyping && (
-                    <View style={styles.typingContainer}>
-                        <ActivityIndicator size="small" color={Theme.colors.primary} />
-                        <Text style={styles.typingText}>Reviewing clinical context...</Text>
-                    </View>
-                )}
-
-                <View style={styles.inputContainer}>
-                    <View style={styles.inputWrapper}>
-                        <TouchableOpacity style={styles.langInside} onPress={() => setShowLangModal(true)}>
-                            <Text style={{ fontSize: 20 }}>{CurrentLang.flag}</Text>
-                        </TouchableOpacity>
-
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Type a message..."
-                            placeholderTextColor="#475569"
-                            value={inputText}
-                            onChangeText={setInputText}
-                            multiline
-                        />
-                        
-                        <TouchableOpacity 
-                            style={styles.actionIcon} 
-                            onPress={async () => {
-                                const result = await ImagePicker.launchCameraAsync({
-                                    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                                    allowsEditing: true,
-                                    aspect: [4, 3],
-                                    quality: 0.8,
-                                });
-                                if (!result.canceled) {
-                                    sendMessage(null, null, result.assets[0]);
-                                }
-                            }}
-                        >
-                            <Ionicons name="camera-outline" size={24} color="#94A3B8" />
-                        </TouchableOpacity>
-                    </View>
-
-                    <TouchableOpacity
-                        style={[styles.micButton, isRecording && styles.micActive]}
-                        onLongPress={startRecording}
-                        onPressOut={stopRecording}
-                    >
-                        <Ionicons name={isRecording ? "mic" : "mic-outline"} size={24} color="#fff" />
-                    </TouchableOpacity>
-
-                    {inputText.length > 0 && (
-                        <TouchableOpacity style={styles.sendButton} onPress={() => sendMessage(inputText)}>
-                            <Ionicons name="send" size={20} color="#fff" />
-                        </TouchableOpacity>
-                    )}
-                </View>
-            </KeyboardAvoidingView>
-
-            <Modal visible={showLangModal} transparent animationType="fade">
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Switch Context Language</Text>
-                        {LANGUAGES.map(lang => (
-                            <TouchableOpacity
-                                key={lang.id}
-                                style={[styles.langOption, selectedLang === lang.id && styles.langOptionActive]}
-                                onPress={() => { setSelectedLang(lang.id); setShowLangModal(false); }}
-                            >
-                                <Text style={styles.langText}>{lang.flag} {lang.name}</Text>
-                                {selectedLang === lang.id && <Ionicons name="checkmark-circle" size={24} color={Theme.colors.primary} />}
-                            </TouchableOpacity>
-                        ))}
-                        <TouchableOpacity style={styles.closeButton} onPress={() => setShowLangModal(false)}>
-                            <Text style={styles.closeButtonText}>Dismiss</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
-        </View>
-    );
-}
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#050810',
-    },
-    header: {
-        paddingTop: Platform.OS === 'ios' ? 60 : 40,
-        paddingBottom: 20,
-        paddingHorizontal: 25,
-        borderBottomWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
-    },
-    headerProfile: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    headerAvatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        marginRight: 12,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.2)',
-    },
-    headerName: {
-        color: '#fff',
-        fontSize: 18,
-        fontFamily: Theme.fonts.headingSemi,
-    },
-    statusRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: 2,
-    },
-    statusDot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: '#10b981',
-        marginRight: 6,
-    },
-    statusText: {
-        color: '#94A3B8',
-        fontSize: 11,
-        fontFamily: Theme.fonts.label,
-        letterSpacing: 1,
-    },
-    listContent: {
-        padding: 20,
-        paddingBottom: 40,
-    },
-    messageRow: {
-        flexDirection: 'row',
-        marginBottom: 20,
-        alignItems: 'flex-end',
-    },
-    userRow: {
-        justifyContent: 'flex-end',
-    },
-    aiRow: {
-        justifyContent: 'flex-start',
-    },
-    chittiAvatar: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        marginRight: 10,
-        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-    },
-    messageBubble: {
-        maxWidth: '80%',
-        padding: 16,
-        borderRadius: 24,
-    },
-    userBubble: {
-        backgroundColor: Theme.colors.primary,
-        borderBottomRightRadius: 4,
-    },
-    aiBubble: {
-        backgroundColor: 'rgba(15, 23, 42, 0.8)',
-        borderBottomLeftRadius: 4,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
-    },
-    messageText: {
-        fontSize: 16,
-        lineHeight: 24,
-        fontFamily: Theme.fonts.body,
-    },
-    userText: {
-        color: '#fff',
-    },
-    aiText: {
-        color: '#E2E8F0',
-    },
-    typingContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 25,
-        marginBottom: 15,
-    },
-    typingText: {
-        marginLeft: 12,
-        fontSize: 12,
-        color: '#64748b',
-        fontFamily: Theme.fonts.label,
-    },
-    inputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 15,
-        paddingVertical: 15,
-        backgroundColor: 'rgba(5, 8, 16, 0.95)',
-        borderTopWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
-        paddingBottom: Platform.OS === 'ios' ? 40 : 15,
-    },
-    inputWrapper: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.03)',
-        borderRadius: 20,
-        paddingHorizontal: 15,
-        marginRight: 10,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
-    },
-    langInside: {
-        paddingRight: 10,
-        borderRightWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
-        marginRight: 10,
-    },
-    input: {
-        flex: 1,
-        paddingVertical: 12,
-        fontSize: 16,
-        color: '#FFFFFF',
-        fontFamily: Theme.fonts.body,
-        maxHeight: 120,
-    },
-    actionIcon: {
-        padding: 5,
-    },
-    micButton: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        backgroundColor: 'rgba(255,255,255,0.05)',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    micActive: {
-        backgroundColor: '#EF4444',
-    },
-    sendButton: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        backgroundColor: Theme.colors.primary,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginLeft: 10,
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.85)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 40,
-    },
-    modalContent: {
-        width: '100%',
-        backgroundColor: '#0F172A',
-        borderRadius: 32,
-        padding: 30,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
-    },
-    modalTitle: {
-        fontSize: 22,
-        fontFamily: Theme.fonts.headingSemi,
-        color: '#FFFFFF',
-        marginBottom: 25,
-        textAlign: 'center',
-    },
-    langOption: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: 18,
-        borderBottomWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
-    },
-    langText: {
-        fontSize: 18,
-        color: '#E2E8F0',
-        fontFamily: Theme.fonts.body,
-    },
-    closeButton: {
-        marginTop: 25,
-        backgroundColor: 'rgba(255,255,255,0.05)',
-        padding: 18,
-        borderRadius: 18,
-        alignItems: 'center',
-    },
-    closeButtonText: {
-        color: '#94A3B8',
-        fontFamily: Theme.fonts.headingSemi,
-        fontSize: 16,
-    },
 });
