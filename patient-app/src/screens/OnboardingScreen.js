@@ -167,6 +167,20 @@ export default function OnboardingScreen({ navigation }) {
         } catch (e) {
             console.error("PROVISIONING_ERROR:", e);
             HapticUtils.error();
+            const errMsg = e.response?.data?.detail || e.response?.data?.message || "";
+            if (e.response?.status === 401 || e.response?.status === 400 || errMsg.toLowerCase().includes("exists")) {
+                if (errMsg.toLowerCase().includes("exists") || errMsg.toLowerCase().includes("registered")) {
+                    Alert.alert(
+                        'Already Registered',
+                        'This phone number is already linked to an account. Please try logging in.',
+                        [
+                            { text: 'Go to Login', onPress: () => navigation.navigate('Login') },
+                            { text: 'Cancel', style: 'cancel' }
+                        ]
+                    );
+                    return;
+                }
+            }
             Alert.alert('Clinical Setup Failed', 'We encountered an error provisioning your health passport. Please try again.');
         } finally {
             setLoading(false);
