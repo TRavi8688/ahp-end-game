@@ -72,6 +72,20 @@ export default function OnboardingScreen({ navigation }) {
         HapticUtils.medium();
         setLoading(true);
         try {
+            // Instant Check for already registered users
+            const checkResp = await axios.get(`${API_BASE_URL}/auth/check-user?identifier=${formData.phone}`);
+            if (checkResp.data.exists) {
+                setLoading(false);
+                return Alert.alert(
+                    'Already Registered',
+                    'This phone number is already registered with Hospyn. Would you like to log in now?',
+                    [
+                        { text: 'Yes, Log In', onPress: () => navigation.navigate('Login') },
+                        { text: 'Cancel', style: 'cancel' }
+                    ]
+                );
+            }
+
             await axios.post(`${API_BASE_URL}/auth/send-otp`, { 
                 identifier: formData.phone, 
                 country_code: '+91', 
