@@ -179,7 +179,7 @@ export default function AiAssistScreen({ navigation }) {
     }, []);
 
     // Fetch health context + chat history + vault on screen focus
-    const [isTabBarVisible, setIsTabBarVisible] = useState(true);
+    const [isTabBarVisible, setIsTabBarVisible] = useState(false);
     const lastScrollY = useRef(0);
 
     const loadAll = async () => {
@@ -239,14 +239,18 @@ export default function AiAssistScreen({ navigation }) {
 
     // Google-style Tab Bar Hiding
     const handleScroll = (event) => {
-        const currentScrollY = event.nativeEvent.contentOffset.y;
-        if (currentScrollY > lastScrollY.current + 10 && isTabBarVisible && currentScrollY > 100) {
-            setIsTabBarVisible(false);
+        lastScrollY.current = event.nativeEvent.contentOffset.y;
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            loadAll();
+            // Hide the bottom tab bar completely for a focused full-screen immersive chat assistant
             navigation.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
-        } else if (currentScrollY < lastScrollY.current - 10 && !isTabBarVisible) {
-            setIsTabBarVisible(true);
-            navigation.getParent()?.setOptions({ 
-                tabBarStyle: { 
+
+            return () => {
+                // Ensure style is perfectly preserved when leaving the screen
+                const originalStyle = {
                     display: 'flex',
                     position: 'absolute',
                     bottom: 25,
@@ -260,35 +264,7 @@ export default function AiAssistScreen({ navigation }) {
                     borderWidth: 1,
                     borderColor: 'rgba(255, 255, 255, 0.1)',
                     elevation: 10,
-                } 
-            });
-        }
-        lastScrollY.current = currentScrollY;
-    };
-
-    useFocusEffect(
-        useCallback(() => {
-            loadAll();
-            // Reset tab bar on focus with translucent style
-            const originalStyle = {
-                display: 'flex',
-                position: 'absolute',
-                bottom: 25,
-                left: 20,
-                right: 20,
-                backgroundColor: 'rgba(15, 23, 42, 0.8)', // Translucent Deep Navy
-                borderRadius: 30,
-                height: 75,
-                paddingBottom: 15,
-                borderTopWidth: 0,
-                borderWidth: 1,
-                borderColor: 'rgba(255, 255, 255, 0.1)',
-                elevation: 10,
-            };
-            navigation.getParent()?.setOptions({ tabBarStyle: originalStyle });
-
-            return () => {
-                // Ensure style is perfectly preserved when leaving the screen
+                };
                 navigation.getParent()?.setOptions({ tabBarStyle: originalStyle });
             };
         }, [])
@@ -554,6 +530,12 @@ export default function AiAssistScreen({ navigation }) {
             {/* HEADER */}
             <LinearGradient colors={['#050810', '#1E1B4B', '#2d1b69']} style={styles.header}>
                 <View style={styles.headerContent}>
+                    <TouchableOpacity 
+                        style={{ marginRight: 10, paddingVertical: 8, paddingRight: 4 }} 
+                        onPress={() => navigation.navigate('Home')}
+                    >
+                        <Ionicons name="chevron-back" size={24} color="#fff" />
+                    </TouchableOpacity>
                     <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
                         <Image source={require('../../assets/chitti_avatar.png')} style={styles.chittiTopAvatar} />
                     </Animated.View>
@@ -1421,7 +1403,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 10,
         paddingBottom: Platform.OS === 'web' ? 20 : (Platform.OS === 'ios' ? 28 : 12),
-        marginBottom: 80, // CRITICAL: Clear the floating tab bar
+        marginBottom: Platform.OS === 'ios' ? 20 : 10,
         backgroundColor: '#0F172A',
         borderRadius: 20,
         marginHorizontal: 10,
