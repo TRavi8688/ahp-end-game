@@ -51,7 +51,7 @@ class OTPVerify(BaseModel):
 # User Schemas
 class UserBase(BaseModel):
     model_config = deploy_safe_config
-    email: str
+    email: str = Field(..., validation_alias=AliasChoices("email", "phone", "phone_number", "identifier"))
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     role: str
