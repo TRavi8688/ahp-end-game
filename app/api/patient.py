@@ -319,7 +319,7 @@ async def add_family_member(
         blood_group=data.blood_group,
         gender=data.gender,
         date_of_birth=data.date_of_birth,
-        linked_hospyn_id=f"{current_patient.hospyn_id}-{data.relation.upper()}"
+        linked_hospyn_id=f"{current_patient.hospyn_id}-FM-{__import__('uuid').uuid4().hex[:4].upper()}"
     )
     db.add(new_member)
     await db.commit()
