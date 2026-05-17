@@ -58,19 +58,38 @@ def load_rsa_key(key_name: str, default_path: str = None) -> str:
     if not key_data:
         key_data = get_secret(key_name)
     
-    # Fallback to local file if empty (usually in development)
-    if not key_data and default_path and os.path.exists(default_path):
+    # Validate that the key actually contains base64 payload besides the headers/footers
+    is_valid_pem = False
+    if key_data:
+        stripped = key_data.replace("-----BEGIN RSA PRIVATE KEY-----", "").replace("-----END RSA PRIVATE KEY-----", "")
+        stripped = stripped.replace("-----BEGIN PRIVATE KEY-----", "").replace("-----END PRIVATE KEY-----", "")
+        stripped = stripped.replace("-----BEGIN PUBLIC KEY-----", "").replace("-----END PUBLIC KEY-----", "")
+        stripped = "".join(stripped.split())
+        if len(stripped) > 50:
+            is_valid_pem = True
+            
+    # Fallback to local file if empty or invalid/placeholder key (e.g. broken GCP Secret Manager value)
+    if not is_valid_pem and default_path and os.path.exists(default_path):
         try:
             with open(default_path, "r") as f:
                 key_data = f.read()
-                logger.info(f"HOSPYN_RSA_LOAD_LOCAL_SUCCESS: path={default_path} key={key_name}")
+                logger.info(f"HOSPYN_RSA_LOAD_LOCAL_SUCCESS_FALLBACK: path={default_path} key={key_name}")
         except Exception as e:
             logger.error(f"FILE_KEY_LOAD_FAILURE: path={default_path} | error={e}")
+
+    # Final check of payload validity
+    if key_data:
+        stripped = key_data.replace("-----BEGIN RSA PRIVATE KEY-----", "").replace("-----END RSA PRIVATE KEY-----", "")
+        stripped = stripped.replace("-----BEGIN PRIVATE KEY-----", "").replace("-----END PRIVATE KEY-----", "")
+        stripped = stripped.replace("-----BEGIN PUBLIC KEY-----", "").replace("-----END PUBLIC KEY-----", "")
+        stripped = "".join(stripped.split())
+        if len(stripped) < 50:
+            key_data = None
 
     if not key_data:
         env = os.getenv("ENVIRONMENT", "development")
         if env == "production":
-            logger.critical(f"PRODUCTION_KEY_MISSING: {key_name}")
+            logger.critical(f"PRODUCTION_KEY_MISSING_OR_INVALID: {key_name}")
             raise RuntimeError(f"CRITICAL AUTH FAILURE: {key_name} is required for Production.")
         return ""
 
