@@ -207,7 +207,7 @@ export default function RecordsScreen({ navigation }) {
 
 const styles = StyleSheet.create({
     header: { padding: 24, paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    headerTitle: { fontSize: 24, letterSpacing: 2 },
+    headerTitle: { color: '#fff', fontSize: 24, letterSpacing: 2, fontWeight: 'bold' },
     uploadBtn: { backgroundColor: Theme.colors.primary, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, py: 8, borderRadius: 12 },
     uploadBtnText: { color: '#fff', fontSize: 12, fontWeight: '900' },
     listContent: { padding: 24, paddingBottom: 100 },
