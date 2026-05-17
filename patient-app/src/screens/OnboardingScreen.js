@@ -303,7 +303,7 @@ export default function OnboardingScreen({ navigation }) {
                     <Ionicons name="key-outline" size={20} color="#94A3B8" style={styles.inputIcon} />
                     <TextInput
                         style={styles.input}
-                        placeholder="Min 6 characters"
+                        placeholder="Min 6 chars, 1 number, 1 special symbol"
                         placeholderTextColor="#475569"
                         secureTextEntry
                         value={formData.password}
