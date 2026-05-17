@@ -116,7 +116,11 @@ export default function SettingsScreen({ navigation }) {
     );
 
     return (
-        <ScrollView style={GlobalStyles.screen} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+            style={GlobalStyles.screen} 
+            contentContainerStyle={{ paddingBottom: 140 }}
+            showsVerticalScrollIndicator={false}
+        >
             <LinearGradient colors={['#0F172A', '#050810']} style={styles.header}>
                 <View style={styles.profileBox}>
                     <View style={styles.avatarBox}>
@@ -257,7 +261,7 @@ const styles = StyleSheet.create({
     hospynIdText: { color: '#64748B', fontSize: 13, marginTop: 4, letterSpacing: 1, fontFamily: 'monospace' },
     editBtn: { marginTop: 15, backgroundColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 15, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
     editBtnText: { color: '#fff', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
-    content: { padding: 24, paddingBottom: 100 },
+    content: { padding: 24, paddingBottom: 24 },
     sectionTitle: { color: '#475569', fontSize: 11, fontWeight: '900', letterSpacing: 2, marginBottom: 15, marginLeft: 5 },
     settingItem: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20, marginBottom: 12 },
     iconBox: { width: 44, height: 44, borderRadius: 12, backgroundColor: 'rgba(99, 102, 241, 0.05)', justifyContent: 'center', alignItems: 'center', marginRight: 15 },

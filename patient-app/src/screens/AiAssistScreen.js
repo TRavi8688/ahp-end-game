@@ -247,17 +247,17 @@ export default function AiAssistScreen({ navigation }) {
                 tabBarStyle: { 
                     display: 'flex',
                     position: 'absolute',
-                    bottom: 20,
-                    left: 15,
-                    right: 15,
-                    elevation: 5,
-                    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                    bottom: 25,
+                    left: 20,
+                    right: 20,
+                    backgroundColor: 'rgba(15, 23, 42, 0.8)', // Translucent Deep Navy
                     borderRadius: 30,
-                    height: 65,
-                    paddingBottom: 10,
+                    height: 75,
+                    paddingBottom: 15,
                     borderTopWidth: 0,
                     borderWidth: 1,
-                    borderColor: 'rgba(255, 255, 255, 0.4)',
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    elevation: 10,
                 } 
             });
         }
@@ -268,23 +268,27 @@ export default function AiAssistScreen({ navigation }) {
         useCallback(() => {
             loadAll();
             // Reset tab bar on focus with translucent style
-            navigation.getParent()?.setOptions({ 
-                tabBarStyle: { 
-                    display: 'flex', 
-                    position: 'absolute', 
-                    bottom: 20, 
-                    left: 15, 
-                    right: 15, 
-                    elevation: 5, 
-                    backgroundColor: '#0F172A', 
-                    borderRadius: 30, 
-                    height: 65, 
-                    paddingBottom: 10, 
-                    borderTopWidth: 0, 
-                    borderWidth: 1, 
-                    borderColor: 'rgba(255, 255, 255, 0.1)' 
-                } 
-            });
+            const originalStyle = {
+                display: 'flex',
+                position: 'absolute',
+                bottom: 25,
+                left: 20,
+                right: 20,
+                backgroundColor: 'rgba(15, 23, 42, 0.8)', // Translucent Deep Navy
+                borderRadius: 30,
+                height: 75,
+                paddingBottom: 15,
+                borderTopWidth: 0,
+                borderWidth: 1,
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+                elevation: 10,
+            };
+            navigation.getParent()?.setOptions({ tabBarStyle: originalStyle });
+
+            return () => {
+                // Ensure style is perfectly preserved when leaving the screen
+                navigation.getParent()?.setOptions({ tabBarStyle: originalStyle });
+            };
         }, [])
     );
 

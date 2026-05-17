@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     header: { padding: 24, paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     headerTitle: { fontSize: 18, letterSpacing: 2 },
     backBtn: { padding: 4 },
-    content: { flex: 1, padding: 30, alignItems: 'center' },
+    content: { flex: 1, padding: 30, paddingBottom: 130, alignItems: 'center' },
     infoText: { color: '#94A3B8', textAlign: 'center', lineHeight: 22, fontSize: 14, marginBottom: 40 },
     qrContainer: { padding: 40, borderRadius: 40, alignItems: 'center', width: '100%' },
     qrInner: { padding: 20, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 20, marginBottom: 20 },
