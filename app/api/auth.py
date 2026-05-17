@@ -89,7 +89,10 @@ async def register(
     # Check if user exists
     result = await db.execute(select(models.User).where(models.User.email == user_in.email))
     if result.scalars().first():
-        throw_auth_exception("User already exists")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User already exists"
+        )
     
     hashed_pw = security.get_password_hash(user_in.password)
     new_user = models.User(
