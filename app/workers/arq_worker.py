@@ -291,7 +291,7 @@ class WorkerSettings:
     on_startup = startup
     on_shutdown = shutdown
     on_job_error = on_job_failure
-    redis_settings = RedisSettings.from_dsn(settings.REDIS_URL)
+    redis_settings = RedisSettings.from_dsn(settings.REDIS_URL or "redis://localhost:6379")
     max_tries = 5 # Allow retries for transient AI errors
     retry_delay = 10 # Base delay between retries
 
