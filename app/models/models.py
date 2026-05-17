@@ -122,7 +122,7 @@ class User(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
     version_id: Mapped[int] = mapped_column(default=1, nullable=False)  # Optimistic Locking
     insforge_id: Mapped[Optional[str]] = mapped_column(String(100), unique=True, index=True)
-    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    email: Mapped[str] = mapped_column("phone_number", String(255), unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
     role: Mapped[RoleEnum] = mapped_column(SQLEnum(RoleEnum), default=RoleEnum.patient)
     hospyn_id: Mapped[Optional[str]] = mapped_column(String(50), index=True) # Tenant lock
