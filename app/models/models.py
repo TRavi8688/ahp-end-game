@@ -635,8 +635,10 @@ class LabResult(Base, TenantScopedMixin, TimestampMixin):
     
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
     hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
-    order_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("lab_diagnostic_orders.id"), index=True)
+    order_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("lab_diagnostic_orders.id"), index=True, nullable=True)
     patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    record_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("medical_records.id"), index=True, nullable=True)
+    family_member_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("family_members.id"), index=True, nullable=True)
     
     test_name: Mapped[str] = mapped_column(String(255), index=True)
     value: Mapped[str] = mapped_column(String(100))
@@ -644,8 +646,11 @@ class LabResult(Base, TenantScopedMixin, TimestampMixin):
     reference_range: Mapped[Optional[str]] = mapped_column(String(100))
     is_abnormal: Mapped[bool] = mapped_column(default=False)
     clinical_remarks: Mapped[Optional[str]] = mapped_column(Text)
+    observation_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     
-    order: Mapped["LabDiagnosticOrder"] = relationship(back_populates="results")
+    order: Mapped[Optional["LabDiagnosticOrder"]] = relationship(back_populates="results")
+    patient: Mapped["Patient"] = relationship(back_populates="lab_results")
+    record: Mapped[Optional["MedicalRecord"]] = relationship(back_populates="lab_results")
 
 class PharmacyStock(Base, TenantScopedMixin, TimestampMixin):
     __tablename__ = "pharmacy_stock"

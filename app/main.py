@@ -157,8 +157,22 @@ app.add_middleware(
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.warning(f"VALIDATION_ERROR: {exc.errors()}")
-    return JSONResponse(status_code=422, content={"detail": "Validation Failed", "errors": exc.errors()})
+    errors = exc.errors()
+    sanitized_errors = []
+    for err in errors:
+        new_err = err.copy()
+        if "ctx" in new_err and isinstance(new_err["ctx"], dict):
+            new_ctx = {}
+            for k, v in new_err["ctx"].items():
+                if isinstance(v, Exception):
+                    new_ctx[k] = str(v)
+                else:
+                    new_ctx[k] = v
+            new_err["ctx"] = new_ctx
+        sanitized_errors.append(new_err)
+        
+    logger.warning(f"VALIDATION_ERROR: {sanitized_errors}")
+    return JSONResponse(status_code=422, content={"detail": "Validation Failed", "errors": sanitized_errors})
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
