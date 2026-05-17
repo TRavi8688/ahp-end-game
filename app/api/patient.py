@@ -326,6 +326,27 @@ async def add_family_member(
     await db.refresh(new_member)
     return new_member
 
+@router.delete("/care-circle/{member_id}")
+async def delete_family_member(
+    member_id: uuid.UUID,
+    current_patient: Any = Depends(deps.get_current_patient),
+    db: AsyncSession = Depends(deps.get_db)
+):
+    """Removes a family member from the care circle."""
+    result = await db.execute(
+        select(models.FamilyMember).where(
+            models.FamilyMember.id == member_id,
+            models.FamilyMember.patient_id == current_patient.id
+        )
+    )
+    member = result.scalar_one_or_none()
+    if not member:
+        raise HTTPException(status_code=404, detail="Family member not found in your Care Circle.")
+    
+    await db.delete(member)
+    await db.commit()
+    return {"status": "success", "message": f"Successfully removed {member.full_name} from your Care Circle."}
+
 @router.get("/clinical-summary")
 async def get_clinical_summary(
     current_patient: Any = Depends(deps.get_current_patient),

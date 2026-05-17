@@ -108,16 +108,24 @@ async def lookup_patient(
     """Lookup a patient by Hospyn ID for scanning/clinical entry."""
     repo = PatientRepository(Patient, db)
     patient = await repo.get_by_hospyn_id(hospyn_id)
+    family_member = None
     
     if not patient:
-        raise HTTPException(status_code=404, detail="Patient not found")
+        # Check if it exists in the family_members table
+        stmt_fm = select(models.FamilyMember).where(models.FamilyMember.linked_hospyn_id == hospyn_id)
+        result_fm = await db.execute(stmt_fm)
+        family_member = result_fm.scalar_one_or_none()
+        
+        if not family_member:
+            raise HTTPException(status_code=404, detail="Patient or Care Circle member not found")
     
     # 1. AUDIT: Record that a lookup occurred (Accountability)
     from app.core.audit import log_clinical_audit as log_audit_action
     
     # Check if access already exists (moved up to use in audit log)
+    target_patient_id = family_member.patient_id if family_member else patient.id
     stmt = select(DoctorAccess).where(
-        DoctorAccess.patient_id == patient.id,
+        DoctorAccess.patient_id == target_patient_id,
         DoctorAccess.doctor_user_id == current_doctor.user_id,
         DoctorAccess.status == "granted"
     )
@@ -129,22 +137,26 @@ async def lookup_patient(
         user_id=current_doctor.user_id,
         action="PATIENT_LOOKUP",
         resource_type="PATIENT",
-        resource_id=patient.id,
+        resource_id=target_patient_id,
         details={
             "hospyn_id": hospyn_id, 
             "access_already_granted": existing_access is not None,
-            "purpose": "clinical_lookup"
+            "purpose": "clinical_lookup",
+            "is_family_member": family_member is not None
         }
     )
     
-    # Get user profile for name
-    stmt_user = select(User).where(User.id == patient.user_id)
-    result_user = await db.execute(stmt_user)
-    user = result_user.scalar_one_or_none()
-    name = f"{user.first_name} {user.last_name}" if user else "Hospyn Patient"
+    if family_member:
+        name = family_member.full_name
+    else:
+        # Get user profile for name
+        stmt_user = select(User).where(User.id == patient.user_id)
+        result_user = await db.execute(stmt_user)
+        user = result_user.scalar_one_or_none()
+        name = f"{user.first_name} {user.last_name}" if user else "Hospyn Patient"
     
-    # Fetch allergies
-    stmt_allergies = select(Allergy).where(Allergy.patient_id == patient.id)
+    # Fetch allergies (from the primary patient who holds records/metadata)
+    stmt_allergies = select(Allergy).where(Allergy.patient_id == target_patient_id)
     result_allergies = await db.execute(stmt_allergies)
     allergies = result_allergies.scalars().all()
 
@@ -156,7 +168,7 @@ async def lookup_patient(
         
         return {
             "profile": {
-                "hospyn_id": patient.hospyn_id, 
+                "hospyn_id": hospyn_id, 
                 "name": masked_name
             },
             "allergies": [], # Hide PHI until consent
@@ -170,12 +182,12 @@ async def lookup_patient(
             user_id=current_doctor.user_id,
             action="READ_PHI",
             resource_type="PATIENT_PROFILE",
-            resource_id=patient.id,
-            patient_id=patient.id
+            resource_id=target_patient_id,
+            patient_id=target_patient_id
         )
 
     return {
-        "profile": {"hospyn_id": patient.hospyn_id, "name": name},
+        "profile": {"hospyn_id": hospyn_id, "name": name},
         "allergies": [{"allergen": a.allergen, "severity": a.severity} for a in allergies],
         "status": "granted"
     }
@@ -196,7 +208,15 @@ async def emergency_break_glass(
     patient = await repo.get_by_hospyn_id(request.hospyn_id)
     
     if not patient:
-        raise HTTPException(status_code=404, detail="Patient not found")
+        # Check if it exists in the family_members table
+        stmt_fm = select(models.FamilyMember).where(models.FamilyMember.linked_hospyn_id == request.hospyn_id)
+        result_fm = await db.execute(stmt_fm)
+        family_member = result_fm.scalar_one_or_none()
+        if family_member:
+            patient = await repo.get(family_member.patient_id)
+            
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient or Care Circle member not found")
         
     # 1. Create Break-Glass Access Record
     new_access = DoctorAccess(
@@ -243,7 +263,15 @@ async def scan_patient(
     patient = await repo.get_by_hospyn_id(request.hospyn_id)
     
     if not patient:
-        raise HTTPException(status_code=404, detail="Patient not found")
+        # Check if it exists in the family_members table
+        stmt_fm = select(models.FamilyMember).where(models.FamilyMember.linked_hospyn_id == request.hospyn_id)
+        result_fm = await db.execute(stmt_fm)
+        family_member = result_fm.scalar_one_or_none()
+        if family_member:
+            patient = await repo.get(family_member.patient_id)
+            
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient or Care Circle member not found")
     
     # 1. Check for existing request
     stmt = select(DoctorAccess).where(
