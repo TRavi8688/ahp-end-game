@@ -73,6 +73,8 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
+          # Fallback to workload identity if SA Key is not provided
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: github-deployer@hospyn-495906.iam.gserviceaccount.com
           token_format: access_token
 
