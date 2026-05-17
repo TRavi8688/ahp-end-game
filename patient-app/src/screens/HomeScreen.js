@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Image, Modal, ActivityIndicator, Alert, Dimensions, TextInput } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -37,6 +38,7 @@ export default function HomeScreen({ navigation }) {
     // Animation values
     const orbScale = useSharedValue(1);
     const orbOpacity = useSharedValue(0.6);
+    const lastScrollY = useRef(0);
 
     const getGreeting = useCallback(() => {
         if (summary?.profile?.greeting) {
@@ -262,12 +264,23 @@ export default function HomeScreen({ navigation }) {
     }
 
     return (
-        <ScrollView
-            style={styles.container}
-            contentContainerStyle={{ paddingBottom: 140 }}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.primary} />}
-            showsVerticalScrollIndicator={false}
-        >
+        
+<ScrollView
+    style={styles.container}
+    contentContainerStyle={{ paddingBottom: 140 }}
+    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.primary} />}
+    showsVerticalScrollIndicator={false}
+    scrollEventThrottle={16}
+    onScroll={(e) => {
+        const y = e.nativeEvent.contentOffset.y;
+        if (!lastScrollY.current) lastScrollY.current = y;
+        if (y - lastScrollY.current > 20) {
+            navigation.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
+        } else if (lastScrollY.current - y > 20) {
+            navigation.getParent()?.setOptions({ tabBarStyle: { display: 'flex' } });
+        }
+        lastScrollY.current = y;
+    }}>
             {/* 1. Cinematic Header */}
             <View style={styles.header}>
                 <View style={styles.headerTop}>
