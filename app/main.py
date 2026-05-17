@@ -147,77 +147,13 @@ app.add_middleware(TenantMiddleware)
 
 # --- HARDENED CORS & ERROR RESILIENCE (SHIELD V7.0) ---
 
-@app.middleware("http")
-async def cors_resilience_middleware(request: Request, call_next):
-    """
-    ULTIMATE SHIELD: Ensures CORS headers are present even if the app crashes.
-    """
-    origin = request.headers.get("Origin")
-    
-    if request.method == "OPTIONS":
-        response = JSONResponse(content="OK")
-        _add_cors_headers(response, origin)
-        return response
-
-    try:
-        response = await call_next(request)
-        _add_cors_headers(response, origin)
-        return response
-    except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
-        logger.error(f"UNCAUGHT_SYSTEM_ERROR: {str(e)}")
-        
-        # PRODUCTION LOCKDOWN: Never leak stack traces to the internet
-        content = {"detail": "Critical System Fault"}
-        if settings.ENVIRONMENT != "production":
-            content["error"] = str(e)
-            content["traceback"] = error_trace
-            
-        response = JSONResponse(
-            status_code=500,
-            content=content
-        )
-        _add_cors_headers(response, origin)
-        return response
-
-
-def _add_cors_headers(response, origin: Optional[str]):
-    if not origin:
-        return
-        
-    # PRODUCTION LOCKDOWN: Only allow approved origins
-    allowed = settings.ALLOWED_ORIGINS
-    
-    # allow_origin = False
-    # if origin in allowed:
-    #     allow_origin = True
-    # elif settings.ENVIRONMENT != "production":
-    #     # Be more permissive in staging/dev to allow Expo Go and Vercel Previews
-    #     allow_origin = True
-    # elif ".vercel.app" in origin or "exp.direct" in origin:
-    #     allow_origin = True
-
-    # For now, let's just make it permissive to fix the immediate connectivity blocker
-    # but still log it for forensic auditing.
-    # Trust all official Hospyn subdomains and whitelisted origins
-    is_trusted = origin in allowed
-    if not is_trusted:
-        # Flexible matching for Firebase/Web subdomains
-        if any(suffix in origin for suffix in [".web.app", ".firebaseapp.com", "localhost"]):
-            is_trusted = True
-            
-    if not is_trusted:
-        logger.warning(f"CORS_NON_STANDARD_ORIGIN: {origin}")
-        if settings.ENVIRONMENT == "production":
-             # We still allow but log for now to prevent total lockout
-             pass
-
-    response.headers["Access-Control-Allow-Origin"] = origin
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, Accept, x-tenant-id, x-idempotency-key, x-hospital-id, x-family-member-id, X-Tenant-Id, X-Idempotency-Key, X-Hospital-Id, X-Family-Member-Id"
-    response.headers["Vary"] = "Origin"
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins to fix the immediate connectivity blocker
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
