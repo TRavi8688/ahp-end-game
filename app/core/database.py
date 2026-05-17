@@ -48,12 +48,17 @@ _reader_engine = None
 def get_writer_engine():
     global _writer_engine
     if _writer_engine is None:
+        connect_args = {}
+        if "postgresql" in settings.DATABASE_URL or "postgres" in settings.DATABASE_URL:
+            connect_args["ssl"] = get_ssl_context()
+            connect_args["prepared_statement_cache_size"] = 0
+            
         _writer_engine = create_async_engine(
             settings.async_database_url,
             pool_size=settings.DB_POOL_SIZE,
             max_overflow=settings.DB_MAX_OVERFLOW,
             pool_recycle=1800,
-            connect_args={"ssl": get_ssl_context()} if "postgresql" in settings.DATABASE_URL else {}
+            connect_args=connect_args
         )
     return _writer_engine
 
@@ -65,12 +70,17 @@ def get_reader_engine():
             reader_url = reader_url.replace("postgres://", "postgresql+asyncpg://", 1)
             reader_url = reader_url.replace("postgresql://", "postgresql+asyncpg://", 1)
             
+        connect_args = {}
+        if "postgresql" in reader_url or "postgres" in reader_url:
+            connect_args["ssl"] = get_ssl_context()
+            connect_args["prepared_statement_cache_size"] = 0
+            
         _reader_engine = create_async_engine(
             reader_url,
             pool_size=settings.DB_POOL_SIZE,
             max_overflow=settings.DB_MAX_OVERFLOW,
             pool_recycle=1800,
-            connect_args={"ssl": get_ssl_context()} if "postgresql" in reader_url else {}
+            connect_args=connect_args
         )
     return _reader_engine
 
