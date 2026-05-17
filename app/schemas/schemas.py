@@ -88,6 +88,7 @@ class PatientBase(BaseModel):
     language_code: str = "en"
 
 class PatientCreate(BaseModel):
+    model_config = deploy_safe_config
     first_name: str = Field(..., min_length=1, max_length=50)
     last_name: str = Field(..., min_length=1, max_length=50)
     phone_number: str
@@ -348,7 +349,7 @@ class HospitalQRScan(BaseModel):
 class PatientProfileResponse(BaseModel):
     id: uuid.UUID
     full_name: Optional[str] = "Patient"
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     phone_number: Optional[str] = None
     hospyn_id: str
     age: Optional[int] = None
