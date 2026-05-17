@@ -4,7 +4,7 @@ import time
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
+from sqlalchemy import select, or_, func
 
 from typing import Any
 from datetime import datetime, timezone, timedelta
@@ -121,6 +121,7 @@ async def register(
                 language_code="en"
             )
             db.add(skeleton_patient)
+            new_user.hospyn_id = hospyn_id
 
         await db.commit()
         await db.refresh(new_user)
@@ -178,7 +179,8 @@ async def login(
             User.email == alt_identifier,
             Patient.phone_number == identifier,
             Patient.phone_number == alt_identifier,
-            Patient.hospyn_id == identifier.upper()
+            func.lower(User.hospyn_id) == identifier.lower(),
+            func.lower(Patient.hospyn_id) == identifier.lower()
         )
     )
     
