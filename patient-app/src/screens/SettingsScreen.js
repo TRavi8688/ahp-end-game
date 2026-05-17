@@ -182,11 +182,14 @@ export default function SettingsScreen({ navigation }) {
     );
 
     return (
-        <ScrollView 
-            style={GlobalStyles.screen} 
-            contentContainerStyle={{ paddingBottom: 140 }}
-            showsVerticalScrollIndicator={false}
-        >
+        <ScrollView style={GlobalStyles.screen} contentContainerStyle={{ paddingBottom: 140 }} showsVerticalScrollIndicator={false} scrollEventThrottle={16} onScroll={(e) => {
+    const y = e.nativeEvent.contentOffset.y;
+    if (y > 30) {
+      navigation.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
+    } else {
+      navigation.getParent()?.setOptions({ tabBarStyle: { display: 'flex' } });
+    }
+  }}>
             <LinearGradient colors={['#0F172A', '#050810']} style={styles.header}>
                 <View style={styles.profileBox}>
                     <View style={styles.avatarBox}>

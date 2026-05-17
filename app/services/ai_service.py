@@ -735,9 +735,12 @@ class AsyncAIService:
                 content=content
             )
             db.add(msg)
-            # Commit is managed by the service-layer or router Unit-of-Work
+            await db.commit()
+            
+            cache_key = f"chat_history:{conversation_id}"
+            await redis_service.delete(cache_key)
         except Exception as e:
-            logger.error("SAVE_CHAT_FAILURE", error=str(e))
+            logger.error(f"SAVE_CHAT_FAILURE: {str(e)}")
 
     async def get_medical_context(self, user_id: str, family_member_id: Optional[uuid.UUID] = None, role: str = "patient", db: Optional[AsyncSession] = None) -> str:
         """Fetch a secure, filtered summary of the patient's record for AI awareness."""
@@ -800,18 +803,17 @@ class AsyncAIService:
         # 1. Fetch Secure Medical Context (Role-Aware)
         clinical_context = await self.get_medical_context(user_id, family_member_id=family_member_id, role=role, db=db)
 
-        # 2. Save user message
-        await self.save_chat_message(user_id, conversation_id, "user", user_message, db=db)
-
-        # 3. Get history
+        # 2. Get history (User message is already saved by the router)
         history = await self.get_chat_history(user_id, conversation_id, db=db)
 
-        # 4. Prompt Assembly
+        # 3. Prompt Assembly
         system_prompt = (
-            f"You are speaking with your dearest patient in {language_code}. "
-            "You are their sweet, empathetic, and slightly humorous AI Healthcare Companion, CHITTI. "
-            "Talk to them with immense warmth, soft-hearted kindness, emotional support, and friendly lightheartedness. "
-            "Always reassure them, make them feel perfectly safe, and keep your responses short, cozy, and helpful! ❤️\n"
+            f"You are speaking with a patient in {language_code}. "
+            "You are CHITTI, an advanced AI Healthcare Companion. "
+            "You must communicate in a warm, professional, empathetic, and clinical tone. "
+            "Do NOT use excessively affectionate terms (like 'sweetheart', 'darling'). "
+            "Be reassuring but focused on their medical well-being. Keep responses concise and helpful.\n"
+            "CRITICAL IMAGE POLICY: If the user provides an image that is CLEARLY NOT related to healthcare, medicine, clinical documents, or bodily symptoms (e.g., a selfie, landscape, random object), you MUST politely decline to analyze it and explain that you are a specialized clinical AI."
         )
         
         formatted_history = "\n".join([f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content']}" for m in history])
