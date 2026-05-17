@@ -86,67 +86,77 @@ async def register(
     user_in: schemas.UserCreate,
     db: AsyncSession = Depends(deps.get_db)
 ):
-    # Check if user exists
-    result = await db.execute(select(models.User).where(models.User.email == user_in.email))
-    if result.scalars().first():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User already exists"
-        )
-    
-    hashed_pw = security.get_password_hash(user_in.password)
-    new_user = models.User(
-        email=user_in.email,
-        hashed_password=hashed_pw,
-        first_name=user_in.first_name,
-        last_name=user_in.last_name,
-        role=user_in.role,
-        is_active=True
-    )
-    db.add(new_user)
-    await db.flush()
-    
-    # --- Auto-Setup Patient Profile for Registrations ---
-    if new_user.role == "patient":
-        logger.info(f"Auto-creating patient profile for user {new_user.id}")
-        import uuid
-        phone = user_in.email if (user_in.email.isdigit() or user_in.email.startswith("+")) else "5550199"
-        skeleton_patient = models.Patient(
-            user_id=new_user.id,
-            hospyn_id=f"Hospyn-{uuid.uuid4().hex[:8].upper()}",
-            phone_number=phone,
-            language_code="en"
-        )
-        db.add(skeleton_patient)
-
-    await db.commit()
-    await db.refresh(new_user)
-    await log_audit_action(
-        db, 
-        "REGISTER_SUCCESS", 
-        user_id=new_user.id, 
-        resource_type="USER",
-        details={"email": new_user.email, "role": new_user.role}
-    )
-    
-    # Resolve hospyn_id from patient relationship (relationship name is 'patient', NOT 'patient_profile')
-    hospyn_id = None
     try:
-        if new_user.patient:
-            hospyn_id = new_user.patient.hospyn_id
-    except Exception:
-        pass
-    
-    return {
-        "id": new_user.id,
-        "email": new_user.email,
-        "first_name": new_user.first_name,
-        "last_name": new_user.last_name,
-        "role": new_user.role,
-        "is_active": new_user.is_active,
-        "hospyn_id": hospyn_id,
-        "created_at": new_user.created_at
-    }
+        # Check if user exists
+        result = await db.execute(select(models.User).where(models.User.email == user_in.email))
+        if result.scalars().first():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User already exists"
+            )
+        
+        hashed_pw = security.get_password_hash(user_in.password)
+        new_user = models.User(
+            email=user_in.email,
+            hashed_password=hashed_pw,
+            first_name=user_in.first_name,
+            last_name=user_in.last_name,
+            role=user_in.role,
+            is_active=True
+        )
+        db.add(new_user)
+        await db.flush()
+        
+        # --- Auto-Setup Patient Profile for Registrations ---
+        if new_user.role == "patient":
+            logger.info(f"Auto-creating patient profile for user {new_user.id}")
+            import uuid
+            phone = user_in.email if (user_in.email.isdigit() or user_in.email.startswith("+")) else "5550199"
+            skeleton_patient = models.Patient(
+                user_id=new_user.id,
+                hospyn_id=f"Hospyn-{uuid.uuid4().hex[:8].upper()}",
+                phone_number=phone,
+                language_code="en"
+            )
+            db.add(skeleton_patient)
+
+        await db.commit()
+        await db.refresh(new_user)
+        await log_audit_action(
+            db, 
+            "REGISTER_SUCCESS", 
+            user_id=new_user.id, 
+            resource_type="USER",
+            details={"email": new_user.email, "role": new_user.role}
+        )
+        
+        # Resolve hospyn_id from patient relationship (relationship name is 'patient', NOT 'patient_profile')
+        hospyn_id = None
+        try:
+            if new_user.patient:
+                hospyn_id = new_user.patient.hospyn_id
+        except Exception:
+            pass
+        
+        return {
+            "id": new_user.id,
+            "email": new_user.email,
+            "first_name": new_user.first_name,
+            "last_name": new_user.last_name,
+            "role": new_user.role,
+            "is_active": new_user.is_active,
+            "hospyn_id": hospyn_id,
+            "created_at": new_user.created_at
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        logger.error(f"REGISTER_EXCEPTION: {str(e)}\n{traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Registration failed: {str(e)}"
+        )
 
 @router.post("/login", response_model=schemas.Token)
 @limiter.limit("100/minute")
