@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     DB_POOL_SIZE: int = 20
     DB_MAX_OVERFLOW: int = 40
 
-    ALLOWED_ORIGINS: List[str] = [
+    ALLOWED_ORIGINS: Any = [
         "http://localhost:3000",
         "http://localhost:19006",
         "https://hospyn-patient-app.web.app",
