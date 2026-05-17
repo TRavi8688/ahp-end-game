@@ -108,13 +108,15 @@ async def register(
         await db.flush()
         
         # --- Auto-Setup Patient Profile for Registrations ---
+        hospyn_id = None
         if new_user.role == "patient":
             logger.info(f"Auto-creating patient profile for user {new_user.id}")
             import uuid
             phone = user_in.email if (user_in.email.isdigit() or user_in.email.startswith("+")) else "5550199"
+            hospyn_id = f"Hospyn-{uuid.uuid4().hex[:8].upper()}"
             skeleton_patient = models.Patient(
                 user_id=new_user.id,
-                hospyn_id=f"Hospyn-{uuid.uuid4().hex[:8].upper()}",
+                hospyn_id=hospyn_id,
                 phone_number=phone,
                 language_code="en"
             )
@@ -129,14 +131,6 @@ async def register(
             resource_type="USER",
             details={"email": new_user.email, "role": new_user.role}
         )
-        
-        # Resolve hospyn_id from patient relationship (relationship name is 'patient', NOT 'patient_profile')
-        hospyn_id = None
-        try:
-            if new_user.patient:
-                hospyn_id = new_user.patient.hospyn_id
-        except Exception:
-            pass
         
         return {
             "id": new_user.id,
