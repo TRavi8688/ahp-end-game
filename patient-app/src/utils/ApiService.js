@@ -272,11 +272,6 @@ class ApiService {
         const response = await this.client.get(`/lab/orders/${orderId}/results`);
         return response.data;
     }
-
-    async exportProfileData() {
-        const response = await this.client.post('/patient/export-data');
-        return response.data;
-    }
 }
 
 export default new ApiService();

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, ScrollView,
     TouchableOpacity, TextInput, ActivityIndicator, Alert,
-    Modal, Dimensions
+    Modal, Dimensions, Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -86,6 +86,59 @@ export default function FamilyProfilesScreen({ navigation }) {
             Alert.alert('Error', 'Could not add family member. Please try again.');
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const formatFamilyHospynId = (idStr, relation) => {
+        if (!idStr) return '';
+        const str = idStr.toString();
+        const relUpper = relation ? `-${relation.toUpperCase()}` : '';
+        if (relUpper && str.endsWith(relUpper)) {
+            const base = str.substring(0, str.length - relUpper.length);
+            return `${base}-FM-0824`;
+        }
+        return str;
+    };
+
+    const handleDeleteMember = async (memberId, name) => {
+        HapticUtils.warning();
+        const executeDelete = async () => {
+            setLoading(true);
+            try {
+                await ApiService.client.delete(`/patient/care-circle/${memberId}`);
+                HapticUtils.success();
+                if (activeMemberId === memberId) {
+                    await SecurityUtils.saveActiveMemberId(null);
+                    await switchProfile(null);
+                }
+                load();
+            } catch (e) {
+                // Cross platform alert fallback
+                if (Platform.OS === 'web') {
+                    window.alert('Could not remove family member. Please try again.');
+                } else {
+                    Alert.alert('Error', 'Could not remove family member. Please try again.');
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const msg = `Are you sure you want to remove ${name} from your Care Circle?\n\nThis will disconnect access to their health vault.`;
+        if (Platform.OS === 'web') {
+            const confirmed = window.confirm(msg);
+            if (confirmed) {
+                await executeDelete();
+            }
+        } else {
+            Alert.alert(
+                'Remove Family Member',
+                msg,
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Remove', style: 'destructive', onPress: executeDelete }
+                ]
+            );
         }
     };
 
@@ -217,37 +270,50 @@ export default function FamilyProfilesScreen({ navigation }) {
                         </TouchableOpacity>
                     </Animated.View>
                 ) : (
-                    profiles.map((p, i) => (
-                        <Animated.View key={p.id} entering={FadeInUp.delay(i * 80)}>
-                            <View style={[styles.memberCard, activeMemberId === p.id && styles.activeHighlight]}>
-                                <View style={styles.cardRow}>
-                                    <View style={[styles.avatar, { backgroundColor: 'rgba(34,211,238,0.1)' }]}>
-                                        <Ionicons name={RELATION_ICONS[p.relation] || 'person'} size={22} color={Theme.colors.primary} />
-                                    </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.memberName}>{p.full_name}</Text>
-                                        <Text style={styles.hospynIdLabel}>{p.linked_hospyn_id || p.id?.toString().substring(0, 8).toUpperCase()}</Text>
-                                        <Text style={styles.relationTag}>{p.relation?.toUpperCase()}</Text>
-                                    </View>
-                                    <View style={styles.rightActions}>
-                                        <TouchableOpacity style={styles.qrBtn} onPress={() => { HapticUtils.light(); setQrModal({ name: p.full_name, hospyn_id: p.linked_hospyn_id || p.id }); }}>
-                                            <Ionicons name="qr-code" size={20} color={Theme.colors.primary} />
-                                        </TouchableOpacity>
-                                        {activeMemberId === p.id ? (
-                                            <View style={styles.activeBadge}>
-                                                <Ionicons name="checkmark-circle" size={14} color="#10B981" />
-                                                <Text style={styles.activeBadgeText}>ACTIVE</Text>
+                    profiles.map((p, i) => {
+                        const cleanedHospynId = formatFamilyHospynId(p.linked_hospyn_id || p.id, p.relation);
+                        return (
+                            <Animated.View key={p.id} entering={FadeInUp.delay(i * 80)}>
+                                <View style={[styles.memberCard, activeMemberId === p.id && styles.activeHighlight]}>
+                                    <View style={styles.cardRow}>
+                                        <View style={[styles.avatar, { backgroundColor: 'rgba(34,211,238,0.1)' }]}>
+                                            <Ionicons name={RELATION_ICONS[p.relation] || 'person'} size={22} color={Theme.colors.primary} />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.memberName}>{p.full_name}</Text>
+                                            <Text style={styles.hospynIdLabel}>{cleanedHospynId}</Text>
+                                            <Text style={styles.relationTag}>{p.relation?.toUpperCase()}</Text>
+                                        </View>
+                                        <View style={styles.rightActions}>
+                                            <View style={{ flexDirection: 'row', gap: 8 }}>
+                                                {/* Trash/Delete Button */}
+                                                <TouchableOpacity 
+                                                    style={styles.deleteIconBtn} 
+                                                    onPress={() => handleDeleteMember(p.id, p.full_name)}
+                                                >
+                                                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                                                </TouchableOpacity>
+
+                                                <TouchableOpacity style={styles.qrBtn} onPress={() => { HapticUtils.light(); setQrModal({ name: p.full_name, hospyn_id: cleanedHospynId }); }}>
+                                                    <Ionicons name="qr-code" size={18} color={Theme.colors.primary} />
+                                                </TouchableOpacity>
                                             </View>
-                                        ) : (
-                                            <TouchableOpacity style={styles.switchBtn} onPress={() => handleSwitch(p.id)}>
-                                                <Text style={styles.switchBtnText}>SWITCH</Text>
-                                            </TouchableOpacity>
-                                        )}
+                                            {activeMemberId === p.id ? (
+                                                <View style={styles.activeBadge}>
+                                                    <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                                                    <Text style={styles.activeBadgeText}>ACTIVE</Text>
+                                                </View>
+                                            ) : (
+                                                <TouchableOpacity style={styles.switchBtn} onPress={() => handleSwitch(p.id)}>
+                                                    <Text style={styles.switchBtnText}>SWITCH</Text>
+                                                </TouchableOpacity>
+                                            )}
+                                        </View>
                                     </View>
                                 </View>
-                            </View>
-                        </Animated.View>
-                    ))
+                            </Animated.View>
+                        );
+                    })
                 )}
 
                 <View style={{ height: 40 }} />
@@ -305,6 +371,7 @@ const styles = StyleSheet.create({
     relationTag: { color: '#475569', fontSize: 9, fontWeight: 'bold', letterSpacing: 1, marginTop: 3 },
     rightActions: { alignItems: 'flex-end', gap: 8 },
     qrBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: 'rgba(99,102,241,0.12)', justifyContent: 'center', alignItems: 'center' },
+    deleteIconBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: 'rgba(239,68,68,0.12)', justifyContent: 'center', alignItems: 'center' },
     switchBtn: { backgroundColor: 'rgba(34,211,238,0.1)', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: 'rgba(34,211,238,0.2)' },
     switchBtnText: { color: Theme.colors.primary, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
     activeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: 'rgba(16,185,129,0.1)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4 },
