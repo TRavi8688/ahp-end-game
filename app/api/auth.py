@@ -123,9 +123,9 @@ async def register(
         await db.commit()
         await db.refresh(new_user)
         await log_audit_action(
-            db, 
-            "REGISTER_SUCCESS", 
-            user_id=new_user.id, 
+            db=db,
+            user_id=new_user.id,
+            action="REGISTER_SUCCESS",
             resource_type="USER",
             details={"email": new_user.email, "role": new_user.role}
         )
@@ -194,8 +194,9 @@ async def login(
     # 2. STRICT VERIFICATION
     if not user or not security.verify_password(form_data.password, user.hashed_password):
         await log_audit_action(
-            db, 
-            "LOGIN_FAILURE", 
+            db=db,
+            user_id=None,
+            action="LOGIN_FAILURE",
             resource_type="USER",
             details={"identifier": identifier}
         )
@@ -211,7 +212,12 @@ async def login(
     access_token = security.create_access_token(user.id, user.role)
     refresh_token = security.create_refresh_token(user.id, user.role)
     
-    await log_audit_action(db, "LOGIN_SUCCESS", user_id=user.id, resource_type="USER")
+    await log_audit_action(
+        db=db,
+        user_id=user.id,
+        action="LOGIN_SUCCESS",
+        resource_type="USER"
+    )
     
     return {
         "access_token": access_token,
@@ -261,7 +267,12 @@ async def google_login(
         access_token = security.create_access_token(user.id, user.role)
         refresh_token = security.create_refresh_token(user.id, user.role)
         
-        await log_audit_action(db, "GOOGLE_LOGIN_SUCCESS", user_id=user.id, resource_type="USER")
+        await log_audit_action(
+            db=db,
+            user_id=user.id,
+            action="GOOGLE_LOGIN_SUCCESS",
+            resource_type="USER"
+        )
         
         return {
             "access_token": access_token,
