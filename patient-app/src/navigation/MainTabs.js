@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, StyleSheet, TouchableOpacity, Image, Platform, Text } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, TouchableOpacity, Image, Platform, Text, Keyboard } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -41,6 +41,47 @@ const CustomTabBarButton = ({ children, onPress, focused }) => (
 );
 
 export default function MainTabs() {
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      // Web fallback: Check focus/blur on input controls globally
+      const handleFocusIn = (e) => {
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.getAttribute('contenteditable') === 'true')) {
+          setKeyboardVisible(true);
+        }
+      };
+      const handleFocusOut = (e) => {
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.getAttribute('contenteditable') === 'true')) {
+          // Add small delay to avoid flicker during quick focus switches
+          setTimeout(() => {
+            const active = document.activeElement;
+            if (!active || (active.tagName !== 'INPUT' && active.tagName !== 'TEXTAREA' && active.getAttribute('contenteditable') !== 'true')) {
+              setKeyboardVisible(false);
+            }
+          }, 100);
+        }
+      };
+      
+      document.addEventListener('focusin', handleFocusIn);
+      document.addEventListener('focusout', handleFocusOut);
+      
+      return () => {
+        document.removeEventListener('focusin', handleFocusIn);
+        document.removeEventListener('focusout', handleFocusOut);
+      };
+    } else {
+      // Native keyboard listeners
+      const showSubscription = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
+      const hideSubscription = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+      
+      return () => {
+        showSubscription.remove();
+        hideSubscription.remove();
+      };
+    }
+  }, []);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -49,6 +90,7 @@ export default function MainTabs() {
         tabBarActiveTintColor: Theme.colors.primary,
         tabBarInactiveTintColor: '#475569',
         tabBarStyle: {
+          display: route.name === 'Chitti AI' || keyboardVisible ? 'none' : 'flex',
           position: 'absolute',
           bottom: 25,
           left: 20,
@@ -73,7 +115,7 @@ export default function MainTabs() {
           letterSpacing: 1.2,
           textTransform: 'uppercase',
         },
-        headerShown: false, // Handle headers in screens for luxury feel
+        headerShown: false,
       })}
     >
       <Tab.Screen 
@@ -100,6 +142,7 @@ export default function MainTabs() {
         name="Chitti AI" 
         component={AiAssistScreen} 
         options={{ 
+          tabBarStyle: { display: 'none' }, // Immersive full-screen clinical chat companion
           tabBarButton: (props) => (
             <CustomTabBarButton {...props} focused={props?.accessibilityState?.selected} />
           ),

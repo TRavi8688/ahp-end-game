@@ -245,28 +245,7 @@ export default function AiAssistScreen({ navigation }) {
     useFocusEffect(
         useCallback(() => {
             loadAll();
-            // Hide the bottom tab bar completely for a focused full-screen immersive chat assistant
-            navigation.getParent()?.setOptions({ tabBarStyle: { display: 'none' } });
-
-            return () => {
-                // Ensure style is perfectly preserved when leaving the screen
-                const originalStyle = {
-                    display: 'flex',
-                    position: 'absolute',
-                    bottom: 25,
-                    left: 20,
-                    right: 20,
-                    backgroundColor: 'rgba(15, 23, 42, 0.8)', // Translucent Deep Navy
-                    borderRadius: 30,
-                    height: 75,
-                    paddingBottom: 15,
-                    borderTopWidth: 0,
-                    borderWidth: 1,
-                    borderColor: 'rgba(255, 255, 255, 0.1)',
-                    elevation: 10,
-                };
-                navigation.getParent()?.setOptions({ tabBarStyle: originalStyle });
-            };
+            return () => {};
         }, [])
     );
 
@@ -1403,7 +1382,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 10,
         paddingBottom: Platform.OS === 'web' ? 20 : (Platform.OS === 'ios' ? 28 : 12),
-        marginBottom: Platform.OS === 'ios' ? 20 : 10,
         backgroundColor: '#0F172A',
         borderRadius: 20,
         marginHorizontal: 10,
