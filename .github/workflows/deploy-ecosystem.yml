@@ -13,8 +13,47 @@ on:
         type: string
 
 jobs:
+  check-changes:
+    name: Detect Modified Path Component Gates
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      patient: ${{ steps.filter.outputs.patient }}
+      doctor: ${{ steps.filter.outputs.doctor }}
+      erp: ${{ steps.filter.outputs.erp }}
+      admin: ${{ steps.filter.outputs.admin }}
+      landing: ${{ steps.filter.outputs.landing }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4.2.2
+
+      - name: Match File Paths
+        uses: dorny/paths-filter@v3.0.0
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'app/**'
+              - 'requirements.txt'
+              - 'Dockerfile'
+              - 'alembic.ini'
+              - 'migrations/**'
+            patient:
+              - 'patient-app/**'
+            doctor:
+              - 'doctor-app/**'
+            erp:
+              - 'hospital-erp/**'
+            admin:
+              - 'super-admin-dashboard/**'
+            landing:
+              - 'public/**'
+              - 'firebase.json'
+
   run-tests:
     name: Run Automated Quality Gates
+    needs: check-changes
+    if: needs.check-changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     services:
       redis:
@@ -52,13 +91,13 @@ jobs:
           ENVIRONMENT: "testing"
         continue-on-error: true
         run: |
-          # NON-BLOCKING: Tests run for visibility but do NOT gate deployment
           pytest -v --tb=short -m "not needs_db" --ignore=doctor-app --ignore=patient-app || echo "::warning::Tests failed - deployment continues."
 
 
   auth-and-backend:
     name: Deploy Backend & Database
-    needs: run-tests
+    needs: [check-changes, run-tests]
+    if: always() && (needs.check-changes.result == 'success' && (needs.check-changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch'))
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -158,7 +197,8 @@ jobs:
 
   deploy-frontends:
     name: Deploy Frontends to Firebase
-    needs: auth-and-backend
+    needs: [check-changes, auth-and-backend]
+    if: always() && needs.check-changes.result == 'success' && (needs.check-changes.outputs.patient == 'true' || needs.check-changes.outputs.doctor == 'true' || needs.check-changes.outputs.erp == 'true' || needs.check-changes.outputs.admin == 'true' || needs.check-changes.outputs.landing == 'true' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -176,49 +216,49 @@ jobs:
             super-admin-dashboard/package-lock.json
 
       - name: Build Patient App
-        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'patient' || github.event_name == 'push'
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'patient' || (github.event_name == 'push' && needs.check-changes.outputs.patient == 'true')
         run: |
           cd patient-app
           npm install --legacy-peer-deps
           npm run build
 
       - name: Build Doctor App
-        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'doctor' || github.event_name == 'push'
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'doctor' || (github.event_name == 'push' && needs.check-changes.outputs.doctor == 'true')
         run: |
           cd doctor-app
           npm install --legacy-peer-deps
           npm run build
 
       - name: Build Hospital ERP
-        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'erp' || github.event_name == 'push'
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'erp' || (github.event_name == 'push' && needs.check-changes.outputs.erp == 'true')
         run: |
           cd hospital-erp
           npm install --legacy-peer-deps
           npm run build
 
       - name: Build Super Admin Dashboard
-        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'admin' || github.event_name == 'push'
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'admin' || (github.event_name == 'push' && needs.check-changes.outputs.admin == 'true')
         run: |
           cd super-admin-dashboard
           npm install --legacy-peer-deps
           npm run build
 
       - name: Deploy Patient App
-        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'patient' || github.event_name == 'push'
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'patient' || (github.event_name == 'push' && needs.check-changes.outputs.patient == 'true')
         run: npx firebase-tools deploy --only hosting:patient --token ${{ secrets.FIREBASE_TOKEN }}
 
       - name: Deploy Doctor App
-        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'doctor' || github.event_name == 'push'
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'doctor' || (github.event_name == 'push' && needs.check-changes.outputs.doctor == 'true')
         run: npx firebase-tools deploy --only hosting:doctor --token ${{ secrets.FIREBASE_TOKEN }}
 
       - name: Deploy Hospital ERP
-        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'erp' || github.event_name == 'push'
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'erp' || (github.event_name == 'push' && needs.check-changes.outputs.erp == 'true')
         run: npx firebase-tools deploy --only hosting:erp --token ${{ secrets.FIREBASE_TOKEN }}
 
       - name: Deploy Super Admin
-        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'admin' || github.event_name == 'push'
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'admin' || (github.event_name == 'push' && needs.check-changes.outputs.admin == 'true')
         run: npx firebase-tools deploy --only hosting:admin --token ${{ secrets.FIREBASE_TOKEN }}
 
       - name: Deploy Landing Page
-        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'landing' || github.event_name == 'push'
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'landing' || (github.event_name == 'push' && needs.check-changes.outputs.landing == 'true')
         run: npx firebase-tools deploy --only hosting:landing --token ${{ secrets.FIREBASE_TOKEN }}
