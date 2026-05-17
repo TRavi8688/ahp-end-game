@@ -57,7 +57,8 @@ def get_writer_engine():
             settings.async_database_url,
             pool_size=settings.DB_POOL_SIZE,
             max_overflow=settings.DB_MAX_OVERFLOW,
-            pool_recycle=1800,
+            pool_recycle=300,
+            pool_pre_ping=True,
             connect_args=connect_args
         )
     return _writer_engine
@@ -79,7 +80,8 @@ def get_reader_engine():
             reader_url,
             pool_size=settings.DB_POOL_SIZE,
             max_overflow=settings.DB_MAX_OVERFLOW,
-            pool_recycle=1800,
+            pool_recycle=300,
+            pool_pre_ping=True,
             connect_args=connect_args
         )
     return _reader_engine
