@@ -318,7 +318,8 @@ async def add_family_member(
         phone_number=data.phone_number,
         blood_group=data.blood_group,
         gender=data.gender,
-        date_of_birth=data.date_of_birth
+        date_of_birth=data.date_of_birth,
+        linked_hospyn_id=f"{current_patient.hospyn_id}-{data.relation.upper()}"
     )
     db.add(new_member)
     await db.commit()

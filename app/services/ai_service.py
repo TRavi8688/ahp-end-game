@@ -93,17 +93,18 @@ class MedicalEntities(BaseModel):
     lab_results: List[Dict[str, Any]] = Field(default_factory=list)
 
 from app.models.models import AISafetyMode, ClinicalAIEvent
+import app.models.models as models
 
 from app.core.reliability import DistributedCircuitBreaker, with_retry
 
 class AsyncAIService:
     def __init__(self):
-        self.gemini_key = settings.GEMINI_API_KEY
-        self.groq_key = settings.GROQ_API_KEY
-        self.anthropic_key = settings.ANTHROPIC_API_KEY
-        self.sarvam_key = settings.SARVAM_KEY
-        self.base_url = settings.INSFORGE_BASE_URL
-        self.anon_key = settings.INSFORGE_ANON_KEY
+        self.gemini_key = settings.GEMINI_API_KEY.strip() if settings.GEMINI_API_KEY else None
+        self.groq_key = settings.GROQ_API_KEY.strip() if settings.GROQ_API_KEY else None
+        self.anthropic_key = settings.ANTHROPIC_API_KEY.strip() if settings.ANTHROPIC_API_KEY else None
+        self.sarvam_key = settings.SARVAM_KEY.strip() if settings.SARVAM_KEY else None
+        self.base_url = settings.INSFORGE_BASE_URL.strip() if settings.INSFORGE_BASE_URL else None
+        self.anon_key = settings.INSFORGE_ANON_KEY.strip() if settings.INSFORGE_ANON_KEY else None
         self._client: Optional[httpx.AsyncClient] = None
         self.usage_metrics = {"tokens_total": 0, "requests_total": 0, "provider_stats": {}}
         self.safety_mode = AISafetyMode.clinical_assist
