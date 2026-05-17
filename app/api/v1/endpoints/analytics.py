@@ -4,6 +4,7 @@ from typing import List, Any, Dict
 import uuid
 
 from app.api.deps import get_db, get_current_user
+from app.models.models import User
 from app.services.analytics import AnalyticsService
 
 router = APIRouter()
