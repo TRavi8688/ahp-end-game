@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     headerTitle: { color: '#fff', fontSize: 24, letterSpacing: 2, fontWeight: 'bold' },
     uploadBtn: { backgroundColor: Theme.colors.primary, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, py: 8, borderRadius: 12 },
     uploadBtnText: { color: '#fff', fontSize: 12, fontWeight: '900' },
-    listContent: { padding: 24, paddingBottom: 100 },
+    listContent: { padding: 24, paddingBottom: 140 },
     recordCard: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 20, marginBottom: 16 },
     recordIconBox: { width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(99, 102, 241, 0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
     recordMain: { flex: 1 },
