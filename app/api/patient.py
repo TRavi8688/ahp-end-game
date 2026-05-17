@@ -479,6 +479,11 @@ async def update_patient_profile(
         parts = full_name.split(" ")
         user.first_name = parts[0]
         user.last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+    else:
+        if "first_name" in data:
+            user.first_name = data["first_name"]
+        if "last_name" in data:
+            user.last_name = data["last_name"]
     
     # 2. Update Patient Details
     if "phone_number" in data:

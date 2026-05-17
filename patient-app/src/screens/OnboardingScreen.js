@@ -146,13 +146,16 @@ export default function OnboardingScreen({ navigation }) {
             loginFormData.append('username', formData.phone);
             loginFormData.append('password', formData.password);
 
-            const loginResp = await axios.post(`${API_BASE_URL}/auth/login`, loginFormData);
+            const loginResp = await axios.post(`${API_BASE_URL}/auth/login`, loginFormData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
             const token = loginResp.data.access_token;
 
             // Setup Profile according to Phase 2 hardened schema
             await axios.post(`${API_BASE_URL}/patient/profile/update`, {
                 first_name: formData.firstName || 'Patient',
                 last_name: formData.lastName || '',
+                full_name: `${formData.firstName || 'Patient'} ${formData.lastName || ''}`.trim(),
                 phone_number: `+91${formData.phone}`,
                 date_of_birth: formData.dob,
                 gender: formData.gender,
