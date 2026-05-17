@@ -58,6 +58,9 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=6)
+    date_of_birth: Optional[str] = None
+    gender: Optional[str] = None
+    blood_group: Optional[str] = None
 
     @field_validator('password')
     @classmethod
@@ -76,6 +79,9 @@ class UserResponse(UserBase):
     id: uuid.UUID
     hospyn_id: Optional[str] = None
     created_at: datetime
+    access_token: Optional[str] = None
+    refresh_token: Optional[str] = None
+    token_type: Optional[str] = None
 
 # Patient Schemas
 class PatientBase(BaseModel):
