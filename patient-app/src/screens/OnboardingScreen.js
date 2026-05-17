@@ -179,9 +179,24 @@ export default function OnboardingScreen({ navigation }) {
         } catch (e) {
             console.error("PROVISIONING_ERROR:", e);
             HapticUtils.error();
-            const errMsg = e.response?.data?.detail || e.response?.data?.message || "";
-            if (e.response?.status === 401 || e.response?.status === 400 || errMsg.toLowerCase().includes("exists")) {
-                if (errMsg.toLowerCase().includes("exists") || errMsg.toLowerCase().includes("registered")) {
+            
+            let errMsg = "An unknown error occurred.";
+            if (e.response?.data?.detail) {
+                if (Array.isArray(e.response.data.detail)) {
+                    errMsg = e.response.data.detail[0]?.msg || JSON.stringify(e.response.data.detail);
+                } else {
+                    errMsg = String(e.response.data.detail);
+                }
+            } else if (e.response?.data?.message) {
+                errMsg = String(e.response.data.message);
+            } else if (e.message) {
+                errMsg = e.message;
+            }
+
+            const errMsgLower = errMsg.toLowerCase();
+            
+            if (e.response?.status === 401 || e.response?.status === 400 || errMsgLower.includes("exists") || errMsgLower.includes("registered")) {
+                if (errMsgLower.includes("exists") || errMsgLower.includes("registered")) {
                     Alert.alert(
                         'Already Registered',
                         'This phone number is already linked to an account. Please try logging in.',
@@ -193,7 +208,12 @@ export default function OnboardingScreen({ navigation }) {
                     return;
                 }
             }
-            Alert.alert('Clinical Setup Failed', 'We encountered an error provisioning your health passport. Please try again.');
+            
+            if (e.response?.status === 422) {
+                Alert.alert('Validation Error', errMsg.replace('Value error, ', ''));
+            } else {
+                Alert.alert('Clinical Setup Failed', errMsg || 'We encountered an error provisioning your health passport.');
+            }
         } finally {
             setLoading(false);
         }
