@@ -90,13 +90,50 @@ class PatientBase(BaseModel):
 class PatientCreate(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=50)
     last_name: str = Field(..., min_length=1, max_length=50)
-    phone_number: str = Field(..., pattern=r"^\+91[6-9]\d{9}$")
-    date_of_birth: str = Field(..., pattern=r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$") # YYYY-MM-DD
-    gender: str = Field(..., pattern=r"^(Male|Female|Other)$")
-    blood_group: Optional[str] = Field(None, pattern=r"^(A|B|AB|O)[\+\-]$")
+    phone_number: str
+    date_of_birth: Optional[str] = Field(None)
+    gender: str = Field("Other")
+    blood_group: Optional[str] = Field(None)
     language_code: str = "en"
     conditions: List[str] = []
     medications: List[str] = []
+
+    @field_validator('phone_number')
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        cleaned = re.sub(r"[\s\-\(\)]", "", v)
+        if cleaned.isdigit() and len(cleaned) == 10:
+            cleaned = f"+91{cleaned}"
+        if not re.match(r"^\+91[6-9]\d{9}$", cleaned):
+            raise ValueError("Phone number must be a valid 10-digit Indian number")
+        return cleaned
+
+    @field_validator('date_of_birth')
+    @classmethod
+    def validate_dob(cls, v: Optional[str]) -> Optional[str]:
+        if not v or v in ["", "null", "None"]:
+            return None
+        if not re.match(r"^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$", v):
+            raise ValueError("Date of Birth must be in YYYY-MM-DD format")
+        return v
+
+    @field_validator('gender')
+    @classmethod
+    def validate_gender(cls, v: str) -> str:
+        if v in ["Male", "Female", "Other"]:
+            return v
+        return "Other"
+
+    @field_validator('blood_group')
+    @classmethod
+    def validate_blood_group(cls, v: Optional[str]) -> Optional[str]:
+        if not v or v in ["", "null", "Unknown", "None"]:
+            return None
+        # Clean potential spaces or lower/upper issues
+        cleaned = v.strip().upper()
+        if not re.match(r"^(A|B|AB|O)[\+\-]$", cleaned):
+            raise ValueError("Blood group must be one of A+, A-, B+, B-, AB+, AB-, O+, O-")
+        return cleaned
 
 class PatientResponse(PatientBase):
     id: uuid.UUID

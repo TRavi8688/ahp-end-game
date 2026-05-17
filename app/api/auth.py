@@ -103,14 +103,15 @@ async def register(
     db.add(new_user)
     await db.flush()
     
-    # --- DEMO_MODE: Auto-Setup Patient Profile for Test Drive ---
-    if settings.DEMO_MODE and new_user.role == "patient":
-        logger.info(f"DEMO_MODE: Auto-creating skeleton patient profile for user {new_user.id}")
+    # --- Auto-Setup Patient Profile for Registrations ---
+    if new_user.role == "patient":
+        logger.info(f"Auto-creating patient profile for user {new_user.id}")
         import uuid
+        phone = user_in.email if (user_in.email.isdigit() or user_in.email.startswith("+")) else "5550199"
         skeleton_patient = models.Patient(
             user_id=new_user.id,
             hospyn_id=f"Hospyn-{uuid.uuid4().hex[:8].upper()}",
-            phone_number="5550199",
+            phone_number=phone,
             language_code="en"
         )
         db.add(skeleton_patient)
@@ -124,6 +125,15 @@ async def register(
         resource_type="USER",
         details={"email": new_user.email, "role": new_user.role}
     )
+    
+    # Resolve hospyn_id from patient relationship (relationship name is 'patient', NOT 'patient_profile')
+    hospyn_id = None
+    try:
+        if new_user.patient:
+            hospyn_id = new_user.patient.hospyn_id
+    except Exception:
+        pass
+    
     return {
         "id": new_user.id,
         "email": new_user.email,
@@ -131,7 +141,8 @@ async def register(
         "last_name": new_user.last_name,
         "role": new_user.role,
         "is_active": new_user.is_active,
-        "hospyn_id": new_user.patient_profile.hospyn_id if new_user.patient_profile else None
+        "hospyn_id": hospyn_id,
+        "created_at": new_user.created_at
     }
 
 @router.post("/login", response_model=schemas.Token)
@@ -411,13 +422,22 @@ async def verify_otp(
         access_token = security.create_access_token(user.id, user.role)
         refresh_token = security.create_refresh_token(user.id, user.role)
         
+        # Resolve hospyn_id safely (relationship name is 'patient', NOT 'patient_profile')
+        hospyn_id = None
+        try:
+            if user.patient:
+                hospyn_id = user.patient.hospyn_id
+        except Exception:
+            pass
+        
         return {
             "success": True,
+            "valid": True,
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
             "user_exists": True,
-            "hospyn_id": user.patient_profile.hospyn_id if user.patient_profile else None,
+            "hospyn_id": hospyn_id,
             "message": "Login successful"
         }
 
