@@ -533,16 +533,41 @@ async def chat_with_chitti(
     image_bytes = None
     audio_bytes = None
     
+    # Resolve Patient object
+    result_p = await db.execute(select(models.Patient).where(models.Patient.user_id == current_user.id))
+    patient = result_p.scalars().first()
+    
+    s3_url = None
     if file:
         file_bytes = await file.read()
         image_bytes = file_bytes
         msg_content += " (Image attached)"
+        
+        # Auto-upload the image to Cloud Storage
+        if patient:
+            try:
+                from app.services.storage_service import StorageService
+                import io
+                storage = StorageService()
+                ext = os.path.splitext(file.filename)[1].lower() or ".jpg"
+                safe_filename = f"{uuid.uuid4()}{ext}"
+                s3_object_name = f"reports/{patient.hospyn_id or 'anon'}/{safe_filename}"
+                
+                s3_url = await storage.upload_stream(
+                    file_obj=io.BytesIO(file_bytes),
+                    object_name=s3_object_name,
+                    mime_type=file.content_type or "image/jpeg"
+                )
+            except Exception as upload_err:
+                logger.error(f"AUTO_SAVE_UPLOAD_FAILURE: {upload_err}")
 
     if audio:
-        audio_bytes = await audio.read()
-        msg_content += " (Voice message attached)"
+        try:
+            audio_bytes = await audio.read()
+            msg_content += " (Voice message attached)"
+        except Exception:
+            pass
 
-    # Generate AI response using memory, vision, and language preference
     # Save user message
     await ai.save_chat_message(
         user_id=str(current_user.id),
@@ -552,6 +577,7 @@ async def chat_with_chitti(
         db=db
     )
     
+    # Generate AI response using memory, vision, and language preference
     ai_text = await ai.chat_with_memory(
         str(current_user.id), 
         conversation_id, 
@@ -563,6 +589,27 @@ async def chat_with_chitti(
         db=db
     )
     
+    # Auto-save the vision scan record to their wallet/vault
+    if patient and s3_url:
+        try:
+            from datetime import datetime
+            new_record = models.MedicalRecord(
+                patient_id=patient.id,
+                family_member_id=active_member_id,
+                type="Chitti Scan",
+                record_name=f"Chitti Vision Scan ({datetime.now().strftime('%d %b %Y')})",
+                hospital_name="Chitti AI Companion",
+                file_url=s3_url,
+                raw_text="Chitti AI vision scan and emotional wellness check.",
+                ai_summary=ai_text[:950] + "..." if len(ai_text) > 950 else ai_text,
+                patient_summary=ai_text
+            )
+            db.add(new_record)
+            await db.commit()
+            logger.info(f"AUTO_SAVED_CHITTI_SCAN: patient={patient.id} | record={new_record.id}")
+        except Exception as save_rec_err:
+            logger.error(f"AUTO_SAVE_RECORD_FAILURE: {save_rec_err}")
+            
     return {
         "ai_text": ai_text,
         "conversation_id": conversation_id

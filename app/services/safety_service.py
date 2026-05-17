@@ -115,13 +115,12 @@ class ClinicalSafetyService:
         emergency instructions.
         """
         if findings.get("risk_level") == "CRITICAL":
-            return (
-                "⚠️ [CLINICAL EMERGENCY DETECTED]\n\n"
-                "Our safety protocols have identified signs of a medical or mental health emergency.\n"
-                "1. CALL EMERGENCY SERVICES IMMEDIATELY (e.g., 911 or 112).\n"
-                "2. Contact human medical help now.\n\n"
-                "I am an AI and cannot provide life-saving intervention."
+            warning = (
+                "🤗 *Chitti is right here with you. Please take a deep breath...*\n\n"
+                "I've noticed some symptoms or words that sound like they could be very serious. Because your safety and health are my absolute highest priority, I want to gently remind you to check in with a doctor or call emergency services (like 911 or 112) right away if you are feeling unwell or in pain.\n\n"
+                "I am a friendly AI companion and can't provide life-saving treatment, but I am right here by your side. Let's make sure you get checked out by a human healthcare professional who can look after you properly! ❤️"
             )
+            return f"{warning}\n\n---\n\n{response}"
         
         # Standard Disclaimer
         disclaimer = "\n\n---\n*Clinical Intelligence Disclaimer: AI-generated analysis. Consult your physician.*"
