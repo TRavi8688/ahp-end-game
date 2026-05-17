@@ -82,7 +82,7 @@ export default function OnboardingScreen({ navigation }) {
         } catch (e) {
             HapticUtils.error();
             console.error("OTP Error:", e);
-            Alert.alert('Error', 'Failed to send OTP. For testing, use 123456 as bypass.');
+            Alert.alert('Error', 'Failed to send OTP. Please check your network and try again.');
         } finally {
             setLoading(false);
         }
@@ -105,14 +105,8 @@ export default function OnboardingScreen({ navigation }) {
                 Alert.alert('Failed', 'Invalid verification code.');
             }
         } catch (e) {
-            // PROVISIONING FALLBACK: Support pilot testing if production server is syncing
-            if (formData.otp === '123456') {
-                HapticUtils.success();
-                setStep(1);
-            } else {
-                HapticUtils.error();
-                Alert.alert('Verification Failed', 'Identity could not be verified by the clinical node.');
-            }
+            HapticUtils.error();
+            Alert.alert('Verification Failed', 'Invalid or expired verification code.');
         } finally {
             setLoading(false);
         }

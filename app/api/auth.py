@@ -289,11 +289,7 @@ async def send_otp(
     logger.info(f"OTP_REQUEST_RECEIVED: Identifier={req.identifier}, Method={req.method}, IP={request.client.host}")
     
     # 1. OTP Generation
-    if "8688533605" in req.identifier:
-        otp = "868853"
-        logger.warning(f"TEST_NUMBER_OTP_FIXED: {req.identifier} | OTP set to 868853")
-    else:
-        otp = "123456" if req.identifier in ["+910000000000", "0000000000", "910000000000"] else "".join([str(secrets.randbelow(10)) for _ in range(6)])
+    otp = "".join([str(secrets.randbelow(10)) for _ in range(6)])
     
     # 2. Persistence (Database Primary)
 
@@ -320,11 +316,7 @@ async def send_otp(
     try:
         if req.method == "sms":
             logger.info(f"SMS_DISPATCH_INITIATED: To={req.identifier}")
-            if "8688533605" in req.identifier:
-                logger.warning(f"TEST_NUMBER_BYPASS_TRIGGERED: {req.identifier} | Skipping Twilio dispatch.")
-                success = True
-            else:
-                success = await send_sms_otp(req.identifier, otp)
+            success = await send_sms_otp(req.identifier, otp)
             
             if not success:
                 if settings.ENVIRONMENT == "production":
