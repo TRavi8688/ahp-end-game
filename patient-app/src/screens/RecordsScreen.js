@@ -63,6 +63,28 @@ export default function RecordsScreen({ navigation }) {
         }
     };
 
+    const formatDate = (dateStr) => {
+        try {
+            if (!dateStr) return 'Recent';
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return 'Recent';
+            return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
+        } catch (e) {
+            return 'Recent';
+        }
+    };
+
+    const formatFullDate = (dateStr) => {
+        try {
+            if (!dateStr) return 'N/A';
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return 'N/A';
+            return d.toLocaleDateString();
+        } catch (e) {
+            return 'N/A';
+        }
+    };
+
     const isAnalyzing = (item) => 
         item.raw_text === '[PIPELINE_ANALYSIS_STAGED]' || 
         item.ai_summary === 'Chitti is decoding your clinical data...';
@@ -104,7 +126,7 @@ export default function RecordsScreen({ navigation }) {
                         )}
                     </View>
                     <View style={{ alignItems: 'flex-end', justifyContent: 'space-between', height: '100%', minHeight: 45 }}>
-                        <Text style={styles.cornerDate}>{new Date(item.created_at).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })}</Text>
+                        <Text style={styles.cornerDate}>{formatDate(item.created_at)}</Text>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
                             {!item.needs_verification && !analyzing && (
                                 <Text style={{ fontSize: 8, color: '#10B981', fontWeight: 'bold' }}>VERIFIED</Text>
@@ -225,7 +247,7 @@ export default function RecordsScreen({ navigation }) {
                                             </View>
                                             <View style={styles.infoItem}>
                                                 <Text style={styles.label}>DATE</Text>
-                                                <Text style={styles.infoValue}>{new Date(selectedRecord?.created_at).toLocaleDateString()}</Text>
+                                                <Text style={styles.infoValue}>{formatFullDate(selectedRecord?.created_at)}</Text>
                                             </View>
                                         </View>
 
