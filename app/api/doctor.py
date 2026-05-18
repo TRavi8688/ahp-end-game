@@ -9,6 +9,7 @@ from app.api.deps import get_current_doctor
 from app.repositories.base import PatientRepository
 from typing import List, Any, Dict
 from app.core.limiter import limiter
+from app.core.logging import logger
 
 router = APIRouter(prefix="/doctor", tags=["Doctor"])
 
