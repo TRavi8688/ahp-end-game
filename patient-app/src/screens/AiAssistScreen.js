@@ -158,12 +158,8 @@ export default function AiAssistScreen({ navigation }) {
     const [recordToShare, setRecordToShare]   = useState(null);
     const [shareDuration, setShareDuration]   = useState(SHARE_DURATIONS[0]);
     const [loadingContext, setLoadingContext]  = useState(true);
-    const [recentSessions, setRecentSessions] = useState([
-        { id: '1', title: 'Fever Checkup', date: 'Today' },
-        { id: '2', title: 'Diabetes Management', date: 'Yesterday' },
-        { id: '3', title: 'Lab Report Analysis', date: '12 May' },
-        { id: '4', title: 'General Wellness', date: '10 May' },
-    ]);
+    const [currentSessionId, setCurrentSessionId] = useState(null);
+    const [recentSessions, setRecentSessions] = useState([]);
 
     // Sharing state
     const [doctorName, setDoctorName]         = useState('');
@@ -216,6 +212,47 @@ export default function AiAssistScreen({ navigation }) {
     const [isTabBarVisible, setIsTabBarVisible] = useState(false);
     const lastScrollY = useRef(0);
 
+    const startNewChat = () => {
+        const patientName = healthContext?.patient_name?.split(' ')[0] || 'there';
+        const conditionNames = healthContext?.conditions?.slice(0, 3).map(c => c.name || c).join(', ');
+        
+        const greeting = conditionNames
+            ? `Namaste ${patientName}! 🙏 I'm Chitti, your Hospyn clinical companion. I've synced with your dashboard and see your profile includes: **${conditionNames}**. Is there anything specific you'd like to discuss or a report you'd like me to analyze?`
+            : `Namaste ${patientName}! 🙏 I'm Chitti, your Hospyn clinical companion. I'm ready to help! Upload your first health report or clinical visit details so I can build your health story with you.`;
+        
+        setMessages([{ id: 'greeting_new', sender: 'ai', text: greeting, records: [] }]);
+        setCurrentSessionId(null);
+        setShowSidebar(false);
+    };
+
+    const loadSession = (session) => {
+        setMessages(session.messages || []);
+        setCurrentSessionId(session.id);
+        setShowSidebar(false);
+    };
+
+    const deleteSession = async (sessionId) => {
+        Alert.alert(
+            "Delete Conversation",
+            "Are you sure you want to delete this chat session?",
+            [
+                { text: "Cancel", style: "cancel" },
+                { 
+                    text: "Delete", 
+                    style: "destructive",
+                    onPress: async () => {
+                        const updated = recentSessions.filter(s => s.id !== sessionId);
+                        setRecentSessions(updated);
+                        await AsyncStorage.setItem('chitti_sessions', JSON.stringify(updated));
+                        if (currentSessionId === sessionId) {
+                            startNewChat();
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const loadAll = async () => {
         setLoadingContext(true);
         try {
@@ -224,38 +261,36 @@ export default function AiAssistScreen({ navigation }) {
 
             const headers = { Authorization: `Bearer ${token}` };
 
-            const [contextRes, historyRes, recordsRes] = await Promise.allSettled([
+            const [contextRes, recordsRes] = await Promise.allSettled([
                 axios.get(`${API_BASE_URL}/patient/clinical-summary`, { headers }),
-                axios.get(`${API_BASE_URL}/patient/chat-history`,     { headers }),
                 axios.get(`${API_BASE_URL}/patient/records`,          { headers }),
             ]);
 
             // --- Health context ---
+            let ctxData = null;
             if (contextRes.status === 'fulfilled') {
-                setHealthContext(contextRes.value.data);
+                ctxData = contextRes.value.data;
+                setHealthContext(ctxData);
             }
 
-            // --- Chat history ---
-            let initialMessages = [];
-            if (historyRes.status === 'fulfilled' && historyRes.value.data?.length > 0) {
-                initialMessages = historyRes.value.data.map((m, i) => ({
-                    id:     `hist_${i}`,
-                    sender: m.sender,
-                    text:   m.message_text,
-                    records: m.attached_records || [],
-                }));
-            } else {
-                const ctxData = contextRes.status === 'fulfilled' ? contextRes.value.data : null;
-                const patientName = ctxData?.patient_name?.split(' ')[0] || 'there';
-                const conditionNames = ctxData?.conditions?.slice(0, 3).map(c => c.name || c).join(', ');
-                
-                const greeting = conditionNames
-                    ? `Namaste ${patientName}! 🙏 I'm Chitti, your Hospyn clinical companion. I've synced with your dashboard and see your profile includes: **${conditionNames}**. Is there anything specific you'd like to discuss or a report you'd like me to analyze?`
-                    : `Namaste ${patientName}! 🙏 I'm Chitti, your Hospyn clinical companion. I'm ready to help! Upload your first health report or clinical visit details so I can build your health story with you.`;
-                
-                initialMessages = [{ id: 'greeting_0', sender: 'ai', text: greeting, records: [] }];
+            // --- Load Sessions ---
+            const sessionsStr = await AsyncStorage.getItem('chitti_sessions').catch(() => null);
+            let sessions = [];
+            if (sessionsStr) {
+                sessions = JSON.parse(sessionsStr);
             }
-            setMessages(initialMessages);
+            setRecentSessions(sessions);
+
+            // --- Default fresh greeting ---
+            const patientName = ctxData?.patient_name?.split(' ')[0] || 'there';
+            const conditionNames = ctxData?.conditions?.slice(0, 3).map(c => c.name || c).join(', ');
+            
+            const greeting = conditionNames
+                ? `Namaste ${patientName}! 🙏 I'm Chitti, your Hospyn clinical companion. I've synced with your dashboard and see your profile includes: **${conditionNames}**. Is there anything specific you'd like to discuss or a report you'd like me to analyze?`
+                : `Namaste ${patientName}! 🙏 I'm Chitti, your Hospyn clinical companion. I'm ready to help! Upload your first health report or clinical visit details so I can build your health story with you.`;
+            
+            setMessages([{ id: 'greeting_0', sender: 'ai', text: greeting, records: [] }]);
+            setCurrentSessionId(null);
 
             // --- Vault Records ---
             if (recordsRes.status === 'fulfilled') {
@@ -304,13 +339,43 @@ export default function AiAssistScreen({ navigation }) {
             records: attachedRecordIds.length > 0 ? attachedRecordIds.map(id => vaultRecords.find(r => r.id === id)).filter(Boolean) : [],
         };
 
-        setMessages(prev => [...prev, userMsg]);
+        const currentMsgs = [...messages, userMsg];
+        setMessages(currentMsgs);
         setInputText('');
         setAttachedFiles([]); // Clear attachment queue
         setSelectedRecords([]);
         setIsTyping(true);
 
         setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+
+        let activeSessionId = currentSessionId;
+        let updatedRecent = [...recentSessions];
+
+        if (!activeSessionId) {
+            activeSessionId = 'session_' + Date.now();
+            setCurrentSessionId(activeSessionId);
+            
+            const title = text ? (text.length > 25 ? text.substring(0, 25) + '...' : text) : 'Shared Media';
+            const newSession = {
+                id: activeSessionId,
+                title: title,
+                date: 'Today',
+                messages: currentMsgs
+            };
+            
+            updatedRecent = [newSession, ...updatedRecent];
+            setRecentSessions(updatedRecent);
+            await AsyncStorage.setItem('chitti_sessions', JSON.stringify(updatedRecent));
+        } else {
+            updatedRecent = recentSessions.map(s => {
+                if (s.id === activeSessionId) {
+                    return { ...s, messages: currentMsgs };
+                }
+                return s;
+            });
+            setRecentSessions(updatedRecent);
+            await AsyncStorage.setItem('chitti_sessions', JSON.stringify(updatedRecent));
+        }
 
         try {
             const token = await SecurityUtils.getToken();
@@ -350,7 +415,18 @@ export default function AiAssistScreen({ navigation }) {
                 text:    aiData.ai_text || aiData.response || 'I understood your query!',
                 records: aiData.pinned_records || [],
             };
-            setMessages(prev => [...prev, aiMsg]);
+            
+            const finalMsgs = [...currentMsgs, aiMsg];
+            setMessages(finalMsgs);
+
+            const finalRecent = updatedRecent.map(s => {
+                if (s.id === activeSessionId) {
+                    return { ...s, messages: finalMsgs };
+                }
+                return s;
+            });
+            setRecentSessions(finalRecent);
+            await AsyncStorage.setItem('chitti_sessions', JSON.stringify(finalRecent));
 
         } catch (error) {
             console.error('[ChittiAI] send error:', error);
@@ -372,7 +448,18 @@ export default function AiAssistScreen({ navigation }) {
                 text:    errorText,
                 records: [],
             };
-            setMessages(prev => [...prev, errMsg]);
+            
+            const finalMsgs = [...currentMsgs, errMsg];
+            setMessages(finalMsgs);
+
+            const finalRecent = updatedRecent.map(s => {
+                if (s.id === activeSessionId) {
+                    return { ...s, messages: finalMsgs };
+                }
+                return s;
+            });
+            setRecentSessions(finalRecent);
+            await AsyncStorage.setItem('chitti_sessions', JSON.stringify(finalRecent));
         } finally {
             setIsTyping(false);
             setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 200);
@@ -550,8 +637,13 @@ export default function AiAssistScreen({ navigation }) {
 
     // ─── RENDER ───────────────────────────────────────────────────────────────
 
+    const isLightTheme = Theme.colors.primary === '#7C3AED';
+    const bgColors = isLightTheme 
+        ? ['#F8F7FF', '#EEEBFF'] 
+        : ['#090D1A', '#020408'];
+
     return (
-        <View style={styles.root}>
+        <LinearGradient colors={bgColors} style={{ flex: 1 }}>
             {/* HEADER */}
             <LinearGradient colors={['#050810', '#1E1B4B', '#2d1b69']} style={styles.header}>
                 <View style={styles.headerContent}>
@@ -638,19 +730,17 @@ export default function AiAssistScreen({ navigation }) {
             {/* HISTORY BAR */}
             <View style={styles.historyBarContainer}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.historyScroll}>
-                    <TouchableOpacity style={styles.newChatBtn} onPress={() => {
-                        setMessages([{ id: 'greeting_new', sender: 'ai', text: "Starting a fresh session. How can I help you today?", records: [] }]);
-                    }}>
+                    <TouchableOpacity style={styles.newChatBtn} onPress={startNewChat}>
                         <Ionicons name="add" size={18} color="#fff" />
                         <Text style={styles.newChatText}>New Chat</Text>
                     </TouchableOpacity>
                     {recentSessions.map((session, idx) => (
                         <TouchableOpacity 
                             key={idx} 
-                            style={styles.sessionBtn}
-                            onPress={() => Alert.alert("Resume Chat", `Resuming "${session.title}" from ${session.date}...`)}
+                            style={[styles.sessionBtn, currentSessionId === session.id && { borderColor: '#7c3aed', borderWidth: 1 }]}
+                            onPress={() => loadSession(session)}
                         >
-                            <View style={styles.sessionDot} />
+                            <View style={[styles.sessionDot, currentSessionId === session.id && { backgroundColor: '#7c3aed' }]} />
                             <Text style={styles.sessionTitle}>{session.title}</Text>
                         </TouchableOpacity>
                     ))}
@@ -1080,10 +1170,7 @@ export default function AiAssistScreen({ navigation }) {
                         {/* New Chat Button */}
                         <TouchableOpacity 
                             style={styles.sidebarNewChatBtn}
-                            onPress={() => {
-                                setMessages([{ id: 'greeting_new', sender: 'ai', text: "Starting a fresh session. How can I help you today?", records: [] }]);
-                                setShowSidebar(false);
-                            }}
+                            onPress={startNewChat}
                         >
                             <Ionicons name="add" size={20} color="#fff" />
                             <Text style={styles.sidebarNewChatText}>New Chat</Text>
@@ -1112,24 +1199,24 @@ export default function AiAssistScreen({ navigation }) {
                             {recentSessions
                                 .filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()))
                                 .map((session, idx) => (
-                                    <TouchableOpacity 
-                                        key={idx} 
-                                        style={styles.sidebarSessionBtn}
-                                        onPress={() => {
-                                            // Mock resuming session:
-                                            setMessages([
-                                                { id: 'old_msg_1', sender: 'user', text: `Let's discuss my ${session.title}.` },
-                                                { id: 'old_msg_2', sender: 'ai', text: `Of course! I have restored our context on ${session.title}. What would you like to explore?` }
-                                            ]);
-                                            setShowSidebar(false);
-                                        }}
-                                    >
-                                        <Ionicons name="chatbubble-ellipses-outline" size={16} color="#a78bfa" style={{ marginRight: 10 }} />
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={styles.sidebarSessionText} numberOfLines={1}>{session.title}</Text>
-                                            <Text style={styles.sidebarSessionSubtext}>{session.date}</Text>
-                                        </View>
-                                    </TouchableOpacity>
+                                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                                        <TouchableOpacity 
+                                            style={[styles.sidebarSessionBtn, { flex: 1, marginBottom: 0 }]}
+                                            onPress={() => loadSession(session)}
+                                        >
+                                            <Ionicons name="chatbubble-ellipses-outline" size={16} color="#a78bfa" style={{ marginRight: 10 }} />
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.sidebarSessionText} numberOfLines={1}>{session.title}</Text>
+                                                <Text style={styles.sidebarSessionSubtext}>{session.date}</Text>
+                                            </View>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity 
+                                            style={{ padding: 10 }} 
+                                            onPress={() => deleteSession(session.id)}
+                                        >
+                                            <Ionicons name="trash-outline" size={16} color="#ef4444" />
+                                        </TouchableOpacity>
+                                    </View>
                                 ))}
                         </ScrollView>
 
@@ -1271,7 +1358,7 @@ export default function AiAssistScreen({ navigation }) {
                     </View>
                 </View>
             </Modal>
-        </View>
+        </LinearGradient>
     );
 }
 
@@ -1280,7 +1367,7 @@ export default function AiAssistScreen({ navigation }) {
 const styles = StyleSheet.create({
     root: {
         flex: 1,
-        backgroundColor: '#050810',
+        backgroundColor: 'transparent',
     },
 
     // ── Header ──────────────────────────────────────────────────────────────

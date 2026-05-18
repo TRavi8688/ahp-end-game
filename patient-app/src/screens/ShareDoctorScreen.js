@@ -40,29 +40,29 @@ export default function ShareDoctorScreen({ navigation }) {
             </LinearGradient>
 
             <View style={styles.content}>
-                <Text style={styles.infoText}>Show this QR code to your doctor to grant them instant, secure access to your medical history.</Text>
+                <Text style={[styles.infoText, { color: Theme.colors.textMuted }]}>Show this QR code to your doctor to grant them instant, secure access to your medical history.</Text>
                 
                 <View style={[styles.qrContainer, GlobalStyles.glass]}>
-                    <View style={[styles.qrInner, { backgroundColor: Theme.colors.primary === '#7C3AED' ? '#FFFFFF' : 'rgba(255,255,255,0.05)' }]}>
+                    <View style={[styles.qrInner, { backgroundColor: '#FFFFFF' }]}>
                         <QRCode
                             value={hospynId}
                             size={200}
-                            color={Theme.colors.primary === '#7C3AED' ? '#0F172A' : '#ffffff'}
-                            backgroundColor="transparent"
+                            color="#0F172A"
+                            backgroundColor="#FFFFFF"
                         />
                     </View>
-                    <Text style={styles.idLabel}>YOUR CLINICAL IDENTITY</Text>
+                    <Text style={[styles.idLabel, { color: Theme.colors.textMuted }]}>YOUR CLINICAL IDENTITY</Text>
                     <Text style={[styles.idValue, { color: Theme.colors.text }]}>{hospynId}</Text>
                 </View>
 
-                <TouchableOpacity style={styles.shareBtn} onPress={handleShare}>
+                <TouchableOpacity style={[styles.shareBtn, { backgroundColor: Theme.colors.primary }]} onPress={handleShare}>
                     <Ionicons name="share-outline" size={20} color="#fff" />
                     <Text style={styles.shareBtnText}>SHARE ID MANUALLY</Text>
                 </TouchableOpacity>
 
-                <View style={styles.securityBox}>
+                <View style={[styles.securityBox, { backgroundColor: Theme.colors.primary === '#7C3AED' ? 'rgba(124, 58, 237, 0.08)' : 'rgba(99, 102, 241, 0.05)' }]}>
                     <Ionicons name="shield-checkmark" size={24} color={Theme.colors.primary} />
-                    <Text style={styles.securityText}>
+                    <Text style={[styles.securityText, { color: Theme.colors.textMuted }]}>
                         Access is only granted for the duration of your visit. You can revoke it at any time from the "Connected Doctors" settings.
                     </Text>
                 </View>
@@ -73,16 +73,16 @@ export default function ShareDoctorScreen({ navigation }) {
 
 const styles = StyleSheet.create({
     header: { padding: 24, paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    headerTitle: { fontSize: 18, letterSpacing: 2 },
+    headerTitle: { fontSize: 18, letterSpacing: 2, color: '#fff' },
     backBtn: { padding: 4 },
     content: { flex: 1, padding: 30, paddingBottom: 130, alignItems: 'center' },
-    infoText: { color: '#94A3B8', textAlign: 'center', lineHeight: 22, fontSize: 14, marginBottom: 40 },
+    infoText: { textAlign: 'center', lineHeight: 22, fontSize: 14, marginBottom: 40 },
     qrContainer: { padding: 40, borderRadius: 40, alignItems: 'center', width: '100%' },
-    qrInner: { padding: 20, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 20, marginBottom: 20 },
-    idLabel: { color: '#64748B', fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 5 },
-    idValue: { color: '#fff', fontSize: 20, fontWeight: 'bold', fontFamily: 'monospace' },
-    shareBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 40, backgroundColor: Theme.colors.primary, paddingHorizontal: 30, paddingVertical: 15, borderRadius: 20 },
+    qrInner: { padding: 20, borderRadius: 20, marginBottom: 20 },
+    idLabel: { fontSize: 10, fontWeight: '900', letterSpacing: 2, marginBottom: 5 },
+    idValue: { fontSize: 20, fontWeight: 'bold', fontFamily: 'monospace' },
+    shareBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 40, paddingHorizontal: 30, paddingVertical: 15, borderRadius: 20 },
     shareBtnText: { color: '#fff', fontWeight: 'bold' },
-    securityBox: { flexDirection: 'row', gap: 15, marginTop: 'auto', padding: 20, backgroundColor: 'rgba(99, 102, 241, 0.05)', borderRadius: 20, alignItems: 'center' },
-    securityText: { flex: 1, color: '#64748B', fontSize: 12, lineHeight: 18 }
+    securityBox: { flexDirection: 'row', gap: 15, marginTop: 'auto', padding: 20, borderRadius: 20, alignItems: 'center' },
+    securityText: { flex: 1, fontSize: 12, lineHeight: 18 }
 });
