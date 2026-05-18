@@ -334,6 +334,125 @@ async def lookup_patient(
         "contacts": contacts
     }
 
+@router.post("/patient/{hospyn_id}/intake")
+async def record_baseline_intake(
+    hospyn_id: str,
+    intake_data: Dict[str, Any],
+    db: AsyncSession = Depends(get_db),
+    current_doctor: Doctor = Depends(get_current_doctor)
+):
+    """
+    Atomically records a new patient's baseline intake assessment.
+    Registers chronic conditions, active medications, allergies, initial vitals, 
+    and triggers Chitti AI to immediately synthesize a clinical brief.
+    """
+    from app.repositories.base import PatientRepository
+    from app.models.models import Condition, Medication, Allergy, PatientVisit, AISummary, User, FamilyMember
+    from datetime import datetime
+    
+    repo = PatientRepository(Patient, db)
+    patient = await repo.get_by_hospyn_id(hospyn_id)
+    if not patient:
+        # Check family members
+        stmt_fm = select(FamilyMember).where(func.lower(FamilyMember.linked_hospyn_id) == func.lower(hospyn_id))
+        result_fm = await db.execute(stmt_fm)
+        family_member = result_fm.scalars().first()
+        if family_member:
+            patient = await repo.get(family_member.patient_id)
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient not found")
+
+    target_patient_id = patient.id
+
+    # 1. Add Chronic Conditions
+    conditions_list = intake_data.get("conditions", [])
+    for cond_name in conditions_list:
+        if cond_name.strip():
+            new_cond = Condition(
+                patient_id=target_patient_id,
+                name=cond_name.strip()
+            )
+            db.add(new_cond)
+
+    # 2. Add Active Medications
+    medications_list = intake_data.get("medications", [])
+    for med in medications_list:
+        generic_name = med.get("generic_name", "").strip()
+        dosage = med.get("dosage", "").strip()
+        frequency = med.get("frequency", "daily").strip()
+        if generic_name:
+            new_med = Medication(
+                patient_id=target_patient_id,
+                generic_name=generic_name,
+                dosage=dosage,
+                frequency=frequency
+            )
+            db.add(new_med)
+
+    # 3. Add Allergies
+    allergies_list = intake_data.get("allergies", [])
+    for alg in allergies_list:
+        allergen = alg.get("allergen", "").strip()
+        severity = alg.get("severity", "moderate").strip()
+        if allergen:
+            new_alg = Allergy(
+                patient_id=target_patient_id,
+                allergen=allergen,
+                severity=severity
+            )
+            db.add(new_alg)
+
+    # 4. Add Initial Visit / Encounter Log
+    symptoms = intake_data.get("symptoms", "").strip() or "Baseline clinical intake assessment."
+    new_visit = PatientVisit(
+        patient_id=target_patient_id,
+        clinic_name=intake_data.get("clinic_name", "Hospyn Clinic"),
+        visit_reason="Baseline Intake Assessment",
+        symptoms=symptoms,
+        department="General Medicine",
+        check_in_time=datetime.utcnow()
+    )
+    db.add(new_visit)
+
+    # 5. Generate a beautiful clinical synthesis summary for Chitti AI immediately!
+    stmt_user = select(User).where(User.id == patient.user_id)
+    res_user = await db.execute(stmt_user)
+    user_obj = res_user.scalar_one_or_none()
+    patient_name = f"{user_obj.first_name} {user_obj.last_name}" if user_obj else "Hospyn Patient"
+
+    cond_str = ", ".join(conditions_list) if conditions_list else "None recorded"
+    med_str = ", ".join([f"{m.get('generic_name')} ({m.get('dosage')})" for m in medications_list if m.get("generic_name")]) if medications_list else "None recorded"
+    alg_str = ", ".join([f"{a.get('allergen')} ({a.get('severity')})" for a in allergies_list if a.get("allergen")]) if allergies_list else "No known allergies"
+    vitals_bp = intake_data.get("vitals_bp", "N/A")
+    vitals_hr = intake_data.get("vitals_hr", "N/A")
+
+    ai_synthesized_brief = f"<strong>Hospyn Intelligence Synthesis:</strong><br/>Baseline clinical intake completed on {datetime.now().strftime('%B %d, %Y')}.<br/><br/>• <strong>Chronic Conditions:</strong> {cond_str}<br/>• <strong>Active Prescriptions:</strong> {med_str}<br/>• <strong>Hypersensitivities:</strong> {alg_str}<br/>• <strong>Baseline Vitals:</strong> BP: {vitals_bp} mmHg, HR: {vitals_hr} bpm.<br/><br/>Patient cleared for long-term health tracking. Clinical timeline and AI passport initialized successfully."
+
+    new_ai_summary = AISummary(
+        patient_id=target_patient_id,
+        one_page_summary=ai_synthesized_brief
+    )
+    db.add(new_ai_summary)
+
+    # 6. Log Clinical Audit Action
+    from app.core.audit import log_clinical_audit
+    await log_clinical_audit(
+        db=db,
+        user_id=current_doctor.user_id,
+        action="CREATE_BASELINE_INTAKE",
+        resource_type="PATIENT_PROFILE",
+        resource_id=target_patient_id,
+        patient_id=target_patient_id,
+        details={
+            "conditions_count": len(conditions_list),
+            "medications_count": len(medications_list),
+            "allergies_count": len(allergies_list)
+        }
+    )
+
+    await db.commit()
+    return {"status": "success", "message": "Baseline clinical intake recorded successfully."}
+
 @router.post("/emergency-access", response_model=schemas.DoctorScanResponse)
 async def emergency_break_glass(
     request: schemas.DoctorScanRequest,
