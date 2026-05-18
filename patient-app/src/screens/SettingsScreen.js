@@ -297,19 +297,19 @@ export default function SettingsScreen({ navigation }) {
 
             {/* Edit Profile Modal */}
             <Modal visible={showEditModal} animationType="slide" transparent>
-                <View style={styles.modalOverlay}>
-                    <View style={[styles.modalBox, GlobalStyles.glass]}>
+                <View style={[styles.modalOverlay, { backgroundColor: Theme.colors.primary === '#7C3AED' ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.9)' }]}>
+                    <View style={[styles.modalBox, GlobalStyles.glass, { backgroundColor: Theme.colors.card, borderWidth: 1, borderColor: Theme.colors.border }]}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>UPDATE PROFILE</Text>
+                            <Text style={[styles.modalTitle, { color: Theme.colors.text }]}>UPDATE PROFILE</Text>
                             <TouchableOpacity onPress={() => setShowEditModal(false)}>
-                                <Ionicons name="close" size={24} color="#fff" />
+                                <Ionicons name="close" size={24} color={Theme.colors.text} />
                             </TouchableOpacity>
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>FULL LEGAL NAME</Text>
+                            <Text style={[styles.inputLabel, { color: Theme.colors.primary === '#7C3AED' ? '#4F46E5' : '#64748B' }]}>FULL LEGAL NAME</Text>
                             <TextInput 
-                                style={[styles.input, { color: '#fff' }]} 
+                                style={[styles.input, { color: Theme.colors.text, backgroundColor: Theme.colors.primary === '#7C3AED' ? '#FFFFFF' : 'rgba(255,255,255,0.03)', borderColor: Theme.colors.primary === '#7C3AED' ? '#E2E8F0' : 'rgba(255,255,255,0.05)' }]} 
                                 value={editName} 
                                 onChangeText={setEditName} 
                                 placeholderTextColor="#475569" 
@@ -317,9 +317,9 @@ export default function SettingsScreen({ navigation }) {
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>CONTACT NUMBER</Text>
+                            <Text style={[styles.inputLabel, { color: Theme.colors.primary === '#7C3AED' ? '#4F46E5' : '#64748B' }]}>CONTACT NUMBER</Text>
                             <TextInput 
-                                style={[styles.input, { color: '#fff' }]} 
+                                style={[styles.input, { color: Theme.colors.text, backgroundColor: Theme.colors.primary === '#7C3AED' ? '#FFFFFF' : 'rgba(255,255,255,0.03)', borderColor: Theme.colors.primary === '#7C3AED' ? '#E2E8F0' : 'rgba(255,255,255,0.05)' }]} 
                                 value={editPhone} 
                                 onChangeText={setEditPhone} 
                                 keyboardType="phone-pad" 
@@ -328,16 +328,16 @@ export default function SettingsScreen({ navigation }) {
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={styles.inputLabel}>BLOOD GROUP</Text>
+                            <Text style={[styles.inputLabel, { color: Theme.colors.primary === '#7C3AED' ? '#4F46E5' : '#64748B' }]}>BLOOD GROUP</Text>
                             <TextInput 
-                                style={[styles.input, { color: '#fff' }]} 
+                                style={[styles.input, { color: Theme.colors.text, backgroundColor: Theme.colors.primary === '#7C3AED' ? '#FFFFFF' : 'rgba(255,255,255,0.03)', borderColor: Theme.colors.primary === '#7C3AED' ? '#E2E8F0' : 'rgba(255,255,255,0.05)' }]} 
                                 value={editBlood} 
                                 onChangeText={setEditBlood} 
                                 placeholderTextColor="#475569" 
                             />
                         </View>
 
-                        <TouchableOpacity style={styles.saveBtn} onPress={handleUpdateProfile} disabled={isUpdatingProfile}>
+                        <TouchableOpacity style={[styles.saveBtn, { backgroundColor: Theme.colors.primary }]} onPress={handleUpdateProfile} disabled={isUpdatingProfile}>
                             {isUpdatingProfile ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>SAVE CHANGES</Text>}
                         </TouchableOpacity>
                     </View>

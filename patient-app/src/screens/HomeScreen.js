@@ -378,7 +378,7 @@ export default function HomeScreen({ navigation }) {
 
             {/* NEW: Vitality Section */}
             <View style={styles.vitalitySection}>
-                <View style={styles.vitalityCard}>
+                <View style={[styles.vitalityCard, GlobalStyles.glass]}>
                     <View style={styles.orbWrapper}>
                         <Animated.View style={[styles.vitalityOrb, animatedOrbStyle]}>
                             <LinearGradient 
@@ -392,8 +392,8 @@ export default function HomeScreen({ navigation }) {
                         </View>
                     </View>
                     <View style={styles.vitalityInfo}>
-                        <Text style={styles.vitalityStatus}>VITALITY: {summary?.vitality?.status || 'OPTIMAL'}</Text>
-                        <Text style={styles.vitalityDesc}>Your clinical health index is synchronized with real-time biometric data.</Text>
+                        <Text style={[styles.vitalityStatus, { color: Theme.colors.text }]}>VITALITY: {summary?.vitality?.status || 'OPTIMAL'}</Text>
+                        <Text style={[styles.vitalityDesc, { color: Theme.colors.textMuted }]}>Your clinical health index is synchronized with real-time biometric data.</Text>
                     </View>
                 </View>
             </View>
@@ -547,7 +547,7 @@ export default function HomeScreen({ navigation }) {
                     <TouchableOpacity onPress={() => navigation.navigate('FamilyProfiles')}>
                         <Text style={styles.viewAll}>Manage</Text>
                     </TouchableOpacity>
-                </View>w>
+                </View>
                 <View style={styles.familyRow}>
                     <TouchableOpacity style={styles.addFamilyCircle} onPress={() => navigation.navigate('FamilyProfiles')}>
                         <Ionicons name="add" size={24} color="#fff" />
