@@ -221,7 +221,7 @@ async def emergency_break_glass(
     
     if not patient:
         # Check if it exists in the family_members table
-        stmt_fm = select(models.FamilyMember).where(models.FamilyMember.linked_hospyn_id == request.hospyn_id)
+        stmt_fm = select(FamilyMember).where(func.lower(FamilyMember.linked_hospyn_id) == func.lower(request.hospyn_id))
         result_fm = await db.execute(stmt_fm)
         family_member = result_fm.scalar_one_or_none()
         if family_member:
@@ -276,7 +276,7 @@ async def scan_patient(
     
     if not patient:
         # Check if it exists in the family_members table
-        stmt_fm = select(models.FamilyMember).where(models.FamilyMember.linked_hospyn_id == request.hospyn_id)
+        stmt_fm = select(FamilyMember).where(func.lower(FamilyMember.linked_hospyn_id) == func.lower(request.hospyn_id))
         result_fm = await db.execute(stmt_fm)
         family_member = result_fm.scalar_one_or_none()
         if family_member:
