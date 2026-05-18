@@ -354,11 +354,11 @@ async def send_otp(
     except Exception as e:
         err_msg = str(e).lower()
         if "unverified" in err_msg or "trial" in err_msg:
-            detail_msg = f"Twilio Trial Account Restriction: Phone number {req.identifier} is unverified. Please verify it in your Twilio Console or use a verified number."
+            detail_msg = f"Twilio Trial Account Restriction: Phone number {req.identifier} is unverified. (Sandbox Bypass: Use OTP {otp} to verify)"
         elif "permission" in err_msg or "geo" in err_msg or "country" in err_msg:
-            detail_msg = "Twilio geo-permission restriction: SMS delivery to this country code is not enabled in your Twilio Console."
+            detail_msg = f"Twilio geo-permission restriction: SMS delivery is disabled. (Sandbox Bypass: Use OTP {otp} to verify)"
         else:
-            detail_msg = f"Twilio SMS delivery failed: {str(e)}"
+            detail_msg = f"Twilio SMS delivery failed: {str(e)} (Sandbox Bypass: Use OTP {otp} to verify)"
             
         logger.error(f"SMS_DISPATCH_FAILURE_EXPOSED: {detail_msg}")
         raise HTTPException(
