@@ -7,6 +7,7 @@ import { useIdleLogout } from './hooks/useIdleLogout';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import ScanModal from './components/ScanModal';
+import ErrorBoundary from './components/ErrorBoundary';
 
 // Pages
 import LoginScreen from './pages/LoginScreen';
@@ -116,18 +117,20 @@ function App() {
                 <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                     <Topbar onLogout={handleLogout} onOpenScan={() => setScanModalOpen(true)} />
                     <Box component="main" sx={{ flexGrow: 1, p: 3, overflow: 'auto' }}>
-                        <Routes>
-                            <Route path="/" element={<HomeDashboard onOpenScan={() => setScanModalOpen(true)} />} />
-                            <Route path="/patient/:id/*" element={<PatientDetailView />} />
-                            <Route path="/patients" element={<PatientList />} />
-                            <Route path="/schedule" element={<Schedule />} />
-                            <Route path="/prescriptions" element={<Prescriptions />} />
-                            <Route path="/history" element={<AccessHistory />} />
-                            <Route path="/analytics" element={<Analytics />} />
-                            <Route path="/alerts" element={<Alerts />} />
-                            <Route path="/settings" element={<Settings />} />
-                            <Route path="*" element={<Navigate to="/" replace />} />
-                        </Routes>
+                        <ErrorBoundary>
+                            <Routes>
+                                <Route path="/" element={<HomeDashboard onOpenScan={() => setScanModalOpen(true)} />} />
+                                <Route path="/patient/:id/*" element={<PatientDetailView />} />
+                                <Route path="/patients" element={<PatientList />} />
+                                <Route path="/schedule" element={<Schedule />} />
+                                <Route path="/prescriptions" element={<Prescriptions />} />
+                                <Route path="/history" element={<AccessHistory />} />
+                                <Route path="/analytics" element={<Analytics />} />
+                                <Route path="/alerts" element={<Alerts />} />
+                                <Route path="/settings" element={<Settings />} />
+                                <Route path="*" element={<Navigate to="/" replace />} />
+                            </Routes>
+                        </ErrorBoundary>
                     </Box>
                 </Box>
             </Box>

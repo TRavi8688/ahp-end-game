@@ -174,11 +174,15 @@ function AppContent() {
   );
 }
 
+import ErrorBoundary from './src/components/ErrorBoundary';
+
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 
