@@ -314,3 +314,7 @@ async def get_current_user(
     logger.info("AUTH_SUCCESS: Identity Verified")
     return user
 
+def calculate_content_checksum(content: str) -> str:
+    """Calculates a SHA-256 checksum for string content to verify integrity."""
+    return hashlib.sha256(content.encode('utf-8')).hexdigest()
+
