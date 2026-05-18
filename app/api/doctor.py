@@ -313,7 +313,7 @@ async def scan_patient(
         doctor_user_id=current_doctor.user_id,
         doctor_name=f"Dr. {doctor_user.last_name}",
         clinic_name=request.clinic_name,
-        access_level=request.access_level,
+        access_level="write" if request.access_level in ["full", "write"] else "read",
         status="requested"
     )
     db.add(new_access)
