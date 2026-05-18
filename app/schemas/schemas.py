@@ -22,6 +22,24 @@ class TokenPayload(BaseModel):
 class GoogleLoginRequest(BaseModel):
     token: str
 
+class ForgotPasswordRequest(BaseModel):
+    identifier: str
+
+class ForgotPasswordVerify(BaseModel):
+    identifier: str
+    otp: str
+
+class ForgotPasswordReset(BaseModel):
+    reset_token: str
+    new_password: str
+
+class PatientSetupRequest(BaseModel):
+    phone_number: str
+    date_of_birth: str
+    gender: str
+    blood_group: str
+    password: Optional[str] = None
+
 class OTPRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     
