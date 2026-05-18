@@ -10,13 +10,20 @@ import HapticUtils from '../utils/HapticUtils';
 import QRCode from 'react-native-qrcode-svg';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, subscribeToTheme, getTheme } from '../theme';
 
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }) {
     const { isAuthenticated, logout, user, switchProfile } = useAuth();
     const [profile, setProfile] = useState(null);
+    
+    const [theme, setThemeState] = useState(getTheme());
+    useEffect(() => {
+        return subscribeToTheme((newTheme) => {
+            setThemeState(newTheme);
+        });
+    }, []);
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -256,9 +263,9 @@ export default function HomeScreen({ navigation }) {
 
     if (loading) {
         return (
-            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: Theme.colors.background }]}>
                 <ActivityIndicator color={Theme.colors.primary} size="large" />
-                <Text style={styles.loadingText}>INITIALIZING YOUR HEALTH COMPANION...</Text>
+                <Text style={[styles.loadingText, { color: Theme.colors.primary }]}>INITIALIZING YOUR HEALTH COMPANION...</Text>
             </View>
         );
     }
@@ -266,7 +273,7 @@ export default function HomeScreen({ navigation }) {
     return (
         
 <ScrollView
-    style={styles.container}
+    style={[styles.container, { backgroundColor: Theme.colors.background }]}
     contentContainerStyle={{ paddingBottom: 140 }}
     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.primary} />}
     showsVerticalScrollIndicator={false}
@@ -286,29 +293,29 @@ export default function HomeScreen({ navigation }) {
                 <View style={styles.headerTop}>
                     <View style={styles.logoContainer}>
                         <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
-                        <Text style={styles.logoText}>HOSPYN</Text>
+                        <Text style={[styles.logoText, { color: Theme.colors.text }]}>HOSPYN</Text>
                     </View>
                     <View style={styles.headerActions}>
-                        <TouchableOpacity onPress={() => { HapticUtils.light(); navigation.navigate('Notifications'); }} style={styles.iconBtn}>
+                        <TouchableOpacity onPress={() => { HapticUtils.light(); navigation.navigate('Notifications'); }} style={[styles.iconBtn, GlobalStyles.glass]}>
                             <View style={styles.notificationBadge} />
-                            <Ionicons name="notifications-outline" size={24} color="#fff" />
+                            <Ionicons name="notifications-outline" size={24} color={Theme.colors.text} />
                         </TouchableOpacity>
-                        <TouchableOpacity onPress={() => { HapticUtils.light(); navigation.navigate('Settings'); }} style={styles.iconBtn}>
-                            <Ionicons name="person-outline" size={24} color="#fff" />
+                        <TouchableOpacity onPress={() => { HapticUtils.light(); navigation.navigate('Settings'); }} style={[styles.iconBtn, GlobalStyles.glass]}>
+                            <Ionicons name="person-outline" size={24} color={Theme.colors.text} />
                         </TouchableOpacity>
                     </View>
                 </View>
                 <View style={styles.greetingSection}>
-                    <Text style={styles.greetingText}>{greeting}</Text>
+                    <Text style={[styles.greetingText, { color: Theme.colors.text }]}>{greeting}</Text>
                     <View style={styles.subGreetingRow}>
                         <LinearGradient 
-                            colors={['rgba(34, 211, 238, 0.2)', 'rgba(52, 211, 153, 0.1)']} 
+                            colors={Theme.colors.primary === '#7C3AED' ? ['rgba(124, 58, 237, 0.1)', 'rgba(16, 185, 129, 0.05)'] : ['rgba(34, 211, 238, 0.2)', 'rgba(52, 211, 153, 0.1)']} 
                             start={{x: 0, y: 0}} 
                             end={{x: 1, y: 0}} 
-                            style={styles.shieldBadge}
+                            style={[styles.shieldBadge, { borderColor: Theme.colors.primary === '#7C3AED' ? 'rgba(124, 58, 237, 0.15)' : 'rgba(16, 185, 129, 0.2)' }]}
                         >
                             <Ionicons name="shield-checkmark" size={12} color={Theme.colors.primary} />
-                            <Text style={styles.subGreeting}>{profile?.is_family_member ? `${profile.relation} Profile` : 'Personal Health Shield'}</Text>
+                            <Text style={[styles.subGreeting, { color: Theme.colors.secondary }]}>{profile?.is_family_member ? `${profile.relation} Profile` : 'Personal Health Shield'}</Text>
                         </LinearGradient>
                         {profile?.is_family_member && (
                             <TouchableOpacity style={styles.backToMeBtn} onPress={() => handleSwitchProfile(null)}>
@@ -447,23 +454,23 @@ export default function HomeScreen({ navigation }) {
             {/* NEW: Chitti Insights Section */}
             <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Chitti Intelligence</Text>
+                    <Text style={[styles.sectionTitle, { color: Theme.colors.text }]}>Chitti Intelligence</Text>
                     <Ionicons name="sparkles" size={16} color={Theme.colors.primary} />
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
                     {(summary?.chitti_insights || ["Synchronizing clinical data...", "Secure bridge active."]).map((insight, idx) => (
                         <View key={idx} style={[styles.insightCard, GlobalStyles.glass]}>
                             <Ionicons name="bulb-outline" size={20} color={Theme.colors.primary} style={{ marginBottom: 10 }} />
-                            <Text style={styles.insightText}>{insight}</Text>
+                            <Text style={[styles.insightText, { color: Theme.colors.textMuted }]}>{insight}</Text>
                         </View>
                     ))}
                 </ScrollView>
             </View>
-
+ 
             {/* 3. Today's Medications (Priority Actions) */}
             <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Today's Medications</Text>
+                    <Text style={[styles.sectionTitle, { color: Theme.colors.text }]}>Today's Medications</Text>
                     <TouchableOpacity onPress={() => navigation.navigate('Meds')}>
                         <Text style={styles.viewAll}>Schedule</Text>
                     </TouchableOpacity>
@@ -484,7 +491,7 @@ export default function HomeScreen({ navigation }) {
                                         <Ionicons name="medkit" size={20} color={med.taken_today ? "#10b981" : Theme.colors.primary} />
                                         {med.taken_today && <Ionicons name="checkmark-circle" size={16} color="#10b981" />}
                                     </View>
-                                    <Text style={styles.medName} numberOfLines={1}>{med.name}</Text>
+                                    <Text style={[styles.medName, { color: Theme.colors.text }]} numberOfLines={1}>{med.name}</Text>
                                     <Text style={styles.medDosage}>{med.dosage}</Text>
                                     <Text style={styles.medTime}>{med.frequency}</Text>
                                     <TouchableOpacity 
@@ -507,10 +514,10 @@ export default function HomeScreen({ navigation }) {
                     </View>
                 )}
             </View>
-
+ 
             {/* 4. Ongoing Medications (Full Context) */}
             <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Ongoing Medications</Text>
+                <Text style={[styles.sectionTitle, { color: Theme.colors.text }]}>Ongoing Medications</Text>
                 <View style={styles.ongoingList}>
                     {summary?.ongoing_medications?.length > 0 ? (
                         summary.ongoing_medications.map((med, index) => (
@@ -519,8 +526,8 @@ export default function HomeScreen({ navigation }) {
                                     <Ionicons name="medical" size={18} color={Theme.colors.secondary} />
                                 </View>
                                 <View style={styles.ongoingInfo}>
-                                    <Text style={styles.ongoingName}>{med.name}</Text>
-                                    <Text style={styles.ongoingSub}>{med.dosage} • {med.frequency}</Text>
+                                    <Text style={[styles.ongoingName, { color: Theme.colors.text }]}>{med.name}</Text>
+                                    <Text style={[styles.ongoingSub, { color: Theme.colors.secondary }]}>{med.dosage} • {med.frequency}</Text>
                                 </View>
                                 <View style={styles.ongoingStatus}>
                                     <Text style={styles.statusText}>ACTIVE</Text>
@@ -532,15 +539,15 @@ export default function HomeScreen({ navigation }) {
                     )}
                 </View>
             </View>
-
+ 
             {/* 5. Family Pulse */}
             <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Family Pulse</Text>
+                    <Text style={[styles.sectionTitle, { color: Theme.colors.text }]}>Family Pulse</Text>
                     <TouchableOpacity onPress={() => navigation.navigate('FamilyProfiles')}>
                         <Text style={styles.viewAll}>Manage</Text>
                     </TouchableOpacity>
-                </View>
+                </View>w>
                 <View style={styles.familyRow}>
                     <TouchableOpacity style={styles.addFamilyCircle} onPress={() => navigation.navigate('FamilyProfiles')}>
                         <Ionicons name="add" size={24} color="#fff" />
