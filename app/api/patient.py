@@ -846,7 +846,7 @@ async def revoke_access(
     current_patient: Any = Depends(deps.get_current_patient),
     db: AsyncSession = Depends(deps.get_db)
 ):
-    """Revoke or reject a doctor's access."""
+    """Revoke or reject a doctor's access, securing granular files and sending real-time kickout notifications."""
     stmt = select(models.DoctorAccess).where(
         models.DoctorAccess.id == access_id,
         models.DoctorAccess.patient_id == current_patient.id
@@ -857,9 +857,46 @@ async def revoke_access(
     if not access_req:
         raise HTTPException(status_code=404, detail="Access request not found")
     
+    # 1. Update access status
     access_req.status = "revoked"
+    from datetime import datetime
+    access_req.revoked_at = datetime.now()
+    
+    # 2. Revoke granular record shares associated with this doctor and patient
+    from sqlalchemy import update
+    stmt_rs = update(models.RecordShare).where(
+        models.RecordShare.patient_id == current_patient.id,
+        models.RecordShare.doctor_user_id == access_req.doctor_user_id
+    ).values(revoked=True)
+    await db.execute(stmt_rs)
+    
     await db.commit()
-    await log_audit_action(db, user_id=current_patient.user_id, action="ACCESS_REVOKED", resource_type="CONSENT", details={"doctor": access_req.doctor_name})
+    
+    # 3. Trigger Real-time WebSocket kickout notification to Doctor
+    from app.core.realtime import manager, RealtimeMessage
+    try:
+        await manager.send_personal_message(
+            RealtimeMessage(
+                type="access_revoked",
+                payload={
+                    "access_id": str(access_req.id),
+                    "patient_id": str(current_patient.id),
+                    "hospyn_id": current_patient.hospyn_id,
+                    "status": "revoked"
+                }
+            ),
+            user_id=access_req.doctor_user_id
+        )
+    except Exception as ws_err:
+        logger.error(f"WS_REVOKE_NOTIFY_FAILURE: {ws_err}")
+        
+    await log_audit_action(
+        db, 
+        user_id=current_patient.user_id, 
+        action="ACCESS_REVOKED", 
+        resource_type="CONSENT", 
+        details={"doctor": access_req.doctor_name}
+    )
     
     return {"status": "success", "message": f"Access revoked for {access_req.doctor_name}"}
 
