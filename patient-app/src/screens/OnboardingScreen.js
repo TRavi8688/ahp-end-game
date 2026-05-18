@@ -163,7 +163,7 @@ export default function OnboardingScreen({ navigation }) {
             const hospyn_id = registerResp.data.hospyn_id;
             const token = registerResp.data.access_token;
 
-            HapticUtils.notificationAsync(HapticUtils.NotificationFeedbackType.Success);
+            HapticUtils.success();
             
             // Persist session but don't trigger global auth state yet
             // This allows us to show the Success screen first

@@ -35,7 +35,6 @@ class ConnectionManager:
 
     async def connect(self, user_id: Union[str, uuid.UUID], websocket: WebSocket):
         user_id_str = str(user_id)
-        await websocket.accept()
         if user_id_str not in self.active_connections:
             self.active_connections[user_id_str] = set()
         self.active_connections[user_id_str].add(websocket)

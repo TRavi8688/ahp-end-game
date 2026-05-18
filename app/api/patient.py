@@ -760,11 +760,15 @@ async def get_pending_access(
 
 @router.post("/approve-access/{access_id}")
 async def approve_access(
-    access_id: int,
+    access_id: uuid.UUID,
+    data: schemas.ApproveAccessRequest,
     current_patient: Any = Depends(deps.get_current_patient),
     db: AsyncSession = Depends(deps.get_db)
 ):
-    """Approve a doctor's request to view medical records."""
+    """Approve a doctor's request to view medical records securely with password verification and granular file sharing."""
+    from app.core import security
+    
+    # 1. Verify access request exists and belongs to this patient
     stmt = select(models.DoctorAccess).where(
         models.DoctorAccess.id == access_id,
         models.DoctorAccess.patient_id == current_patient.id
@@ -774,19 +778,71 @@ async def approve_access(
     
     if not access_req:
         raise HTTPException(status_code=404, detail="Access request not found")
+        
+    # 2. Verify Patient Password
+    stmt_user = select(models.User).where(models.User.id == current_patient.user_id)
+    res_user = await db.execute(stmt_user)
+    user = res_user.scalar_one_or_none()
     
+    if not user or not security.verify_password(data.password, user.hashed_password):
+        raise HTTPException(status_code=403, detail="Invalid confirmation password. Vault access denied.")
+    
+    # 3. Save granular record shares
+    for record_id in data.record_ids:
+        # Check if record belongs to patient
+        stmt_rec = select(models.MedicalRecord).where(
+            models.MedicalRecord.id == record_id,
+            models.MedicalRecord.patient_id == current_patient.id
+        )
+        res_rec = await db.execute(stmt_rec)
+        if res_rec.scalar_one_or_none():
+            # Create a Share Record
+            share = models.RecordShare(
+                patient_id=current_patient.id,
+                record_id=record_id,
+                doctor_query=access_req.doctor_name,
+                doctor_user_id=access_req.doctor_user_id
+            )
+            db.add(share)
+            
+    # 4. Update status to granted
     access_req.status = "granted"
     from datetime import datetime
     access_req.granted_at = datetime.now()
     
     await db.commit()
-    await log_audit_action(db, user_id=current_patient.user_id, action="ACCESS_GRANTED", resource_type="CONSENT", details={"doctor": access_req.doctor_name})
+    
+    # 5. Trigger Real-time WebSocket event to Doctor
+    from app.core.realtime import manager, RealtimeMessage
+    try:
+        await manager.send_personal_message(
+            RealtimeMessage(
+                type="access_granted",
+                payload={
+                    "access_id": str(access_req.id),
+                    "patient_id": str(current_patient.id),
+                    "hospyn_id": current_patient.hospyn_id,
+                    "status": "granted"
+                }
+            ),
+            user_id=access_req.doctor_user_id
+        )
+    except Exception as ws_err:
+        logger.error(f"WS_NOTIFY_DOCTOR_FAILURE: {ws_err}")
+        
+    await log_audit_action(
+        db, 
+        user_id=current_patient.user_id, 
+        action="ACCESS_GRANTED", 
+        resource_type="CONSENT", 
+        details={"doctor": access_req.doctor_name, "shared_files_count": len(data.record_ids)}
+    )
     
     return {"status": "success", "message": f"Access granted to {access_req.doctor_name}"}
 
 @router.post("/revoke-access/{access_id}")
 async def revoke_access(
-    access_id: int,
+    access_id: uuid.UUID,
     current_patient: Any = Depends(deps.get_current_patient),
     db: AsyncSession = Depends(deps.get_db)
 ):
