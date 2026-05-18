@@ -270,10 +270,15 @@ export default function HomeScreen({ navigation }) {
         );
     }
 
+    const isLightTheme = Theme.colors.primary === '#7C3AED';
+    const bgColors = isLightTheme 
+        ? ['#F8F7FF', '#EEEBFF'] 
+        : ['#090D1A', '#020408'];
+
     return (
-        
-<ScrollView
-    style={[styles.container, { backgroundColor: Theme.colors.background }]}
+        <LinearGradient colors={bgColors} style={{ flex: 1 }}>
+            <ScrollView
+                style={[styles.container, { backgroundColor: 'transparent' }]}
     contentContainerStyle={{ paddingBottom: 140 }}
     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.primary} />}
     showsVerticalScrollIndicator={false}
@@ -549,8 +554,11 @@ export default function HomeScreen({ navigation }) {
                     </TouchableOpacity>
                 </View>
                 <View style={styles.familyRow}>
-                    <TouchableOpacity style={styles.addFamilyCircle} onPress={() => navigation.navigate('FamilyProfiles')}>
-                        <Ionicons name="add" size={24} color="#fff" />
+                    <TouchableOpacity 
+                        style={[styles.addFamilyCircle, { borderColor: Theme.colors.primary === '#7C3AED' ? 'rgba(124, 58, 237, 0.4)' : 'rgba(255,255,255,0.2)' }]} 
+                        onPress={() => navigation.navigate('FamilyProfiles')}
+                    >
+                        <Ionicons name="add" size={24} color={Theme.colors.primary === '#7C3AED' ? '#7C3AED' : '#fff'} />
                     </TouchableOpacity>
                     
                     {/* Primary User Profile */}
@@ -562,7 +570,7 @@ export default function HomeScreen({ navigation }) {
                             <Text style={styles.avatarInitials}>ME</Text>
                             {!profile?.is_family_member && <View style={styles.statusDot} />}
                         </View>
-                        <Text style={[styles.memberName, !profile?.is_family_member && styles.activeMemberName]}>Self</Text>
+                        <Text style={[styles.memberName, { color: Theme.colors.background === '#050810' ? '#94A3B8' : '#475569' }, !profile?.is_family_member && styles.activeMemberName, !profile?.is_family_member && { color: Theme.colors.text }]}>Self</Text>
                     </TouchableOpacity>
 
                     {profile?.care_circle?.map((member, i) => (
@@ -575,7 +583,7 @@ export default function HomeScreen({ navigation }) {
                                 <Text style={styles.avatarInitials}>{member.full_name[0]}</Text>
                                 {profile?.id === member.id && <View style={styles.statusDot} />}
                             </View>
-                            <Text style={[styles.memberName, profile?.id === member.id && styles.activeMemberName]}>{member.full_name.split(' ')[0]}</Text>
+                            <Text style={[styles.memberName, { color: Theme.colors.background === '#050810' ? '#94A3B8' : '#475569' }, profile?.id === member.id && styles.activeMemberName, profile?.id === member.id && { color: Theme.colors.text }]}>{member.full_name.split(' ')[0]}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>
@@ -590,11 +598,11 @@ export default function HomeScreen({ navigation }) {
                     <View style={styles.chittiHeader}>
                         <Image source={require('../../assets/chitti_avatar.png')} style={styles.chittiIcon} />
                         <View>
-                            <Text style={styles.chittiTitle}>CHITTI AI INSIGHT</Text>
+                            <Text style={[styles.chittiTitle, { color: Theme.colors.text }]}>CHITTI AI INSIGHT</Text>
                             <Text style={styles.chittiStatus}>Status: Analysing Trends</Text>
                         </View>
                     </View>
-                    <Text style={styles.chittiText}>
+                    <Text style={[styles.chittiText, { color: Theme.colors.textMuted }]}>
                         {summary?.summary || (profile?.full_name ? `Hello ${profile.full_name.split(' ')[0]}! I'm Chitti, your AI health companion. I've secured your Health Passport. To get started, you can tell me how you're feeling or upload a report.` : "Upload your latest medical reports to let Chitti AI analyze your health trends.")}
                     </Text>
                     <LinearGradient colors={[Theme.colors.primary, '#4c1d95']} style={styles.chatBtn}>
@@ -756,6 +764,7 @@ export default function HomeScreen({ navigation }) {
                 </View>
             </Modal>
         </ScrollView>
+        </LinearGradient>
     );
 }
 
