@@ -273,6 +273,13 @@ async def scan_patient(
     """Initiate a clinical access request via QR scan/Hospyn ID."""
     repo = PatientRepository(Patient, db)
     patient = await repo.get_by_hospyn_id(request.hospyn_id)
+    # If not found, attempt to locate via FamilyMember (case‑insensitive)
+    if not patient:
+        stmt_fm = select(FamilyMember).where(func.lower(FamilyMember.linked_hospyn_id) == func.lower(request.hospyn_id))
+        result_fm = await db.execute(stmt_fm)
+        family_member = result_fm.scalar_one_or_none()
+        if family_member:
+            patient = await repo.get(family_member.patient_id)
     
     if not patient:
         # Check if it exists in the family_members table
