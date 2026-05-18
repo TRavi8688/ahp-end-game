@@ -27,7 +27,7 @@ export default function HomeScreen({ navigation }) {
     const [summary, setSummary] = useState(null);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const { lastMessage } = useSocket();
+    const { lastMessage, openConsentModal } = useSocket();
     const [showConsent, setShowConsent] = useState(false);
     const [consentData, setConsentData] = useState(null);
     const [actionLoading, setActionLoading] = useState(false);
@@ -108,8 +108,7 @@ export default function HomeScreen({ navigation }) {
             if (summaryRes.status === 'fulfilled') setSummary(summaryRes.value);
             
             if (accessRes.status === 'fulfilled' && accessRes.value?.length > 0) {
-                setConsentData(accessRes.value[0]);
-                setShowConsent(true);
+                openConsentModal(accessRes.value[0]);
             }
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
@@ -155,8 +154,7 @@ export default function HomeScreen({ navigation }) {
 
         if (lastMessage.type === 'consent_request') {
             HapticUtils.heavy();
-            setConsentData(lastMessage.data || lastMessage);
-            setShowConsent(true);
+            openConsentModal(lastMessage.payload || lastMessage.data || lastMessage);
         } else if (lastMessage.type === 'health_update') {
             HapticUtils.success();
             // Trigger a soft refresh to show the product is "Alive"
