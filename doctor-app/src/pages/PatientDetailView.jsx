@@ -42,6 +42,15 @@ export default function PatientDetailView() {
             });
             if (response.ok) {
                 const data = await response.json();
+                if (data) {
+                    // Safe normalization: Guarantee clinical sub-arrays are never null/undefined to prevent React render crashes!
+                    data.allergies = data.allergies || [];
+                    data.conditions = data.conditions || [];
+                    data.medications = data.medications || [];
+                    data.records = data.records || [];
+                    data.history = data.history || [];
+                    data.contacts = data.contacts || [];
+                }
                 setPatient(data);
             } else {
                 console.error("Failed to fetch patient:", response.status);
