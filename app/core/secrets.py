@@ -27,7 +27,16 @@ def get_secret(secret_id: str, default: str = None) -> str:
         return val
 
     # 1. Production Path: GCP Secret Manager
-    if env == "production":
+    # SHIELD ENVIRONMENT AUTO-DETECTION: Only query GCP Secret Manager if physically running inside 
+    # a GCP container (Cloud Run, GKE) or if Google Application Credentials are explicitly configured.
+    # This prevents local developer timeouts of 15s+ when running with ENVIRONMENT=production!
+    is_in_gcp = (
+        os.getenv("K_SERVICE") is not None or 
+        os.getenv("GOOGLE_APPLICATION_CREDENTIALS") is not None or
+        os.getenv("GCP_CREDENTIALS_JSON") is not None
+    )
+
+    if env == "production" and is_in_gcp:
         try:
             from google.cloud import secretmanager
             client = secretmanager.SecretManagerServiceClient()
