@@ -27,13 +27,9 @@ export default function RecordsScreen({ navigation }) {
     const fetchRecords = async () => {
         try {
             const data = await ApiService.getRecords();
-            // Critical fix: ensure data is an array and filter out nulls/undefined to prevent white screen crashes!
-            const safeData = Array.isArray(data) ? data.filter(item => item !== null && item !== undefined) : 
-                             (data?.data && Array.isArray(data.data) ? data.data.filter(item => item !== null && item !== undefined) : []);
-            setRecords(safeData);
+            setRecords(data);
         } catch (error) {
             console.error('Fetch records error:', error);
-            setRecords([]); // Fallback to empty array on error
         } finally {
             setIsLoading(false);
             setRefreshing(false);
@@ -60,7 +56,6 @@ export default function RecordsScreen({ navigation }) {
     };
 
     const openRecord = (record) => {
-        if (!record) return;
         HapticUtils.selection();
         setSelectedRecord(record);
         setShowDetail(true);
@@ -98,7 +93,6 @@ export default function RecordsScreen({ navigation }) {
     };
 
     const isAnalyzing = (item) => {
-        if (!item) return false;
         return item?.raw_text === '[PIPELINE_ANALYSIS_STAGED]' || 
                item?.ai_summary === 'Chitti is decoding your clinical data...';
     };
@@ -156,13 +150,8 @@ export default function RecordsScreen({ navigation }) {
         );
     };
 
-    const isLightTheme = Theme.colors.primary === '#7C3AED';
-    const bgColors = isLightTheme 
-        ? ['#F8F7FF', '#EEEBFF'] 
-        : ['#090D1A', '#020408'];
-
     return (
-        <LinearGradient colors={bgColors} style={{ flex: 1 }}>
+        <View style={GlobalStyles.screen}>
             <LinearGradient colors={Theme.colors.primary === '#7C3AED' ? ['#7C3AED', '#4F46E5'] : ['#0F172A', '#050810']} style={styles.header}>
                 <View>
                     <Text style={styles.headerTitle}>CLINICAL VAULT</Text>
@@ -285,7 +274,7 @@ export default function RecordsScreen({ navigation }) {
                     </View>
                 </View>
             </Modal>
-        </LinearGradient>
+        </View>
     );
 }
 
