@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.core.database import get_db
 from app.schemas import schemas
-from app.models.models import Doctor, User, Patient, DoctorAccess, Allergy, QueueEntry, ClinicalAIEvent, ClinicianOverride
+from app.models.models import Doctor, User, Patient, DoctorAccess, Allergy, QueueEntry, ClinicalAIEvent, ClinicianOverride, FamilyMember
 from app.api.deps import get_current_doctor
 from app.repositories.base import PatientRepository
 from typing import List, Any, Dict
@@ -124,7 +124,7 @@ async def lookup_patient(
     
     if not patient:
         # Check if it exists in the family_members table
-        stmt_fm = select(models.FamilyMember).where(models.FamilyMember.linked_hospyn_id == hospyn_id)
+        stmt_fm = select(FamilyMember).where(FamilyMember.linked_hospyn_id == hospyn_id)
         result_fm = await db.execute(stmt_fm)
         family_member = result_fm.scalar_one_or_none()
         
