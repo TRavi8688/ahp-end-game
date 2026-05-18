@@ -126,7 +126,7 @@ def decode_token(token: str, token_type: str = "access") -> Optional[dict]:
                     settings.JWT_PUBLIC_KEY,
                     algorithms=[ALGORITHM_RS256],
                     audience=settings.JWT_AUDIENCE,
-                    issuer=settings.PROJECT_NAME,
+                    options={"verify_iss": False},
                 )
                 if payload.get("type") == token_type:
                     return payload
@@ -148,7 +148,7 @@ def decode_token(token: str, token_type: str = "access") -> Optional[dict]:
             settings.SECRET_KEY,
             algorithms=[ALGORITHM_HS256],
             audience=settings.JWT_AUDIENCE,
-            issuer=settings.PROJECT_NAME,
+            options={"verify_iss": False},
         )
         if payload.get("type") == token_type:
             logger.info(f"JWT_DECODE_SUCCESS: sub={payload.get('sub')}")
