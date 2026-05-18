@@ -47,8 +47,8 @@ class LoadSheddingService:
             
         except Exception as e:
             logger.error(f"HEALTH_CHECK_FAILURE: {e}")
-            self._is_under_load = True # Fail-Safe: Assume load if check fails
-            return True
+            self._is_under_load = False # Fail-Safe: Do not disable system on ping failure
+            return False
 
     async def should_shed_load(self, priority: str = "P3") -> bool:
         """

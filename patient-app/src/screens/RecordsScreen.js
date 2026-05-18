@@ -63,35 +63,62 @@ export default function RecordsScreen({ navigation }) {
         }
     };
 
-    const renderItem = ({ item, index }) => (
-        <Animated.View entering={FadeInUp.delay(index * 100)}>
-            <TouchableOpacity 
-                style={[styles.recordCard, GlobalStyles.glass]} 
-                onPress={() => openRecord(item)}
-                activeOpacity={0.7}
-            >
-                <View style={[styles.recordIconBox, { backgroundColor: 'rgba(34, 211, 238, 0.05)' }]}>
-                    <Ionicons name={getIcon(item.type)} size={24} color={Theme.colors.primary} />
-                </View>
-                <View style={styles.recordMain}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={styles.recordTitle}>{item.record_name || 'Medical Record'}</Text>
-                        {!item.needs_verification && (
-                            <Ionicons name="checkmark-shield" size={14} color="#10B981" />
+    const isAnalyzing = (item) => 
+        item.raw_text === '[PIPELINE_ANALYSIS_STAGED]' || 
+        item.ai_summary === 'Chitti is decoding your clinical data...';
+
+    const renderItem = ({ item, index }) => {
+        const analyzing = isAnalyzing(item);
+        return (
+            <Animated.View entering={FadeInUp.delay(index * 100)}>
+                <TouchableOpacity 
+                    style={[styles.recordCard, GlobalStyles.glass]} 
+                    onPress={() => openRecord(item)}
+                    activeOpacity={0.7}
+                >
+                    <View style={[styles.recordIconBox, { backgroundColor: analyzing ? 'rgba(124, 58, 237, 0.08)' : 'rgba(34, 211, 238, 0.05)' }]}>
+                        {analyzing ? (
+                            <Ionicons name="sparkles" size={24} color="#7c3aed" />
+                        ) : (
+                            <Ionicons name={getIcon(item.type)} size={24} color={Theme.colors.primary} />
                         )}
                     </View>
-                    <Text style={styles.recordSub}>{item.hospital_name || 'Hospyn Network'}</Text>
-                    <Text style={styles.recordDate}>{new Date(item.created_at).toLocaleDateString()}</Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                    <Ionicons name="chevron-forward" size={18} color="#475569" />
-                    {!item.needs_verification && (
-                        <Text style={{ fontSize: 8, color: '#10B981', fontWeight: 'bold', marginTop: 4 }}>VERIFIED</Text>
-                    )}
-                </View>
-            </TouchableOpacity>
-        </Animated.View>
-    );
+                    <View style={styles.recordMain}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={styles.recordTitle} numberOfLines={1}>{item.record_name || 'Medical Record'}</Text>
+                            {!item.needs_verification && !analyzing && (
+                                <Ionicons name="checkmark-shield" size={14} color="#10B981" />
+                            )}
+                        </View>
+                        <Text style={styles.recordSub}>{item.hospital_name || 'Hospyn Network'}</Text>
+                        
+                        {analyzing ? (
+                            <View style={styles.analyzingBadge}>
+                                <ActivityIndicator size="small" color="#7c3aed" style={{ marginRight: 6 }} />
+                                <Text style={styles.analyzingText}>Chitti AI Ingesting...</Text>
+                            </View>
+                        ) : (
+                            <Text style={styles.recordSummaryLine} numberOfLines={1}>
+                                {item.ai_summary || 'No summary available.'}
+                            </Text>
+                        )}
+                    </View>
+                    <View style={{ alignItems: 'flex-end', justifyContent: 'space-between', height: '100%', minHeight: 45 }}>
+                        <Text style={styles.cornerDate}>{new Date(item.created_at).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                            {!item.needs_verification && !analyzing && (
+                                <Text style={{ fontSize: 8, color: '#10B981', fontWeight: 'bold' }}>VERIFIED</Text>
+                            )}
+                            {analyzing && (
+                                <Text style={{ fontSize: 8, color: '#7c3aed', fontWeight: 'bold' }}>STAGED</Text>
+                            )}
+                            <Ionicons name="chevron-forward" size={18} color="#475569" />
+                        </View>
+                    </View>
+                </TouchableOpacity>
+            </Animated.View>
+        );
+    };
 
     return (
         <View style={GlobalStyles.screen}>
@@ -154,47 +181,63 @@ export default function RecordsScreen({ navigation }) {
                                     <View style={{ position: 'absolute', bottom: 16, right: 16, flexDirection: 'row', gap: 8 }}>
                                         <TouchableOpacity
                                             style={[styles.fullViewBtn, { position: 'relative', bottom: 0, right: 0 }]}
-                                            onPress={() => {}}
+                                            onPress={() => Linking.openURL(selectedRecord.file_url)}
                                         >
                                             <Text style={styles.fullViewText}>VIEW FULL</Text>
                                         </TouchableOpacity>
-                                        <TouchableOpacity 
-                                            style={[styles.fullViewBtn, { position: 'relative', bottom: 0, right: 0, backgroundColor: Theme.colors.primary }]} 
-                                            onPress={async () => {
-                                                const { SecurityService } = require('../utils/SecurityService');
-                                                if (await SecurityService.confirmSensitiveAction('share your medical data')) {
-                                                    Alert.alert("Success", "Secure sharing link generated and ready.");
-                                                }
-                                            }}
-                                        >
-                                            <Text style={styles.fullViewText}>SHARE</Text>
-                                        </TouchableOpacity>
+                                        {!isAnalyzing(selectedRecord) && (
+                                            <TouchableOpacity 
+                                                style={[styles.fullViewBtn, { position: 'relative', bottom: 0, right: 0, backgroundColor: Theme.colors.primary }]} 
+                                                onPress={async () => {
+                                                    const { SecurityService } = require('../utils/SecurityService');
+                                                    if (await SecurityService.confirmSensitiveAction('share your medical data')) {
+                                                        Alert.alert("Success", "Secure sharing link generated and ready.");
+                                                    }
+                                                }}
+                                            >
+                                                <Text style={styles.fullViewText}>SHARE</Text>
+                                            </TouchableOpacity>
+                                        )}
                                     </View>
                                 </View>
                             )}
 
                             <View style={styles.detailsBox}>
-                                <Text style={styles.label}>ANALYSIS SUMMARY</Text>
-                                <Text style={styles.summaryText}>{selectedRecord?.ai_summary || 'No summary available.'}</Text>
-                                
-                                <View style={styles.infoRow}>
-                                    <View style={styles.infoItem}>
-                                        <Text style={styles.label}>FACILITY</Text>
-                                        <Text style={styles.infoValue}>{selectedRecord?.hospital_name || 'N/A'}</Text>
+                                <Text style={styles.label}>ANALYSIS STATUS</Text>
+                                {isAnalyzing(selectedRecord) ? (
+                                    <View style={styles.modalAnalyzingCard}>
+                                        <ActivityIndicator size="large" color="#7c3aed" style={{ marginBottom: 12 }} />
+                                        <Text style={styles.modalAnalyzingTitle}>Chitti AI is Deciphering...</Text>
+                                        <Text style={styles.modalAnalyzingSub}>
+                                            Chitti AI's neural vision models are actively parsing this prescription/lab report. We are extracting medications, dosages, clinical findings, and medical terms.
+                                            
+                                            This vault detail will automatically update with an easy-to-read summary once ingestion is finished. Pull down to refresh your ledger!
+                                        </Text>
                                     </View>
-                                    <View style={styles.infoItem}>
-                                        <Text style={styles.label}>DATE</Text>
-                                        <Text style={styles.infoValue}>{new Date(selectedRecord?.created_at).toLocaleDateString()}</Text>
-                                    </View>
-                                </View>
-
-                                {selectedRecord?.raw_text && (
-                                    <View style={{ marginTop: 20 }}>
-                                        <Text style={styles.label}>RAW DATA EXTRACTED</Text>
-                                        <View style={styles.rawBox}>
-                                            <Text style={styles.rawText}>{selectedRecord.raw_text}</Text>
+                                ) : (
+                                    <>
+                                        <Text style={styles.summaryText}>{selectedRecord?.ai_summary || 'No summary available.'}</Text>
+                                        
+                                        <View style={styles.infoRow}>
+                                            <View style={styles.infoItem}>
+                                                <Text style={styles.label}>FACILITY</Text>
+                                                <Text style={styles.infoValue}>{selectedRecord?.hospital_name || 'N/A'}</Text>
+                                            </View>
+                                            <View style={styles.infoItem}>
+                                                <Text style={styles.label}>DATE</Text>
+                                                <Text style={styles.infoValue}>{new Date(selectedRecord?.created_at).toLocaleDateString()}</Text>
+                                            </View>
                                         </View>
-                                    </View>
+
+                                        {selectedRecord?.raw_text && selectedRecord.raw_text !== '[PIPELINE_ANALYSIS_STAGED]' && (
+                                            <View style={{ marginTop: 20 }}>
+                                                <Text style={styles.label}>RAW DATA EXTRACTED</Text>
+                                                <View style={styles.rawBox}>
+                                                    <Text style={styles.rawText}>{selectedRecord.raw_text}</Text>
+                                                </View>
+                                            </View>
+                                        )}
+                                    </>
                                 )}
                             </View>
                         </ScrollView>
@@ -217,6 +260,32 @@ const styles = StyleSheet.create({
     recordTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
     recordSub: { color: '#64748B', fontSize: 12, marginTop: 2 },
     recordDate: { color: Theme.colors.primary, fontSize: 10, fontWeight: 'bold', marginTop: 4 },
+    cornerDate: { color: '#64748B', fontSize: 10, fontWeight: '700' },
+    recordSummaryLine: { color: '#94a3b8', fontSize: 12, marginTop: 4 },
+    analyzingBadge: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+    analyzingText: { color: '#7c3aed', fontSize: 11, fontWeight: '700' },
+    modalAnalyzingCard: {
+        backgroundColor: 'rgba(124, 58, 237, 0.05)',
+        borderWidth: 1,
+        borderColor: 'rgba(124, 58, 237, 0.15)',
+        borderRadius: 24,
+        padding: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 10,
+    },
+    modalAnalyzingTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#fff',
+        marginVertical: 10,
+    },
+    modalAnalyzingSub: {
+        fontSize: 12,
+        color: '#94a3b8',
+        textAlign: 'center',
+        lineHeight: 18,
+    },
     emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 80, paddingHorizontal: 24 },
     chittiBox: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(99, 102, 241, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 24, borderWidth: 1, borderColor: 'rgba(99, 102, 241, 0.2)' },
     emptyTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginBottom: 12, textAlign: 'center' },

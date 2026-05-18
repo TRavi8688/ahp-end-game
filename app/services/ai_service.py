@@ -158,14 +158,19 @@ class AsyncAIService:
             with open(image_path, 'rb') as f:
                 return f.read()
 
-    async def _call_gemini(self, model_name: str, prompt: str, image_bytes: bytes = None, mime_type: str = "image/jpeg", force_json: bool = False) -> str:
+    async def _call_gemini(self, model_name: str, prompt: str, image_bytes: bytes = None, mime_type: str = "image/jpeg", force_json: bool = False, image_bytes_list: Optional[List[bytes]] = None) -> str:
         if not self.gemini_key: return "MISSING_KEY"
         provider = "gemini"
         
         url = f"https://generativelanguage.googleapis.com/v1/models/{model_name}:generateContent?key={self.gemini_key}"
         parts = [{"text": prompt}]
-        if image_bytes:
-            parts.append({"inline_data": {"mime_type": mime_type, "data": base64.b64encode(image_bytes).decode('utf-8')}})
+        
+        imgs = image_bytes_list or []
+        if image_bytes and not image_bytes_list:
+            imgs = [image_bytes]
+            
+        for img in imgs:
+            parts.append({"inline_data": {"mime_type": mime_type, "data": base64.b64encode(img).decode('utf-8')}})
         
         payload = {"contents": [{"parts": parts}]}
         if force_json:
@@ -187,7 +192,7 @@ class AsyncAIService:
             logger.error(f"Gemini API call failed: {e}")
             return "ERROR"
 
-    async def _call_anthropic(self, model: str, prompt: str, image_bytes: bytes = None, mime_type: str = "image/jpeg", force_json: bool = False) -> str:
+    async def _call_anthropic(self, model: str, prompt: str, image_bytes: bytes = None, mime_type: str = "image/jpeg", force_json: bool = False, image_bytes_list: Optional[List[bytes]] = None) -> str:
         if not self.anthropic_key: return ""
         provider = "anthropic"
         
@@ -199,13 +204,17 @@ class AsyncAIService:
         }
         
         content = []
-        if image_bytes:
+        imgs = image_bytes_list or []
+        if image_bytes and not image_bytes_list:
+            imgs = [image_bytes]
+            
+        for img in imgs:
             content.append({
                 "type": "image",
                 "source": {
                     "type": "base64",
                     "media_type": mime_type,
-                    "data": base64.b64encode(image_bytes).decode('utf-8')
+                    "data": base64.b64encode(img).decode('utf-8')
                 }
             })
         
@@ -251,15 +260,20 @@ class AsyncAIService:
             logger.error(f"Sarvam Translation failed: {e}")
             return text
 
-    async def _call_groq(self, model: str, prompt: str, image_bytes: bytes = None, mime_type: str = "image/jpeg", force_json: bool = False) -> str:
+    async def _call_groq(self, model: str, prompt: str, image_bytes: bytes = None, mime_type: str = "image/jpeg", force_json: bool = False, image_bytes_list: Optional[List[bytes]] = None) -> str:
         if not self.groq_key: return ""
         provider = "groq"
         
         url = "https://api.groq.com/openai/v1/chat/completions"
         headers = {"Authorization": f"Bearer {self.groq_key}"}
         content = [{"type": "text", "text": prompt}]
-        if image_bytes:
-            img_b64 = base64.b64encode(image_bytes).decode('utf-8')
+        
+        imgs = image_bytes_list or []
+        if image_bytes and not image_bytes_list:
+            imgs = [image_bytes]
+            
+        for img in imgs:
+            img_b64 = base64.b64encode(img).decode('utf-8')
             content.append({"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{img_b64}"}})
             
         payload = {
@@ -285,7 +299,7 @@ class AsyncAIService:
             logger.error(f"Groq API call failed: {e}")
             return ""
 
-    async def _call_insforge_ai(self, model: str, prompt: str, image_bytes: bytes = None, mime_type: str = "image/jpeg", force_json: bool = False) -> str:
+    async def _call_insforge_ai(self, model: str, prompt: str, image_bytes: bytes = None, mime_type: str = "image/jpeg", force_json: bool = False, image_bytes_list: Optional[List[bytes]] = None) -> str:
         """Call InsForge's OpenAI-compatible AI endpoint."""
         provider = "insforge"
         if not self.anon_key or not self.base_url:
@@ -298,12 +312,15 @@ class AsyncAIService:
             "Content-Type": "application/json"
         }
         
-        if image_bytes:
+        imgs = image_bytes_list or []
+        if image_bytes and not image_bytes_list:
+            imgs = [image_bytes]
+            
+        if imgs:
             import base64
-            content = [
-                {"type": "text", "text": prompt},
-                {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{base64.b64encode(image_bytes).decode('utf-8')}"}}
-            ]
+            content = [{"type": "text", "text": prompt}]
+            for img in imgs:
+                content.append({"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{base64.b64encode(img).decode('utf-8')}"}})
         else:
             content = prompt
  
@@ -358,6 +375,7 @@ class AsyncAIService:
         self, 
         prompt: str, 
         image_bytes: bytes = None, 
+        image_bytes_list: Optional[List[bytes]] = None,
         force_json: bool = False, 
         mime_type: str = "image/jpeg", 
         language_code: str = "en",
@@ -389,8 +407,13 @@ class AsyncAIService:
         )
         full_prompt = safety_instruction + prompt
 
+        # Support list of images
+        imgs = image_bytes_list or []
+        if image_bytes and not image_bytes_list:
+            imgs = [image_bytes]
+
         # 2. Define Providers (Priority Ranked)
-        if image_bytes:
+        if imgs:
             providers = [
                 ("insforge", self._call_insforge_ai, "anthropic/claude-3-5-sonnet"),
                 ("groq", self._call_groq, "llama-3.2-11b-vision-preview"),
@@ -403,16 +426,16 @@ class AsyncAIService:
                 ("anthropic", self._call_anthropic, "claude-3-5-sonnet-20240620"),
                 ("gemini", self._call_gemini, "gemini-2.5-flash")
             ]
-
+ 
         # --- ADAPTIVE RACING LOGIC ---
         final_result = None
         
         async def _attempt_provider(p_key, func, model):
             try:
                 p_start = time.time()
-                res = await func(model, full_prompt, image_bytes, mime_type, force_json)
+                res = await func(model, full_prompt, None, mime_type, force_json, image_bytes_list=imgs)
                 latency = int((time.time() - p_start) * 1000)
-                if res and res not in ["ERROR", "SERVICE_UNAVAILABLE"]:
+                if res and str(res).strip() and str(res).strip() not in ["ERROR", "SERVICE_UNAVAILABLE", "MISSING_KEY"]:
                     return {"text": res, "provider": p_key, "model": model, "latency": latency}
             except Exception as e:
                 logger.warning(f"AI_PROVIDER_FAILURE: {p_key} | {e}")
@@ -798,6 +821,7 @@ class AsyncAIService:
         user_message: str, 
         family_member_id: Optional[uuid.UUID] = None, 
         image_bytes: bytes = None, 
+        image_bytes_list: Optional[List[bytes]] = None,
         audio_bytes: bytes = None, 
         language_code: str = "en-IN", 
         role: str = "patient", 
@@ -814,18 +838,74 @@ class AsyncAIService:
         # 1. Fetch Secure Medical Context (Role-Aware)
         clinical_context = await self.get_medical_context(user_id, family_member_id=family_member_id, role=role, db=db)
 
+        # 1b. Restore recently analyzed photo for context if none provided
+        if not image_bytes and db:
+            try:
+                from sqlalchemy import select
+                from app.models import models
+                from datetime import datetime, timedelta
+                
+                target_user_id = uuid.UUID(str(user_id))
+                # Find patient
+                res_patient = await db.execute(select(models.Patient).where(models.Patient.user_id == target_user_id))
+                patient = res_patient.scalar_one_or_none()
+                if patient:
+                    # Look for a Chitti Scan uploaded in the last 30 minutes
+                    time_threshold = datetime.now() - timedelta(minutes=30)
+                    record_res = await db.execute(
+                        select(models.MedicalRecord)
+                        .where(
+                            models.MedicalRecord.patient_id == patient.id,
+                            models.MedicalRecord.type == "Chitti Scan",
+                            models.MedicalRecord.created_at >= time_threshold
+                        )
+                        .order_by(models.MedicalRecord.created_at.desc())
+                        .limit(1)
+                    )
+                    last_record = record_res.scalar_one_or_none()
+                    if last_record and last_record.file_url:
+                        logger.info(f"Automatically restoring last Chitti Scan image for context: {last_record.file_url}")
+                        image_bytes = await self._get_file_bytes(last_record.file_url)
+            except Exception as e:
+                logger.error(f"Failed to automatically attach recent Chitti Scan image: {e}")
+
         # 2. Get history (User message is already saved by the router)
         history = await self.get_chat_history(user_id, conversation_id, db=db)
 
-        # 3. Prompt Assembly
+        # 3. Resolve language name and guidelines
+        lang_map = {
+            "en-IN": "English (India)",
+            "hi-IN": "Hindi (हिन्दी)",
+            "te-IN": "Telugu (తెలుగు)",
+            "ta-IN": "Tamil (தமிழ்)",
+            "kn-IN": "Kannada (ಕನ್ನಡ)",
+            "ml-IN": "Malayalam (മലയാളം)",
+            "mr-IN": "Marathi (मराठी)",
+            "gu-IN": "Gujarati (ગુજરાતી)",
+            "bn-IN": "Bengali (বাংলা)",
+            "pa-IN": "Punjabi (ਪੰਜਾਬੀ)",
+            "or-IN": "Odia (ଓଡ଼ିଆ)",
+            "ur-IN": "Urdu (اردو)",
+            "as-IN": "Assamese (অসমীয়া)",
+            "sa-IN": "Sanskrit (संस्कृत)"
+        }
+        language_name = lang_map.get(language_code, "English")
+
+        # 4. Prompt Assembly
         system_prompt = (
-            f"You are speaking with a patient in {language_code}. "
-            "You are CHITTI, an advanced AI Healthcare Companion. "
+            f"You are speaking with a patient in {language_name}. "
+            "You are CHITTI, an advanced AI Healthcare Companion & Dearest Friend. "
             "You must communicate in a warm, professional, empathetic, and clinical tone. "
             "Do NOT use excessively affectionate terms (like 'sweetheart', 'darling'). "
             "Be reassuring but focused on their medical well-being. Keep responses concise and helpful.\n"
-            "CRITICAL IMAGE POLICY: If the user provides an image that is CLEARLY NOT related to healthcare, medicine, clinical documents, or bodily symptoms (e.g., a selfie, landscape, random object), you MUST politely decline to analyze it and explain that you are a specialized clinical AI."
         )
+        if language_code not in ["en", "en-IN"]:
+            system_prompt += (
+                f"You MUST write your entire response directly in {language_name} so they can understand easily. "
+                "Use natural, warm, empathetic, and culturally appropriate local phrases (desi style) when writing in their language to make them feel comfortable and fully understood. Do NOT mix English script inside regional text unnecessarily.\n"
+            )
+            
+        system_prompt += "CRITICAL IMAGE POLICY: If the user provides an image that is CLEARLY NOT related to healthcare, medicine, clinical documents, or bodily symptoms (e.g., a selfie, landscape, random object), you MUST politely decline to analyze it and explain that you are a specialized clinical AI."
         
         formatted_history = "\n".join([f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content']}" for m in history])
         
@@ -841,7 +921,8 @@ class AsyncAIService:
         engine_resp = await self.unified_ai_engine(
             full_prompt, 
             image_bytes=image_bytes, 
-            language_code=language_code,
+            image_bytes_list=image_bytes_list,
+            language_code="en", # Bypassing Sarvam translator since LLM translates directly and perfectly
             user_id=uuid.UUID(str(user_id)),
             db=db
         )
