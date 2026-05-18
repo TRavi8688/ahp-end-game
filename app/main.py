@@ -183,9 +183,15 @@ async def global_exception_handler(request: Request, exc: Exception):
     import traceback
     tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
     logger.error(f"GLOBAL_CRASH_TRACEBACK:\n{tb}")
+    
+    response_content = {"detail": "Internal Server Error"}
+    if settings.DEBUG:
+        response_content["error_message"] = str(exc)
+        response_content["traceback"] = tb
+        
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal Server Error", "error_message": str(exc), "traceback": tb}
+        content=response_content
     )
 
 
