@@ -657,17 +657,24 @@ async def chat_with_chitti(
     )
     
     # Generate AI response using memory, vision, and language preference
-    ai_text = await ai.chat_with_memory(
-        str(current_user.id), 
-        conversation_id, 
-        msg_content, 
-        family_member_id=active_member_id,
-        image_bytes=image_bytes_list[0] if image_bytes_list else None, 
-        image_bytes_list=image_bytes_list if image_bytes_list else None,
-        audio_bytes=audio_bytes,
-        language_code=language_code,
-        db=db
-    )
+    try:
+        ai_text = await ai.chat_with_memory(
+            str(current_user.id), 
+            conversation_id, 
+            msg_content, 
+            family_member_id=active_member_id,
+            image_bytes=image_bytes_list[0] if image_bytes_list else None, 
+            image_bytes_list=image_bytes_list if image_bytes_list else None,
+            audio_bytes=audio_bytes,
+            language_code=language_code,
+            db=db
+        )
+    except Exception as chat_err:
+        logger.error(f"PATIENT_CHAT_ERROR: {chat_err}")
+        ai_text = (
+            "Hello! I am having a brief moment synchronizing my clinical memory network, but I am right here with you! "
+            "Please try sending your message again, or let me know how you are feeling so I can assist you! 🩺❤️"
+        )
     
     # Auto-save the vision/PDF scan records to their wallet/vault
     if patient and image_s3_urls:

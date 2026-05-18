@@ -85,9 +85,11 @@ export default function RecordsScreen({ navigation }) {
         }
     };
 
-    const isAnalyzing = (item) => 
-        item.raw_text === '[PIPELINE_ANALYSIS_STAGED]' || 
-        item.ai_summary === 'Chitti is decoding your clinical data...';
+    const isAnalyzing = (item) => {
+        if (!item) return false;
+        return item.raw_text === '[PIPELINE_ANALYSIS_STAGED]' || 
+               item.ai_summary === 'Chitti is decoding your clinical data...';
+    };
 
     const renderItem = ({ item, index }) => {
         const analyzing = isAnalyzing(item);
