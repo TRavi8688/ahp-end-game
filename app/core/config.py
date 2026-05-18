@@ -160,6 +160,13 @@ class Settings(BaseSettings):
         # 1. Lazy load critical secrets from SM/ENV if they are still defaults
         self.SECRET_KEY = os.getenv("HOSPYN_SECRET_KEY", get_secret("SECRET_KEY", self.SECRET_KEY))
         self.ENCRYPTION_KEY = os.getenv("HOSPYN_ENCRYPTION_KEY", get_secret("ENCRYPTION_KEY", self.ENCRYPTION_KEY))
+        
+        # Load AI service secrets from GCP Secret Manager/ENV if missing
+        self.GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", get_secret("GEMINI_API_KEY", self.GEMINI_API_KEY))
+        self.GROQ_API_KEY = os.getenv("GROQ_API_KEY", get_secret("GROQ_API_KEY", self.GROQ_API_KEY))
+        self.ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", get_secret("ANTHROPIC_API_KEY", self.ANTHROPIC_API_KEY))
+        self.SARVAM_KEY = os.getenv("SARVAM_KEY", get_secret("SARVAM_KEY", self.SARVAM_KEY))
+        self.INSFORGE_ANON_KEY = os.getenv("INSFORGE_ANON_KEY", get_secret("INSFORGE_ANON_KEY", self.INSFORGE_ANON_KEY))
 
         # 2. Load Keys (Must happen before validation)
         if not self.JWT_PRIVATE_KEY:
