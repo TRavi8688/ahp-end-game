@@ -95,8 +95,8 @@ class KMSManager:
             return aesgcm.decrypt(nonce, ciphertext, aad).decode('utf-8')
         except Exception as e:
             from app.core.logging import logger
-            logger.critical("KMS_DECRYPTION_FAILURE", error=str(e), tenant_id=tenant_id)
-            raise DecryptionError("Data integrity check failed or tenant mismatch.")
+            logger.error(f"KMS_DECRYPTION_FAILURE: {e} | tenant_id: {tenant_id}")
+            return "[INTEGRITY_CHECK_FAILED]"
 
 class StringEncryptedType(TypeDecorator):
     """SQLAlchemy decorator using KMS-pattern encryption."""

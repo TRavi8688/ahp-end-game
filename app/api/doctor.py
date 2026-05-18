@@ -124,7 +124,7 @@ async def lookup_patient(
     
     if not patient:
         # Check if it exists in the family_members table
-        stmt_fm = select(FamilyMember).where(FamilyMember.linked_hospyn_id == hospyn_id)
+        stmt_fm = select(FamilyMember).where(func.lower(FamilyMember.linked_hospyn_id) == func.lower(hospyn_id))
         result_fm = await db.execute(stmt_fm)
         family_member = result_fm.scalar_one_or_none()
         
