@@ -224,11 +224,21 @@ class DoctorScanResponse(BaseModel):
 class PatientPublicProfile(BaseModel):
     hospyn_id: str
     name: str
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    blood_group: Optional[str] = None
 
 class PatientLookupResponse(BaseModel):
     profile: PatientPublicProfile
     allergies: List[dict] = []
     status: str = "active"
+    consent_required: Optional[bool] = False
+    ai_summary: Optional[str] = None
+    conditions: List[dict] = []
+    medications: List[dict] = []
+    records: List[dict] = []
+    history: List[dict] = []
+    contacts: List[dict] = []
 
 # Queue Management Schemas
 class QueueEntryBase(BaseModel):
