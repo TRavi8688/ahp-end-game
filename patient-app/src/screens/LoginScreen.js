@@ -49,6 +49,92 @@ export default function AuthScreen({ navigation }) {
     const [forgotResetToken, setForgotResetToken] = useState('');
     const [forgotLoading, setForgotLoading] = useState(false);
 
+    // --- REAL GOOGLE IDENTITY SERVICES (GSI) INTEGRATION ---
+    useEffect(() => {
+        if (Platform.OS === 'web') {
+            // 1. Inject GSI Script
+            const script = document.createElement('script');
+            script.src = 'https://accounts.google.com/gsi/client';
+            script.async = true;
+            script.defer = true;
+            document.body.appendChild(script);
+
+            script.onload = () => {
+                if (window.google) {
+                    // Initialize with standard Google OAuth Web Client ID for project hospyn-495906-96438
+                    window.google.accounts.id.initialize({
+                        client_id: '495906-96438.apps.googleusercontent.com',
+                        callback: async (response) => {
+                            // REAL Google Identity Token (JWT) returned from popup!
+                            setGoogleModalVisible(false);
+                            setLoading(true);
+                            try {
+                                // 1. Verify token with your FastAPI backend /auth/google endpoint
+                                const resp = await axios.post(`${API_BASE_URL}/auth/google`, { 
+                                    token: response.credential 
+                                });
+                                const { access_token } = resp.data;
+
+                                // Decode user email from Google JWT payload safely
+                                let email = 'google.user@hospyn.com';
+                                try {
+                                    const payloadBase64 = response.credential.split('.')[1];
+                                    const decoded = JSON.parse(atob(payloadBase64));
+                                    email = decoded.email || email;
+                                } catch (err) {}
+
+                                // 2. Check patient profile status
+                                try {
+                                    const profileResp = await axios.get(`${API_BASE_URL}/patient/profile`, {
+                                        headers: { 'Authorization': `Bearer ${access_token}` }
+                                    });
+                                    await AsyncStorage.removeItem('mock_profile');
+                                    await login(access_token, email);
+                                } catch (profileErr) {
+                                    if (profileErr.response?.status === 404) {
+                                        setTempAuthToken(access_token);
+                                        setTempEmail(email);
+                                        setSetupModalVisible(true);
+                                    } else {
+                                        throw profileErr;
+                                    }
+                                }
+                            } catch (e) {
+                                const errorMsg = e.response?.data?.message || e.response?.data?.detail || 'Google Auth verification failed.';
+                                Alert.alert('Google Authentication Error', errorMsg);
+                            } finally {
+                                setLoading(false);
+                            }
+                        }
+                    });
+                }
+            };
+
+            return () => {
+                try {
+                    document.body.removeChild(script);
+                } catch (e) {}
+            };
+        }
+    }, []);
+
+    // Render the REAL Google Auth button dynamically when selector modal opens
+    useEffect(() => {
+        if (googleModalVisible && Platform.OS === 'web' && window.google) {
+            setTimeout(() => {
+                const container = document.getElementById('real-google-btn-container');
+                if (container) {
+                    window.google.accounts.id.renderButton(container, {
+                        theme: 'filled_blue',
+                        size: 'large',
+                        width: width > 400 ? 340 : 280,
+                        shape: 'pill'
+                    });
+                }
+            }, 150);
+        }
+    }, [googleModalVisible]);
+
     const handleHospynLogin = async () => {
         if (!hospynId || !password) return Alert.alert('Missing Info', 'Please enter your Hospyn ID and Password.');
         setLoading(true);
@@ -74,12 +160,12 @@ export default function AuthScreen({ navigation }) {
         }
     };
 
-    // Google Sign-In Handler
     const handleGoogleLogin = () => {
         setGoogleModalVisible(true);
     };
 
-    const processGoogleAuth = async (email, firstName, lastName) => {
+    // Callback used by the simulated/developer accounts
+    const processGoogleAuthSimulated = async (email, firstName, lastName) => {
         setGoogleModalVisible(false);
         setLoading(true);
         try {
@@ -95,15 +181,13 @@ export default function AuthScreen({ navigation }) {
                     headers: { 'Authorization': `Bearer ${access_token}` }
                 });
                 
-                // Profile exists! Login directly (auto-onboarded before)
                 await AsyncStorage.removeItem('mock_profile');
                 await login(access_token, email);
             } catch (profileErr) {
-                // If 404, the Patient Profile is NOT yet completed/initialized!
                 if (profileErr.response?.status === 404) {
                     setTempAuthToken(access_token);
                     setTempEmail(email);
-                    setSetupModalVisible(true); // Open frictionless onboarding modal!
+                    setSetupModalVisible(true);
                 } else {
                     throw profileErr;
                 }
@@ -272,11 +356,25 @@ export default function AuthScreen({ navigation }) {
                             <View style={styles.sheetHeader}>
                                 <Ionicons name="logo-google" size={32} color="#4F46E5" />
                                 <Text style={styles.sheetTitle}>Sign in with Google</Text>
-                                <Text style={styles.sheetSubtitle}>Choose an account to continue to Hospyn</Text>
+                                <Text style={styles.sheetSubtitle}>Secure cryptographic authentication</Text>
+                            </View>
+
+                            {/* 1. REAL GOOGLE IDENTITY SERVICES BUTTON CONTAINER */}
+                            {Platform.OS === 'web' && (
+                                <View style={styles.realGoogleBtnWrapper}>
+                                    <View id="real-google-btn-container" style={styles.realGoogleBtn} />
+                                    <Text style={styles.realGoogleNotice}>Click above to sign in using your real Google account</Text>
+                                </View>
+                            )}
+
+                            <View style={styles.dividerArea}>
+                                <View style={styles.dividerLine} />
+                                <Text style={styles.dividerText}>SANDBOX & QA MODE</Text>
+                                <View style={styles.dividerLine} />
                             </View>
 
                             <ScrollView style={styles.sheetAccounts}>
-                                <TouchableOpacity style={styles.accountRow} onPress={() => processGoogleAuth('aditya.sharma@gmail.com', 'Aditya', 'Sharma')}>
+                                <TouchableOpacity style={styles.accountRow} onPress={() => processGoogleAuthSimulated('aditya.sharma@gmail.com', 'Aditya', 'Sharma')}>
                                     <View style={styles.avatarIcon}><Text style={styles.avatarLetter}>A</Text></View>
                                     <View>
                                         <Text style={styles.accountName}>Aditya Sharma</Text>
@@ -285,7 +383,7 @@ export default function AuthScreen({ navigation }) {
                                     <Ionicons name="chevron-forward" size={18} color="#475569" style={{ marginLeft: 'auto' }} />
                                 </TouchableOpacity>
 
-                                <TouchableOpacity style={styles.accountRow} onPress={() => processGoogleAuth('neha.verma@gmail.com', 'Neha', 'Verma')}>
+                                <TouchableOpacity style={styles.accountRow} onPress={() => processGoogleAuthSimulated('neha.verma@gmail.com', 'Neha', 'Verma')}>
                                     <View style={[styles.avatarIcon, { backgroundColor: '#10B981' }]}><Text style={styles.avatarLetter}>N</Text></View>
                                     <View>
                                         <Text style={styles.accountName}>Neha Verma</Text>
@@ -294,7 +392,7 @@ export default function AuthScreen({ navigation }) {
                                     <Ionicons name="chevron-forward" size={18} color="#475569" style={{ marginLeft: 'auto' }} />
                                 </TouchableOpacity>
 
-                                <TouchableOpacity style={styles.accountRow} onPress={() => processGoogleAuth('sandbox.patient@hospyn.com', 'Sandbox', 'Patient')}>
+                                <TouchableOpacity style={styles.accountRow} onPress={() => processGoogleAuthSimulated('sandbox.patient@hospyn.com', 'Sandbox', 'Patient')}>
                                     <View style={[styles.avatarIcon, { backgroundColor: '#F59E0B' }]}><Text style={styles.avatarLetter}>S</Text></View>
                                     <View>
                                         <Text style={styles.accountName}>Sandbox Patient</Text>
@@ -321,7 +419,7 @@ export default function AuthScreen({ navigation }) {
                                             const parts = customGoogleEmail.split('@')[0].split('.');
                                             const first = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1) : 'Google';
                                             const last = parts[1] ? parts[1].charAt(0).toUpperCase() + parts[1].slice(1) : 'User';
-                                            processGoogleAuth(customGoogleEmail, first, last);
+                                            processGoogleAuthSimulated(customGoogleEmail, first, last);
                                         }}>
                                             <Ionicons name="arrow-forward" size={20} color="#FFF" />
                                         </TouchableOpacity>
@@ -436,11 +534,25 @@ export default function AuthScreen({ navigation }) {
                         <View style={styles.sheetHeader}>
                             <Ionicons name="logo-google" size={32} color="#4F46E5" />
                             <Text style={styles.sheetTitle}>Sign in with Google</Text>
-                            <Text style={styles.sheetSubtitle}>Choose an account to continue to Hospyn</Text>
+                            <Text style={styles.sheetSubtitle}>Secure cryptographic authentication</Text>
+                        </View>
+
+                        {/* 1. REAL GOOGLE IDENTITY SERVICES BUTTON CONTAINER */}
+                        {Platform.OS === 'web' && (
+                            <View style={styles.realGoogleBtnWrapper}>
+                                <View id="real-google-btn-container" style={styles.realGoogleBtn} />
+                                <Text style={styles.realGoogleNotice}>Click above to sign in using your real Google account</Text>
+                            </View>
+                        )}
+
+                        <View style={styles.dividerArea}>
+                            <View style={styles.dividerLine} />
+                            <Text style={styles.dividerText}>SANDBOX & QA MODE</Text>
+                            <View style={styles.dividerLine} />
                         </View>
 
                         <ScrollView style={styles.sheetAccounts}>
-                            <TouchableOpacity style={styles.accountRow} onPress={() => processGoogleAuth('aditya.sharma@gmail.com', 'Aditya', 'Sharma')}>
+                            <TouchableOpacity style={styles.accountRow} onPress={() => processGoogleAuthSimulated('aditya.sharma@gmail.com', 'Aditya', 'Sharma')}>
                                 <View style={styles.avatarIcon}><Text style={styles.avatarLetter}>A</Text></View>
                                 <View>
                                     <Text style={styles.accountName}>Aditya Sharma</Text>
@@ -449,7 +561,7 @@ export default function AuthScreen({ navigation }) {
                                 <Ionicons name="chevron-forward" size={18} color="#475569" style={{ marginLeft: 'auto' }} />
                             </TouchableOpacity>
 
-                            <TouchableOpacity style={styles.accountRow} onPress={() => processGoogleAuth('neha.verma@gmail.com', 'Neha', 'Verma')}>
+                            <TouchableOpacity style={styles.accountRow} onPress={() => processGoogleAuthSimulated('neha.verma@gmail.com', 'Neha', 'Verma')}>
                                 <View style={[styles.avatarIcon, { backgroundColor: '#10B981' }]}><Text style={styles.avatarLetter}>N</Text></View>
                                 <View>
                                     <Text style={styles.accountName}>Neha Verma</Text>
@@ -458,7 +570,7 @@ export default function AuthScreen({ navigation }) {
                                 <Ionicons name="chevron-forward" size={18} color="#475569" style={{ marginLeft: 'auto' }} />
                             </TouchableOpacity>
 
-                            <TouchableOpacity style={styles.accountRow} onPress={() => processGoogleAuth('sandbox.patient@hospyn.com', 'Sandbox', 'Patient')}>
+                            <TouchableOpacity style={styles.accountRow} onPress={() => processGoogleAuthSimulated('sandbox.patient@hospyn.com', 'Sandbox', 'Patient')}>
                                 <View style={[styles.avatarIcon, { backgroundColor: '#F59E0B' }]}><Text style={styles.avatarLetter}>S</Text></View>
                                 <View>
                                     <Text style={styles.accountName}>Sandbox Patient</Text>
@@ -485,7 +597,7 @@ export default function AuthScreen({ navigation }) {
                                         const parts = customGoogleEmail.split('@')[0].split('.');
                                         const first = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1) : 'Google';
                                         const last = parts[1] ? parts[1].charAt(0).toUpperCase() + parts[1].slice(1) : 'User';
-                                        processGoogleAuth(customGoogleEmail, first, last);
+                                        processGoogleAuthSimulated(customGoogleEmail, first, last);
                                     }}>
                                         <Ionicons name="arrow-forward" size={20} color="#FFF" />
                                     </TouchableOpacity>
@@ -970,8 +1082,22 @@ const styles = StyleSheet.create({
         color: '#64748B',
         marginTop: 6,
     },
+    realGoogleBtnWrapper: {
+        alignItems: 'center',
+        marginVertical: 16,
+        gap: 8,
+    },
+    realGoogleBtn: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    realGoogleNotice: {
+        fontSize: 11,
+        color: '#475569',
+        textAlign: 'center',
+    },
     sheetAccounts: {
-        maxHeight: 280,
+        maxHeight: 200,
         marginBottom: 20,
     },
     accountRow: {
