@@ -89,7 +89,8 @@ class UserRepository(AsyncBaseRepository):
 
 class PatientRepository(AsyncBaseRepository):
     async def get_by_hospyn_id(self, hospyn_id: str):
-        stmt = select(self.model).where(self.model.hospyn_id == hospyn_id)
+        from sqlalchemy import func
+        stmt = select(self.model).where(func.lower(self.model.hospyn_id) == func.lower(hospyn_id))
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
