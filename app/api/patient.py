@@ -260,6 +260,14 @@ async def get_patient_profile(
                     "relation": member.relation
                 }
 
+        user_email = user.email if user else None
+        user_first = user.first_name if user else ""
+        user_last = user.last_name if user else ""
+        
+        full_name = "Patient"
+        if user_first or user_last:
+            full_name = f"{user_first} {user_last}".strip()
+
         await log_audit_action(
             db, 
             user_id=current_patient.user_id, 
@@ -269,8 +277,8 @@ async def get_patient_profile(
         )
         return {
             "id": patient.id,
-            "full_name": f"{user.first_name} {user.last_name}" if (user and user.first_name) else "Patient",
-            "email": user.email if user else None,
+            "full_name": full_name,
+            "email": user_email,
             "phone_number": patient.phone_number,
             "hospyn_id": patient.hospyn_id,
             "age": 0,
