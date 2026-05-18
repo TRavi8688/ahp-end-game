@@ -5,13 +5,20 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SecurityUtils } from '../utils/security';
 import { HapticUtils } from '../utils/haptics';
 import ApiService from '../utils/ApiService';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, setTheme, getTheme, subscribeToTheme } from '../theme';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function SettingsScreen({ navigation }) {
     const [profile, setProfile] = useState(null);
     const [notifications, setNotifications] = useState(true);
     const [hospynId, setHospynId] = useState('');
+
+    const [theme, setThemeState] = useState(getTheme());
+    useEffect(() => {
+        return subscribeToTheme((newTheme) => {
+            setThemeState(newTheme);
+        });
+    }, []);
     
     // Edit Profile State
     const [showEditModal, setShowEditModal] = useState(false);
@@ -165,18 +172,18 @@ export default function SettingsScreen({ navigation }) {
                 <Ionicons name={icon} size={22} color={Theme.colors.primary} />
             </View>
             <View style={styles.settingContent}>
-                <Text style={styles.settingLabel}>{label}</Text>
-                {sub && <Text style={styles.settingSub}>{sub}</Text>}
+                <Text style={[styles.settingLabel, { color: Theme.colors.text }]}>{label}</Text>
+                {sub && <Text style={[styles.settingSub, { color: Theme.colors.textMuted }]}>{sub}</Text>}
             </View>
             {hasSwitch ? (
                 <Switch 
                     value={value} 
                     onValueChange={onValueChange} 
                     thumbColor={value ? Theme.colors.primary : '#475569'}
-                    trackColor={{ false: '#1E293B', true: 'rgba(99, 102, 241, 0.3)' }}
+                    trackColor={{ false: theme === 'light' ? '#CBD5E1' : '#1E293B', true: theme === 'light' ? 'rgba(124, 92, 246, 0.3)' : 'rgba(99, 102, 241, 0.3)' }}
                 />
             ) : (
-                <Ionicons name="chevron-forward" size={18} color="#475569" />
+                <Ionicons name="chevron-forward" size={18} color={Theme.colors.secondary} />
             )}
         </TouchableOpacity>
     );
@@ -190,17 +197,17 @@ export default function SettingsScreen({ navigation }) {
       navigation.getParent()?.setOptions({ tabBarStyle: { display: 'flex' } });
     }
   }}>
-            <LinearGradient colors={['#0F172A', '#050810']} style={styles.header}>
+            <LinearGradient colors={theme === 'light' ? ['#7C3AED', '#4F46E5'] : ['#0F172A', '#050810']} style={styles.header}>
                 <View style={styles.profileBox}>
-                    <View style={styles.avatarBox}>
+                    <View style={[styles.avatarBox, { borderColor: Theme.colors.primary }]}>
                         {profile?.avatar_url ? (
                             <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} />
                         ) : (
-                            <LinearGradient colors={['#6366F1', '#4F46E5']} style={styles.avatarGradient}>
+                            <LinearGradient colors={theme === 'light' ? ['#8B5CF6', '#7C3AED'] : ['#6366F1', '#4F46E5']} style={styles.avatarGradient}>
                                 <Text style={styles.avatarText}>{profile?.full_name?.charAt(0) || 'P'}</Text>
                             </LinearGradient>
                         )}
-                        <View style={styles.onlineDot} />
+                        <View style={[styles.onlineDot, { borderColor: Theme.colors.background }]} />
                     </View>
                     <Text style={styles.profileName}>{profile?.full_name || 'Hospyn Member'}</Text>
                     <Text style={styles.hospynIdText}>{profile?.hospyn_id || hospynId || 'SYNCHRONIZING...'}</Text>
@@ -230,6 +237,18 @@ export default function SettingsScreen({ navigation }) {
                     hasSwitch 
                     value={notifications} 
                     onValueChange={setNotifications} 
+                />
+
+                <Text style={[styles.sectionTitle, { marginTop: 30 }]}>PREFERENCES</Text>
+                <SettingItem 
+                    icon="color-palette-outline" 
+                    label="Dark Mode" 
+                    sub="Toggle between elegant light and dark themes"
+                    hasSwitch 
+                    value={theme === 'dark'} 
+                    onValueChange={async (val) => {
+                        await setTheme(val ? 'dark' : 'light');
+                    }} 
                 />
 
                 <Text style={[styles.sectionTitle, { marginTop: 30 }]}>SECURITY & DATA</Text>

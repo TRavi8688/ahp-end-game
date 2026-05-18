@@ -27,6 +27,7 @@ try {
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { SocketProvider } from './src/contexts/SocketContext';
 import ApiService from './src/utils/ApiService';
+import { subscribeToTheme, getTheme } from './src/theme';
 import { useFonts } from 'expo-font';
 import { Syne_800ExtraBold, Syne_700Bold } from '@expo-google-fonts/syne';
 import { SpaceMono_400Regular } from '@expo-google-fonts/space-mono';
@@ -64,6 +65,13 @@ function AppContent() {
     SpaceMono_400Regular,
     DMSans_400Regular,
   });
+
+  const [theme, setThemeState] = useState(getTheme());
+  useEffect(() => {
+    return subscribeToTheme((newTheme) => {
+      setThemeState(newTheme);
+    });
+  }, []);
 
   const [bootReady, setBootReady] = useState(false);
   const [isUnlocked, setIsUnlocked] = useState(false);
@@ -115,21 +123,21 @@ function AppContent() {
 
   if (isUpdating || !bootReady) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#050810', justifyContent: 'center', alignItems: 'center', padding: 40 }}>
-        <Text style={{ color: '#6366F1', fontSize: 32, fontWeight: '900', letterSpacing: -1 }}>HOSPYN <Text style={{color: '#fff'}}>CORE</Text></Text>
+      <View style={{ flex: 1, backgroundColor: theme === 'light' ? '#F8F7FF' : '#050810', justifyContent: 'center', alignItems: 'center', padding: 40 }}>
+        <Text style={{ color: '#6366F1', fontSize: 32, fontWeight: '900', letterSpacing: -1 }}>HOSPYN <Text style={{color: theme === 'light' ? '#0F172A' : '#fff'}}>CORE</Text></Text>
         <View style={{ marginTop: 40, alignItems: 'center' }}>
           <ActivityIndicator size="large" color="#6366F1" />
-          <Text style={{ color: '#475569', fontSize: 12, marginTop: 20, fontWeight: 'bold', letterSpacing: 2 }}>
+          <Text style={{ color: theme === 'light' ? '#475569' : '#94A3B8', fontSize: 12, marginTop: 20, fontWeight: 'bold', letterSpacing: 2 }}>
             {isUpdating ? "SYNCING CLINICAL ASSETS..." : "INITIALIZING VAULT..."}
           </Text>
         </View>
-        <Text style={{ position: 'absolute', bottom: 40, color: '#1E293B', fontSize: 10, fontWeight: 'bold' }}>VERSION {Updates?.updateId ? Updates.updateId.substring(0,8).toUpperCase() : '2.0.2-STABLE'}</Text>
+        <Text style={{ position: 'absolute', bottom: 40, color: theme === 'light' ? '#94A3B8' : '#1E293B', fontSize: 10, fontWeight: 'bold' }}>VERSION {Updates?.updateId ? Updates.updateId.substring(0,8).toUpperCase() : '2.0.2-STABLE'}</Text>
       </View>
     );
   }
 
   return (
-    <SafeAreaProvider style={{ flex: 1, backgroundColor: '#050810' }}>
+    <SafeAreaProvider style={{ flex: 1, backgroundColor: theme === 'light' ? '#F8F7FF' : '#050810' }}>
       <SocketProvider>
         <NavigationContainer>
           <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
