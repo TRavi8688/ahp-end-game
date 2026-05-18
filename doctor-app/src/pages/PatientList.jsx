@@ -242,13 +242,17 @@ export default function PatientList() {
                                 border: '4px solid #050810',
                                 boxShadow: '0 10px 30px rgba(13, 148, 136, 0.2)'
                             }}>
-                                {selectedPatientData.profile.name.split(' ').map(n => n[0]).join('')}
+                                {(selectedPatientData.profile.name || 'Hospyn Patient').split(' ').map(n => n[0]).join('')}
                             </Avatar>
-                            <Typography variant="h5" sx={{ color: '#fff', fontWeight: 900, fontFamily: 'Outfit', mb: 1 }}>{selectedPatientData.profile.name}</Typography>
+                            <Typography variant="h5" sx={{ color: '#fff', fontWeight: 900, fontFamily: 'Outfit', mb: 1 }}>{selectedPatientData.profile.name || 'Hospyn Patient'}</Typography>
                             <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 2 }}>
-                                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 800 }}>{selectedPatientData.profile.age} YRS</Typography>
+                                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 800 }}>
+                                    {selectedPatientData.profile.age !== undefined && selectedPatientData.profile.age !== null ? `${selectedPatientData.profile.age} YRS` : 'SECURE'}
+                                </Typography>
                                 <Typography variant="caption" sx={{ color: '#334155' }}>•</Typography>
-                                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 800 }}>{selectedPatientData.profile.gender.toUpperCase()}</Typography>
+                                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 800 }}>
+                                    {selectedPatientData.profile.gender ? selectedPatientData.profile.gender.toUpperCase() : 'SECURE'}
+                                </Typography>
                             </Box>
                             <Box sx={{ px: 2, py: 0.8, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: '12px', display: 'inline-block', border: '1px solid rgba(255,255,255,0.05)' }}>
                                 <Typography variant="caption" sx={{ fontFamily: 'monospace', color: '#0d9488', fontWeight: 800 }}>{selectedPatientData.profile.hospyn_id}</Typography>
@@ -271,8 +275,8 @@ export default function PatientList() {
                             <Box sx={{ mb: 4 }}>
                                 <Typography variant="overline" sx={{ color: '#475569', fontWeight: 900, mb: 2, display: 'block', letterSpacing: 1 }}>CLINICAL MARKERS</Typography>
                                 <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-                                    {selectedPatientData.allergies.length > 0 && <Chip label="SENSITIVITIES" size="small" sx={{ bgcolor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', fontWeight: 900, fontSize: '0.65rem' }} />}
-                                    {selectedPatientData.conditions.map(cond => (
+                                    {(selectedPatientData.allergies || []).length > 0 && <Chip label="SENSITIVITIES" size="small" sx={{ bgcolor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', fontWeight: 900, fontSize: '0.65rem' }} />}
+                                    {(selectedPatientData.conditions || []).map(cond => (
                                         <Chip key={cond.id} label={cond.name.toUpperCase()} size="small" sx={{ bgcolor: 'rgba(13, 148, 136, 0.05)', color: '#0d9488', fontWeight: 900, fontSize: '0.65rem', border: '1px solid rgba(13, 148, 136, 0.1)' }} />
                                     ))}
                                 </Box>
