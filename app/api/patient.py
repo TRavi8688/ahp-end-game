@@ -758,16 +758,62 @@ async def get_pending_access(
         } for r in requests
     ]
 
-@router.post("/approve-access/{access_id}")
-async def approve_access(
-    access_id: uuid.UUID,
-    data: schemas.ApproveAccessRequest,
+@router.get("/notifications")
+async def get_patient_notifications(
     current_patient: Any = Depends(deps.get_current_patient),
     db: AsyncSession = Depends(deps.get_db)
 ):
-    """Approve a doctor's request to view medical records securely with password verification and granular file sharing."""
-    from app.core import security
+    """Fetch all patient notifications, combining system alerts and pending doctor consent requests."""
+    # 1. Fetch pending Doctor Access requests
+    stmt_access = select(models.DoctorAccess).where(
+        models.DoctorAccess.patient_id == current_patient.id,
+        models.DoctorAccess.status == "requested"
+    )
+    res_access = await db.execute(stmt_access)
+    pending_access = res_access.scalars().all()
+
+    notifs = []
     
+    # 2. Map pending consent requests to the notifications payload
+    for r in pending_access:
+        notifs.append({
+            "id": f"consent-{r.id}",
+            "type": "consent_request",
+            "title": "Access Request",
+            "body": f"{r.doctor_name} from {r.clinic_name or 'Hospyn Clinic'} is requesting access to your medical records.",
+            "related_entity_id": str(r.id),
+            "created_at": r.created_at.isoformat() if r.created_at else None
+        })
+
+    # 3. Fetch standard system alerts/notifications from DB
+    stmt_notifs = select(models.Notification).where(
+        models.Notification.patient_id == current_patient.id
+    ).order_by(models.Notification.created_at.desc())
+    res_notifs = await db.execute(stmt_notifs)
+    db_notifs = res_notifs.scalars().all()
+
+    for n in db_notifs:
+        notifs.append({
+            "id": str(n.id),
+            "type": "alert" if n.type == models.NotificationTypeEnum.alert else "message",
+            "title": n.title,
+            "body": n.body,
+            "related_entity_id": str(n.doctor_user_id) if n.doctor_user_id else None,
+            "created_at": n.created_at.isoformat() if n.created_at else None
+        })
+
+    # 4. Sort all notifications chronologically (descending)
+    notifs.sort(key=lambda x: x["created_at"] or "", reverse=True)
+    return notifs
+
+@router.post("/approve-access/{access_id}")
+async def approve_access(
+    access_id: uuid.UUID,
+    data: Optional[schemas.ApproveAccessRequest] = None,
+    current_patient: Any = Depends(deps.get_current_patient),
+    db: AsyncSession = Depends(deps.get_db)
+):
+    """Approve a doctor's request to view medical records securely. Supports one-tap fast approve or granular share."""
     # 1. Verify access request exists and belongs to this patient
     stmt = select(models.DoctorAccess).where(
         models.DoctorAccess.id == access_id,
@@ -779,40 +825,59 @@ async def approve_access(
     if not access_req:
         raise HTTPException(status_code=404, detail="Access request not found")
         
-    # 2. Verify Patient Password
-    stmt_user = select(models.User).where(models.User.id == current_patient.user_id)
-    res_user = await db.execute(stmt_user)
-    user = res_user.scalar_one_or_none()
+    # 2. Verify Patient Password if password was supplied (Standard Vault mode)
+    if data and data.password:
+        from app.core import security
+        stmt_user = select(models.User).where(models.User.id == current_patient.user_id)
+        res_user = await db.execute(stmt_user)
+        user = res_user.scalar_one_or_none()
+        
+        if not user or not security.verify_password(data.password, user.hashed_password):
+            raise HTTPException(status_code=403, detail="Invalid confirmation password. Vault access denied.")
     
-    if not user or not security.verify_password(data.password, user.hashed_password):
-        raise HTTPException(status_code=403, detail="Invalid confirmation password. Vault access denied.")
-    
-    # 3. Save granular record shares
-    for record_id in data.record_ids:
-        # Check if record belongs to patient
+    # 3. Resolve record IDs to share (if empty/none, share all existing files)
+    record_ids_to_share = []
+    if data and data.record_ids:
+        record_ids_to_share = data.record_ids
+    else:
+        stmt_recs = select(models.MedicalRecord.id).where(models.MedicalRecord.patient_id == current_patient.id)
+        res_recs = await db.execute(stmt_recs)
+        record_ids_to_share = res_recs.scalars().all()
+        
+    # 4. Save granular record shares
+    for record_id in record_ids_to_share:
+        # Check if already shared
         stmt_rec = select(models.MedicalRecord).where(
             models.MedicalRecord.id == record_id,
             models.MedicalRecord.patient_id == current_patient.id
         )
         res_rec = await db.execute(stmt_rec)
         if res_rec.scalar_one_or_none():
-            # Create a Share Record
-            share = models.RecordShare(
-                patient_id=current_patient.id,
-                record_id=record_id,
-                doctor_query=access_req.doctor_name,
-                doctor_user_id=access_req.doctor_user_id
+            # Check for existing active share
+            stmt_existing = select(models.RecordShare).where(
+                models.RecordShare.patient_id == current_patient.id,
+                models.RecordShare.record_id == record_id,
+                models.RecordShare.doctor_user_id == access_req.doctor_user_id,
+                models.RecordShare.revoked == False
             )
-            db.add(share)
+            res_existing = await db.execute(stmt_existing)
+            if not res_existing.scalar_one_or_none():
+                share = models.RecordShare(
+                    patient_id=current_patient.id,
+                    record_id=record_id,
+                    doctor_query=access_req.doctor_name,
+                    doctor_user_id=access_req.doctor_user_id
+                )
+                db.add(share)
             
-    # 4. Update status to granted
+    # 5. Update status to granted
     access_req.status = "granted"
     from datetime import datetime
     access_req.granted_at = datetime.now()
     
     await db.commit()
     
-    # 5. Trigger Real-time WebSocket event to Doctor
+    # 6. Trigger Real-time WebSocket event to Doctor
     from app.core.realtime import manager, RealtimeMessage
     try:
         await manager.send_personal_message(
@@ -835,7 +900,7 @@ async def approve_access(
         user_id=current_patient.user_id, 
         action="ACCESS_GRANTED", 
         resource_type="CONSENT", 
-        details={"doctor": access_req.doctor_name, "shared_files_count": len(data.record_ids)}
+        details={"doctor": access_req.doctor_name, "shared_files_count": len(record_ids_to_share)}
     )
     
     return {"status": "success", "message": f"Access granted to {access_req.doctor_name}"}
