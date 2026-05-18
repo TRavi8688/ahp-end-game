@@ -65,6 +65,59 @@ async def patient_login_hospyn(
         "token_type": "bearer",
         "hospyn_id": hospyn_id
     }
+
+@router.post("/setup-profile")
+async def setup_patient_profile(
+    req: schemas.PatientSetupRequest,
+    current_user: models.User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(deps.get_db)
+):
+    """
+    Frictionless profile setup for Google OAuth and OTP-based skeleton users.
+    Initializes their secure Patient medical vault and assigns a unique Hospyn ID.
+    """
+    logger.info(f"PATIENT_PROFILE_SETUP_ATTEMPT: User={current_user.email}")
+    
+    # 1. Ensure the user does not already have a patient profile
+    existing_patient_stmt = select(models.Patient).where(models.Patient.user_id == current_user.id)
+    existing_patient_res = await db.execute(existing_patient_stmt)
+    if existing_patient_res.scalars().first():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Patient profile already exists for this account."
+        )
+        
+    # 2. Generate a unique Hospyn ID
+    import uuid
+    hospyn_id = f"Hospyn-{uuid.uuid4().hex[:8].upper()}"
+    
+    # 3. Create Patient Record
+    new_patient = models.Patient(
+        user_id=current_user.id,
+        hospyn_id=hospyn_id,
+        phone_number=req.phone_number,
+        language_code="en",
+        date_of_birth=req.date_of_birth,
+        gender=req.gender,
+        blood_group=req.blood_group
+    )
+    db.add(new_patient)
+    
+    # 4. Link Hospyn ID to User record and set optional password
+    current_user.hospyn_id = hospyn_id
+    if req.password:
+        from app.core import security
+        current_user.hashed_password = security.get_password_hash(req.password)
+        
+    await db.commit()
+    logger.info(f"PATIENT_PROFILE_SETUP_SUCCESS: HospynID={hospyn_id}, User={current_user.email}")
+    
+    return {
+        "success": True,
+        "hospyn_id": hospyn_id,
+        "message": "Clinical profile successfully initialized."
+    }
+
 # --- STANDARD PATIENT ENDPOINTS ---
 
 # --- STANDARD PATIENT ENDPOINTS ---
