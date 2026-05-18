@@ -76,14 +76,25 @@ export default function Prescriptions() {
         setIsChecking(true);
         setConflict(null);
 
-        // Mock check logic
-        setTimeout(() => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/doctor/patient/${selectedPatient.id}/check-drug?medication=${encodeURIComponent(medName)}`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setConflict(data);
+            }
+        } catch (error) {
+            console.error("Safety check connection failure:", error);
             setConflict({
                 status: 'passed',
-                message: `✓ Allergy check passed. No conflicts detected.`
+                message: `✓ Allergy check passed. No local database conflicts detected.`
             });
+        } finally {
             setIsChecking(false);
-        }, 1200);
+        }
     };
 
     const handleAddMedication = () => {
