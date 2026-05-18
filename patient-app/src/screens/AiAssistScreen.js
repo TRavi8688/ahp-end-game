@@ -34,10 +34,19 @@ import { API_BASE_URL } from '../api';
 
 const LANGUAGES = [
     { id: 'en-IN', name: 'English', flag: '🇬🇧' },
-    { id: 'hi-IN', name: 'हिन्दी', flag: '🇮🇳' },
-    { id: 'te-IN', name: 'తెలుగు', flag: '🇮🇳' },
-    { id: 'ta-IN', name: 'தமிழ்', flag: '🇮🇳' },
-    { id: 'kn-IN', name: 'ಕನ್ನಡ', flag: '🇮🇳' },
+    { id: 'hi-IN', name: 'हिन्दी (Hindi)', flag: '🇮🇳' },
+    { id: 'te-IN', name: 'తెలుగు (Telugu)', flag: '🇮🇳' },
+    { id: 'ta-IN', name: 'தமிழ் (Tamil)', flag: '🇮🇳' },
+    { id: 'kn-IN', name: 'ಕನ್ನಡ (Kannada)', flag: '🇮🇳' },
+    { id: 'ml-IN', name: 'മലയാളം (Malayalam)', flag: '🇮🇳' },
+    { id: 'mr-IN', name: 'मराठी (Marathi)', flag: '🇮🇳' },
+    { id: 'gu-IN', name: 'ગુજરાતી (Gujarati)', flag: '🇮🇳' },
+    { id: 'bn-IN', name: 'বাংলা (Bengali)', flag: '🇮🇳' },
+    { id: 'pa-IN', name: 'ਪੰਜਾਬੀ (Punjabi)', flag: '🇮🇳' },
+    { id: 'or-IN', name: 'ଓଡ଼ିଆ (Odia)', flag: '🇮🇳' },
+    { id: 'ur-IN', name: 'اردو (Urdu)', flag: '🇮🇳' },
+    { id: 'as-IN', name: 'অসমীয়া (Assamese)', flag: '🇮🇳' },
+    { id: 'sa-IN', name: 'संस्कृत (Sanskrit)', flag: '🇮🇳' },
 ];
 
 const SHARE_DURATIONS = [
@@ -138,6 +147,8 @@ export default function AiAssistScreen({ navigation }) {
     const [showShareModal, setShowShareModal]     = useState(false);
     const [showContextPanel, setShowContextPanel] = useState(false);
     const [showSidebar, setShowSidebar]           = useState(false);
+    const [showScanWallet, setShowScanWallet]     = useState(false);
+    const [searchQuery, setSearchQuery]           = useState('');
     const [selectedScanDetail, setSelectedScanDetail] = useState(null);
 
     // Health context
@@ -157,6 +168,29 @@ export default function AiAssistScreen({ navigation }) {
     // Sharing state
     const [doctorName, setDoctorName]         = useState('');
     const [shareLoading, setShareLoading]     = useState(false);
+
+    // Attached files queue
+    const [attachedFiles, setAttachedFiles] = useState([]);
+
+    const addAttachedFile = (asset, kind) => {
+        setAttachedFiles(prev => {
+            if (prev.length >= 5) {
+                Alert.alert('Limit Reached', 'You can upload up to 5 attachments at a time.');
+                return prev;
+            }
+            const newFile = {
+                uri: asset.uri,
+                name: asset.fileName || asset.name || (kind === 'image' || kind === 'camera' ? `image_${Date.now()}.jpg` : `document_${Date.now()}.pdf`),
+                type: asset.mimeType || asset.type || (kind === 'image' || kind === 'camera' ? 'image/jpeg' : 'application/pdf'),
+                kind: kind,
+            };
+            return [...prev, newFile];
+        });
+    };
+
+    const removeAttachedFile = (index) => {
+        setAttachedFiles(prev => prev.filter((_, idx) => idx !== index));
+    };
 
     const flatListRef = useRef(null);
     const pulseAnim   = useRef(new Animated.Value(1)).current;
@@ -252,10 +286,17 @@ export default function AiAssistScreen({ navigation }) {
 
     // ─── Send Message ──────────────────────────────────────────────────────────
 
-    const sendMessage = async (text, imageFile = null, attachedRecordIds = []) => {
-        if (!text && !imageFile) return;
+    const sendMessage = async (text, filesOverride = null, attachedRecordIds = []) => {
+        let filesToSend = [];
+        if (filesOverride) {
+            filesToSend = Array.isArray(filesOverride) ? filesOverride : [filesOverride];
+        } else {
+            filesToSend = attachedFiles;
+        }
 
-        const displayText = text || '📎 Sent an attachment';
+        if (!text && filesToSend.length === 0) return;
+
+        const displayText = text || (filesToSend.length > 0 ? `📎 Sent ${filesToSend.length} attachment${filesToSend.length > 1 ? 's' : ''}` : '');
         const userMsg = {
             id:      `u_${Date.now()}`,
             sender:  'user',
@@ -265,6 +306,7 @@ export default function AiAssistScreen({ navigation }) {
 
         setMessages(prev => [...prev, userMsg]);
         setInputText('');
+        setAttachedFiles([]); // Clear attachment queue
         setSelectedRecords([]);
         setIsTyping(true);
 
@@ -279,17 +321,19 @@ export default function AiAssistScreen({ navigation }) {
                 formData.append('record_ids', JSON.stringify(attachedRecordIds));
             }
 
-            if (imageFile) {
-                if (Platform.OS === 'web') {
-                    const res  = await fetch(imageFile.uri);
-                    const blob = await res.blob();
-                    formData.append('file', blob, imageFile.name || 'upload.jpg');
-                } else {
-                    formData.append('file', {
-                        uri:  imageFile.uri,
-                        name: imageFile.name || 'upload.jpg',
-                        type: imageFile.mimeType || 'image/jpeg',
-                    });
+            if (filesToSend.length > 0) {
+                for (const file of filesToSend) {
+                    if (Platform.OS === 'web') {
+                        const res  = await fetch(file.uri);
+                        const blob = await res.blob();
+                        formData.append('files', blob, file.name || 'upload.jpg');
+                    } else {
+                        formData.append('files', {
+                            uri:  file.uri,
+                            name: file.name || 'upload.jpg',
+                            type: file.type || 'image/jpeg',
+                        });
+                    }
                 }
             }
 
@@ -368,7 +412,7 @@ export default function AiAssistScreen({ navigation }) {
                 quality: 0.8,
             });
             if (!result.canceled && result.assets?.[0]) {
-                sendMessage('📸 Captured a clinical image for analysis', result.assets[0]);
+                addAttachedFile(result.assets[0], 'camera');
             }
         } catch (e) {
             Alert.alert('Hardware Error', 'Failed to initialize clinical camera.');
@@ -383,7 +427,7 @@ export default function AiAssistScreen({ navigation }) {
                 quality: 0.8,
             });
             if (!result.canceled && result.assets?.[0]) {
-                sendMessage('📸 Sent an image for Chitti to analyze', result.assets[0]);
+                addAttachedFile(result.assets[0], 'image');
             }
         } catch (e) {
             Alert.alert('Permission Required', 'Please allow access to your photo library.');
@@ -397,7 +441,9 @@ export default function AiAssistScreen({ navigation }) {
                 copyToCacheDirectory: true,
             });
             if (!result.canceled && result.assets?.[0]) {
-                sendMessage('📄 Sent a document for Chitti to analyze', result.assets[0]);
+                const asset = result.assets[0];
+                const kind = asset.mimeType?.startsWith('image/') ? 'image' : 'pdf';
+                addAttachedFile(asset, kind);
             }
         } catch (e) {
             Alert.alert('Error', 'Could not open document picker.');
@@ -510,10 +556,17 @@ export default function AiAssistScreen({ navigation }) {
             <LinearGradient colors={['#050810', '#1E1B4B', '#2d1b69']} style={styles.header}>
                 <View style={styles.headerContent}>
                     <TouchableOpacity 
-                        style={{ marginRight: 10, paddingVertical: 8, paddingRight: 4 }} 
+                        style={{ marginRight: 8, paddingVertical: 8, paddingRight: 4 }} 
                         onPress={() => navigation.navigate('Home')}
                     >
                         <Ionicons name="chevron-back" size={24} color="#fff" />
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                        style={{ marginRight: 10, paddingVertical: 8, paddingHorizontal: 4 }} 
+                        onPress={() => setShowSidebar(true)}
+                        id="chitti-menu-btn"
+                    >
+                        <Ionicons name="menu" size={24} color="#fff" />
                     </TouchableOpacity>
                     <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
                         <Image source={require('../../assets/chitti_avatar.png')} style={styles.chittiTopAvatar} />
@@ -544,7 +597,7 @@ export default function AiAssistScreen({ navigation }) {
                     {/* Scan Wallet trigger */}
                     <TouchableOpacity
                         style={[styles.contextBtn, { marginLeft: 8, backgroundColor: 'rgba(52, 211, 153, 0.2)' }]}
-                        onPress={() => setShowSidebar(true)}
+                        onPress={() => setShowScanWallet(true)}
                         id="chitti-scan-wallet-btn"
                     >
                         <Ionicons name="images" size={18} color="#34d399" />
@@ -653,6 +706,29 @@ export default function AiAssistScreen({ navigation }) {
                     </View>
                 )}
 
+                {/* Attached files (images, PDF documents, camera captures) preview queue */}
+                {attachedFiles.length > 0 && (
+                    <View style={styles.attachedFilesQueueContainer}>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.attachedFilesQueue}>
+                            {attachedFiles.map((file, index) => (
+                                <View key={index} style={styles.attachedFileThumbnailWrapper}>
+                                    {file.kind === 'pdf' ? (
+                                        <View style={styles.attachedFilePdfThumbnail}>
+                                            <Ionicons name="document-text" size={24} color="#7c3aed" />
+                                            <Text numberOfLines={1} style={styles.attachedFilePdfText}>{file.name}</Text>
+                                        </View>
+                                    ) : (
+                                        <Image source={{ uri: file.uri }} style={styles.attachedFileThumbnail} />
+                                    )}
+                                    <TouchableOpacity style={styles.attachedFileRemoveBtn} onPress={() => removeAttachedFile(index)}>
+                                        <Ionicons name="close-circle" size={18} color="#ef4444" />
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                        </ScrollView>
+                    </View>
+                )}
+
                 {/* INPUT BAR */}
                 <View style={styles.inputBar}>
                     {/* Language Picker */}
@@ -676,7 +752,7 @@ export default function AiAssistScreen({ navigation }) {
                             onChangeText={setInputText}
                             multiline
                             maxLength={2000}
-                            onSubmitEditing={() => inputText.trim() && sendMessage(inputText.trim())}
+                            onSubmitEditing={() => (inputText.trim() || attachedFiles.length > 0) && sendMessage(inputText.trim())}
                         />
                     </View>
 
@@ -700,7 +776,7 @@ export default function AiAssistScreen({ navigation }) {
                     </TouchableOpacity>
 
                     {/* Send Button - Always Visible if text exists or records selected */}
-                    {(inputText.trim().length > 0 || selectedRecords.length > 0) ? (
+                    {(inputText.trim().length > 0 || selectedRecords.length > 0 || attachedFiles.length > 0) ? (
                         <TouchableOpacity
                             style={styles.sendBtn}
                             onPress={() => sendMessage(inputText.trim(), null, selectedRecords)}
@@ -721,19 +797,21 @@ export default function AiAssistScreen({ navigation }) {
             ═══════════════════════════════════════════════════════════ */}
             <Modal visible={showLangModal} transparent animationType="slide" onRequestClose={() => setShowLangModal(false)}>
                 <View style={styles.sheetOverlay}>
-                    <View style={styles.sheet}>
+                    <View style={[styles.sheet, { maxHeight: '75%' }]}>
                         <View style={styles.sheetHandle} />
                         <Text style={styles.sheetTitle}>Choose Language</Text>
-                        {LANGUAGES.map(lang => (
-                            <TouchableOpacity
-                                key={lang.id}
-                                style={[styles.langRow, selectedLang === lang.id && styles.langRowActive]}
-                                onPress={() => { setSelectedLang(lang.id); setShowLangModal(false); }}
-                            >
-                                <Text style={styles.langRowFlag}>{lang.flag}  {lang.name}</Text>
-                                {selectedLang === lang.id && <Ionicons name="checkmark-circle" size={22} color="#7c3aed" />}
-                            </TouchableOpacity>
-                        ))}
+                        <ScrollView showsVerticalScrollIndicator={false}>
+                            {LANGUAGES.map(lang => (
+                                <TouchableOpacity
+                                    key={lang.id}
+                                    style={[styles.langRow, selectedLang === lang.id && styles.langRowActive]}
+                                    onPress={() => { setSelectedLang(lang.id); setShowLangModal(false); }}
+                                >
+                                    <Text style={styles.langRowFlag}>{lang.flag}  {lang.name}</Text>
+                                    {selectedLang === lang.id && <Ionicons name="checkmark-circle" size={22} color="#7c3aed" />}
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
                     </View>
                 </View>
             </Modal>
@@ -977,7 +1055,115 @@ export default function AiAssistScreen({ navigation }) {
             {/* ═══════════════════════════════════════════════════════════
                 MODAL 5 — Chitti Scan Wallet (Sidebar Drawer)
             ═══════════════════════════════════════════════════════════ */}
-            <Modal visible={showSidebar} transparent animationType="slide" onRequestClose={() => setShowSidebar(false)}>
+            <Modal visible={showSidebar} transparent animationType="fade" onRequestClose={() => setShowSidebar(false)}>
+                <View style={styles.sidebarOverlay}>
+                    {/* Semi-transparent Backdrop that closes the drawer when tapped */}
+                    <TouchableOpacity style={styles.sidebarBackdrop} activeOpacity={1} onPress={() => setShowSidebar(false)} />
+                    
+                    {/* Drawer Content */}
+                    <View style={styles.sidebarDrawer}>
+                        <View style={styles.sidebarHeader}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+                                    <Image source={require('../../assets/chitti_avatar.png')} style={styles.sidebarAvatar} />
+                                </Animated.View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.sidebarTitle}>CHITTI</Text>
+                                    <Text style={styles.sidebarSubtitle}>Your empthatic best friend & healthcare companion.</Text>
+                                </View>
+                            </View>
+                            <TouchableOpacity onPress={() => setShowSidebar(false)} style={styles.sidebarCloseBtn}>
+                                <Ionicons name="chevron-back" size={20} color="#fff" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* New Chat Button */}
+                        <TouchableOpacity 
+                            style={styles.sidebarNewChatBtn}
+                            onPress={() => {
+                                setMessages([{ id: 'greeting_new', sender: 'ai', text: "Starting a fresh session. How can I help you today?", records: [] }]);
+                                setShowSidebar(false);
+                            }}
+                        >
+                            <Ionicons name="add" size={20} color="#fff" />
+                            <Text style={styles.sidebarNewChatText}>New Chat</Text>
+                        </TouchableOpacity>
+
+                        {/* Search Chats Input */}
+                        <View style={styles.sidebarSearchContainer}>
+                            <Ionicons name="search-outline" size={18} color="#64748b" style={{ marginRight: 8 }} />
+                            <TextInput
+                                style={styles.sidebarSearchInput}
+                                placeholder="Search chats..."
+                                placeholderTextColor="#64748b"
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                            />
+                            {searchQuery.length > 0 && (
+                                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                    <Ionicons name="close-circle" size={16} color="#64748b" />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+
+                        {/* Recent Chats Sessions ScrollView */}
+                        <Text style={styles.sidebarSectionTitle}>Recent Conversations</Text>
+                        <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1, marginTop: 8 }}>
+                            {recentSessions
+                                .filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()))
+                                .map((session, idx) => (
+                                    <TouchableOpacity 
+                                        key={idx} 
+                                        style={styles.sidebarSessionBtn}
+                                        onPress={() => {
+                                            // Mock resuming session:
+                                            setMessages([
+                                                { id: 'old_msg_1', sender: 'user', text: `Let's discuss my ${session.title}.` },
+                                                { id: 'old_msg_2', sender: 'ai', text: `Of course! I have restored our context on ${session.title}. What would you like to explore?` }
+                                            ]);
+                                            setShowSidebar(false);
+                                        }}
+                                    >
+                                        <Ionicons name="chatbubble-ellipses-outline" size={16} color="#a78bfa" style={{ marginRight: 10 }} />
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.sidebarSessionText} numberOfLines={1}>{session.title}</Text>
+                                            <Text style={styles.sidebarSessionSubtext}>{session.date}</Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                ))}
+                        </ScrollView>
+
+                        {/* Bottom Utility Actions */}
+                        <View style={styles.sidebarFooter}>
+                            <TouchableOpacity 
+                                style={styles.sidebarFooterBtn}
+                                onPress={() => {
+                                    setShowSidebar(false);
+                                    setShowScanWallet(true);
+                                }}
+                            >
+                                <Ionicons name="images-outline" size={18} color="#34d399" />
+                                <Text style={styles.sidebarFooterBtnText}>Open Scan Wallet</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={[styles.sidebarFooterBtn, { marginTop: 10 }]}
+                                onPress={() => {
+                                    setShowSidebar(false);
+                                    setShowContextPanel(true);
+                                }}
+                            >
+                                <Ionicons name="pulse-outline" size={18} color="#a78bfa" />
+                                <Text style={styles.sidebarFooterBtnText}>Patient Health Context</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* ═══════════════════════════════════════════════════════════
+                MODAL 5B — Chitti Scan Wallet (Standalone Modal)
+            ═══════════════════════════════════════════════════════════ */}
+            <Modal visible={showScanWallet} transparent animationType="slide" onRequestClose={() => setShowScanWallet(false)}>
                 <View style={styles.sheetOverlay}>
                     <View style={[styles.sheet, { maxHeight: '85%' }]}>
                         <View style={styles.sheetHandle} />
@@ -986,7 +1172,7 @@ export default function AiAssistScreen({ navigation }) {
                                 <Ionicons name="images" size={22} color="#34d399" />
                                 <Text style={styles.sheetTitle}>Scan Wallet</Text>
                             </View>
-                            <TouchableOpacity onPress={() => setShowSidebar(false)}>
+                            <TouchableOpacity onPress={() => setShowScanWallet(false)}>
                                 <Ionicons name="close" size={22} color="#475569" />
                             </TouchableOpacity>
                         </View>
@@ -1006,7 +1192,7 @@ export default function AiAssistScreen({ navigation }) {
                                         style={styles.scanRowItem}
                                         onPress={() => {
                                             setSelectedScanDetail(scan);
-                                            setShowSidebar(false);
+                                            setShowScanWallet(false);
                                         }}
                                     >
                                         {scan.secure_url || scan.file_url ? (
@@ -1373,6 +1559,58 @@ const styles = StyleSheet.create({
         color: '#7c3aed',
         fontSize: 13,
         fontWeight: '600',
+    },
+    attachedFilesQueueContainer: {
+        backgroundColor: '#1E293B',
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255, 255, 255, 0.1)',
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+    },
+    attachedFilesQueue: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    attachedFileThumbnailWrapper: {
+        position: 'relative',
+        width: 72,
+        height: 72,
+        borderRadius: 12,
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        overflow: 'visible',
+    },
+    attachedFileThumbnail: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 12,
+        resizeMode: 'cover',
+    },
+    attachedFilePdfThumbnail: {
+        width: '100%',
+        height: '100%',
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(124, 58, 237, 0.15)',
+        paddingHorizontal: 4,
+    },
+    attachedFilePdfText: {
+        fontSize: 9,
+        color: '#E2E8F0',
+        textAlign: 'center',
+        marginTop: 4,
+        width: '100%',
+    },
+    attachedFileRemoveBtn: {
+        position: 'absolute',
+        top: -6,
+        right: -6,
+        zIndex: 10,
+        backgroundColor: '#1E293B',
+        borderRadius: 9,
     },
 
     // ── Input Bar ────────────────────────────────────────────────────────────
@@ -1952,6 +2190,144 @@ const styles = StyleSheet.create({
     detailScanShareText: {
         color: '#fff',
         fontSize: 14,
+        fontWeight: '700',
+    },
+
+    // ── Sidebar Drawer Styles ───────────────────────────────────────────────
+    sidebarOverlay: {
+        flex: 1,
+        flexDirection: 'row',
+        zIndex: 9999,
+    },
+    sidebarBackdrop: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(5, 8, 16, 0.75)',
+    },
+    sidebarDrawer: {
+        width: '82%',
+        height: '100%',
+        backgroundColor: '#090D1A',
+        borderRightWidth: 1,
+        borderRightColor: 'rgba(255,255,255,0.08)',
+        paddingTop: Platform.OS === 'ios' ? 56 : 24,
+        paddingHorizontal: 16,
+        paddingBottom: 24,
+    },
+    sidebarHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    sidebarAvatar: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        borderWidth: 1.5,
+        borderColor: '#a78bfa',
+    },
+    sidebarTitle: {
+        fontSize: 16,
+        fontWeight: '900',
+        color: '#fff',
+        letterSpacing: 0.3,
+    },
+    sidebarSubtitle: {
+        fontSize: 10,
+        color: '#94a3b8',
+        marginTop: 2,
+    },
+    sidebarCloseBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: 'rgba(255,255,255,0.06)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    sidebarNewChatBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#7c3aed',
+        paddingVertical: 12,
+        borderRadius: 12,
+        gap: 8,
+        marginBottom: 16,
+    },
+    sidebarNewChatText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '800',
+    },
+    sidebarSearchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        marginBottom: 16,
+    },
+    sidebarSearchInput: {
+        flex: 1,
+        fontSize: 13,
+        color: '#fff',
+        padding: 0,
+    },
+    sidebarSectionTitle: {
+        fontSize: 11,
+        fontWeight: '900',
+        color: '#64748b',
+        textTransform: 'uppercase',
+        letterSpacing: 0.8,
+        marginBottom: 8,
+    },
+    sidebarSessionBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 8,
+        borderRadius: 10,
+        backgroundColor: 'rgba(255,255,255,0.02)',
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.04)',
+    },
+    sidebarSessionText: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#e2e8f0',
+    },
+    sidebarSessionSubtext: {
+        fontSize: 10,
+        color: '#64748b',
+        marginTop: 2,
+    },
+    sidebarFooter: {
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255,255,255,0.05)',
+        paddingTop: 16,
+        marginTop: 12,
+    },
+    sidebarFooterBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        paddingVertical: 12,
+        paddingHorizontal: 12,
+        borderRadius: 12,
+        gap: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
+    },
+    sidebarFooterBtnText: {
+        color: '#cbd5e1',
+        fontSize: 13,
         fontWeight: '700',
     },
 });

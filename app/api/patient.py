@@ -538,6 +538,7 @@ async def chat_with_chitti(
     active_member_id: Optional[uuid.UUID] = Depends(deps.get_active_family_member_id),
     language_code: str = Form("en-IN"),
     file: Optional[UploadFile] = File(None),
+    files: Optional[List[UploadFile]] = File(None),
     audio: Optional[UploadFile] = File(None),
     current_user: models.User = Depends(deps.get_db_user),
     db: AsyncSession = Depends(deps.get_db),
@@ -555,37 +556,89 @@ async def chat_with_chitti(
             detail="Chitti is temporarily offline to prioritize core clinical records. Please try again shortly."
         )
     
-    msg_content = text or "Attached media"
-    image_bytes = None
+    msg_content = text or ""
+    image_bytes_list = []
+    image_s3_urls = []
     audio_bytes = None
     
     # Resolve Patient object
     result_p = await db.execute(select(models.Patient).where(models.Patient.user_id == current_user.id))
     patient = result_p.scalars().first()
     
-    s3_url = None
+    # PDF text extractor helper
+    def extract_text_from_pdf(pdf_bytes: bytes) -> str:
+        try:
+            import pypdf
+            import io
+            reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
+            pdf_text = ""
+            for page in reader.pages:
+                pdf_text += page.extract_text() or ""
+            return pdf_text.strip()
+        except Exception as e:
+            logger.error(f"PDF_TEXT_EXTRACTION_FAILED: {e}")
+            return ""
+
+    # Combine file and files
+    all_upload_files = []
     if file:
-        file_bytes = await file.read()
-        image_bytes = file_bytes
-        msg_content += " (Image attached)"
-        
-        # Auto-upload the image to Cloud Storage
-        if patient:
-            try:
-                from app.services.storage_service import StorageService
-                import io
-                storage = StorageService()
-                ext = os.path.splitext(file.filename)[1].lower() or ".jpg"
-                safe_filename = f"{uuid.uuid4()}{ext}"
-                s3_object_name = f"reports/{patient.hospyn_id or 'anon'}/{safe_filename}"
+        all_upload_files.append(file)
+    if files:
+        all_upload_files.extend(files)
+
+    for f in all_upload_files:
+        try:
+            f_bytes = await f.read()
+            ext = os.path.splitext(f.filename)[1].lower() or ".jpg"
+            
+            if ext == ".pdf":
+                pdf_text = extract_text_from_pdf(f_bytes)
+                if pdf_text:
+                    msg_content += f"\n[Extracted PDF Report - {f.filename}]:\n{pdf_text}\n"
+                else:
+                    msg_content += f" (PDF Document attached: {f.filename})"
                 
-                s3_url = await storage.upload_stream(
-                    file_obj=io.BytesIO(file_bytes),
-                    object_name=s3_object_name,
-                    mime_type=file.content_type or "image/jpeg"
-                )
-            except Exception as upload_err:
-                logger.error(f"AUTO_SAVE_UPLOAD_FAILURE: {upload_err}")
+                # Auto-upload PDF to Cloud Storage
+                if patient:
+                    try:
+                        from app.services.storage_service import StorageService
+                        import io
+                        storage = StorageService()
+                        safe_filename = f"{uuid.uuid4()}.pdf"
+                        s3_object_name = f"reports/{patient.hospyn_id or 'anon'}/{safe_filename}"
+                        s3_url = await storage.upload_stream(
+                            file_obj=io.BytesIO(f_bytes),
+                            object_name=s3_object_name,
+                            mime_type="application/pdf"
+                        )
+                        image_s3_urls.append(s3_url)
+                    except Exception as upload_err:
+                        logger.error(f"AUTO_SAVE_PDF_UPLOAD_FAILURE: {upload_err}")
+            else:
+                image_bytes_list.append(f_bytes)
+                msg_content += f" (Image attached: {f.filename})"
+                
+                # Auto-upload image to Cloud Storage
+                if patient:
+                    try:
+                        from app.services.storage_service import StorageService
+                        import io
+                        storage = StorageService()
+                        safe_filename = f"{uuid.uuid4()}{ext}"
+                        s3_object_name = f"reports/{patient.hospyn_id or 'anon'}/{safe_filename}"
+                        s3_url = await storage.upload_stream(
+                            file_obj=io.BytesIO(f_bytes),
+                            object_name=s3_object_name,
+                            mime_type=f.content_type or "image/jpeg"
+                        )
+                        image_s3_urls.append(s3_url)
+                    except Exception as upload_err:
+                        logger.error(f"AUTO_SAVE_IMAGE_UPLOAD_FAILURE: {upload_err}")
+        except Exception as e:
+            logger.error(f"Error processing attachment {f.filename}: {e}")
+
+    if not msg_content:
+        msg_content = "📎 Sent attachments"
 
     if audio:
         try:
@@ -609,31 +662,39 @@ async def chat_with_chitti(
         conversation_id, 
         msg_content, 
         family_member_id=active_member_id,
-        image_bytes=image_bytes, 
+        image_bytes=image_bytes_list[0] if image_bytes_list else None, 
+        image_bytes_list=image_bytes_list if image_bytes_list else None,
         audio_bytes=audio_bytes,
         language_code=language_code,
         db=db
     )
     
-    # Auto-save the vision scan record to their wallet/vault
-    if patient and s3_url:
+    # Auto-save the vision/PDF scan records to their wallet/vault
+    if patient and image_s3_urls:
         try:
             from datetime import datetime
-            new_record = models.MedicalRecord(
-                patient_id=patient.id,
-                family_member_id=active_member_id,
-                type="Chitti Scan",
-                record_name=f"Chitti Vision Scan ({datetime.now().strftime('%d %b %Y')})",
-                hospital_name="Chitti AI Companion",
-                file_url=s3_url,
-                raw_text="Chitti AI vision scan and emotional wellness check.",
-                ai_summary=ai_text[:950] + "..." if len(ai_text) > 950 else ai_text,
-                patient_summary=ai_text
-            )
-            db.add(new_record)
+            for s3_url in image_s3_urls:
+                is_pdf = s3_url.lower().endswith(".pdf")
+                rec_name = f"Chitti Report Scan ({datetime.now().strftime('%d %b %Y')})" if is_pdf else f"Chitti Vision Scan ({datetime.now().strftime('%d %b %Y')})"
+                rec_type = "Chitti PDF Scan" if is_pdf else "Chitti Scan"
+                
+                new_record = models.MedicalRecord(
+                    patient_id=patient.id,
+                    family_member_id=active_member_id,
+                    type=rec_type,
+                    record_name=rec_name,
+                    hospital_name="Chitti AI Companion",
+                    file_url=s3_url,
+                    raw_text="Chitti AI clinical document analysis.",
+                    ai_summary=ai_text[:950] + "..." if len(ai_text) > 950 else ai_text,
+                    patient_summary=ai_text
+                )
+                db.add(new_record)
+            
             await db.commit()
-            logger.info(f"AUTO_SAVED_CHITTI_SCAN: patient={patient.id} | record={new_record.id}")
+            logger.info(f"AUTO_SAVED_CHITTI_SCAN_MULTIPLE: patient={patient.id} | count={len(image_s3_urls)}")
         except Exception as save_rec_err:
+            await db.rollback()
             logger.error(f"AUTO_SAVE_RECORD_FAILURE: {save_rec_err}")
             
     return {
