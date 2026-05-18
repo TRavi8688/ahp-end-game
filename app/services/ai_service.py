@@ -162,7 +162,7 @@ class AsyncAIService:
         if not self.gemini_key: return "MISSING_KEY"
         provider = "gemini"
         
-        url = f"https://generativelanguage.googleapis.com/v1/models/{model_name}:generateContent?key={self.gemini_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={self.gemini_key}"
         parts = [{"text": prompt}]
         
         imgs = image_bytes_list or []
@@ -415,16 +415,14 @@ class AsyncAIService:
         # 2. Define Providers (Priority Ranked)
         if imgs:
             providers = [
-                ("insforge", self._call_insforge_ai, "anthropic/claude-3-5-sonnet"),
                 ("groq", self._call_groq, "llama-3.2-11b-vision-preview"),
-                ("gemini", self._call_gemini, "gemini-2.5-flash")
+                ("gemini", self._call_gemini, "gemini-1.5-flash")
             ]
         else:
             providers = [
-                ("insforge", self._call_insforge_ai, "deepseek/deepseek-v3"),
                 ("groq", self._call_groq, "llama-3.3-70b-versatile"),
                 ("anthropic", self._call_anthropic, "claude-3-5-sonnet-20240620"),
-                ("gemini", self._call_gemini, "gemini-2.5-flash")
+                ("gemini", self._call_gemini, "gemini-1.5-flash")
             ]
  
         # --- ADAPTIVE RACING LOGIC ---

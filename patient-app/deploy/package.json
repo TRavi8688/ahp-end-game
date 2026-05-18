@@ -1,0 +1,7 @@
+{
+  "name": "hospyn-patient-app",
+  "private": true,
+  "scripts": {
+    "build": "echo 'Pre-built static site - no build needed'"
+  }
+}
