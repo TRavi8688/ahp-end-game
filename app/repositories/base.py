@@ -90,6 +90,14 @@ class UserRepository(AsyncBaseRepository):
 class PatientRepository(AsyncBaseRepository):
     async def get_by_hospyn_id(self, hospyn_id: str):
         from sqlalchemy import func
+        # Try exact match first (uses index instantly)
+        stmt = select(self.model).where(self.model.hospyn_id == hospyn_id)
+        result = await self.db.execute(stmt)
+        res = result.scalar_one_or_none()
+        if res:
+            return res
+            
+        # Fallback to case-insensitive match
         stmt = select(self.model).where(func.lower(self.model.hospyn_id) == func.lower(hospyn_id))
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()

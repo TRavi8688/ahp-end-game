@@ -123,10 +123,16 @@ async def lookup_patient(
     family_member = None
     
     if not patient:
-        # Check if it exists in the family_members table
-        stmt_fm = select(FamilyMember).where(func.lower(FamilyMember.linked_hospyn_id) == func.lower(hospyn_id))
+        # Check if it exists in the family_members table (exact match first)
+        stmt_fm = select(FamilyMember).where(FamilyMember.linked_hospyn_id == hospyn_id)
         result_fm = await db.execute(stmt_fm)
         family_member = result_fm.scalar_one_or_none()
+        
+        if not family_member:
+            # Fallback to case-insensitive match
+            stmt_fm = select(FamilyMember).where(func.lower(FamilyMember.linked_hospyn_id) == func.lower(hospyn_id))
+            result_fm = await db.execute(stmt_fm)
+            family_member = result_fm.scalar_one_or_none()
         
         if not family_member:
             raise HTTPException(status_code=404, detail="Patient or Care Circle member not found")
@@ -273,19 +279,20 @@ async def scan_patient(
     """Initiate a clinical access request via QR scan/Hospyn ID."""
     repo = PatientRepository(Patient, db)
     patient = await repo.get_by_hospyn_id(request.hospyn_id)
-    # If not found, attempt to locate via FamilyMember (case‑insensitive)
-    if not patient:
-        stmt_fm = select(FamilyMember).where(func.lower(FamilyMember.linked_hospyn_id) == func.lower(request.hospyn_id))
-        result_fm = await db.execute(stmt_fm)
-        family_member = result_fm.scalar_one_or_none()
-        if family_member:
-            patient = await repo.get(family_member.patient_id)
+    family_member = None
     
     if not patient:
-        # Check if it exists in the family_members table
-        stmt_fm = select(FamilyMember).where(func.lower(FamilyMember.linked_hospyn_id) == func.lower(request.hospyn_id))
+        # Check if it exists in the family_members table (exact match first)
+        stmt_fm = select(FamilyMember).where(FamilyMember.linked_hospyn_id == request.hospyn_id)
         result_fm = await db.execute(stmt_fm)
         family_member = result_fm.scalar_one_or_none()
+        
+        if not family_member:
+            # Fallback to case-insensitive match
+            stmt_fm = select(FamilyMember).where(func.lower(FamilyMember.linked_hospyn_id) == func.lower(request.hospyn_id))
+            result_fm = await db.execute(stmt_fm)
+            family_member = result_fm.scalar_one_or_none()
+            
         if family_member:
             patient = await repo.get(family_member.patient_id)
             
@@ -399,9 +406,20 @@ async def get_patient_records(
     if not access:
         raise HTTPException(status_code=403, detail="Clinical access not granted for this patient.")
         
-    # 2. Fetch Records
-    stmt_r = select(MedicalRecord).where(MedicalRecord.patient_id == patient.id)
+    # 2. Fetch Records (support granular sharing via RecordShare)
+    from app.models.models import RecordShare
+    stmt_r = select(MedicalRecord).join(
+        RecordShare, MedicalRecord.id == RecordShare.record_id
+    ).where(
+        RecordShare.doctor_user_id == current_doctor.user_id,
+        RecordShare.revoked == False
+    )
     records = (await db.execute(stmt_r)).scalars().all()
+    
+    # Fallback: if no records were explicitly shared, but access was granted, show all records (backward compatibility)
+    if not records:
+        stmt_r = select(MedicalRecord).where(MedicalRecord.patient_id == patient.id)
+        records = (await db.execute(stmt_r)).scalars().all()
     
     # 3. Generate Signed URLs
     for record in records:

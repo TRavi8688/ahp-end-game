@@ -212,6 +212,10 @@ class DoctorScanRequest(BaseModel):
     clinic_name: str
     access_level: str
 
+class ApproveAccessRequest(BaseModel):
+    record_ids: List[uuid.UUID] = []
+    password: str
+
 class DoctorScanResponse(BaseModel):
     status: str
     message: str
