@@ -13,6 +13,8 @@ from app.core.secrets import get_secret, load_rsa_key
 
 logger = logging.getLogger(__name__)
 
+_DATABASE_READER_URL_CACHE = None
+
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Hospyn 2.0 Secure (GCP)"
     VERSION: str = "2.0.2-RESILIENT"
@@ -139,8 +141,11 @@ class Settings(BaseSettings):
 
     @property
     def DATABASE_READER_URL(self) -> Optional[str]:
-        # Legacy support for reader URL from secrets
-        return get_secret("DATABASE_READER_URL")
+        # Legacy support for reader URL from secrets (cached to prevent repeated GCP timeouts)
+        global _DATABASE_READER_URL_CACHE
+        if _DATABASE_READER_URL_CACHE is None:
+            _DATABASE_READER_URL_CACHE = get_secret("DATABASE_READER_URL")
+        return _DATABASE_READER_URL_CACHE
 
     @property
     def sync_reader_url(self) -> str:
