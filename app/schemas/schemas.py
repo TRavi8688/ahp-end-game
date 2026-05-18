@@ -214,7 +214,7 @@ class DoctorScanRequest(BaseModel):
 
 class ApproveAccessRequest(BaseModel):
     record_ids: List[uuid.UUID] = []
-    password: str
+    password: Optional[str] = None
 
 class DoctorScanResponse(BaseModel):
     status: str
