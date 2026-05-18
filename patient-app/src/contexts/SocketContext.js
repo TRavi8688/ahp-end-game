@@ -27,6 +27,25 @@ export const SocketProvider = ({ children }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
 
+    // Expose Global Consent Modal Trigger
+    const openConsentModal = async (data) => {
+        if (!data || showConsentModal) return;
+        console.log('[Socket] Opening global consent modal for doctor:', data.doctor_name);
+        setConsentData(data);
+        setShowConsentModal(true);
+        setIsFetchingRecords(true);
+        try {
+            const fetched = await ApiService.getRecords();
+            setRecords(fetched || []);
+            // Check all records by default for quick checkout
+            setSelectedRecords((fetched || []).map(r => r.id));
+        } catch (recErr) {
+            console.error('[Socket] Failed to fetch patient records for consent:', recErr);
+        } finally {
+            setIsFetchingRecords(false);
+        }
+    };
+
     // Connect/Disconnect based on global Auth State
     useEffect(() => {
         if (isAuthenticated) {
@@ -41,6 +60,36 @@ export const SocketProvider = ({ children }) => {
             if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
         };
     }, [isAuthenticated]);
+
+    // ROBUST FALLBACK POLLING: Poll for pending access requests every 10 seconds
+    useEffect(() => {
+        let intervalId = null;
+
+        const checkPendingAccess = async () => {
+            if (!isAuthenticated || showConsentModal) return;
+            try {
+                const pending = await ApiService.getPendingAccess();
+                if (pending && pending.length > 0) {
+                    console.log('[Socket Poller] Detected pending access request via poll. Triggering modal.');
+                    const firstRequest = pending[0];
+                    await openConsentModal(firstRequest);
+                }
+            } catch (err) {
+                console.warn('[Socket Poller] Failed to check pending access:', err.message || err);
+            }
+        };
+
+        if (isAuthenticated) {
+            // Check immediately on mount/auth state change
+            checkPendingAccess();
+            // Start periodic safety poll
+            intervalId = setInterval(checkPendingAccess, 10000);
+        }
+
+        return () => {
+            if (intervalId) clearInterval(intervalId);
+        };
+    }, [isAuthenticated, showConsentModal]);
 
     const connect = async () => {
         const latestToken = await SecurityUtils.getToken();
@@ -76,20 +125,7 @@ export const SocketProvider = ({ children }) => {
                     console.log('[Socket] Event:', data.type);
                     if (data.type === 'consent_request') {
                         const payload = data.payload || {};
-                        setConsentData(payload);
-                        setShowConsentModal(true);
-                        setIsFetchingRecords(true);
-                        
-                        try {
-                            const fetched = await ApiService.getRecords();
-                            setRecords(fetched || []);
-                            // Check all records by default for quick checkout
-                            setSelectedRecords((fetched || []).map(r => r.id));
-                        } catch (recErr) {
-                            console.error('[Socket] Failed to fetch patient records for consent:', recErr);
-                        } finally {
-                            setIsFetchingRecords(false);
-                        }
+                        await openConsentModal(payload);
                     }
                     setLastMessage(data);
                 } catch (e) {
@@ -174,7 +210,7 @@ export const SocketProvider = ({ children }) => {
     };
 
     return (
-        <SocketContext.Provider value={{ socket, lastMessage }}>
+        <SocketContext.Provider value={{ socket, lastMessage, openConsentModal }}>
             {children}
 
             {/* Global High-Fidelity Consent Modal */}

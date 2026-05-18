@@ -148,7 +148,7 @@ async def lookup_patient(
         DoctorAccess.status == "granted"
     )
     result = await db.execute(stmt)
-    existing_access = result.scalar_one_or_none()
+    existing_access = result.scalars().first()
 
     await log_audit_action(
         db=db,
@@ -401,7 +401,7 @@ async def get_patient_records(
         DoctorAccess.doctor_user_id == current_doctor.user_id,
         DoctorAccess.status == "granted"
     )
-    access = (await db.execute(stmt_a)).scalar_one_or_none()
+    access = (await db.execute(stmt_a)).scalars().first()
     
     if not access:
         raise HTTPException(status_code=403, detail="Clinical access not granted for this patient.")

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Typography, Button, IconButton, Chip, Avatar, Grid, Card, CardContent, Divider, TextField, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { Box, Typography, Button, IconButton, Chip, Avatar, Grid, Card, CardContent, Divider, TextField, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions, CircularProgress } from '@mui/material';
 import DOMPurify from 'dompurify';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSocket } from '../contexts/SocketContext';
@@ -13,6 +13,7 @@ import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import AddIcon from '@mui/icons-material/Add';
+import LockIcon from '@mui/icons-material/Lock';
 
 export default function PatientDetailView() {
     const { id } = useParams();
@@ -26,6 +27,10 @@ export default function PatientDetailView() {
     const [revocationDialogOpen, setRevocationDialogOpen] = useState(false);
     const [uploading, setUploading] = useState(false);
     const fileInputRef = React.useRef(null);
+
+    // Consent Access Request State
+    const [requestSent, setRequestSent] = useState(false);
+    const [isSendingRequest, setIsSendingRequest] = useState(false);
 
     const fetchPatient = async () => {
         setIsLoading(true);
@@ -61,12 +66,46 @@ export default function PatientDetailView() {
             setRevocationDialogOpen(true);
         }
 
-        if (lastMessage.type === 'patient_update') {
-            console.log("DEBUG: Real-time update received:", lastMessage);
+        if (lastMessage.type === 'patient_update' || lastMessage.type === 'access_granted') {
+            console.log("DEBUG: Real-time update/grant received:", lastMessage);
             fetchPatient();
             setToastOpen(true);
+            if (lastMessage.type === 'access_granted') {
+                setRequestSent(false); // Reset waiting screen state
+            }
         }
     }, [lastMessage]);
+
+    const handleRequestAccess = async () => {
+        setIsSendingRequest(true);
+        try {
+            const response = await fetch(`${API_BASE_URL}/doctor/scan-patient`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({
+                    hospyn_id: patient.profile.hospyn_id,
+                    clinic_name: "Hospyn Clinic",
+                    access_level: "full"
+                })
+            });
+
+            if (response.ok) {
+                setRequestSent(true);
+                setToastOpen(true);
+            } else {
+                const err = await response.json();
+                alert(err.detail || "Failed to submit request.");
+            }
+        } catch (error) {
+            console.error("Error requesting access:", error);
+            alert("Network error, please try again.");
+        } finally {
+            setIsSendingRequest(false);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -81,6 +120,128 @@ export default function PatientDetailView() {
             <Box sx={{ p: 4, textAlign: 'center' }}>
                 <Typography variant="h5">Patient not found or Access denied.</Typography>
                 <Button onClick={() => navigate('/patients')} sx={{ mt: 2 }}>Back to Patients</Button>
+            </Box>
+        );
+    }
+
+    if (patient.consent_required) {
+        return (
+            <Box sx={{ maxWidth: 800, mx: 'auto', mt: 8, pb: 8, px: 2 }}>
+                {/* Back to roster button */}
+                <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    mb: 4,
+                    p: 1.5,
+                    bgcolor: 'rgba(255,255,255,0.05)',
+                    backdropFilter: 'blur(10px)',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    width: 'fit-content'
+                }}>
+                    <IconButton onClick={() => navigate(-1)} sx={{ mr: 1, color: '#fff' }}>
+                        <ArrowBackIcon />
+                    </IconButton>
+                    <Typography variant="body1" fontWeight="900" sx={{ color: '#fff', pr: 2 }}>BACK TO ROSTER</Typography>
+                </Box>
+
+                <Card
+                    className="glass-card"
+                    elevation={0}
+                    sx={{
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        backdropFilter: 'blur(30px)',
+                        color: 'white',
+                        borderRadius: '40px',
+                        overflow: 'hidden',
+                        border: '1px solid rgba(255, 255, 255, 0.05)',
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
+                        position: 'relative',
+                        p: 6,
+                        textAlign: 'center'
+                    }}
+                >
+                    {/* Glowing lock container */}
+                    <Box sx={{ 
+                        width: 100, 
+                        height: 100, 
+                        borderRadius: '35%', 
+                        bgcolor: 'rgba(99, 102, 241, 0.1)', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        mx: 'auto', 
+                        mb: 4,
+                        border: '1px solid rgba(99, 102, 241, 0.3)',
+                        boxShadow: '0 0 40px rgba(99, 102, 241, 0.2)'
+                    }}>
+                        <LockIcon sx={{ color: '#6366f1', fontSize: 45 }} />
+                    </Box>
+
+                    <Typography variant="h3" sx={{ fontWeight: 900, fontFamily: 'Outfit', mb: 2, letterSpacing: '-1.5px' }}>
+                        Medical Vault Locked
+                    </Typography>
+
+                    <Typography variant="body1" sx={{ color: '#64748b', maxWidth: 500, mx: 'auto', mb: 4, lineHeight: 1.8, fontSize: '1.05rem' }}>
+                        You do not have access to this patient's medical records yet. Please request consent to view their medical history, AI summaries, and clinical encounters.
+                    </Typography>
+
+                    {/* Patient Context Card */}
+                    <Box sx={{ 
+                        p: 3, 
+                        bgcolor: 'rgba(255,255,255,0.01)', 
+                        border: '1px solid rgba(255,255,255,0.05)', 
+                        borderRadius: '24px', 
+                        maxWidth: 450, 
+                        mx: 'auto', 
+                        mb: 5 
+                    }}>
+                        <Typography variant="caption" sx={{ color: '#475569', fontWeight: 800, display: 'block', mb: 0.5, letterSpacing: 1 }}>PATIENT IDENTITY</Typography>
+                        <Typography variant="h5" sx={{ fontWeight: 800, color: '#fff', mb: 1 }}>{patient.profile.name}</Typography>
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace', color: '#0d9488', fontWeight: 700 }}>{patient.profile.hospyn_id}</Typography>
+                    </Box>
+
+                    {requestSent ? (
+                        <Box sx={{ py: 2 }}>
+                            <Box sx={{ position: 'relative', display: 'inline-flex', mb: 3 }}>
+                                <CircularProgress size={60} thickness={2} sx={{ color: '#0d9488' }} />
+                            </Box>
+                            <Typography variant="h5" sx={{ fontWeight: 900, color: '#2dd4bf', mb: 1, letterSpacing: '-0.5px' }}>
+                                Awaiting Patient Approval...
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: '#64748b', maxWidth: 400, mx: 'auto' }}>
+                                A secure request was sent to {patient.profile.name}'s Hospyn app. Ask them to verify and click <strong>Approve</strong>.
+                            </Typography>
+                        </Box>
+                    ) : (
+                        <Button
+                            variant="contained"
+                            disabled={isSendingRequest}
+                            onClick={handleRequestAccess}
+                            sx={{
+                                bgcolor: '#6366f1',
+                                color: '#fff',
+                                px: 6,
+                                py: 2.2,
+                                borderRadius: '20px',
+                                '&:hover': { bgcolor: '#4f46e5', transform: 'translateY(-2px)' },
+                                fontWeight: 900,
+                                textTransform: 'none',
+                                transition: 'all 0.2s',
+                                fontSize: '1.1rem',
+                                boxShadow: '0 10px 25px rgba(99, 102, 241, 0.4)'
+                            }}
+                        >
+                            {isSendingRequest ? 'Sending Request...' : 'Request Vault Access'}
+                        </Button>
+                    )}
+                </Card>
+
+                <Snackbar open={toastOpen} autoHideDuration={3000} onClose={() => setToastOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+                    <Alert onClose={() => setToastOpen(false)} severity="success" sx={{ width: '100%', fontWeight: 'bold' }}>
+                        Consent request dispatched to patient app ✓
+                    </Alert>
+                </Snackbar>
             </Box>
         );
     }
