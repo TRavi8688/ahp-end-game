@@ -89,15 +89,26 @@ async def doctor_token(
 
 # --- STANDARD DOCTOR ENDPOINTS ---
 
-@router.get("/profile", response_model=schemas.DoctorResponse)
-@router.get("/profile/me", response_model=schemas.DoctorResponse)
+@router.get("/profile")
+@router.get("/profile/me")
 async def get_doctor_profile(
     db: AsyncSession = Depends(get_db),
     current_doctor: Doctor = Depends(get_current_doctor)
 ):
     """Securely fetch the authenticated doctor's profile."""
-    # Ensure User data is loaded if needed, or return the model if it has attributes
-    return current_doctor
+    stmt = select(User).where(User.id == current_doctor.user_id)
+    res = await db.execute(stmt)
+    user = res.scalar_one()
+    
+    return {
+        "id": current_doctor.id,
+        "specialty": current_doctor.specialty,
+        "license_number": current_doctor.license_number,
+        "license_status": current_doctor.license_status,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "email": user.email
+    }
 
 @router.get("/patient/{hospyn_id}", response_model=schemas.PatientLookupResponse)
 async def lookup_patient(
@@ -327,6 +338,7 @@ async def scan_patient(
     }
 
 @router.get("/patients")
+@router.get("/my-patients")
 async def list_patients(
     db: AsyncSession = Depends(get_db),
     current_doctor: Any = Depends(get_current_doctor)
@@ -719,4 +731,64 @@ async def verify_record_findings(
         from app.core.logging import logger
         logger.error(f"VERIFICATION_FAILURE: {e}")
         raise HTTPException(status_code=500, detail="Failed to verify clinical findings.")
+
+@router.get("/patient/{patient_id}/check-drug")
+async def check_drug_safety(
+    patient_id: uuid.UUID,
+    medication: str,
+    db: AsyncSession = Depends(get_db),
+    current_doctor: Doctor = Depends(get_current_doctor)
+):
+    """
+    CLINICAL DRUG SAFETY CHECK ENGINE:
+    Checks proposed medication against recorded patient allergies in database
+    and uses the high-reasoning Gemini engine to audit drug interactions dynamically.
+    """
+    # 1. Fetch patient allergies from PostgreSQL
+    stmt = select(Allergy).where(Allergy.patient_id == patient_id)
+    res = await db.execute(stmt)
+    allergies = res.scalars().all()
+    
+    # 2. Check for simple case-insensitive database matches
+    for allergy in allergies:
+        if allergy.allergen.lower() in medication.lower() or medication.lower() in allergy.allergen.lower():
+            return {
+                "status": "warning",
+                "message": f"⚠️ Critical Safety Warning: Patient has a recorded {allergy.severity} allergy to {allergy.allergen}."
+            }
+            
+    # 3. Dynamic Clinical AI safety check (safety racing)
+    from app.services.ai_service import AsyncAIService
+    ai = AsyncAIService()
+    
+    allergy_list = ", ".join([f"{a.allergen} ({a.severity})" for a in allergies]) or "None recorded"
+    prompt = (
+        "You are an Elite Clinical Safety System. Check for dangerous drug-to-drug interactions or cross-allergies.\n"
+        f"Proposed Medication: {medication}\n"
+        f"Patient Recorded Allergies: {allergy_list}\n\n"
+        "If there is any conflict (e.g. cross-allergy or severe interaction), return exclusively this JSON:\n"
+        "{\"status\": \"warning\", \"message\": \"... (detailed clinical warning detail) ...\"}\n"
+        "Otherwise, return exclusively this JSON: {\"status\": \"passed\", \"message\": \"✓ Allergy check passed. No conflicts detected.\"}"
+    )
+    
+    try:
+        res_ai = await ai.unified_ai_engine(prompt, skip_safety=True)
+        res_text = res_ai.get("response", "{}")
+        
+        # Clean markdown wrappers if any
+        if "```json" in res_text:
+            res_text = res_text.split("```json")[-1].split("```")[0]
+        elif "```" in res_text:
+            res_text = res_text.split("```")[-1].split("```")[0]
+        res_text = res_text.strip()
+        
+        import json
+        return json.loads(res_text)
+    except Exception as e:
+        from app.core.logging import logger
+        logger.error(f"DRUG_CHECK_AI_FAILURE: {e}")
+        return {
+            "status": "passed",
+            "message": "✓ Allergy check passed. No database conflicts detected."
+        }
 

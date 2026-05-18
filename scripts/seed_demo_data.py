@@ -5,13 +5,16 @@ import sys
 # Add the parent directory to the path so we can import our app modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from app.core.database import AsyncSessionLocal
-from app.models.models import User, Patient, StaffProfile, Hospital
+from app.core.database import get_writer_engine
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import sessionmaker
+from app.models.models import User, Patient, Hospital, Doctor, StaffProfile
 from app.core.security import get_password_hash
 from sqlalchemy import select
 
 async def seed_demo():
-    db = AsyncSessionLocal()
+    engine = get_writer_engine()
+    db = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)()
     try:
         print("[SEED] Seeding demo accounts...")
         
@@ -38,7 +41,9 @@ async def seed_demo():
                 email=patient_email,
                 hashed_password=get_password_hash("Hospyn123!"),
                 is_active=True,
-                role="patient"
+                role="patient",
+                first_name="Rahul",
+                last_name="Sharma"
             )
             db.add(user)
             await db.flush()
@@ -64,16 +69,27 @@ async def seed_demo():
                 email=doctor_email,
                 hashed_password=get_password_hash("Hospyn123!"),
                 is_active=True,
-                role="doctor"
+                role="doctor",
+                first_name="Mulajna",
+                last_name="Surgeon"
             )
             db.add(user)
             await db.flush()
             
-            profile = StaffProfile(
+            staff_profile = StaffProfile(
                 user_id=user.id,
                 hospital_id=hospital.id
             )
-            db.add(profile)
+            db.add(staff_profile)
+            
+            doctor_profile = Doctor(
+                user_id=user.id,
+                specialty="Cardiovascular Surgery",
+                license_number="LIC-SURGEON-8888",
+                license_status="verified"
+            )
+            db.add(doctor_profile)
+            
             await db.commit()
             print(f"[SEED] Demo Doctor Created: doctor@hospyn.com / Hospyn123!")
         else:
