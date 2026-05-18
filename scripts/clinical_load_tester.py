@@ -4,9 +4,9 @@ import time
 import random
 
 # CONFIGURATION
-API_BASE = "https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1"
-CONCURRENT_USERS = 20
-TEST_DURATION_SECONDS = 30
+API_BASE = "https://hospyn-api-625745217419.asia-south1.run.app/api/v1"
+CONCURRENT_USERS = 15
+TEST_DURATION_SECONDS = 15
 TOKEN = "" 
 
 class ClinicalLoadTester:
