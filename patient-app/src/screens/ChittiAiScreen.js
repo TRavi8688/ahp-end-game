@@ -50,26 +50,14 @@ export default function ChittiAiScreen() {
                 const name = resp.data.full_name?.split(' ')[0] || 'there';
                 setUserName(name);
                 
-                // Fetch history if available
-                const historyResp = await axios.get(`${API_BASE_URL}/patient/chat-history`, { headers });
-                
-                if (historyResp.data.length > 0) {
-                    const formatted = historyResp.data.map((m, i) => ({
-                        id: i.toString(),
-                        sender: m.sender,
-                        text: m.message_text,
-                        timestamp: m.created_at
-                    }));
-                    setMessages(formatted);
-                } else {
-                    setMessages([
-                        { 
-                            id: 'welcome', 
-                            sender: 'ai', 
-                            text: `Namaste ${name}! 🌿 I am Chitti, your clinical neural companion. I have established a secure bridge with your health ledger. How can I assist you today?` 
-                        }
-                    ]);
-                }
+                // Start clean session by default
+                setMessages([
+                    { 
+                        id: 'welcome', 
+                        sender: 'ai', 
+                        text: `Namaste ${name}! 🌿 I am Chitti, your clinical neural companion. I have established a secure bridge with your health ledger. How can I assist you today?` 
+                    }
+                ]);
             } catch (e) {
                 console.error("Context Error:", e);
                 setMessages([{ id: '1', sender: 'ai', text: 'Identity bridge active. How can I assist your clinical journey today?' }]);

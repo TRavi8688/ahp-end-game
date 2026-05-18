@@ -1,15 +1,22 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import QRCode from 'react-native-qrcode-svg';
 import { useAuth } from '../contexts/AuthContext';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, getTheme, subscribeToTheme } from '../theme';
 import { HapticUtils } from '../utils/haptics';
 
 export default function ShareDoctorScreen({ navigation }) {
     const { user } = useAuth();
     const hospynId = user?.hospyn_id || 'HOSPYN-ID-PENDING';
+    const [theme, setThemeState] = useState(getTheme());
+
+    useEffect(() => {
+        return subscribeToTheme((newTheme) => {
+            setThemeState(newTheme);
+        });
+    }, []);
 
     const handleShare = async () => {
         HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Light);
@@ -24,7 +31,7 @@ export default function ShareDoctorScreen({ navigation }) {
 
     return (
         <View style={GlobalStyles.screen}>
-            <LinearGradient colors={['#0F172A', '#050810']} style={styles.header}>
+            <LinearGradient colors={Theme.colors.primary === '#7C3AED' ? ['#7C3AED', '#4F46E5'] : ['#0F172A', '#050810']} style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
@@ -36,16 +43,16 @@ export default function ShareDoctorScreen({ navigation }) {
                 <Text style={styles.infoText}>Show this QR code to your doctor to grant them instant, secure access to your medical history.</Text>
                 
                 <View style={[styles.qrContainer, GlobalStyles.glass]}>
-                    <View style={styles.qrInner}>
+                    <View style={[styles.qrInner, { backgroundColor: Theme.colors.primary === '#7C3AED' ? '#FFFFFF' : 'rgba(255,255,255,0.05)' }]}>
                         <QRCode
                             value={hospynId}
                             size={200}
-                            color="#fff"
+                            color={Theme.colors.primary === '#7C3AED' ? '#0F172A' : '#ffffff'}
                             backgroundColor="transparent"
                         />
                     </View>
                     <Text style={styles.idLabel}>YOUR CLINICAL IDENTITY</Text>
-                    <Text style={styles.idValue}>{hospynId}</Text>
+                    <Text style={[styles.idValue, { color: Theme.colors.text }]}>{hospynId}</Text>
                 </View>
 
                 <TouchableOpacity style={styles.shareBtn} onPress={handleShare}>

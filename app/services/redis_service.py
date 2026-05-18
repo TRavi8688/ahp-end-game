@@ -42,8 +42,6 @@ class RedisService:
                 )
             except Exception as e:
                 logger.error(f"REDIS_CONNECTION_FAILURE: {e}")
-                if settings.ENVIRONMENT == "production":
-                    raise RedisConnectionError(f"Could not connect to Redis: {e}")
                 return None
 
         return self._client
@@ -55,7 +53,6 @@ class RedisService:
             await client.setex(key, expire, value)
         except Exception as e:
             logger.error(f"REDIS_WRITE_ERROR: {e}")
-            if settings.ENVIRONMENT == "production": raise RedisConnectionError(e)
 
     async def get(self, key: str) -> Optional[str]:
         client = self.get_client()
@@ -64,7 +61,6 @@ class RedisService:
             return await client.get(key)
         except Exception as e:
             logger.error(f"REDIS_READ_ERROR: {e}")
-            if settings.ENVIRONMENT == "production": raise RedisConnectionError(e)
             return None
 
     async def delete(self, key: str):
@@ -72,8 +68,8 @@ class RedisService:
         if client:
             try:
                 await client.delete(key)
-            except Exception:
-                if settings.ENVIRONMENT == "production": raise
+            except Exception as e:
+                logger.error(f"REDIS_DELETE_ERROR: {e}")
 
     async def set_nx(self, key: str, value: str, expire: int = 30) -> bool:
         """STRICTLY ATOMIC SET-IF-NOT-EXISTS."""

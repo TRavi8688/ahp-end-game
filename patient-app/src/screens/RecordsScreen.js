@@ -6,7 +6,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
 import ApiService from '../utils/ApiService';
 import { useSocket } from '../contexts/SocketContext';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, getTheme, subscribeToTheme } from '../theme';
 import HapticUtils from '../utils/HapticUtils';
 
 export default function RecordsScreen({ navigation }) {
@@ -16,6 +16,13 @@ export default function RecordsScreen({ navigation }) {
     const [refreshing, setRefreshing] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState(null);
     const [showDetail, setShowDetail] = useState(false);
+    const [theme, setThemeState] = useState(getTheme());
+
+    useEffect(() => {
+        return subscribeToTheme((newTheme) => {
+            setThemeState(newTheme);
+        });
+    }, []);
 
     const fetchRecords = async () => {
         try {
@@ -86,9 +93,8 @@ export default function RecordsScreen({ navigation }) {
     };
 
     const isAnalyzing = (item) => {
-        if (!item) return false;
-        return item.raw_text === '[PIPELINE_ANALYSIS_STAGED]' || 
-               item.ai_summary === 'Chitti is decoding your clinical data...';
+        return item?.raw_text === '[PIPELINE_ANALYSIS_STAGED]' || 
+               item?.ai_summary === 'Chitti is decoding your clinical data...';
     };
 
     const renderItem = ({ item, index }) => {
@@ -109,12 +115,12 @@ export default function RecordsScreen({ navigation }) {
                     </View>
                     <View style={styles.recordMain}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={styles.recordTitle} numberOfLines={1}>{item.record_name || 'Medical Record'}</Text>
+                            <Text style={[styles.recordTitle, { color: Theme.colors.text }]} numberOfLines={1}>{item.record_name || 'Medical Record'}</Text>
                             {!item.needs_verification && !analyzing && (
                                 <Ionicons name="checkmark-shield" size={14} color="#10B981" />
                             )}
                         </View>
-                        <Text style={styles.recordSub}>{item.hospital_name || 'Hospyn Network'}</Text>
+                        <Text style={[styles.recordSub, { color: Theme.colors.textMuted }]}>{item.hospital_name || 'Hospyn Network'}</Text>
                         
                         {analyzing ? (
                             <View style={styles.analyzingBadge}>
@@ -122,7 +128,7 @@ export default function RecordsScreen({ navigation }) {
                                 <Text style={styles.analyzingText}>Chitti AI Ingesting...</Text>
                             </View>
                         ) : (
-                            <Text style={styles.recordSummaryLine} numberOfLines={1}>
+                            <Text style={[styles.recordSummaryLine, { color: Theme.colors.textMuted }]} numberOfLines={1}>
                                 {item.ai_summary || 'No summary available.'}
                             </Text>
                         )}
@@ -146,10 +152,10 @@ export default function RecordsScreen({ navigation }) {
 
     return (
         <View style={GlobalStyles.screen}>
-            <LinearGradient colors={['#0F172A', '#050810']} style={styles.header}>
+            <LinearGradient colors={Theme.colors.primary === '#7C3AED' ? ['#7C3AED', '#4F46E5'] : ['#0F172A', '#050810']} style={styles.header}>
                 <View>
                     <Text style={styles.headerTitle}>CLINICAL VAULT</Text>
-                    <Text style={styles.headerSub}>End-to-End Encrypted Records</Text>
+                    <Text style={[styles.headerSub, { color: 'rgba(255, 255, 255, 0.7)' }]}>End-to-End Encrypted Records</Text>
                 </View>
                 <TouchableOpacity style={styles.uploadBtn} onPress={() => { HapticUtils.light(); navigation.navigate('Upload'); }}>
                     <Ionicons name="cloud-upload" size={18} color="#fff" />
@@ -160,7 +166,7 @@ export default function RecordsScreen({ navigation }) {
             {isLoading ? (
                 <View style={styles.loader}>
                     <ActivityIndicator color={Theme.colors.primary} size="large" />
-                    <Text style={styles.loaderText}>Syncing Clinical Ledger...</Text>
+                    <Text style={[styles.loaderText, { color: Theme.colors.textMuted }]}>Syncing Clinical Ledger...</Text>
                 </View>
             ) : (
                 <FlatList
@@ -176,12 +182,12 @@ export default function RecordsScreen({ navigation }) {
                             <View style={styles.chittiBox}>
                                 <Ionicons name="sparkles" size={40} color={Theme.colors.primary} />
                             </View>
-                            <Text style={styles.emptyTitle}>Vault is Empty</Text>
-                            <Text style={styles.emptySub}>
+                            <Text style={[styles.emptyTitle, { color: Theme.colors.text }]}>Vault is Empty</Text>
+                            <Text style={[styles.emptySub, { color: Theme.colors.textMuted }]}>
                                 "Hello! I am Chitti. Your clinical vault is ready for ingestion. 
                                 Upload your prescriptions or lab reports to begin my neural analysis."
                             </Text>
-                            <TouchableOpacity style={styles.emptyAction} onPress={() => navigation.navigate('Upload')}>
+                            <TouchableOpacity style={[styles.emptyAction, { backgroundColor: Theme.colors.primary, shadowColor: Theme.colors.primary }]} onPress={() => navigation.navigate('Upload')}>
                                 <Text style={styles.emptyActionText}>DIGITALIZE FIRST RECORD</Text>
                             </TouchableOpacity>
                         </Animated.View>
@@ -190,12 +196,12 @@ export default function RecordsScreen({ navigation }) {
             )}
 
             <Modal visible={showDetail} animationType="slide" transparent={true}>
-                <View style={styles.modalOverlay}>
-                    <View style={[styles.modalContent, { backgroundColor: '#0F172A' }]}>
+                <View style={[styles.modalOverlay, { backgroundColor: Theme.colors.primary === '#7C3AED' ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.9)' }]}>
+                    <View style={[styles.modalContent, { backgroundColor: Theme.colors.background }]}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Record Detail</Text>
+                            <Text style={[styles.modalTitle, { color: Theme.colors.text }]}>Record Detail</Text>
                             <TouchableOpacity onPress={() => setShowDetail(false)}>
-                                <Ionicons name="close" size={28} color="#fff" />
+                                <Ionicons name="close" size={28} color={Theme.colors.text} />
                             </TouchableOpacity>
                         </View>
                         <ScrollView showsVerticalScrollIndicator={false}>
@@ -231,8 +237,8 @@ export default function RecordsScreen({ navigation }) {
                                 {isAnalyzing(selectedRecord) ? (
                                     <View style={styles.modalAnalyzingCard}>
                                         <ActivityIndicator size="large" color="#7c3aed" style={{ marginBottom: 12 }} />
-                                        <Text style={styles.modalAnalyzingTitle}>Chitti AI is Deciphering...</Text>
-                                        <Text style={styles.modalAnalyzingSub}>
+                                        <Text style={[styles.modalAnalyzingTitle, { color: Theme.colors.text }]}>Chitti AI is Deciphering...</Text>
+                                        <Text style={[styles.modalAnalyzingSub, { color: Theme.colors.textMuted }]}>
                                             Chitti AI's neural vision models are actively parsing this prescription/lab report. We are extracting medications, dosages, clinical findings, and medical terms.
                                             
                                             This vault detail will automatically update with an easy-to-read summary once ingestion is finished. Pull down to refresh your ledger!
@@ -240,24 +246,24 @@ export default function RecordsScreen({ navigation }) {
                                     </View>
                                 ) : (
                                     <>
-                                        <Text style={styles.summaryText}>{selectedRecord?.ai_summary || 'No summary available.'}</Text>
+                                        <Text style={[styles.summaryText, { color: Theme.colors.text }]}>{selectedRecord?.ai_summary || 'No summary available.'}</Text>
                                         
                                         <View style={styles.infoRow}>
                                             <View style={styles.infoItem}>
                                                 <Text style={styles.label}>FACILITY</Text>
-                                                <Text style={styles.infoValue}>{selectedRecord?.hospital_name || 'N/A'}</Text>
+                                                <Text style={[styles.infoValue, { color: Theme.colors.text }]}>{selectedRecord?.hospital_name || 'N/A'}</Text>
                                             </View>
                                             <View style={styles.infoItem}>
                                                 <Text style={styles.label}>DATE</Text>
-                                                <Text style={styles.infoValue}>{formatFullDate(selectedRecord?.created_at)}</Text>
+                                                <Text style={[styles.infoValue, { color: Theme.colors.text }]}>{formatFullDate(selectedRecord?.created_at)}</Text>
                                             </View>
                                         </View>
 
                                         {selectedRecord?.raw_text && selectedRecord.raw_text !== '[PIPELINE_ANALYSIS_STAGED]' && (
                                             <View style={{ marginTop: 20 }}>
                                                 <Text style={styles.label}>RAW DATA EXTRACTED</Text>
-                                                <View style={styles.rawBox}>
-                                                    <Text style={styles.rawText}>{selectedRecord.raw_text}</Text>
+                                                <View style={[styles.rawBox, { backgroundColor: Theme.colors.primary === '#7C3AED' ? '#F1F5F9' : 'rgba(0,0,0,0.3)', borderColor: Theme.colors.border, borderWidth: 1 }]}>
+                                                    <Text style={[styles.rawText, { color: Theme.colors.text }]}>{selectedRecord.raw_text}</Text>
                                                 </View>
                                             </View>
                                         )}
