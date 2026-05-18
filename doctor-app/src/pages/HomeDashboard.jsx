@@ -64,35 +64,49 @@ export default function HomeDashboard({ onOpenScan }) {
     const urgentAlertsCount = stats.alerts_count;
 
     return (
-        <Box sx={{ maxWidth: 1400, mx: 'auto', px: 4, pt: 6 }} className="animate-fade-in">
+        <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, pt: 4, pb: 6 }} className="animate-fade-in">
             {/* Header */}
-            <Box sx={{ mb: 8 }}>
-                <Typography 
-                    variant="h2" 
+            <Box sx={{ mb: 6, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, gap: 2 }}>
+                <Box>
+                    <Typography 
+                        variant="h3" 
+                        sx={{ 
+                            fontWeight: 900, 
+                            color: '#fff', 
+                            fontFamily: 'Syne', 
+                            letterSpacing: '-0.04em',
+                            mb: 1
+                        }}
+                    >
+                        {profile ? `Dr. ${profile.last_name}` : 'Clinical Commander'}
+                    </Typography>
+                    <Typography variant="body1" sx={{ color: '#64748b', fontWeight: 600, letterSpacing: -0.2 }}>
+                        Secure session active · <span style={{ color: '#0d9488', fontWeight: 800 }}>{appointmentsToday}</span> consults pending · <span style={{ color: '#10b981', fontWeight: 800 }}>Ecosystem Synchronized</span>
+                    </Typography>
+                </Box>
+                <Chip 
+                    label="HOSPYN SECURE SHELL" 
+                    variant="outlined" 
                     sx={{ 
-                        fontWeight: 900, 
-                        color: '#fff', 
-                        fontFamily: 'Outfit', 
-                        letterSpacing: '-0.04em',
-                        mb: 1
-                    }}
-                >
-                    {profile ? `Dr. ${profile.last_name}` : 'Clinical Commander'}
-                </Typography>
-                <Typography variant="h6" sx={{ color: '#64748b', fontWeight: 500, letterSpacing: -0.5 }}>
-                    Secure session active · <span style={{ color: '#6366f1' }}>{appointmentsToday}</span> consults pending · <span style={{ color: '#10b981' }}>Ecosystem Synchronized</span>
-                </Typography>
+                        borderColor: 'rgba(13, 148, 136, 0.3)', 
+                        color: '#0d9488', 
+                        fontFamily: 'Space Mono', 
+                        fontWeight: 700,
+                        bgcolor: 'rgba(13, 148, 136, 0.05)',
+                        px: 1
+                    }} 
+                />
             </Box>
-
+ 
             {/* Stats Grid */}
-            <Grid container spacing={4} sx={{ mb: 8 }}>
+            <Grid container spacing={3} sx={{ mb: 6 }}>
                 <Grid item xs={12} sm={6} md={3}>
                     <StatCard
                         title="Today's Load"
                         value={appointmentsToday}
                         change="REAL-TIME"
                         color="#6366f1"
-                        icon={<EventIcon fontSize="large" />}
+                        icon={<EventIcon sx={{ fontSize: 40 }} />}
                     />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
@@ -101,7 +115,7 @@ export default function HomeDashboard({ onOpenScan }) {
                         value={stats.patients_count}
                         change="SECURE"
                         color="#0ea5e9"
-                        icon={<PeopleIcon fontSize="large" />}
+                        icon={<PeopleIcon sx={{ fontSize: 40 }} />}
                     />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
@@ -110,7 +124,7 @@ export default function HomeDashboard({ onOpenScan }) {
                         value={pendingPrescriptions}
                         change="ACTION REQ"
                         color="#f59e0b"
-                        icon={<MedicationIcon fontSize="large" />}
+                        icon={<MedicationIcon sx={{ fontSize: 40 }} />}
                     />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
@@ -119,37 +133,37 @@ export default function HomeDashboard({ onOpenScan }) {
                         value={urgentAlertsCount}
                         change={urgentAlertsCount === 0 ? "STABLE" : "URGENT"}
                         color={urgentAlertsCount === 0 ? "#10b981" : "#ef4444"}
-                        icon={<WarningAmberIcon fontSize="large" />}
+                        icon={<WarningAmberIcon sx={{ fontSize: 40 }} />}
                     />
                 </Grid>
             </Grid>
-
+ 
             {/* Two-column section */}
-            <Grid container spacing={3} sx={{ mb: 4 }}>
+            <Grid container spacing={4}>
                 {/* Left Column: Today's Appointments */}
-                <Grid item xs={12} md={7} lg={8}>
-                    <Card elevation={0} sx={{ background: 'rgba(255,255,255,0.02)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.05)', height: '100%', borderRadius: '24px' }}>
-                        <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                            <Typography variant="h6" sx={{ fontWeight: 800, color: '#fff', fontFamily: 'Outfit', letterSpacing: '-0.01em' }}>Recent Consultations</Typography>
+                <Grid item xs={12} lg={8}>
+                    <Card elevation={0} sx={{ background: 'rgba(255,255,255,0.01)', backdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.05)', height: '100%', borderRadius: '24px', boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)' }}>
+                        <Box sx={{ p: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                            <Typography variant="h6" sx={{ fontWeight: 800, color: '#fff', fontFamily: 'Syne', letterSpacing: '-0.01em' }}>Recent Consultations</Typography>
                             <Button
-                                endIcon={<ArrowForwardIosIcon sx={{ fontSize: 12 }} />}
+                                endIcon={<ArrowForwardIosIcon sx={{ fontSize: 10 }} />}
                                 onClick={() => navigate('/patients')}
-                                sx={{ textTransform: 'none', fontWeight: 700, px: 2, borderRadius: '12px', color: '#0d9488' }}
+                                sx={{ textTransform: 'none', fontWeight: 800, px: 2.5, py: 1, borderRadius: '12px', color: '#0d9488', border: '1px solid rgba(13, 148, 136, 0.2)', '&:hover': { bgcolor: 'rgba(13, 148, 136, 0.05)' } }}
                             >
-                                Explorer All
+                                Explore All
                             </Button>
                         </Box>
-                        <Box>
+                        <Box sx={{ p: 2 }}>
                             {isLoading ? (
-                                <Box sx={{ p: 4, textAlign: 'center' }}>
-                                    <Typography color="#64748b" fontWeight={600}>Loading high-fidelity data...</Typography>
+                                <Box sx={{ p: 8, textAlign: 'center' }}>
+                                    <Typography color="#64748b" sx={{ fontFamily: 'Space Mono', fontWeight: 700 }}>LOADING HIGH-FIDELITY DATA...</Typography>
                                 </Box>
                             ) : patients.length === 0 ? (
-                                <Box sx={{ p: 4, textAlign: 'center' }}>
-                                    <Typography color="#64748b" fontWeight={600}>No active clinical encounters recorded today.</Typography>
+                                <Box sx={{ p: 8, textAlign: 'center' }}>
+                                    <Typography color="#64748b" sx={{ fontWeight: 600 }}>No active clinical encounters recorded today.</Typography>
                                 </Box>
                             ) : (
-                                patients.slice(0, 5).map((p) => (
+                                patients.slice(0, 6).map((p) => (
                                     <AppointmentRow
                                         key={p.hospyn_id}
                                         name={p.name}
@@ -164,74 +178,76 @@ export default function HomeDashboard({ onOpenScan }) {
                         </Box>
                     </Card>
                 </Grid>
-
+ 
                 {/* Right Column: Quick Actions & Stats */}
-                <Grid item xs={12} md={5} lg={4}>
-                    {/* Quick Actions Card */}
-                    <Card elevation={0} sx={{ background: 'rgba(255,255,255,0.02)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.05)', mb: 3, borderRadius: '24px' }}>
-                        <Box sx={{ p: 3, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                            <Typography variant="h6" sx={{ fontWeight: 800, color: '#fff', fontFamily: 'Outfit', letterSpacing: '-0.01em' }}>Quick Actions</Typography>
-                        </Box>
-                        <Box sx={{ p: 2.5 }}>
-                            <Grid container spacing={2}>
-                                <Grid item xs={6}>
-                                    <QuickActionButton
-                                        label="Scan QR"
-                                        icon={<QrCodeScannerIcon />}
-                                        onClick={onOpenScan}
-                                        color="#0d9488"
-                                    />
+                <Grid item xs={12} lg={4}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {/* Quick Actions Card */}
+                        <Card elevation={0} sx={{ background: 'rgba(255,255,255,0.01)', backdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '24px', boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)' }}>
+                            <Box sx={{ p: 3, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <Typography variant="h6" sx={{ fontWeight: 800, color: '#fff', fontFamily: 'Syne', letterSpacing: '-0.01em' }}>Quick Actions</Typography>
+                            </Box>
+                            <Box sx={{ p: 3 }}>
+                                <Grid container spacing={2.5}>
+                                    <Grid item xs={6}>
+                                        <QuickActionButton
+                                            label="Scan QR"
+                                            icon={<QrCodeScannerIcon />}
+                                            onClick={onOpenScan}
+                                            color="#0d9488"
+                                        />
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <QuickActionButton
+                                            label="Write Rx"
+                                            icon={<MedicationIcon />}
+                                            onClick={() => navigate('/prescriptions')}
+                                            color="#6366f1"
+                                        />
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <QuickActionButton
+                                            label="Emergency"
+                                            icon={<LocalHospitalIcon />}
+                                            onClick={() => { }} 
+                                            color="#ef4444"
+                                        />
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <QuickActionButton
+                                            label="Vault"
+                                            icon={<FolderSharedIcon />}
+                                            onClick={() => navigate('/history')}
+                                            color="#8b5cf6"
+                                        />
+                                    </Grid>
                                 </Grid>
-                                <Grid item xs={6}>
-                                    <QuickActionButton
-                                        label="Write Rx"
-                                        icon={<MedicationIcon />}
-                                        onClick={() => navigate('/prescriptions')}
-                                        color="#6366f1"
-                                    />
+                            </Box>
+                        </Card>
+ 
+                        {/* Today's Patient Stats Card */}
+                        <Card elevation={0} sx={{ background: 'rgba(255,255,255,0.01)', backdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '24px', boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)' }}>
+                            <Box sx={{ p: 3, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                <Typography variant="h6" sx={{ fontWeight: 800, color: '#fff', fontFamily: 'Syne', letterSpacing: '-0.01em' }}>Real-time Stats</Typography>
+                            </Box>
+                            <Box sx={{ p: 4 }}>
+                                <Grid container rowSpacing={4} columnSpacing={2}>
+                                    <Grid item xs={6}>
+                                        <MiniStat label="Encounters" value={stats.patients_count} />
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <MiniStat label="Flags" value={stats.alerts_count} color={stats.alerts_count > 0 ? "#ef4444" : "#10b981"} />
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <MiniStat label="Authored Rx" value={stats.pending_rx_count} />
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <MiniStat label="Queue Status" value="Optimal" color="#0d9488" />
+                                    </Grid>
                                 </Grid>
-                                <Grid item xs={6}>
-                                    <QuickActionButton
-                                        label="Emergency"
-                                        icon={<LocalHospitalIcon />}
-                                        onClick={() => { }} 
-                                        color="#ef4444"
-                                    />
-                                </Grid>
-                                <Grid item xs={6}>
-                                    <QuickActionButton
-                                        label="Vault"
-                                        icon={<FolderSharedIcon />}
-                                        onClick={() => navigate('/history')}
-                                        color="#8b5cf6"
-                                    />
-                                </Grid>
-                            </Grid>
-                        </Box>
-                    </Card>
-
-                    {/* Today's Patient Stats Card */}
-                    <Card elevation={0} sx={{ background: 'rgba(255,255,255,0.02)', backdropFilter: 'blur(24px)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '24px' }}>
-                        <Box sx={{ p: 3, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                            <Typography variant="h6" sx={{ fontWeight: 800, color: '#fff', fontFamily: 'Outfit', letterSpacing: '-0.01em' }}>Real-time Stats</Typography>
-                        </Box>
-                        <Box sx={{ p: 3 }}>
-                            <Grid container rowSpacing={3} columnSpacing={2}>
-                                <Grid item xs={6}>
-                                    <MiniStat label="Encounters" value={stats.patients_count} />
-                                </Grid>
-                                <Grid item xs={6}>
-                                    <MiniStat label="Flags" value={stats.alerts_count} color={stats.alerts_count > 0 ? "#ef4444" : "#10b981"} />
-                                </Grid>
-                                <Grid item xs={6}>
-                                    <MiniStat label="Authored Rx" value={stats.pending_rx_count} />
-                                </Grid>
-                                <Grid item xs={6}>
-                                    <MiniStat label="Queue Status" value="Optimal" color="#0d9488" />
-                                </Grid>
-                            </Grid>
-                        </Box>
-                    </Card>
+                            </Box>
+                        </Card>
+                    </Box>
                 </Grid>
             </Grid>
 

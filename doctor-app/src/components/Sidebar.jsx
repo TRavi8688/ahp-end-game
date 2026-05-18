@@ -108,33 +108,34 @@ export default function Sidebar({ onOpenScan }) {
             <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                     <Box sx={{ 
-                        width: 40, 
-                        height: 40, 
-                        background: 'linear-gradient(135deg, #0d9488 0%, #064e4b 100%)', 
-                        borderRadius: '12px', 
+                        width: 44, 
+                        height: 44, 
+                        background: 'linear-gradient(135deg, #0f172a 0%, #050810 100%)', 
+                        borderRadius: '14px', 
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center', 
                         mr: 1.5,
-                        boxShadow: '0 4px 15px rgba(13, 148, 136, 0.3)'
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
                     }}>
-                        <Typography sx={{ color: 'white', fontWeight: 'bold', fontSize: '1.4rem' }}>⚕</Typography>
+                        <Typography sx={{ color: '#fff', fontWeight: 900, fontFamily: 'Outfit', fontSize: '1.6rem', letterSpacing: '-0.05em' }}>H</Typography>
                     </Box>
                     <Typography 
-                        variant="h6" 
+                        variant="h5" 
                         sx={{ 
-                            fontWeight: 800, 
-                            letterSpacing: '-0.03em',
-                            background: 'linear-gradient(to right, #fff, #94a3b8)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent'
+                            fontWeight: 900, 
+                            fontFamily: 'Outfit',
+                            letterSpacing: '-0.04em',
+                            color: '#fff',
+                            textShadow: '0 2px 10px rgba(255,255,255,0.1)'
                         }}
                     >
-                        MULAJNA
+                        Hospyn
                     </Typography>
                 </Box>
-                <Typography variant="caption" sx={{ color: '#64748b', mb: 3, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                    Surgeon Portal
+                <Typography variant="caption" sx={{ color: '#64748b', mb: 3, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase', fontFamily: 'Inter' }}>
+                    Clinical Portal
                 </Typography>
 
                 <Box sx={{ 
