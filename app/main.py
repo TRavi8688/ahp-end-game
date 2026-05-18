@@ -178,6 +178,16 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 async def http_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    import traceback
+    tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    logger.error(f"GLOBAL_CRASH_TRACEBACK:\n{tb}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error", "error_message": str(exc), "traceback": tb}
+    )
+
 
 # --- SAFE ROUTER INCLUSION (RESILIENCE MODE) ---
 def safe_include(router, name, prefix=settings.API_V1_STR, tags=None):
