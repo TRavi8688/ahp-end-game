@@ -38,11 +38,20 @@ const theme = createTheme({
         }
     },
     typography: {
-        fontFamily: '"Inter", "Outfit", sans-serif',
-        h1: { fontFamily: '"Outfit", sans-serif', fontWeight: 700, letterSpacing: '-0.02em' },
-        h2: { fontFamily: '"Outfit", sans-serif', fontWeight: 700, letterSpacing: '-0.01em' },
-        h3: { fontFamily: '"Outfit", sans-serif', fontWeight: 600 },
-        button: { textTransform: 'none', fontWeight: 600, letterSpacing: '0.02em' }
+        fontFamily: '"DM Sans", "Inter", sans-serif',
+        h1: { fontFamily: '"Syne", "Outfit", sans-serif', fontWeight: 800, letterSpacing: '-0.03em' },
+        h2: { fontFamily: '"Syne", "Outfit", sans-serif', fontWeight: 800, letterSpacing: '-0.02em' },
+        h3: { fontFamily: '"Syne", "Outfit", sans-serif', fontWeight: 700, letterSpacing: '-0.01em' },
+        h4: { fontFamily: '"Syne", "Outfit", sans-serif', fontWeight: 700 },
+        h5: { fontFamily: '"Syne", "Outfit", sans-serif', fontWeight: 700 },
+        h6: { fontFamily: '"Syne", "Outfit", sans-serif', fontWeight: 700 },
+        subtitle1: { fontFamily: '"DM Sans", sans-serif', fontWeight: 600 },
+        subtitle2: { fontFamily: '"DM Sans", sans-serif', fontWeight: 600 },
+        body1: { fontFamily: '"DM Sans", "Inter", sans-serif' },
+        body2: { fontFamily: '"DM Sans", "Inter", sans-serif' },
+        button: { fontFamily: '"DM Sans", sans-serif', fontWeight: 700, letterSpacing: '0.02em', textTransform: 'none' },
+        caption: { fontFamily: '"Space Mono", monospace', fontWeight: 500, letterSpacing: '0.05em' },
+        overline: { fontFamily: '"Space Mono", monospace', fontWeight: 700, letterSpacing: '0.1em' }
     },
     components: {
         MuiCssBaseline: {

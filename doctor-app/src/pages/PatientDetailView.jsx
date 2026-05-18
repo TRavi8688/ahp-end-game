@@ -509,7 +509,7 @@ export default function PatientDetailView() {
                             </Box>
                             <Box>
                                 <Typography variant="h6" sx={{ fontWeight: 900, color: '#fff', letterSpacing: 1, fontFamily: 'Outfit' }}>INTELLIGENCE CONTEXT</Typography>
-                                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>SYNTHESIZED BY MULAJNA CORE</Typography>
+                                <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>SYNTHESIZED BY HOSPYN CORE</Typography>
                             </Box>
                         </Box>
                         <Chip

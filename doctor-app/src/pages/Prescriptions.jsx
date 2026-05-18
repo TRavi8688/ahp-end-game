@@ -253,7 +253,7 @@ export default function Prescriptions() {
                                 )}
                             </Box>
 
-                            {/* MULAJNA AI Verification */}
+                            {/* HOSPYN AI Verification */}
                             {(isChecking || conflict) && (
                                 <Box sx={{ 
                                     display: 'flex', alignItems: 'center', p: 3, borderRadius: '20px', mb: 4,
@@ -269,7 +269,7 @@ export default function Prescriptions() {
                                         <CheckCircleIcon sx={{ color: '#0d9488', mr: 2 }} />
                                     )}
                                     <Typography variant="body2" sx={{ fontWeight: 900, color: isChecking ? '#6366f1' : conflict.status === 'failed' ? '#f87171' : '#2dd4bf', letterSpacing: 0.5 }}>
-                                        {isChecking ? "CORE AI ANALYZING INTERACTIONS..." : conflict.status === 'failed' ? `CRITICAL: ${conflict.warning}` : "MULAJNA CLEARANCE: NO ADVERSE SIGNALS"}
+                                        {isChecking ? "CORE AI ANALYZING INTERACTIONS..." : conflict.status === 'failed' ? `CRITICAL: ${conflict.warning}` : "HOSPYN CLEARANCE: NO ADVERSE SIGNALS"}
                                     </Typography>
                                 </Box>
                             )}
