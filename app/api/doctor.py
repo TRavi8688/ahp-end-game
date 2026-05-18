@@ -229,7 +229,7 @@ async def emergency_break_glass(
         # Check if it exists in the family_members table
         stmt_fm = select(FamilyMember).where(func.lower(FamilyMember.linked_hospyn_id) == func.lower(request.hospyn_id))
         result_fm = await db.execute(stmt_fm)
-        family_member = result_fm.scalar_one_or_none()
+        family_member = result_fm.scalars().first()
         if family_member:
             patient = await repo.get(family_member.patient_id)
             
@@ -285,13 +285,13 @@ async def scan_patient(
         # Check if it exists in the family_members table (exact match first)
         stmt_fm = select(FamilyMember).where(FamilyMember.linked_hospyn_id == request.hospyn_id)
         result_fm = await db.execute(stmt_fm)
-        family_member = result_fm.scalar_one_or_none()
+        family_member = result_fm.scalars().first()
         
         if not family_member:
             # Fallback to case-insensitive match
             stmt_fm = select(FamilyMember).where(func.lower(FamilyMember.linked_hospyn_id) == func.lower(request.hospyn_id))
             result_fm = await db.execute(stmt_fm)
-            family_member = result_fm.scalar_one_or_none()
+            family_member = result_fm.scalars().first()
             
         if family_member:
             patient = await repo.get(family_member.patient_id)
@@ -305,7 +305,7 @@ async def scan_patient(
         DoctorAccess.doctor_user_id == current_doctor.user_id
     ).order_by(DoctorAccess.created_at.desc())
     result = await db.execute(stmt)
-    existing = result.scalar_one_or_none()
+    existing = result.scalars().first()
     
     if existing and existing.status == "granted":
         return {"status": "success", "message": "Access already granted."}
