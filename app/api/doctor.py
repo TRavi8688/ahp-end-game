@@ -334,7 +334,7 @@ async def scan_patient(
             RealtimeMessage(
                 type=MessageType.CONSENT_REQUEST,
                 payload={
-                    "access_id": new_access.id,
+                    "access_id": str(new_access.id),
                     "doctor_name": new_access.doctor_name,
                     "clinic_name": new_access.clinic_name,
                     "message": f"{new_access.doctor_name} from {new_access.clinic_name} is requesting access to your medical records."
