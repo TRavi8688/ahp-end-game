@@ -259,6 +259,13 @@ async def readiness_check(db: AsyncSession = Depends(deps.get_db)):
 # --- WEBSOCKET ---
 @app.websocket("/ws/{token}")
 async def websocket_endpoint(websocket: WebSocket, token: str):
+    await handle_websocket_connection(websocket, token)
+
+@app.websocket("/api/v1/ws/{token}")
+async def websocket_endpoint_v1(websocket: WebSocket, token: str):
+    await handle_websocket_connection(websocket, token)
+
+async def handle_websocket_connection(websocket: WebSocket, token: str):
     from app.core.security import decode_token
     from app.core.realtime import manager
     
