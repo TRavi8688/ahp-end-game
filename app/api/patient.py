@@ -811,6 +811,31 @@ async def get_pending_access(
         } for r in requests
     ]
 
+@router.get("/active-sharing")
+async def get_active_sharing(
+    current_patient: Any = Depends(deps.get_current_patient),
+    db: AsyncSession = Depends(deps.get_db)
+):
+    """Retrieve all active doctor access requests (granted status) for the patient."""
+    stmt = select(models.DoctorAccess).where(
+        models.DoctorAccess.patient_id == current_patient.id,
+        models.DoctorAccess.status == "granted"
+    ).order_by(models.DoctorAccess.created_at.desc())
+    
+    result = await db.execute(stmt)
+    records = result.scalars().all()
+    
+    return [
+        {
+            "id": str(r.id),
+            "doctor_name": r.doctor_name,
+            "clinic_name": r.clinic_name,
+            "status": r.status.value if hasattr(r.status, "value") else r.status,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "granted_at": r.granted_at.isoformat() if r.granted_at else None,
+        } for r in records
+    ]
+
 @router.get("/access-history")
 async def get_patient_access_history(
     current_patient: Any = Depends(deps.get_current_patient),
@@ -830,7 +855,7 @@ async def get_patient_access_history(
             "id": str(r.id),
             "doctor_name": r.doctor_name,
             "clinic_name": r.clinic_name,
-            "status": r.status,  # "requested", "granted", "revoked"
+            "status": r.status.value if hasattr(r.status, "value") else r.status,  # "requested", "granted", "revoked"
             "created_at": r.created_at.isoformat() if r.created_at else None,
             "granted_at": r.granted_at.isoformat() if r.granted_at else None,
             "revoked_at": r.revoked_at.isoformat() if r.revoked_at else None,
