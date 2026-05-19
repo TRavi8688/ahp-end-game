@@ -25,13 +25,14 @@ class ClinicalContextService:
         Enforces PHI-stripping and profile isolation.
         """
         try:
-            from app.models.models import Condition, Medication, Allergy, MedicalRecord, ClinicalEvent
+            from app.models.models import Condition, Medication, Allergy, MedicalRecord, ClinicalEvent, DigitalPrescription
 
             # 1. Fetch Core Profile Data
             conditions_stmt = select(Condition).where(Condition.patient_id == patient_id)
             meds_stmt = select(Medication).where(Medication.patient_id == patient_id)
             allergies_stmt = select(Allergy).where(Allergy.patient_id == patient_id)
             records_stmt = select(MedicalRecord).where(MedicalRecord.patient_id == patient_id).order_by(desc(MedicalRecord.created_at)).limit(10)
+            prescriptions_stmt = select(DigitalPrescription).where(DigitalPrescription.patient_id == patient_id).order_by(desc(DigitalPrescription.created_at)).limit(10)
 
             # 2. Fetch Clinical Events (Timeline)
             events_stmt = select(ClinicalEvent).where(
@@ -44,12 +45,14 @@ class ClinicalContextService:
             meds_res = await db.execute(meds_stmt)
             allergies_res = await db.execute(allergies_stmt)
             records_res = await db.execute(records_stmt)
+            prescriptions_res = await db.execute(prescriptions_stmt)
             events_res = await db.execute(events_stmt)
 
             conditions = conditions_res.scalars().all()
             medications = meds_res.scalars().all()
             allergies = allergies_res.scalars().all()
             records = records_res.scalars().all()
+            prescriptions = prescriptions_res.scalars().all()
             events = events_res.scalars().all()
             
             # 3. Reconstruct the Clinical Timeline
@@ -64,12 +67,22 @@ class ClinicalContextService:
 
             # 4. Assemble the Final LLM Context
             context = {
-                "summary_version": "v1.enterprise",
+                "summary_version": "v2.enterprise",
                 "patient_profile": {
                     "conditions": [{"name": c.name, "added_by": c.added_by} for c in conditions if not c.hidden_by_patient],
                     "medications": [{"name": m.generic_name, "dosage": m.dosage, "frequency": m.frequency} for m in medications if not m.hidden_by_patient],
                     "allergies": [{"allergen": a.allergen, "severity": a.severity} for a in allergies if not a.hidden_by_patient],
-                    "recent_records": [{"name": r.record_name or r.type, "hospital": r.hospital_name, "summary": r.ai_summary} for r in records if not r.hidden_by_patient]
+                    "recent_records": [{"name": r.record_name or r.type, "hospital": r.hospital_name, "summary": r.ai_summary} for r in records if not r.hidden_by_patient],
+                    "digital_prescriptions": [
+                        {
+                            "id": str(p.id),
+                            "diagnosis": p.diagnosis,
+                            "medications": p.medications,
+                            "notes": p.notes,
+                            "status": p.status.value if hasattr(p.status, "value") else str(p.status),
+                            "date": p.created_at.isoformat() if p.created_at else None
+                        } for p in prescriptions
+                    ]
                 },
                 "timeline": timeline,
                 "safety_flags": {

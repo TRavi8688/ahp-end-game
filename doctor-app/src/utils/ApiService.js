@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 
-const API_BASE_URL = "https://hospyn-api-625745217419.asia-south1.run.app/api/v1";
+const API_BASE_URL = "https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1";
 
 class ApiService {
     constructor() {
