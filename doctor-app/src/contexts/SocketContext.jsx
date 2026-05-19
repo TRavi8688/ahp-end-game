@@ -49,11 +49,25 @@ export const SocketProvider = ({ children }) => {
 
     useEffect(() => {
         connect();
+
+        // Late-login check: Automatically connect WebSocket when token is stored in localStorage!
+        const checkTokenInterval = setInterval(() => {
+            if (!socket && localStorage.getItem('token')) {
+                console.log("DEBUG: Late login or active token detected, connecting WebSocket...");
+                connect();
+            }
+        }, 3000);
+
         return () => {
             if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-            if (socket) socket.close();
+            clearInterval(checkTokenInterval);
+            if (socket) {
+                try {
+                    socket.close();
+                } catch (e) {}
+            }
         };
-    }, []);
+    }, [socket]);
 
     return (
         <SocketContext.Provider value={{ socket, lastMessage }}>
