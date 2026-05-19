@@ -613,6 +613,10 @@ export default function AuthScreen({ navigation }) {
                     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ width: '100%', alignItems: 'center' }}>
                         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }} style={{ width: '100%' }}>
                             <View style={styles.setupCard}>
+                                <TouchableOpacity style={styles.modalCloseIcon} onPress={() => setSetupModalVisible(false)}>
+                                    <Ionicons name="close" size={24} color="#FFF" />
+                                </TouchableOpacity>
+
                                 <View style={styles.setupHeader}>
                                     <Ionicons name="pulse" size={40} color="#6366F1" />
                                     <Text style={styles.setupTitle}>Complete Your Profile</Text>
