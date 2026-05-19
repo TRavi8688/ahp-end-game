@@ -376,6 +376,35 @@ export default function AuthScreen({ navigation }) {
                                 </View>
                             )}
 
+                            <View style={styles.dividerArea}>
+                                <View style={styles.dividerLine} />
+                                <Text style={styles.dividerText}>SANDBOX & QA MODE</Text>
+                                <View style={styles.dividerLine} />
+                            </View>
+
+                            <View style={styles.customEmailBox}>
+                                <TextInput
+                                    style={styles.customEmailInput}
+                                    placeholder="Enter test email (e.g. siddulu@gmail.com)"
+                                    placeholderTextColor="#475569"
+                                    value={customGoogleEmail}
+                                    onChangeText={setCustomGoogleEmail}
+                                    autoCapitalize="none"
+                                    keyboardType="email-address"
+                                />
+                                <TouchableOpacity style={styles.customEmailBtn} onPress={() => {
+                                    if (!customGoogleEmail || !customGoogleEmail.includes('@')) {
+                                        return Alert.alert('Invalid Email', 'Please enter a valid email address.');
+                                    }
+                                    const parts = customGoogleEmail.split('@')[0].split('.');
+                                    const first = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1) : 'Google';
+                                    const last = parts[1] ? parts[1].charAt(0).toUpperCase() + parts[1].slice(1) : 'User';
+                                    processGoogleAuthSimulated(customGoogleEmail, first, last);
+                                }}>
+                                    <Ionicons name="arrow-forward" size={20} color="#FFF" />
+                                </TouchableOpacity>
+                            </View>
+
                             <TouchableOpacity style={styles.sheetCloseBtn} onPress={() => {
                                 setGoogleModalVisible(false);
                             }}>
@@ -493,6 +522,35 @@ export default function AuthScreen({ navigation }) {
                                 </TouchableOpacity>
                             </View>
                         )}
+
+                        <View style={styles.dividerArea}>
+                            <View style={styles.dividerLine} />
+                            <Text style={styles.dividerText}>SANDBOX & QA MODE</Text>
+                            <View style={styles.dividerLine} />
+                        </View>
+
+                        <View style={styles.customEmailBox}>
+                            <TextInput
+                                style={styles.customEmailInput}
+                                placeholder="Enter test email (e.g. siddulu@gmail.com)"
+                                placeholderTextColor="#475569"
+                                value={customGoogleEmail}
+                                onChangeText={setCustomGoogleEmail}
+                                autoCapitalize="none"
+                                keyboardType="email-address"
+                            />
+                            <TouchableOpacity style={styles.customEmailBtn} onPress={() => {
+                                if (!customGoogleEmail || !customGoogleEmail.includes('@')) {
+                                    return Alert.alert('Invalid Email', 'Please enter a valid email address.');
+                                }
+                                const parts = customGoogleEmail.split('@')[0].split('.');
+                                const first = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1) : 'Google';
+                                const last = parts[1] ? parts[1].charAt(0).toUpperCase() + parts[1].slice(1) : 'User';
+                                processGoogleAuthSimulated(customGoogleEmail, first, last);
+                            }}>
+                                <Ionicons name="arrow-forward" size={20} color="#FFF" />
+                            </TouchableOpacity>
+                        </View>
 
                         <TouchableOpacity style={styles.sheetCloseBtn} onPress={() => {
                             setGoogleModalVisible(false);
