@@ -2,7 +2,7 @@ import httpx
 import json
 
 def main():
-    base_url = "https://hospyn-api-625745217419.asia-south1.run.app/api/v1"
+    base_url = "https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1"
     
     # 1. Login as doctor
     print("Attempting login...")

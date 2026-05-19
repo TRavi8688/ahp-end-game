@@ -76,15 +76,38 @@ async def create_prescription(
 async def get_prescriptions(
     patient_id: Optional[uuid.UUID] = None,
     db: AsyncSession = Depends(get_db),
-    hospital_id: uuid.UUID = Depends(deps.get_hospital_id)
+    current_user: User = Depends(deps.get_current_user)
 ):
     """
     CLINICAL AUDIT:
     Returns the history of digital prescriptions.
+    If the caller is a patient, returns only their own prescriptions.
+    If the caller is staff/doctor, returns prescriptions matching their hospital_id.
     """
-    stmt = select(DigitalPrescription).where(DigitalPrescription.hospital_id == hospital_id)
-    if patient_id:
-        stmt = stmt.where(DigitalPrescription.patient_id == patient_id)
+    from app.models.models import RoleEnum, Patient
     
+    if current_user.role == RoleEnum.patient:
+        # Retrieve patient profile
+        stmt_p = select(Patient).where(Patient.user_id == current_user.id)
+        res_p = await db.execute(stmt_p)
+        patient = res_p.scalar_one_or_none()
+        if not patient:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Patient profile not found."
+            )
+        stmt = select(DigitalPrescription).where(DigitalPrescription.patient_id == patient.id)
+    else:
+        # Staff role, enforce tenant isolation
+        if not current_user.staff_profile:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Staff profile not found. Access denied."
+            )
+        stmt = select(DigitalPrescription).where(DigitalPrescription.hospital_id == current_user.staff_profile.hospital_id)
+        if patient_id:
+            stmt = stmt.where(DigitalPrescription.patient_id == patient_id)
+            
     result = await db.execute(stmt)
     return result.scalars().all()
+
