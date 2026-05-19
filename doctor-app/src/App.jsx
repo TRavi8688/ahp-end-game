@@ -88,11 +88,36 @@ const theme = createTheme({
 });
 
 function App() {
-    // Use localStorage to mock authentication state for the UI build
-    const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
+    // Robustly decode and verify that the token role matches doctor to prevent patient session leakage
+    const token = localStorage.getItem('token');
+    let isDoctor = false;
+    if (token) {
+        try {
+            const tokenParts = token.split('.');
+            if (tokenParts.length === 3) {
+                const payload = JSON.parse(atob(tokenParts[1]));
+                isDoctor = payload.role === 'doctor';
+            }
+        } catch (e) {
+            console.error("Token decode error:", e);
+        }
+    }
+
+    const isAuthenticated = (localStorage.getItem('isAuthenticated') === 'true') && isDoctor;
     const isVerified = localStorage.getItem('isVerified') === 'true';
 
     const [scanModalOpen, setScanModalOpen] = useState(false);
+
+    useEffect(() => {
+        // Automatically clear leakage sessions if a patient token is present in the doctor app
+        if (token && !isDoctor) {
+            console.warn("DEBUG: Invalid patient token detected in doctor portal. Purging session...");
+            localStorage.removeItem('isAuthenticated');
+            localStorage.removeItem('isVerified');
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+        }
+    }, [token, isDoctor]);
 
     const handleLogout = () => {
         localStorage.removeItem('isAuthenticated');

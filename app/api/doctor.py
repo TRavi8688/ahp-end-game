@@ -49,6 +49,10 @@ async def doctor_token(
         await log_audit_action(db, user_id=None, action="LOGIN_FAILURE", resource_type="USER", details={"email": username})
         throw_auth_exception("User not found")
 
+    if user.role != "doctor":
+        await log_audit_action(db, user_id=user.id, action="LOGIN_FAILURE", resource_type="USER", details={"email": username, "reason": "unauthorized_role"})
+        throw_auth_exception("Access Denied: This portal is strictly for authorized medical professionals.")
+
     if is_otp:
         # Validate Real OTP via Redis (Mandatory for Scalability)
         from app.services.redis_service import redis_service
