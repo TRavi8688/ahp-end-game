@@ -212,12 +212,13 @@ export default function App() {
       {appStatus !== 'approved' && (
         <div className="pt-16 flex-grow">
           {currentPage === 1 && (
-            <section className="py-20 relative overflow-hidden neural-grid min-h-screen flex items-center bg-gradient-to-br from-[#F8FAFC] via-[#EDF4FF] to-[#F8FAFC]">
+            <>
+              <section className="py-20 relative overflow-hidden min-h-screen flex items-center bg-gradient-to-br from-[#ECFDF5] via-[#F5F3FF] to-[#EFF6FF]">
               
-              {/* Floating ambient glow orbs */}
-              <div className="absolute top-1/4 right-1/4 w-[400px] h-[400px] rounded-full bg-blue-400/10 blur-[120px] pointer-events-none" />
-              <div className="absolute bottom-1/4 left-1/4 w-[350px] h-[350px] rounded-full bg-indigo-400/10 blur-[100px] pointer-events-none" />
-
+              {/* Floating ambient glow orbs matching our clean mint/lavender theme */}
+              <div className="absolute top-1/4 right-1/4 w-[400px] h-[400px] rounded-full bg-violet-400/10 blur-[120px] pointer-events-none" />
+              <div className="absolute bottom-1/4 left-1/4 w-[350px] h-[350px] rounded-full bg-emerald-400/10 blur-[100px] pointer-events-none" />
+ 
               <div className="max-w-7xl mx-auto px-8 w-full relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center pt-10">
                 
                 {/* Left Column: Core Value Proposition */}
@@ -227,16 +228,16 @@ export default function App() {
                   <motion.div 
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-blue-200 bg-blue-50/70 shadow-sm"
+                    className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-violet-200 bg-violet-50/70 shadow-sm"
                   >
                     <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-500 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-600"></span>
                     </span>
-                    <span className="text-primary text-[10px] font-black uppercase tracking-[0.2em] font-inter">✦ AI-Powered Healthcare Platform</span>
+                    <span className="text-violet-600 text-[10px] font-black uppercase tracking-[0.2em] font-inter">✦ Connected Clinical Network</span>
                   </motion.div>
-
-                  {/* Title Header matching the reference */}
+ 
+                  {/* Title Header: Polished & High-End */}
                   <motion.h1 
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -244,40 +245,39 @@ export default function App() {
                     className="text-5xl md:text-6xl font-black text-slate-900 leading-[1.05] tracking-tight font-outfit"
                   >
                     The Future of <br />
-                    <span className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">Healthcare</span> is Here
+                    <span className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent">Healthcare</span> is Here
                   </motion.h1>
-
-                  {/* Subtext description matching the reference */}
+ 
+                  {/* Subtext description focusing on direct Hospital Benefits */}
                   <motion.p 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.2 }}
                     className="text-slate-600 text-base md:text-lg max-w-2xl font-medium leading-relaxed"
                   >
-                    Chitti AI is your intelligent partner in building smarter, faster, and more connected hospitals. 
-                    Join hundreds of hospital owners and managers transforming healthcare with AI.
+                    Hospyn puts your entire healthcare ecosystem in the palm of your hand. Track your team’s performance in real time, monitor daily clinical operations, and keep all patient records completely digitalized, secure, and instant.
                   </motion.p>
-
+ 
                   {/* Forensic Pending Banner (if registered but waiting for manual review) */}
                   {appStatus === 'pending' && (
                     <motion.div 
                       initial={{ scale: 0.95, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      className="p-6 bg-amber-50/80 border border-amber-200/60 rounded-2xl max-w-xl text-left space-y-4 shadow-sm"
+                      className="p-6 bg-violet-50/80 border border-violet-200/60 rounded-2xl max-w-xl text-left space-y-4 shadow-sm"
                     >
-                      <div className="flex gap-3 items-center text-amber-800 font-bold text-sm">
-                        <AlertTriangle size={18} className="text-amber-600" />
-                        <span>Registration Complete — Node Forensic Audit in Progress</span>
+                      <div className="flex gap-3 items-center text-violet-800 font-bold text-sm">
+                        <AlertTriangle size={18} className="text-violet-600" />
+                        <span>Registration Sent — Manual Verification Pending</span>
                       </div>
-                      <p className="text-xs text-amber-700 leading-relaxed">
-                        Your government NABH license certificate and front-facing selfie mapping is currently being audited by the Super Admin governance grid.
+                      <p className="text-xs text-violet-700 leading-relaxed">
+                        Our team is verifying your registration out-of-band to ensure zero-bypass clinical safety. Enter your dashboard cockpit instantly using the super-admin approval bypass below.
                       </p>
                       <button onClick={handleVerifyBypass} className="w-full py-2.5 bg-slate-900 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg hover:bg-slate-800 transition-all shadow-md">
                         ⚡ [Super Admin Approval Bypass] - Enter Cockpit Instantly
                       </button>
                     </motion.div>
                   )}
-
+ 
                   {/* Action Buttons */}
                   <motion.div 
                     initial={{ opacity: 0, y: 20 }}
@@ -288,14 +288,14 @@ export default function App() {
                     {appStatus !== 'pending' ? (
                       <button 
                         onClick={() => setIsWizardOpen(true)} 
-                        className="px-8 py-4 bg-primary text-white font-bold text-xs tracking-widest uppercase rounded-xl hover:bg-blue-700 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-500/20 flex items-center gap-2"
+                        className="px-8 py-4 bg-violet-600 text-white font-bold text-xs tracking-widest uppercase rounded-xl hover:bg-violet-700 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-violet-500/20 flex items-center gap-2"
                       >
                         Register Your Hospital ➔
                       </button>
                     ) : (
                       <button 
-                        onClick={() => setCurrentPage(3)} 
-                        className="px-8 py-4 bg-amber-500 text-white font-bold text-xs tracking-widest uppercase rounded-xl hover:bg-amber-600 transition-all flex items-center gap-2"
+                        onClick={() => setCurrentPage(4)} 
+                        className="px-8 py-4 bg-violet-600 text-white font-bold text-xs tracking-widest uppercase rounded-xl hover:bg-violet-700 transition-all flex items-center gap-2"
                       >
                         Monitor Local Node ➔
                       </button>
@@ -304,7 +304,7 @@ export default function App() {
                       onClick={() => setCurrentPage(2)} 
                       className="px-8 py-4 border border-slate-200 bg-white/70 text-slate-700 font-bold text-xs tracking-widest uppercase rounded-xl hover:bg-slate-50 transition-all"
                     >
-                      Learn More
+                      Explore Ecosystem
                     </button>
                   </motion.div>
 
@@ -346,7 +346,7 @@ export default function App() {
                     <img 
                       src={chittiLandingImg} 
                       alt="Chitti AI Mascot" 
-                      className="w-full h-auto object-contain drop-shadow-[0_20px_50px_rgba(139,92,246,0.18)]"
+                      className="w-full h-auto object-contain mix-blend-multiply drop-shadow-[0_20px_50px_rgba(139,92,246,0.15)]"
                     />
 
                     {/* Glowing status vitals label floating beside Chitti */}
@@ -372,6 +372,67 @@ export default function App() {
 
               </div>
             </section>
+
+            {/* Scrollable Detailed Vision & Services Section directly below the Hero on Page 1 */}
+            <section className="py-24 bg-white border-t border-slate-100 relative">
+              <div className="max-w-7xl mx-auto px-8 space-y-20">
+                
+                {/* Detailed Corporate Vision Block */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                  <div className="lg:col-span-6 space-y-6">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-violet-600 px-3 py-1 rounded-full border border-violet-100 bg-violet-50/50 inline-block">Our Long-term Vision</span>
+                    <h2 className="text-4xl font-black text-slate-900 tracking-tight font-outfit leading-tight">
+                      Unifying the Fragmented Clinical Grid
+                    </h2>
+                    <p className="text-slate-600 text-sm font-medium leading-relaxed">
+                      Hospyn’s vision is to replace unverified manual medical steps with absolute operational transparency. We are building the clinical nervous system where hospital owners, senior staff, and doctors coordinate instantly under a fully digitalized, zero-fraud ledger network.
+                    </p>
+                    
+                    {/* Checkmarks */}
+                    <div className="space-y-3.5 pt-2">
+                      {[
+                        'Manage your entire multi-branch hospital ecosystem from a single cockpit screen.',
+                        'Monitor every doctor’s task flow and track clinical queue backlogs in real time.',
+                        'Secure clinical profiles with multi-factor OTP validation and out-of-band NABH license verification.'
+                      ].map((bullet, idx) => (
+                        <div key={idx} className="flex gap-3 items-start">
+                          <div className="w-5 h-5 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 mt-0.5">
+                            ✓
+                          </div>
+                          <span className="text-xs text-slate-600 font-semibold leading-normal">{bullet}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Interactive Graphic representing full digitalization */}
+                  <div className="lg:col-span-6 p-8 bg-slate-50 border border-slate-200/60 rounded-[32px] space-y-6">
+                    <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+                      <span className="text-xs font-black uppercase text-slate-800 tracking-wider">Active Staff Ledger</span>
+                      <span className="px-2.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 font-bold text-[9px] uppercase">Synced</span>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      {[
+                        { name: 'Dr. Sarah Jenkins (Cardiology)', role: 'Verified Consultant', status: 'Active (3 Patients Processed Today)' },
+                        { name: 'Dr. Michael Chang (Pediatrics)', role: 'Verified Consultant', status: 'Active (OPD Active Node)' },
+                        { name: 'Clinical Pharmacy (Inventory)', role: 'Authorized Terminal', status: 'Stock Verified (100% Digital)' }
+                      ].map((staff, idx) => (
+                        <div key={idx} className="p-4 bg-white border border-slate-200/60 rounded-2xl flex items-center justify-between shadow-sm">
+                          <div>
+                            <p className="text-xs font-black text-slate-900 tracking-tight">{staff.name}</p>
+                            <p className="text-[10px] text-slate-400 font-medium">{staff.role}</p>
+                          </div>
+                          <span className="text-[9px] font-black uppercase text-violet-500 tracking-wider">{staff.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </section>
+            </>
           )}
 
           {/* PAGE 2: HOW WE SERVICE - CLINICAL WORKFLOW TRANSFORMATION */}
@@ -383,7 +444,7 @@ export default function App() {
                 </span>
                 <h2 className="text-4xl font-black tracking-tight text-slate-900 font-outfit">How We Service Modern Healthcare</h2>
                 <p className="text-slate-500 max-w-2xl mx-auto text-sm font-medium">
-                  We act as the high-fidelity nervous system for clinical facilities, replacing manual paperwork loops with secure automated workflows.
+                  Hospyn streamlines clinical management, giving you absolute clarity over daily workflows and team operations.
                 </p>
               </div>
 
@@ -392,31 +453,31 @@ export default function App() {
                 {[
                   {
                     step: "01",
-                    title: "Sovereign Registration",
-                    description: "NABH certificates are verified out-of-band and doctors provide front-facing selfies to completely block fake profiles.",
+                    title: "Ecosystem in Your Hand",
+                    description: "Consolidate patient admission queues, laboratory results, smart pharmacies, and financial sweeps into a single clinical cockpit.",
                     color: "border-blue-200 bg-blue-50/20 text-blue-600",
-                    badge: "100% Manual Review"
+                    badge: "COMPLETE CONTROL"
                   },
                   {
                     step: "02",
-                    title: "Biometric Passports",
-                    description: "Patients check in using secure, zero-latency clinical QR codes that load longitudinal clinical charts instantly.",
+                    title: "Total Team Transparency",
+                    description: "Monitor exactly what every physician, nurse, and staff member is working on in real time. Eliminate operational delays instantly.",
                     color: "border-violet-200 bg-violet-50/20 text-violet-600",
-                    badge: "Zero-Latency Checkin"
+                    badge: "REAL-TIME SYNC"
                   },
                   {
                     step: "03",
-                    title: "Verified UPI Autopay",
-                    description: "Initiates ₹2 bank verification charge. Directly connects to hospital accounts for transparent automated settlements.",
+                    title: "100% Digitalized Records",
+                    description: "Keep all longitudinal patient records, vitals graphs, and diagnostic summaries secure, searchable, and always complete.",
                     color: "border-indigo-200 bg-indigo-50/20 text-indigo-600",
-                    badge: "Instant Bank Link"
+                    badge: "ULTRA SECURE"
                   },
                   {
                     step: "04",
-                    title: "AI Clinical Assist",
-                    description: "Chitti AI processes prescriptions and vitals instantly. Generates plain-language medical briefs overseen by staff overrides.",
+                    title: "Direct Dynamic Settlements",
+                    description: "Establish direct bank-linked clearing with dynamic ledger payouts, letting hospital owners see every transaction clear instantly.",
                     color: "border-purple-200 bg-purple-50/20 text-purple-600",
-                    badge: "Double-Summary System"
+                    badge: "FAST CLEARING"
                   }
                 ].map((item, idx) => (
                   <div key={idx} className="p-8 bg-white border border-slate-200/60 rounded-3xl hover:border-violet-300 transition-all duration-300 shadow-sm relative group">
@@ -442,10 +503,10 @@ export default function App() {
                   <span className="px-2.5 py-0.5 rounded bg-violet-500/20 text-violet-400 font-bold uppercase text-[9px] tracking-wider">ACTIVE PIPELINE</span>
                 </div>
                 <p className="text-slate-500"># Initializing instant hospital node network handshakes...</p>
-                <p>✔ [09:12:01] Forensic selfie analysis complete. Confidence: <span className="text-emerald-400 font-bold">99.8% (Matched with Medical Register)</span></p>
+                <p>✔ [09:12:01] Doctor biometric identity check complete. Confidence: <span className="text-emerald-400 font-bold">99.8%</span></p>
                 <p>✔ [09:12:02] Government NABH license verification: verified by central medical registry.</p>
-                <p>✔ [09:12:03] UPI bank tokenization setup completed. Autopay active direct to bank account.</p>
-                <p className="text-violet-400 font-bold mt-2">🚀 ACTIVE NODE: Hospital certified and cockpit access granted safely.</p>
+                <p>✔ [09:12:03] Secure bank settlement configuration tokenized direct to primary account.</p>
+                <p className="text-violet-400 font-bold mt-2">🚀 ACTIVE NODE: Hospital cockpit digitalized and security audits passed.</p>
               </div>
             </section>
           )}
@@ -472,9 +533,9 @@ export default function App() {
                     <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
                       <Lock size={22} />
                     </div>
-                    <h3 className="text-xl font-black text-slate-900 tracking-tight font-outfit">Anti-Fraud Security</h3>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight font-outfit">Operational Safeguards</h3>
                     <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                      Zero tolerance for unverified records. By integrating strict doctor OTP validation, forensic document upload checking, and bank account tokenization, we protect hospitals from operational liability.
+                      Zero tolerance for unverified profiles. Doctor credential check-ins are secured with multi-factor OTP registration and government NABH validation, protecting your hospital from liability.
                     </p>
                   </div>
                   <span className="text-[9px] font-black uppercase text-indigo-500 tracking-widest">Zero Compromise Assurance</span>
@@ -486,9 +547,9 @@ export default function App() {
                     <div className="w-12 h-12 rounded-2xl bg-violet-50 border border-violet-100 flex items-center justify-center text-violet-600">
                       <Users size={22} />
                     </div>
-                    <h3 className="text-xl font-black text-slate-950 tracking-tight font-outfit">Unified Data Grid</h3>
+                    <h3 className="text-xl font-black text-slate-950 tracking-tight font-outfit">Total Data Interoperability</h3>
                     <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                      Connecting siloed laboratory indexes, pharmacy inventory stocks, and clinical EHR records into a unified command dashboard, updating vitals in under 12ms.
+                      Every patient ticket, bed schedule, pharmacy order, and LOINC lab file is aggregated onto a single dashboard screen, updating in real time.
                     </p>
                   </div>
                   <span className="text-[9px] font-black uppercase text-violet-500 tracking-widest">Multi-Branch Syncing</span>
@@ -500,9 +561,9 @@ export default function App() {
                     <div className="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600">
                       <Brain size={22} />
                     </div>
-                    <h3 className="text-xl font-black text-slate-900 tracking-tight font-outfit">Empathetic Clinical AI</h3>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight font-outfit">Supervised AI Support</h3>
                     <p className="text-xs text-slate-500 leading-relaxed font-medium">
-                      Bridging the comprehension gap in healthcare. Our AI translates complex clinical vitals for physicians while offering comforting, plain-language translations to patient families under medical supervision.
+                      Frontline teams get double-summary clinical OCR assist. Chitti AI constructs clear briefs overseen by active senior staff overrides, ensuring total protocol safety.
                     </p>
                   </div>
                   <span className="text-[9px] font-black uppercase text-purple-500 tracking-widest">Empathetic Patient Briefs</span>
