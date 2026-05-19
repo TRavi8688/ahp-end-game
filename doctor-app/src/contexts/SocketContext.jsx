@@ -9,12 +9,19 @@ export const SocketProvider = ({ children }) => {
     const [socket, setSocket] = useState(null);
     const [lastMessage, setLastMessage] = useState(null);
     const reconnectTimer = useRef(null);
+    const socketRef = useRef(null); // Keep a reference to the active socket
 
     const connect = () => {
         const token = localStorage.getItem('token');
         if (!token) return;
 
+        // Prevent duplicate connections if we already have one active
+        if (socketRef.current && (socketRef.current.readyState === WebSocket.CONNECTING || socketRef.current.readyState === WebSocket.OPEN)) {
+            return;
+        }
+
         const ws = new WebSocket(`${WS_BASE_URL}/ws/${token}`);
+        socketRef.current = ws;
 
         ws.onopen = () => {
             console.log('WebSocket Connected');
@@ -43,6 +50,7 @@ export const SocketProvider = ({ children }) => {
             }
             console.log('WebSocket Disconnected. Retrying in 3s...');
             setSocket(null);
+            socketRef.current = null;
             reconnectTimer.current = setTimeout(connect, 3000);
         };
     };
@@ -52,7 +60,7 @@ export const SocketProvider = ({ children }) => {
 
         // Late-login check: Automatically connect WebSocket when token is stored in localStorage!
         const checkTokenInterval = setInterval(() => {
-            if (!socket && localStorage.getItem('token')) {
+            if (!socketRef.current && localStorage.getItem('token')) {
                 console.log("DEBUG: Late login or active token detected, connecting WebSocket...");
                 connect();
             }
@@ -61,13 +69,13 @@ export const SocketProvider = ({ children }) => {
         return () => {
             if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
             clearInterval(checkTokenInterval);
-            if (socket) {
+            if (socketRef.current) {
                 try {
-                    socket.close();
+                    socketRef.current.close();
                 } catch (e) {}
             }
         };
-    }, [socket]);
+    }, []); // Empty dependency array: runs only ONCE on mount!
 
     return (
         <SocketContext.Provider value={{ socket, lastMessage }}>
