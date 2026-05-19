@@ -2,13 +2,13 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #F8FAFC;
+  --color-background: #FAF9FE;
   --color-text-primary: #0F172A;
-  --color-primary: #2563EB;
+  --color-primary: #8B5CF6;
   --color-secondary: #10B981;
   --color-accent: #F59E0B;
   --color-surface: #FFFFFF;
-  --color-glass-border: #E2E8F0;
+  --color-glass-border: #E8E7F5;
   
   --font-outfit: "Outfit", sans-serif;
   --font-inter: "Inter", sans-serif;
@@ -59,18 +59,18 @@
 .neural-grid {
   background-image: 
     radial-gradient(circle at 75% 30%, rgba(139, 92, 246, 0.08) 0%, transparent 60%),
-    radial-gradient(circle at 20% 70%, rgba(37, 99, 235, 0.06) 0%, transparent 60%);
+    radial-gradient(circle at 20% 70%, rgba(16, 185, 129, 0.06) 0%, transparent 60%);
   background-size: 100% 100%;
 }
 
 .badge-futuristic {
-  @apply px-4 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-[10px] font-black tracking-[0.4em] text-primary uppercase;
+  @apply px-4 py-1.5 rounded-full bg-violet-50 border border-violet-200 text-[10px] font-black tracking-[0.4em] text-primary uppercase;
 }
 
 /* Light Theme overrides for lucide and visuals */
 .text-glow-emerald {
   text-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
 }
-.text-glow-blue {
-  text-shadow: 0 0 10px rgba(37, 99, 235, 0.1);
+.text-glow-purple {
+  text-shadow: 0 0 10px rgba(139, 92, 246, 0.1);
 }
