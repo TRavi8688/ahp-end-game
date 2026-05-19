@@ -165,6 +165,7 @@ export default function PatientDetailView() {
         if (lastMessage.type === 'access_revoked') {
             setIsRevoked(true);
             setRevocationDialogOpen(true);
+            setRequestSent(false); // Stop the pending approval spinner
         }
 
         if (lastMessage.type === 'patient_update' || lastMessage.type === 'access_granted') {
