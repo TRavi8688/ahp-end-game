@@ -508,6 +508,16 @@ export default function AuthScreen({ navigation }) {
                                 <Text style={styles.googleBtnText}>Continue with Google</Text>
                             </TouchableOpacity>
 
+                            <TouchableOpacity 
+                                style={[styles.googleBtn, { backgroundColor: 'rgba(99, 102, 241, 0.08)', borderColor: 'rgba(99, 102, 241, 0.25)', borderWidth: 1, marginTop: 10 }]} 
+                                onPress={() => {
+                                    setGoogleModalVisible(true);
+                                }}
+                            >
+                                <Ionicons name="construct-outline" size={18} color="#6366F1" style={{ marginRight: 10 }} />
+                                <Text style={[styles.googleBtnText, { color: '#6366F1' }]}>Developer Sandbox Bypass</Text>
+                            </TouchableOpacity>
+
                             <Text style={styles.encryptedNotice}>
                                 <Ionicons name="lock-closed" size={12} color="#94A3B8" /> End-to-end encrypted session
                             </Text>
