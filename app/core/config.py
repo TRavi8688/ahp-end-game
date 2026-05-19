@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 # Production-grade configuration loader
 load_dotenv()
 
-from app.core.secrets import get_secret, load_rsa_key
+from app.core.secrets import get_secret, load_rsa_key, derive_public_key
 
 logger = logging.getLogger(__name__)
 
@@ -175,9 +175,11 @@ class Settings(BaseSettings):
 
         # 2. Load Keys (Must happen before validation)
         if not self.JWT_PRIVATE_KEY:
-            self.JWT_PRIVATE_KEY = os.getenv("HOSPYN_PRIVATE_KEY") or load_rsa_key("JWT_PRIVATE_KEY", "priv.pem")
+            self.JWT_PRIVATE_KEY = load_rsa_key("HOSPYN_PRIVATE_KEY", "priv.pem")
+        if self.JWT_PRIVATE_KEY and "-----BEGIN" in self.JWT_PRIVATE_KEY:
+            self.JWT_PUBLIC_KEY = derive_public_key(self.JWT_PRIVATE_KEY)
         if not self.JWT_PUBLIC_KEY:
-            self.JWT_PUBLIC_KEY = os.getenv("HOSPYN_PUBLIC_KEY") or load_rsa_key("JWT_PUBLIC_KEY", "pub.pem")
+            self.JWT_PUBLIC_KEY = load_rsa_key("HOSPYN_PUBLIC_KEY", "pub.pem")
 
         # 3. Production Safety Checks
         if self.ENVIRONMENT == "production":
