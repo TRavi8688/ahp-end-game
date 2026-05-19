@@ -1,7 +1,7 @@
 from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey, JSON, Text, func, Enum as SQLEnum, UUID
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 import enum
 import uuid
@@ -209,11 +209,21 @@ class Hospital(Base):
     staff_count: Mapped[int] = mapped_column(Integer, default=0)
     owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), nullable=True)
     certificate_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    pan_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    selfie_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    
+    # Precise physical locations and geolocations
+    physical_address: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    latitude: Mapped[Optional[float]] = mapped_column(nullable=True)
+    longitude: Mapped[Optional[float]] = mapped_column(nullable=True)
+    pan_card_photo_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     
     departments: Mapped[List["Department"]] = relationship(back_populates="hospital", cascade="all, delete-orphan")
     staff: Mapped[List["StaffProfile"]] = relationship(back_populates="hospital", cascade="all, delete-orphan")
+    branches: Mapped[List["HospitalBranch"]] = relationship(back_populates="hospital", cascade="all, delete-orphan")
+    subscription: Mapped[Optional["BillingSubscription"]] = relationship(back_populates="hospital", uselist=False, cascade="all, delete-orphan")
     queues: Mapped[List["QueueToken"]] = relationship(back_populates="hospital")
     queue_entries: Mapped[List["QueueEntry"]] = relationship(back_populates="hospital")
     beds: Mapped[List["Bed"]] = relationship(back_populates="hospital")
@@ -263,9 +273,12 @@ class StaffProfile(Base):
     hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"))
     department_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("departments.id"))
     
+    branch_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("hospital_branches.id"), nullable=True)
+    
     user: Mapped["User"] = relationship(back_populates="staff_profile")
     hospital: Mapped["Hospital"] = relationship(back_populates="staff")
     department: Mapped["Department"] = relationship(back_populates="staff")
+    branch: Mapped[Optional["HospitalBranch"]] = relationship(back_populates="staff")
     
     __mapper_args__ = {"version_id_col": version_id}
 
@@ -1243,3 +1256,65 @@ class Surgery(Base, TenantScopedMixin, TimestampMixin, VersionedMixin):
     surgeon: Mapped["Doctor"] = relationship(backref="performed_surgeries")
 
     __mapper_args__ = {"version_id_col": VersionedMixin.version_id}
+
+class HospitalBranch(Base, TimestampMixin):
+    __tablename__ = "hospital_branches"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    address: Mapped[Optional[str]] = mapped_column(Text)
+    city: Mapped[Optional[str]] = mapped_column(String(100))
+    is_active: Mapped[bool] = mapped_column(default=True)
+    
+    # Coordinates per branch node
+    latitude: Mapped[Optional[float]] = mapped_column(nullable=True)
+    longitude: Mapped[Optional[float]] = mapped_column(nullable=True)
+    
+    hospital: Mapped["Hospital"] = relationship(back_populates="branches")
+    staff: Mapped[List["StaffProfile"]] = relationship(back_populates="branch")
+
+class BillingSubscription(Base, TimestampMixin):
+    __tablename__ = "billing_subscriptions"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), unique=True)
+    stripe_customer_id: Mapped[Optional[str]] = mapped_column(String(100))
+    auto_debit_token: Mapped[Optional[str]] = mapped_column(String(255)) # Tokenized card ref
+    upi_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True) # Unified Payment Interface
+    payment_method_type: Mapped[str] = mapped_column(String(50), default="card") # card or upi
+    trial_starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    trial_ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc) + timedelta(days=60))
+    subscription_status: Mapped[str] = mapped_column(String(50), default="trialing") # trialing, active, past_due, cancelled
+    
+    hospital: Mapped["Hospital"] = relationship(back_populates="subscription")
+
+class ForensicVerificationLog(Base, TimestampMixin):
+    __tablename__ = "forensic_verification_logs"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    
+    # Phone Verification via OTP
+    phone_number: Mapped[str] = mapped_column(String(50))
+    phone_otp_verified: Mapped[bool] = mapped_column(default=False)
+    phone_otp_checked_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    
+    # NSDL Income Tax Database PAN Verification
+    pan_number: Mapped[str] = mapped_column(String(50))
+    pan_matched_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    is_pan_valid: Mapped[bool] = mapped_column(default=False)
+    pan_verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    
+    # Healthcare Certificate Validation (NABH / ISO)
+    certificate_url: Mapped[str] = mapped_column(String(512))
+    is_certificate_valid: Mapped[bool] = mapped_column(default=False)
+    cert_extracted_reg_no: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    cert_verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    
+    # Aadhaar/NSDL dynamic verification fields
+    pan_otp_code: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    pan_otp_verified: Mapped[bool] = mapped_column(default=False)
+    pan_card_photo_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    
+    hospital: Mapped["Hospital"] = relationship(backref="verification_logs")
