@@ -22,6 +22,7 @@ const ActivationWizard = ({ isOpen, onClose, onActivationSuccess }) => {
   const [formData, setFormData] = useState({
     name: '',
     owner_email: '',
+    owner_password: '',
     registration_number: '',
     staff_count: '',
     phone_number: '',
@@ -300,7 +301,7 @@ const ActivationWizard = ({ isOpen, onClose, onActivationSuccess }) => {
       });
       setStep(6); // Instant Activation!
       if (onActivationSuccess) {
-        onActivationSuccess({ id: hospitalId, hospyn_id: hospynId, name: formData.name });
+        onActivationSuccess({ id: hospitalId, hospyn_id: hospynId, name: formData.name, owner_email: formData.owner_email, owner_password: formData.owner_password });
       }
     } catch (err) {
       console.error(err);
@@ -334,7 +335,7 @@ const ActivationWizard = ({ isOpen, onClose, onActivationSuccess }) => {
         setStatusPolling(false);
         setStep(6); // Activation Complete Screen
         if (onActivationSuccess) {
-          onActivationSuccess(response.data);
+          onActivationSuccess({ ...response.data, owner_email: formData.owner_email, owner_password: formData.owner_password });
         }
       }
     } catch (err) {
@@ -482,9 +483,15 @@ const ActivationWizard = ({ isOpen, onClose, onActivationSuccess }) => {
                           </div>
                         </div>
 
-                        <div>
-                          <label className="block text-slate-700 text-xs font-semibold mb-1.5" htmlFor="owner_email">Administrator Gmail Address</label>
-                          <input id="owner_email" value={formData.owner_email} onChange={handleInputChange} type="email" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-slate-900 text-sm focus:bg-white focus:border-indigo-600 outline-none transition-all" placeholder="e.g. contact@apollo.com" required />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-slate-700 text-xs font-semibold mb-1.5" htmlFor="owner_email">Administrator Gmail Address</label>
+                            <input id="owner_email" value={formData.owner_email} onChange={handleInputChange} type="email" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-slate-900 text-sm focus:bg-white focus:border-indigo-600 outline-none transition-all" placeholder="e.g. contact@apollo.com" required />
+                          </div>
+                          <div>
+                            <label className="block text-slate-700 text-xs font-semibold mb-1.5" htmlFor="owner_password">Create Console Password</label>
+                            <input id="owner_password" value={formData.owner_password} onChange={handleInputChange} type="password" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-slate-900 text-sm focus:bg-white focus:border-indigo-600 outline-none transition-all" placeholder="Enter secure password" required />
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -557,11 +564,11 @@ const ActivationWizard = ({ isOpen, onClose, onActivationSuccess }) => {
 
                       <button 
                         onClick={() => {
-                          if (formData.name && formData.owner_email && formData.registration_number && formData.phone_number && formData.physical_address) {
+                          if (formData.name && formData.owner_email && formData.owner_password && formData.registration_number && formData.phone_number && formData.physical_address) {
                             setError(null);
                             setStep(2);
                           } else {
-                            setError("Please fill in all mandatory hospital profile and location address fields.");
+                            setError("Please fill in all mandatory hospital profile, email, password, and location fields.");
                           }
                         }} 
                         className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm rounded-xl py-4 transition-colors shadow-lg shadow-slate-100 flex items-center justify-center gap-2"

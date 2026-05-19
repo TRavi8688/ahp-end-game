@@ -61,13 +61,140 @@ const CredentialsEmailModal = ({ isOpen, onClose, staffRecord }) => {
   );
 };
 
-// --- ENTERPRISE CLINICAL ACTIVATION GATEWAY ---
+// --- SECURE LEDGER LOGIN MODAL ---
+const LedgerLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const savedOrg = localStorage.getItem('hospyn_org_name') || 'Apollo Hospital Group';
+  const savedEmail = localStorage.getItem('hospyn_owner_email') || 'owner@apollo.com';
+  const savedPassword = localStorage.getItem('hospyn_owner_password') || 'admin123';
+
+  // Pre-fill email if session is active
+  useEffect(() => {
+    if (isOpen && localStorage.getItem('hospyn_owner_email')) {
+      setEmail(localStorage.getItem('hospyn_owner_email'));
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!email.trim() || !password.trim()) {
+      setError('Please fill in both email and password.');
+      return;
+    }
+
+    // Validate credentials strictly matching saved registration or demo default
+    if (
+      email.toLowerCase().trim() === savedEmail.toLowerCase().trim() &&
+      password === savedPassword
+    ) {
+      onLoginSuccess({
+        name: savedOrg,
+        owner_email: savedEmail
+      });
+    } else {
+      setError('Invalid email or password signature. Authentication rejected.');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[250] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-6 font-inter">
+      <motion.div 
+        initial={{ scale: 0.95, opacity: 0 }} 
+        animate={{ scale: 1, opacity: 1 }} 
+        className="max-w-md w-full bg-white border border-slate-200 rounded-[32px] shadow-2xl overflow-hidden p-8 space-y-6"
+      >
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2.5">
+            <span className="text-violet-600 font-bold text-lg">🔒</span>
+            <span className="text-xs font-black uppercase tracking-widest text-slate-850 font-outfit">Sovereign Node Login</span>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-650 transition-colors">✕</button>
+        </div>
+
+        {localStorage.getItem('hospyn_org_name') && (
+          <div className="p-4 bg-violet-50/50 border border-violet-100 rounded-2xl text-left">
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Active Configuration Found</p>
+            <p className="text-xs text-slate-700 font-bold mt-0.5">{savedOrg}</p>
+            <p className="text-[9px] text-slate-400 mt-1 font-semibold">Enter your secure password below to unlock this node.</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-inter">Admin Email Address</label>
+            <input 
+              type="email" 
+              placeholder="e.g. owner@apollo.com"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setError('');
+              }}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:border-violet-400 focus:bg-white transition-all font-semibold"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 font-inter">Console Access Password</label>
+            <input 
+              type="password" 
+              placeholder="Enter secure password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError('');
+              }}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:border-violet-400 focus:bg-white transition-all font-semibold font-mono"
+            />
+          </div>
+
+          {error && <p className="text-[10px] text-rose-600 font-bold font-inter">{error}</p>}
+
+          <button 
+            type="submit"
+            className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md shadow-slate-900/10"
+          >
+            Authenticate Credentials
+          </button>
+        </form>
+
+        {/* Informative credentials note to guide manual testing */}
+        <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-xl text-center">
+          <p className="text-[9px] text-slate-450 font-bold uppercase tracking-wider">Demo / Testing Credentials</p>
+          <p className="text-[10px] text-slate-600 mt-1 font-semibold">
+            Email: <code className="bg-white px-1.5 py-0.5 rounded border border-slate-150 text-slate-800 font-bold">owner@apollo.com</code> <br />
+            Password: <code className="bg-white px-1.5 py-0.5 rounded border border-slate-150 text-slate-800 font-bold">admin123</code>
+          </p>
+        </div>
+
+        <p className="text-[9px] text-slate-400 font-bold text-center uppercase tracking-widest">
+          Secured by Hospyn Ledger Protocol.
+        </p>
+      </motion.div>
+    </div>
+  );
+};
 
 // --- CORE SYSTEM APP ---
 export default function App() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const [appStatus, setAppStatus] = useState(localStorage.getItem('hospyn_app_state') || 'unregistered');
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [appStatus, setAppStatus] = useState('unregistered');
+  const [activeAiSlide, setActiveAiSlide] = useState(0);
+  const [activePatientSlide, setActivePatientSlide] = useState(0);
+  
+  // Free clinical chat assistant states
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [messages, setMessages] = useState([
+    { sender: 'chitti', text: 'Hello! I am Chitti AI, your clinical intelligence assistant. How can I assist with your hospital operations or patient charts today?' }
+  ]);
+  const [inputText, setInputText] = useState('');
   
   // Console state
   const [consoleTab, setConsoleTab] = useState('dashboard');
@@ -178,7 +305,7 @@ export default function App() {
             </div>
             
             <div className="flex gap-8 items-center">
-              {['Ecosystem Hub', 'How We Service', 'Our Vision', 'Developer Grid'].map((name, idx) => (
+              {['Ecosystem Hub', 'How We Service', 'Our Vision'].map((name, idx) => (
                 <button
                   key={idx}
                   onClick={() => { setCurrentPage(idx + 1); }}
@@ -192,13 +319,18 @@ export default function App() {
               ))}
               
               <div className="flex items-center gap-2 ml-6">
-                <a href="#support" className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-[9px] font-bold uppercase tracking-wider hover:bg-slate-50 transition-colors">Support</a>
+                <button 
+                  onClick={() => setIsLoginModalOpen(true)}
+                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-[9px] font-bold uppercase tracking-wider hover:bg-slate-50 transition-colors"
+                >
+                  Access Console
+                </button>
                 <button 
                   onClick={() => {
                     if (appStatus === 'unregistered') setIsWizardOpen(true);
                     else if (appStatus === 'pending') alert("Forensic ledger setup in progress. Use the bypass button on pending view to instantly approve.");
                   }}
-                  className={`px-5 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all shadow-md ${appStatus === 'pending' ? 'bg-amber-500 text-white shadow-amber-500/20' : 'bg-primary text-white hover:bg-blue-700 shadow-blue-500/10'}`}
+                  className={`px-5 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all shadow-md ${appStatus === 'pending' ? 'bg-amber-500 text-white shadow-amber-500/20' : 'bg-primary text-white hover:bg-violet-750 shadow-violet-500/10'}`}
                 >
                   {appStatus === 'pending' ? 'Verification Pending' : 'Register Console'}
                 </button>
@@ -222,7 +354,7 @@ export default function App() {
               <div className="max-w-7xl mx-auto px-8 w-full relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center pt-10">
                 
                 {/* Left Column: Core Value Proposition */}
-                <div className="lg:col-span-7 text-left space-y-8">
+                <div className="lg:col-span-10 text-left space-y-8">
                   
                   {/* Futuristic Active Status Pill */}
                   <motion.div 
@@ -294,17 +426,17 @@ export default function App() {
                       </button>
                     ) : (
                       <button 
-                        onClick={() => setCurrentPage(4)} 
+                        onClick={handleVerifyBypass} 
                         className="px-8 py-4 bg-violet-600 text-white font-bold text-xs tracking-widest uppercase rounded-xl hover:bg-violet-700 transition-all flex items-center gap-2"
                       >
                         Monitor Local Node ➔
                       </button>
                     )}
                     <button 
-                      onClick={() => setCurrentPage(2)} 
+                      onClick={() => setIsLoginModalOpen(true)} 
                       className="px-8 py-4 border border-slate-200 bg-white/70 text-slate-700 font-bold text-xs tracking-widest uppercase rounded-xl hover:bg-slate-50 transition-all"
                     >
-                      Explore Ecosystem
+                      Access Existing Node
                     </button>
                   </motion.div>
 
@@ -327,45 +459,6 @@ export default function App() {
                         <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight leading-none">{item.text}</span>
                       </div>
                     ))}
-                  </motion.div>
-
-                </div>
-
-                {/* Right Column: Floating Winking Chitti AI robot integrated natively */}
-                <div className="lg:col-span-5 relative flex items-center justify-center">
-                  
-                  {/* Soft ambient violet-blue radial glow matching Chitti's theme */}
-                  <div className="absolute -inset-10 bg-gradient-to-r from-violet-500/10 to-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-
-                  {/* Clean mascot image floating directly in the layout without annoying screenshot card borders */}
-                  <motion.div 
-                    animate={{ y: [0, -12, 0] }}
-                    transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-                    className="relative w-full max-w-[360px] select-none flex justify-center items-center"
-                  >
-                    <img 
-                      src={chittiLandingImg} 
-                      alt="Chitti AI Mascot" 
-                      className="w-full h-auto object-contain mix-blend-multiply drop-shadow-[0_20px_50px_rgba(139,92,246,0.15)]"
-                    />
-
-                    {/* Glowing status vitals label floating beside Chitti */}
-                    <motion.div 
-                      animate={{ scale: [1, 1.03, 1] }}
-                      transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-                      className="absolute -bottom-2 -left-6 bg-white/90 border border-slate-200/50 backdrop-blur-md px-4 py-2.5 rounded-2xl flex items-center gap-2.5 shadow-lg shadow-violet-500/5"
-                    >
-                      <span className="relative flex h-2.5 w-2.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-violet-500"></span>
-                      </span>
-                      <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest font-inter">Chitti Active Node</span>
-                    </motion.div>
-
-                    {/* Floating Clinical Plus symbol above Chitti */}
-                    <div className="absolute -top-4 -right-2 w-9 h-9 rounded-xl bg-white border border-slate-200/60 flex items-center justify-center shadow-md text-violet-500 font-bold text-lg">
-                      +
-                    </div>
                   </motion.div>
 
                 </div>
@@ -428,6 +521,293 @@ export default function App() {
                       ))}
                     </div>
                   </div>
+                </div>
+              </div>
+            </section>
+
+            {/* SECTION 3: CHITTI AI COGNITION SLIDESHOW */}
+            <section className="py-24 bg-[#FAF9FE] border-t border-b border-violet-100/50 relative overflow-hidden">
+              <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full bg-violet-400/5 blur-3xl pointer-events-none" />
+              <div className="max-w-7xl mx-auto px-8 space-y-16">
+                
+                <div className="text-center space-y-4 max-w-2xl mx-auto">
+                  <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full border border-violet-200 bg-white text-[9px] font-black tracking-widest text-violet-600 uppercase shadow-sm">
+                    ✦ Chitti AI Cognition
+                  </span>
+                  <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 font-outfit">
+                    Zero-Error Clinical Intelligence
+                  </h2>
+                  <p className="text-slate-500 text-xs md:text-sm font-semibold leading-relaxed">
+                    Explore how Chitti’s sovereign intelligence engines eliminate manual mistakes, secure patient prescriptions, and coordinate clinic queues in real-time.
+                  </p>
+                </div>
+
+                {/* Slides Grid Interface */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-stretch">
+                  
+                  {/* Left Column: Interactive Nav Cards (Tabs) */}
+                  <div className="lg:col-span-5 flex flex-col justify-center space-y-4">
+                    {[
+                      { idx: 0, title: 'Smart Clinical Vision Audits', sub: 'OCR & Signature scanning for records', badge: 'Vision & OCR' },
+                      { idx: 1, title: 'Forensic Prescription Check', sub: 'Dosage audit and anomaly detection', badge: 'Safety Engine' },
+                      { idx: 2, title: 'Sovereign Ledger Syncing', sub: 'Private cryptographic transaction logs', badge: 'Blockchain Hash' }
+                    ].map((slide) => {
+                      const isActive = activeAiSlide === slide.idx;
+                      return (
+                        <button
+                          key={slide.idx}
+                          onClick={() => setActiveAiSlide(slide.idx)}
+                          className={`w-full text-left p-5 rounded-[24px] border transition-all duration-300 relative overflow-hidden flex gap-4 items-center ${
+                            isActive 
+                              ? 'bg-white border-violet-200 shadow-lg shadow-violet-500/5' 
+                              : 'bg-white/50 border-slate-105 hover:bg-white hover:border-slate-200'
+                          }`}
+                        >
+                          {isActive && (
+                            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-violet-600 rounded-r" />
+                          )}
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-bold text-xs ${
+                            isActive ? 'bg-violet-50 text-violet-600' : 'bg-slate-100 text-slate-400'
+                          }`}>
+                            0{slide.idx + 1}
+                          </div>
+                          <div className="flex-grow">
+                            <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
+                              isActive ? 'bg-violet-100/60 text-violet-600' : 'bg-slate-200/50 text-slate-500'
+                            }`}>{slide.badge}</span>
+                            <h4 className="text-xs font-bold text-slate-900 mt-1.5 tracking-tight">{slide.title}</h4>
+                            <p className="text-[10px] text-slate-400 font-medium mt-0.5">{slide.sub}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Right Column: Sleek Glassmorphic Illustration Slide Panel */}
+                  <div className="lg:col-span-7 flex">
+                    <div className="w-full bg-white border border-slate-100 rounded-[32px] p-8 md:p-10 shadow-xl shadow-slate-100 flex flex-col justify-between relative overflow-hidden">
+                      {/* Ambient background glow matching tab */}
+                      <div className="absolute -right-20 -bottom-20 w-64 h-64 rounded-full bg-violet-500/5 blur-3xl pointer-events-none" />
+                      
+                      <div className="space-y-6">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[9px] font-black uppercase tracking-widest text-violet-600 bg-violet-50 px-2.5 py-1 rounded-lg">ACTIVE COGNITION NODE</span>
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                        </div>
+
+                        <AnimatePresence mode="wait">
+                          <motion.div
+                            key={activeAiSlide}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="space-y-4"
+                          >
+                            <h3 className="text-xl md:text-2xl font-black tracking-tight text-slate-955 font-outfit">
+                              {activeAiSlide === 0 && 'Vision-Based Optical Script Extraction'}
+                              {activeAiSlide === 1 && 'Automated Dosage Anomaly Detection'}
+                              {activeAiSlide === 2 && 'Immutable Private Ledger Cryptographic Sync'}
+                            </h3>
+                            <p className="text-slate-650 text-xs md:text-sm leading-relaxed font-semibold">
+                              {activeAiSlide === 0 && 'Scan physical clinical certificates and prescriptions instantly. Chitti’s high-precision OCR pipeline isolates medical license registries, extracts text parameters, and checks signature stamps for complete security compliance.'}
+                              {activeAiSlide === 1 && 'Hospyn continuously checks drug names and intake dosages against clinical databases. If a doctor drafts an outlier prescription (e.g. 1000mg vs 500mg standard), Chitti raises a non-intrusive warning to double-verify medical intents.'}
+                              {activeAiSlide === 2 && 'Every verified transaction, doctor assignment, and medicine dispense is packaged into a cryptographic transaction block. The block is stamped onto your local sovereign database node, establishing a permanent, zero-fraud audit trail.'}
+                            </p>
+                          </motion.div>
+                        </AnimatePresence>
+                      </div>
+
+                      {/* Mini Visual Slide Illustration */}
+                      <div className="mt-8 border border-slate-100 rounded-2xl p-6 bg-slate-50 relative overflow-hidden flex items-center justify-center min-h-[140px]">
+                        <AnimatePresence mode="wait">
+                          {activeAiSlide === 0 && (
+                            <motion.div key="vis0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-sm space-y-3">
+                              <div className="flex justify-between text-[8px] font-mono text-slate-400 uppercase">
+                                <span>Scanning Script OCR...</span>
+                                <span className="text-emerald-500 font-bold">Match 99.8%</span>
+                              </div>
+                              <div className="h-2 bg-slate-200 rounded-full overflow-hidden relative">
+                                <div className="absolute top-0 bottom-0 bg-violet-600 w-full animate-[shimmer_2s_infinite]" style={{
+                                  background: 'linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.4), transparent)'
+                                }} />
+                              </div>
+                              <div className="grid grid-cols-3 gap-2">
+                                <div className="h-6 bg-white border border-slate-150 rounded-lg flex items-center justify-center text-[8px] font-bold text-slate-600 uppercase">Dr. Sharma</div>
+                                <div className="h-6 bg-white border border-slate-150 rounded-lg flex items-center justify-center text-[8px] font-bold text-slate-600 uppercase">Cardiology</div>
+                                <div className="h-6 bg-white border border-slate-150 rounded-lg flex items-center justify-center text-[8px] font-bold text-slate-600 uppercase">Delhi Branch</div>
+                              </div>
+                            </motion.div>
+                          )}
+                          {activeAiSlide === 1 && (
+                            <motion.div key="vis1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-sm space-y-3">
+                              <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-center justify-between text-[10px]">
+                                <span className="text-rose-700 font-bold flex items-center gap-1">⚠ High Dosage Flagged</span>
+                                <span className="text-rose-600 font-black">1000mg Metformin</span>
+                              </div>
+                              <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-between text-[10px]">
+                                <span className="text-emerald-700 font-bold flex items-center gap-1">✔ Adjusted Standard</span>
+                                <span className="text-emerald-600 font-black">500mg Metformin</span>
+                              </div>
+                            </motion.div>
+                          )}
+                          {activeAiSlide === 2 && (
+                            <motion.div key="vis2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-sm flex justify-around items-center">
+                              <div className="w-12 h-12 bg-white border border-violet-100 rounded-xl flex items-center justify-center text-xs font-bold text-violet-600 shadow-sm relative">
+                                <span className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white" />
+                                EHR
+                              </div>
+                              <div className="flex-grow h-0.5 bg-dashed bg-slate-300 mx-4 border-t border-dashed" />
+                              <div className="w-12 h-12 bg-violet-650 rounded-xl flex items-center justify-center text-xs font-bold text-white shadow-md relative">
+                                <span className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white animate-ping" />
+                                NODE
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+            </section>
+
+            {/* SECTION 4: PATIENT EXPERIENCE PIPELINE SLIDESHOW */}
+            <section className="py-24 bg-white border-b border-slate-100 relative">
+              <div className="max-w-7xl mx-auto px-8 space-y-16">
+                
+                <div className="text-center space-y-4 max-w-2xl mx-auto">
+                  <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full border border-violet-200 bg-violet-50 text-[9px] font-black tracking-widest text-violet-600 uppercase shadow-sm">
+                    ♥ Patient Experience Flow
+                  </span>
+                  <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 font-outfit">
+                    Streamlining the Patient Journey
+                  </h2>
+                  <p className="text-slate-500 text-xs md:text-sm font-semibold leading-relaxed">
+                    Watch how patients bypass traditional administrative bottlenecks, coordinating seamlessly from check-in to digital checkout.
+                  </p>
+                </div>
+
+                {/* Slides Grid Interface */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-stretch">
+                  
+                  {/* Left Column: Interactive Nav Cards (Tabs) */}
+                  <div className="lg:col-span-5 flex flex-col justify-center space-y-4">
+                    {[
+                      { idx: 0, title: 'One-Click QR Check-In', sub: 'Instant queue check-in with digital tokens', badge: 'Clinic Entry' },
+                      { idx: 1, title: 'Doctor Queue Triage', sub: 'Calculated wait times and steps tracking', badge: 'Active Triage' },
+                      { idx: 2, title: 'Instant Bill Checkout', sub: 'Synchronized payments & digital receipts', badge: 'Checkout Node' }
+                    ].map((slide) => {
+                      const isActive = activePatientSlide === slide.idx;
+                      return (
+                        <button
+                          key={slide.idx}
+                          onClick={() => setActivePatientSlide(slide.idx)}
+                          className={`w-full text-left p-5 rounded-[24px] border transition-all duration-300 relative overflow-hidden flex gap-4 items-center ${
+                            isActive 
+                              ? 'bg-[#FAF9FE] border-violet-200 shadow-lg shadow-violet-500/5' 
+                              : 'bg-white/50 border-slate-100 hover:bg-slate-50 hover:border-slate-200'
+                          }`}
+                        >
+                          {isActive && (
+                            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-violet-600 rounded-r" />
+                          )}
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-bold text-xs ${
+                            isActive ? 'bg-violet-100/60 text-violet-600' : 'bg-slate-100 text-slate-400'
+                          }`}>
+                            0{slide.idx + 1}
+                          </div>
+                          <div className="flex-grow">
+                            <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
+                              isActive ? 'bg-violet-100 text-violet-600' : 'bg-slate-200/50 text-slate-500'
+                            }`}>{slide.badge}</span>
+                            <h4 className="text-xs font-bold text-slate-900 mt-1.5 tracking-tight">{slide.title}</h4>
+                            <p className="text-[10px] text-slate-400 font-medium mt-0.5">{slide.sub}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Right Column: Sleek Glassmorphic Illustration Slide Panel */}
+                  <div className="lg:col-span-7 flex">
+                    <div className="w-full bg-[#FAF9FE] border border-violet-100/40 rounded-[32px] p-8 md:p-10 shadow-xl shadow-violet-500/5 flex flex-col justify-between relative overflow-hidden">
+                      {/* Ambient background glow matching tab */}
+                      <div className="absolute -right-20 -bottom-20 w-64 h-64 rounded-full bg-violet-500/5 blur-3xl pointer-events-none" />
+                      
+                      <div className="space-y-6">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[9px] font-black uppercase tracking-widest text-violet-600 bg-white border border-violet-100 px-2.5 py-1 rounded-lg">PATIENT PIPELINE CONTROL</span>
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                        </div>
+
+                        <AnimatePresence mode="wait">
+                          <motion.div
+                            key={activePatientSlide}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="space-y-4"
+                          >
+                            <h3 className="text-xl md:text-2xl font-black tracking-tight text-slate-950 font-outfit">
+                              {activePatientSlide === 0 && 'QR-Based Dynamic Check-In Token'}
+                              {activePatientSlide === 1 && 'Real-Time Consultation Queue Coordination'}
+                              {activePatientSlide === 2 && 'Seamless Autopay Settlements & Receipts'}
+                            </h3>
+                            <p className="text-slate-655 text-xs md:text-sm leading-relaxed font-semibold text-slate-650">
+                              {activePatientSlide === 0 && 'Skip physical registration lines entirely. Patients scan a secure front-desk QR code on their phones, instantly matching their medical profile to active doctor schedules and checking in safely.'}
+                              {activePatientSlide === 1 && 'Hospyn continuously updates consultations queue timings. Triage details are synced in real-time to active doctor consoles, coordinating diagnostic rooms, pharmacy stock, and pharmacy wait times seamlessly.'}
+                              {activePatientSlide === 2 && 'Eliminate pharmacy checkout lines. Once consulting doctors sign and mutate patient records on the ledger, co-equal bank settlements execute via Razorpay, routing digital receipts to their phone instantly.'}
+                            </p>
+                          </motion.div>
+                        </AnimatePresence>
+                      </div>
+
+                      {/* Mini Visual Slide Illustration */}
+                      <div className="mt-8 border border-slate-200 bg-white rounded-2xl p-6 relative overflow-hidden flex items-center justify-center min-h-[140px]">
+                        <AnimatePresence mode="wait">
+                          {activePatientSlide === 0 && (
+                            <motion.div key="pvis0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-4 items-center">
+                              <div className="w-12 h-12 bg-violet-50 rounded-xl border border-violet-100 flex items-center justify-center font-bold text-violet-600">QR</div>
+                              <div>
+                                <p className="text-[10px] font-black text-slate-950 uppercase tracking-wide">Pulsing QR Registered</p>
+                                <p className="text-[8px] text-slate-450 mt-0.5">Delhi Branch Main Gate OPD Terminal 01</p>
+                              </div>
+                            </motion.div>
+                          )}
+                          {activePatientSlide === 1 && (
+                            <motion.div key="pvis1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-sm space-y-2 text-center">
+                              <div className="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase px-1">
+                                <span>Check-In</span>
+                                <span>Triage Consultation</span>
+                                <span>Digital Checkout</span>
+                              </div>
+                              <div className="h-1.5 bg-slate-100 rounded-full flex overflow-hidden">
+                                <div className="bg-violet-600 w-2/3 h-full rounded-full" />
+                              </div>
+                              <span className="text-[8px] font-black text-violet-600 uppercase tracking-widest block mt-1">Consultation in progress... Wait: ~3 mins</span>
+                            </motion.div>
+                          )}
+                          {activePatientSlide === 2 && (
+                            <motion.div key="pvis2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-sm p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">✔</div>
+                                <div>
+                                  <p className="text-[10px] font-black text-slate-900 uppercase">Razorpay Settlement Locked</p>
+                                  <p className="text-[8px] text-slate-450 mt-0.5">UPI Auto-pay settlement: success</p>
+                                </div>
+                              </div>
+                              <span className="text-[10px] font-black text-emerald-600">₹200.00</span>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+
+                    </div>
+                  </div>
+
                 </div>
 
               </div>
@@ -581,71 +961,6 @@ export default function App() {
             </section>
           )}
 
-          {/* PAGE 4: PLATFORM VITALS & INFRASTRUCTURE */}
-          {currentPage === 4 && (
-            <section className="py-24 max-w-7xl mx-auto px-8 text-center">
-              <h2 className="text-4xl font-extrabold text-slate-950 mb-4 font-outfit">Sovereign Clinical Grid Vitals</h2>
-              <p className="text-slate-500 mb-12 max-w-lg mx-auto">Real-time indicators showing active network nodes deployed across regional cloud scopes.</p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div className="p-8 bg-white border border-slate-200 rounded-[24px] shadow-sm space-y-4 text-left">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Ledger Latency</span>
-                    <span className="px-2 py-1 bg-blue-50 border border-blue-200 rounded-lg text-[9px] font-bold text-primary uppercase">ACTIVE</span>
-                  </div>
-                  <div className="text-3xl font-black font-outfit text-slate-950">12.4ms</div>
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div className="bg-primary h-full w-[85%]" />
-                  </div>
-                  <p className="text-[10px] text-slate-400">Consolidated database operations across all regional node configurations.</p>
-                </div>
-                <div className="p-8 bg-white border border-slate-200 rounded-[24px] shadow-sm space-y-4 text-left">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Queue Throughput</span>
-                    <span className="px-2 py-1 bg-emerald-50 border border-emerald-200 rounded-lg text-[9px] font-bold text-emerald-600 uppercase">HEALTHY</span>
-                  </div>
-                  <div className="text-3xl font-black font-outfit text-slate-950">12,492 reqs/s</div>
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div className="bg-emerald-500 h-full w-[92%]" />
-                  </div>
-                  <p className="text-[10px] text-slate-400">Real-time patient scheduling queue telemetry operations without latency overhead.</p>
-                </div>
-                <div className="p-8 bg-white border border-slate-200 rounded-[24px] shadow-sm space-y-4 text-left">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">AI Safety Audit</span>
-                    <span className="px-2 py-1 bg-blue-50 border border-blue-200 rounded-lg text-[9px] font-bold text-primary uppercase">100% SECURE</span>
-                  </div>
-                  <div className="text-3xl font-black font-outfit text-slate-950">99.98% Confidence</div>
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div className="bg-blue-600 h-full w-[99%]" />
-                  </div>
-                  <p className="text-[10px] text-slate-400">HIPAA compliant diagnostics assist matching medical board standards.</p>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* PAGE 4: INFRASTRUCTURE DEVELOPER DOCUMENTS */}
-          {currentPage === 4 && (
-            <section className="py-24 max-w-4xl mx-auto px-8">
-              <h2 className="text-3xl font-extrabold text-slate-950 mb-8 font-outfit">Sovereign Deployment Standards</h2>
-              <div className="bg-white border border-slate-200 rounded-[24px] overflow-hidden shadow-sm">
-                <div className="p-6 bg-slate-900 text-white flex items-center gap-2 border-b border-slate-800">
-                  <Key size={16} className="text-blue-400"/>
-                  <span className="font-mono text-xs uppercase tracking-wider">Hospyn CLI Initialisation</span>
-                </div>
-                <div className="p-8 font-mono text-xs text-slate-700 bg-slate-50 space-y-4 leading-relaxed">
-                  <p># Install the Hospyn node orchestrator</p>
-                  <p className="bg-white p-3 border border-slate-200 rounded-lg text-slate-800 font-bold">$ npm install -g @hospyn/sovereign-node-cli</p>
-                  <p># Authenticate using your enterprise activation signature</p>
-                  <p className="bg-white p-3 border border-slate-200 rounded-lg text-slate-800 font-bold">$ hospyn auth --activate --key key_enterprise_9a82e9d2f</p>
-                  <p># Deploys safe localized HIPAA database mappings</p>
-                  <p className="bg-white p-3 border border-slate-200 rounded-lg text-slate-800 font-bold">$ hospyn node:deploy --region gcp-us-central1 --multi-branch</p>
-                  <p className="text-emerald-600 font-bold">⚡ NODE RUNNING SUCCESSFULLY IN gcp-us-central1. PORTAL ACTIVE.</p>
-                </div>
-              </div>
-            </section>
-          )}
         </div>
       )}
 
@@ -1221,6 +1536,9 @@ export default function App() {
           localStorage.setItem('hospyn_app_state', 'approved');
           localStorage.setItem('hospyn_org_name', data.name);
           localStorage.setItem('hospyn_owner_email', data.owner_email);
+          if (data.owner_password) {
+            localStorage.setItem('hospyn_owner_password', data.owner_password);
+          }
           if (data.branches) {
             localStorage.setItem('hospyn_branches', data.branches);
           }
@@ -1232,6 +1550,104 @@ export default function App() {
         onClose={() => setIsMailOpen(false)} 
         staffRecord={activeDispatchMail}
       />
+
+      <LedgerLoginModal 
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        onLoginSuccess={(data) => {
+          setIsLoginModalOpen(false);
+          setAppStatus('approved');
+          localStorage.setItem('hospyn_app_state', 'approved');
+          localStorage.setItem('hospyn_org_name', data.name);
+          localStorage.setItem('hospyn_owner_email', data.owner_email);
+        }}
+      />
+
+      {/* FREE CLINICAL CHITTI AI CHATBOT INTEGRATION */}
+      {appStatus !== 'approved' && (
+        <div className="fixed bottom-6 right-6 z-[100] font-inter">
+          <AnimatePresence>
+            {isChatOpen && (
+              <motion.div 
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 30, scale: 0.95 }}
+                className="w-96 h-[480px] bg-white border border-slate-200 rounded-[32px] shadow-2xl flex flex-col overflow-hidden mb-4"
+              >
+                {/* Header */}
+                <div className="p-5 bg-violet-600 text-white flex items-center justify-between shadow-md">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-bold">
+                      ✦
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black uppercase tracking-wider font-outfit">Chitti AI Clinical Bot</h4>
+                      <p className="text-[8px] text-violet-200 font-bold uppercase tracking-widest">Active Free Gateway</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setIsChatOpen(false)} className="text-white hover:text-violet-200 transition-colors">
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Messages Box */}
+                <div className="flex-grow p-5 overflow-y-auto space-y-3.5 bg-slate-50">
+                  {messages.map((msg, idx) => (
+                    <div key={idx} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[80%] rounded-2xl p-3.5 text-xs leading-relaxed font-semibold shadow-sm ${msg.sender === 'user' ? 'bg-violet-600 text-white rounded-br-none' : 'bg-white text-slate-800 border border-slate-100 rounded-bl-none'}`}>
+                        {msg.text}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Input Area */}
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!inputText.trim()) return;
+                    const userText = inputText;
+                    setInputText('');
+                    setMessages(prev => [...prev, { sender: 'user', text: userText }]);
+                    
+                    setTimeout(() => {
+                      let reply = "Understood. I am parsing the clinical logs to cross-verify doctor shifts and pharmacy stock levels. Operational flow looks nominal.";
+                      if (userText.toLowerCase().includes('money') || userText.toLowerCase().includes('bank') || userText.toLowerCase().includes('pay')) {
+                        reply = "Dynamic Bank Settlements Node verified. All transaction streams are routed through standard verification layers directly to your primary bank account.";
+                      } else if (userText.toLowerCase().includes('hello') || userText.toLowerCase().includes('hi')) {
+                        reply = "Hello! I am Chitti AI, your clinical intelligence assistant. How can I assist with your hospital operations today?";
+                      }
+                      setMessages(prev => [...prev, { sender: 'chitti', text: reply }]);
+                    }, 1000);
+                  }}
+                  className="p-4 border-t border-slate-100 bg-white flex gap-2 items-center"
+                >
+                  <input 
+                    type="text" 
+                    value={inputText}
+                    onChange={(e) => setInputText(e.target.value)}
+                    placeholder="Ask Chitti AI anything..." 
+                    className="flex-grow bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold outline-none focus:border-violet-400 focus:bg-white transition-all"
+                  />
+                  <button type="submit" className="w-9 h-9 rounded-xl bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center font-bold shadow-md shadow-violet-500/10">
+                    ➔
+                  </button>
+                </form>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Floating Chat Bubble Button */}
+          <motion.button 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setIsChatOpen(!isChatOpen)}
+            className="w-16 h-16 rounded-full bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shadow-xl shadow-violet-500/20 text-2xl font-bold border-2 border-white/20"
+          >
+            💬
+          </motion.button>
+        </div>
+      )}
     </div>
   );
 }
