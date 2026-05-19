@@ -32,6 +32,23 @@ export default function AccessHistoryScreen({ navigation }) {
         fetchHistory();
     };
 
+    const handleRevoke = async (accessId) => {
+        try {
+            HapticUtils?.impactLight?.();
+        } catch (e) {}
+
+        try {
+            await ApiService.revokeAccess(accessId);
+            // Instantly update local state list!
+            setHistory(prev => prev.map(item => 
+                item.id === accessId ? { ...item, status: 'revoked', revoked_at: new Date().toISOString() } : item
+            ));
+        } catch (error) {
+            console.error('Revoke access error:', error);
+            alert('Failed to revoke access. Please check network connection.');
+        }
+    };
+
     const renderItem = ({ item }) => {
         const isGranted = item.status === 'granted';
         const isRevoked = item.status === 'revoked';
@@ -72,6 +89,16 @@ export default function AccessHistoryScreen({ navigation }) {
                         </View>
                     )}
                 </View>
+
+                {isGranted && (
+                    <TouchableOpacity 
+                        style={styles.cardRevokeBtn} 
+                        onPress={() => handleRevoke(item.id)}
+                    >
+                        <Ionicons name="close-circle-outline" size={16} color="#ef4444" />
+                        <Text style={styles.cardRevokeText}>REVOKE ACCESS INSTANTLY</Text>
+                    </TouchableOpacity>
+                )}
             </View>
         );
     };
@@ -130,5 +157,23 @@ const styles = StyleSheet.create({
     timeText: { color: '#64748B', fontSize: 11 },
     emptyBox: { alignItems: 'center', py: 100, px: 40 },
     emptyTitle: { color: '#fff', fontSize: 16, fontWeight: '900', letterSpacing: 2, marginTop: 20 },
-    emptySub: { color: '#475569', textAlign: 'center', fontSize: 13, marginTop: 10, lineHeight: 20 }
+    emptySub: { color: '#475569', textAlign: 'center', fontSize: 13, marginTop: 10, lineHeight: 20 },
+    cardRevokeBtn: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        gap: 8, 
+        backgroundColor: 'rgba(239, 68, 68, 0.1)', 
+        borderWidth: 1, 
+        borderColor: 'rgba(239, 68, 68, 0.2)', 
+        borderRadius: 16, 
+        paddingVertical: 12, 
+        marginTop: 15 
+    },
+    cardRevokeText: { 
+        color: '#ef4444', 
+        fontSize: 12, 
+        fontWeight: '900', 
+        letterSpacing: 1.5 
+    }
 });
