@@ -47,7 +47,7 @@ jobs:
             admin:
               - 'super-admin-dashboard/**'
             landing:
-              - 'public/**'
+              - 'hospyn-v2-web/**'
               - 'firebase.json'
 
   run-tests:
@@ -214,6 +214,7 @@ jobs:
             doctor-app/package-lock.json
             hospital-erp/package-lock.json
             super-admin-dashboard/package-lock.json
+            hospyn-v2-web/package-lock.json
 
       - name: Build Patient App
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'patient' || (github.event_name == 'push' && needs.check-changes.outputs.patient == 'true')
@@ -240,6 +241,13 @@ jobs:
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'admin' || (github.event_name == 'push' && needs.check-changes.outputs.admin == 'true')
         run: |
           cd super-admin-dashboard
+          npm install --legacy-peer-deps
+          npm run build
+
+      - name: Build Hospyn v2.0 Landing Portal
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'landing' || (github.event_name == 'push' && needs.check-changes.outputs.landing == 'true')
+        run: |
+          cd hospyn-v2-web
           npm install --legacy-peer-deps
           npm run build
 
