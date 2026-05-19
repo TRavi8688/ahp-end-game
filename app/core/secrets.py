@@ -66,6 +66,9 @@ def load_rsa_key(key_name: str, default_path: str = None) -> str:
     key_data = os.getenv(key_name)
     if not key_data:
         key_data = get_secret(key_name)
+        
+    if key_data:
+        key_data = key_data.replace("\\n", "\n").replace("\\r", "").replace('"', '').strip()
     
     # Validate that the key actually contains base64 payload besides the headers/footers
     is_valid_pem = False
@@ -107,38 +110,53 @@ def load_rsa_key(key_name: str, default_path: str = None) -> str:
     key_data = key_data.strip()
     
     if "-----BEGIN" in key_data:
-        # Check if it needs reconstruction (e.g. it's on one line or has spaces)
-        lines = key_data.splitlines()
-        if len(lines) < 3 or any(" " in line.strip() for line in lines if "BEGIN" not in line and "END" not in line):
-            logger.info(f"HOSPYN_RSA_REPAIR_TRIGGERED: key={key_name}")
-            
-            # Remove all existing whitespace/newlines to get the raw base64 core
-            clean_data = "".join(key_data.split())
-            
-            # Determine correct headers
-            if "RSAPRIVATEKEY" in clean_data:
-                header, footer = "-----BEGIN RSA PRIVATE KEY-----", "-----END RSA PRIVATE KEY-----"
-            elif "PRIVATEKEY" in clean_data:
-                header, footer = "-----BEGIN PRIVATE KEY-----", "-----END PRIVATE KEY-----"
-            elif "PUBLICKEY" in clean_data:
-                header, footer = "-----BEGIN PUBLIC KEY-----", "-----END PUBLIC KEY-----"
-            else:
-                logger.error(f"HOSPYN_RSA_UNKNOWN_TAGS: key={key_name}")
-                return key_data # Return as-is and hope for the best
+        logger.info(f"HOSPYN_RSA_AUTO_RECONSTRUCT: key={key_name}")
+        
+        # Remove all existing whitespace/newlines to get the raw base64 core
+        clean_data = "".join(key_data.split())
+        
+        # Determine correct headers
+        if "RSAPRIVATEKEY" in clean_data:
+            header, footer = "-----BEGIN RSA PRIVATE KEY-----", "-----END RSA PRIVATE KEY-----"
+        elif "PRIVATEKEY" in clean_data:
+            header, footer = "-----BEGIN PRIVATE KEY-----", "-----END PRIVATE KEY-----"
+        elif "PUBLICKEY" in clean_data:
+            header, footer = "-----BEGIN PUBLIC KEY-----", "-----END PUBLIC KEY-----"
+        else:
+            logger.error(f"HOSPYN_RSA_UNKNOWN_TAGS: key={key_name}")
+            return key_data # Return as-is and hope for the best
 
-            # Strip the tags from the clean string to get the pure base64
-            # We use a case-insensitive replace of the header/footer strings (without spaces)
-            core = clean_data.replace(header.replace("-", "").replace(" ", ""), "").replace(footer.replace("-", "").replace(" ", ""), "")
-            # Actually just strip everything before the first valid base64 char after the header
-            # But simpler: replace the known headers/footers
-            core = clean_data.replace(header.replace(" ", ""), "").replace(footer.replace(" ", ""), "")
-            
-            # Reconstruct with 64-character lines (Standard PEM framing)
-            formatted_core = "\n".join([core[i:i+64] for i in range(0, len(core), 64)])
-            key_data = f"{header}\n{formatted_core}\n{footer}\n"
+        # Strip the tags from the clean string to get the pure base64
+        core = clean_data.replace(header.replace(" ", ""), "").replace(footer.replace(" ", ""), "")
+        
+        # Reconstruct with 64-character lines (Standard PEM framing)
+        formatted_core = "\n".join([core[i:i+64] for i in range(0, len(core), 64)])
+        key_data = f"{header}\n{formatted_core}\n{footer}\n"
 
     if "-----BEGIN" in key_data:
         return key_data
     
     logger.error(f"HOSPYN_RSA_LOAD_INVALID_FORMAT: key={key_name}")
     return ""
+
+
+def derive_public_key(private_key_pem: str) -> str:
+    """
+    DYNAMIC RSA PUBLIC KEY DERIVATION:
+    Extracts and serializes the public key from a standard PEM private key.
+    Guarantees public/private key parity and eliminates copy-paste errors.
+    """
+    if not private_key_pem or "-----BEGIN" not in private_key_pem:
+        return ""
+    try:
+        from cryptography.hazmat.primitives import serialization
+        priv_key = serialization.load_pem_private_key(private_key_pem.encode("utf-8"), password=None)
+        pub_key = priv_key.public_key()
+        pub_pem = pub_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        return pub_pem.decode("utf-8")
+    except Exception as e:
+        logger.error(f"FAILED_TO_DERIVE_PUBLIC_KEY: {str(e)}")
+        return ""
