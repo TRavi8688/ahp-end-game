@@ -12,6 +12,7 @@ class CacheService:
         self.redis_url = settings.REDIS_URL
         self._pool: Optional[ConnectionPool] = None
         self._redis: Optional[redis.Redis] = None
+        self._disabled = not settings.USE_REDIS or not settings.REDIS_URL
 
     def _get_pool(self) -> ConnectionPool:
         if self._pool is None:
@@ -28,25 +29,20 @@ class CacheService:
         return self._redis
 
     async def _execute_with_retry(self, func, *args, **kwargs) -> Any:
-        """Execute Redis command with fail-fast retry logic."""
-        max_retries = 3 # Reduced from 5
-        base_delay = 0.2
-        for attempt in range(max_retries):
-            try:
-                r = await self.get_redis()
-                return await func(r, *args, **kwargs)
-            except (ConnectionError, TimeoutError, BusyLoadingError) as e:
-                if attempt == max_retries - 1:
-                    logger.error(f"REDIS_FATAL: Operation failed after {max_retries} attempts: {e}")
-                    raise
-                
-                delay = base_delay * (2 ** attempt)
-                logger.warning(f"REDIS_RETRY: Attempt {attempt + 1} failed. Quick retry in {delay}s...")
-                await asyncio.sleep(delay)
-                self._redis = None 
-            except Exception as e:
-                logger.error(f"REDIS_ERROR: Unhandled exception: {e}")
-                raise
+        """Execute Redis command with fail-fast logic to eliminate latency."""
+        if self._disabled:
+            return None
+        try:
+            r = await self.get_redis()
+            return await func(r, *args, **kwargs)
+        except (ConnectionError, TimeoutError, BusyLoadingError) as e:
+            logger.warning(f"REDIS_OFFLINE: Disabling Redis cache layer to eliminate latency: {e}")
+            self._disabled = True
+            self._redis = None 
+            raise
+        except Exception as e:
+            logger.error(f"REDIS_ERROR: Unhandled exception: {e}")
+            raise
 
     async def get(self, key: str) -> Optional[Any]:
         try:

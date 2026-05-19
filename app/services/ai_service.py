@@ -17,7 +17,6 @@ from cryptography.fernet import Fernet
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.logging import logger
-from app.core.insforge_client import insforge
 from app.services.redis_service import redis_service
 import pytesseract
 import bleach
@@ -103,16 +102,13 @@ class AsyncAIService:
         self.groq_key = settings.GROQ_API_KEY.strip() if settings.GROQ_API_KEY else None
         self.anthropic_key = settings.ANTHROPIC_API_KEY.strip() if settings.ANTHROPIC_API_KEY else None
         self.sarvam_key = settings.SARVAM_KEY.strip() if settings.SARVAM_KEY else None
-        self.base_url = settings.INSFORGE_BASE_URL.strip() if settings.INSFORGE_BASE_URL else None
-        self.anon_key = settings.INSFORGE_ANON_KEY.strip() if settings.INSFORGE_ANON_KEY else None
         self._client: Optional[httpx.AsyncClient] = None
         self.usage_metrics = {"tokens_total": 0, "requests_total": 0, "provider_stats": {}}
         self.safety_mode = AISafetyMode.clinical_assist
         self.circuits = {
             "gemini": DistributedCircuitBreaker("gemini", failure_threshold=3),
             "groq": DistributedCircuitBreaker("groq", failure_threshold=3),
-            "anthropic": DistributedCircuitBreaker("anthropic", failure_threshold=3),
-            "insforge": DistributedCircuitBreaker("insforge", failure_threshold=3)
+            "anthropic": DistributedCircuitBreaker("anthropic", failure_threshold=3)
         }
 
     def _log_usage(self, provider: str, tokens: int = 0, file_size_kb: int = 0, latency_ms: float = 0):
@@ -415,13 +411,11 @@ class AsyncAIService:
         # 2. Define Providers (Priority Ranked)
         if imgs:
             providers = [
-                ("insforge", self._call_insforge_ai, "anthropic/claude-3-5-sonnet"),
                 ("groq", self._call_groq, "llama-3.2-11b-vision-preview"),
                 ("gemini", self._call_gemini, "gemini-2.5-flash")
             ]
         else:
             providers = [
-                ("insforge", self._call_insforge_ai, "deepseek/deepseek-v3"),
                 ("groq", self._call_groq, "llama-3.3-70b-versatile"),
                 ("anthropic", self._call_anthropic, "claude-3-5-sonnet-20240620"),
                 ("gemini", self._call_gemini, "gemini-2.5-flash")
