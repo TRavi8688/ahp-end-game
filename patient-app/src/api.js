@@ -17,4 +17,7 @@ export const WS_BASE_URL = BASE.startsWith('https')
     ? BASE.replace('https', 'wss')
     : BASE.replace('http', 'ws');
 
-// console.log(`[Hospyn Network] Core Endpoint: ${API_BASE_URL}`);
+// --- GOOGLE OAUTH CLIENT CONFIGURATION ---
+// Replace with the Google Web Client ID generated for your GCP Project: hospyn-495906-96438
+export const GOOGLE_CLIENT_ID = '625745217419-g5j6scb7d1hl0s9l2o1e93t6401sf0x.apps.googleusercontent.com';
+
