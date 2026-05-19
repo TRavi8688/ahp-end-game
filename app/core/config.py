@@ -174,12 +174,19 @@ class Settings(BaseSettings):
         self.INSFORGE_ANON_KEY = os.getenv("INSFORGE_ANON_KEY", get_secret("INSFORGE_ANON_KEY", self.INSFORGE_ANON_KEY))
 
         # 2. Load Keys (Must happen before validation)
+        # 2. Load Keys (Must happen before validation)
         if not self.JWT_PRIVATE_KEY:
             self.JWT_PRIVATE_KEY = load_rsa_key("HOSPYN_PRIVATE_KEY", "priv.pem")
+        else:
+            self.JWT_PRIVATE_KEY = self.JWT_PRIVATE_KEY.replace("\\n", "\n").replace("\\r", "").replace('"', '').strip()
+
         if self.JWT_PRIVATE_KEY and "-----BEGIN" in self.JWT_PRIVATE_KEY:
             self.JWT_PUBLIC_KEY = derive_public_key(self.JWT_PRIVATE_KEY)
+
         if not self.JWT_PUBLIC_KEY:
             self.JWT_PUBLIC_KEY = load_rsa_key("HOSPYN_PUBLIC_KEY", "pub.pem")
+        else:
+            self.JWT_PUBLIC_KEY = self.JWT_PUBLIC_KEY.replace("\\n", "\n").replace("\\r", "").replace('"', '').strip()
 
         # 3. Production Safety Checks
         if self.ENVIRONMENT == "production":

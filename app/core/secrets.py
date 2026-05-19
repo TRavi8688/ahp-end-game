@@ -100,9 +100,10 @@ def load_rsa_key(key_name: str, default_path: str = None) -> str:
 
     if not key_data:
         env = os.getenv("ENVIRONMENT", "development")
-        if env == "production":
+        allow_insecure = os.getenv("HOSPYN_ALLOW_INSECURE_BOOT", "false").lower() == "true"
+        if env == "production" and not allow_insecure:
             logger.critical(f"PRODUCTION_KEY_MISSING_OR_INVALID: {key_name}")
-            raise RuntimeError(f"CRITICAL AUTH FAILURE: {key_name} is required for Production.")
+            raise RuntimeError(f"CRITICAL AUTH FAILURE: {key_name} is required for Production. Set HOSPYN_ALLOW_INSECURE_BOOT=true to bypass this check in CI/CD pipeline builds.")
         return ""
 
     # --- AUTO-REPAIR (SHIELD V8.2) ---
