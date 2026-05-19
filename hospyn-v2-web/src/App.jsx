@@ -12,6 +12,9 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ActivationWizard from './components/ActivationWizard';
+import chittiLandingImg from './assets/chitti_landing.jpg';
+import chittiSuperImg from './assets/chitti_super.jpg';
+import logoImg from './assets/logo.png';
 
 // --- CUSTOM CORPORATE EMAIL DISPATCH POPUP ---
 const CredentialsEmailModal = ({ isOpen, onClose, staffRecord }) => {
@@ -165,14 +168,17 @@ export default function App() {
         >
           <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
             <div 
-              className="text-2xl font-extrabold text-slate-900 flex items-center gap-2 cursor-pointer tracking-tight"
+              className="text-2xl font-extrabold text-slate-900 flex items-center gap-3 cursor-pointer tracking-tight"
               onClick={() => setCurrentPage(1)}
             >
-              <Shield className="text-primary" size={24} /> HOSPYN<span className="text-primary">.</span>
+              <div className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center bg-slate-50 border border-slate-100">
+                <img src={logoImg} alt="Hospyn Original Logo" className="w-8 h-8 object-contain" />
+              </div>
+              HOSPYN<span className="text-primary">.</span>
             </div>
             
             <div className="flex gap-8 items-center">
-              {['Ecosystem Overview', 'Clinical Network', 'Platform Vitals', 'Developer Docs'].map((name, idx) => (
+              {['Ecosystem Hub', 'How We Service', 'Our Vision', 'Developer Grid'].map((name, idx) => (
                 <button
                   key={idx}
                   onClick={() => { setCurrentPage(idx + 1); }}
@@ -205,122 +211,317 @@ export default function App() {
       {/* PUBLIC ECOSYSTEM MODE */}
       {appStatus !== 'approved' && (
         <div className="pt-16 flex-grow">
-          {/* PAGE 1: ENTERPRISE LANDING */}
           {currentPage === 1 && (
-            <section className="py-24 relative overflow-hidden neural-grid min-h-screen flex items-center">
-              <div className="max-w-7xl mx-auto px-8 py-20 text-center relative z-10">
-                <div className="inline-block px-4 py-1.5 rounded-full border border-blue-200 bg-blue-50 mb-8 shadow-sm">
-                  <span className="text-primary text-[9px] font-black uppercase tracking-[0.3em]">Sovereign Healthcare Nodes v2.0</span>
-                </div>
+            <section className="py-20 relative overflow-hidden neural-grid min-h-screen flex items-center bg-gradient-to-br from-[#F8FAFC] via-[#EDF4FF] to-[#F8FAFC]">
+              
+              {/* Floating ambient glow orbs */}
+              <div className="absolute top-1/4 right-1/4 w-[400px] h-[400px] rounded-full bg-blue-400/10 blur-[120px] pointer-events-none" />
+              <div className="absolute bottom-1/4 left-1/4 w-[350px] h-[350px] rounded-full bg-indigo-400/10 blur-[100px] pointer-events-none" />
 
-                <h1 className="text-5xl md:text-7xl font-extrabold mb-8 leading-none tracking-tight text-slate-950 font-outfit">
-                  Sovereign Healthcare Nodes. <br/>
-                  <span className="text-primary">Connecting Clinical Grids.</span>
-                </h1>
+              <div className="max-w-7xl mx-auto px-8 w-full relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center pt-10">
+                
+                {/* Left Column: Core Value Proposition */}
+                <div className="lg:col-span-7 text-left space-y-8">
+                  
+                  {/* Futuristic Active Status Pill */}
+                  <motion.div 
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full border border-blue-200 bg-blue-50/70 shadow-sm"
+                  >
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                    </span>
+                    <span className="text-primary text-[10px] font-black uppercase tracking-[0.2em] font-inter">✦ AI-Powered Healthcare Platform</span>
+                  </motion.div>
 
-                <p className="text-lg text-slate-500 max-w-3xl mx-auto mb-12 font-medium leading-relaxed">
-                  Consolidating hospital ERPs, laboratory orders, smart pharmacies, and patient health passports into a secure, single-page command center. Built on dynamic auto-login protocols and Chitti AI diagnostics.
-                </p>
+                  {/* Title Header matching the reference */}
+                  <motion.h1 
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="text-5xl md:text-6xl font-black text-slate-900 leading-[1.05] tracking-tight font-outfit"
+                  >
+                    The Future of <br />
+                    <span className="bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">Healthcare</span> is Here
+                  </motion.h1>
 
-                {appStatus === 'pending' && (
-                  <div className="p-6 bg-amber-50 border border-amber-200 rounded-2xl max-w-lg mx-auto mb-10 text-left space-y-4">
-                    <div className="flex gap-3 items-center text-amber-800 font-bold text-sm">
-                      <AlertTriangle size={18}/>
-                      <span>Registration Complete — Node Forensic Audit in Progress</span>
-                    </div>
-                    <p className="text-xs text-amber-700 leading-relaxed">
-                      Your government NABH license certificate and front-facing selfie mapping is currently being audited by the Super Admin governance grid.
-                    </p>
-                    <button onClick={handleVerifyBypass} className="w-full py-2 bg-slate-900 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg hover:bg-slate-800 transition-all">
-                      ⚡ [Super Admin Approval Bypass] - Enter Cockpit Instantly
-                    </button>
-                  </div>
-                )}
+                  {/* Subtext description matching the reference */}
+                  <motion.p 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                    className="text-slate-600 text-base md:text-lg max-w-2xl font-medium leading-relaxed"
+                  >
+                    Chitti AI is your intelligent partner in building smarter, faster, and more connected hospitals. 
+                    Join hundreds of hospital owners and managers transforming healthcare with AI.
+                  </motion.p>
 
-                <div className="flex gap-4 justify-center mb-16">
-                  {appStatus !== 'pending' ? (
-                    <button onClick={() => setIsWizardOpen(true)} className="px-10 py-5 bg-primary text-white font-bold text-xs tracking-widest uppercase rounded-xl hover:bg-blue-700 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-500/10">
-                      Activate Sovereign Node
-                    </button>
-                  ) : (
-                    <button onClick={() => setStep(4)} className="px-10 py-5 bg-amber-500 text-white font-bold text-xs tracking-widest uppercase rounded-xl hover:bg-amber-600 transition-all">
-                      Monitor Local Node
-                    </button>
+                  {/* Forensic Pending Banner (if registered but waiting for manual review) */}
+                  {appStatus === 'pending' && (
+                    <motion.div 
+                      initial={{ scale: 0.95, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="p-6 bg-amber-50/80 border border-amber-200/60 rounded-2xl max-w-xl text-left space-y-4 shadow-sm"
+                    >
+                      <div className="flex gap-3 items-center text-amber-800 font-bold text-sm">
+                        <AlertTriangle size={18} className="text-amber-600" />
+                        <span>Registration Complete — Node Forensic Audit in Progress</span>
+                      </div>
+                      <p className="text-xs text-amber-700 leading-relaxed">
+                        Your government NABH license certificate and front-facing selfie mapping is currently being audited by the Super Admin governance grid.
+                      </p>
+                      <button onClick={handleVerifyBypass} className="w-full py-2.5 bg-slate-900 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg hover:bg-slate-800 transition-all shadow-md">
+                        ⚡ [Super Admin Approval Bypass] - Enter Cockpit Instantly
+                      </button>
+                    </motion.div>
                   )}
-                  <a href="#vitals" onClick={() => setCurrentPage(3)} className="px-10 py-5 border border-slate-200 bg-white text-slate-700 font-bold text-xs tracking-widest uppercase rounded-xl hover:bg-slate-50 transition-colors">
-                    Infrastructure Vitals
-                  </a>
+
+                  {/* Action Buttons */}
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="flex flex-wrap gap-4 pt-2"
+                  >
+                    {appStatus !== 'pending' ? (
+                      <button 
+                        onClick={() => setIsWizardOpen(true)} 
+                        className="px-8 py-4 bg-primary text-white font-bold text-xs tracking-widest uppercase rounded-xl hover:bg-blue-700 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-500/20 flex items-center gap-2"
+                      >
+                        Register Your Hospital ➔
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => setCurrentPage(3)} 
+                        className="px-8 py-4 bg-amber-500 text-white font-bold text-xs tracking-widest uppercase rounded-xl hover:bg-amber-600 transition-all flex items-center gap-2"
+                      >
+                        Monitor Local Node ➔
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => setCurrentPage(2)} 
+                      className="px-8 py-4 border border-slate-200 bg-white/70 text-slate-700 font-bold text-xs tracking-widest uppercase rounded-xl hover:bg-slate-50 transition-all"
+                    >
+                      Learn More
+                    </button>
+                  </motion.div>
+
+                  {/* Trust Badges matching the reference bottom left */}
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="pt-6 border-t border-slate-200/60 grid grid-cols-1 sm:grid-cols-3 gap-4"
+                  >
+                    {[
+                      { icon: Brain, text: 'AI-Powered Smart Automation' },
+                      { icon: Lock, text: 'Secure & Scalable Enterprise Grade' },
+                      { icon: CheckCircle, text: 'Trusted by Healthcare Leaders' }
+                    ].map((item, idx) => (
+                      <div key={idx} className="flex items-center gap-2.5">
+                        <div className="w-5 h-5 rounded bg-blue-50 border border-blue-100 flex items-center justify-center">
+                          <item.icon className="text-primary" size={12} />
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight leading-none">{item.text}</span>
+                      </div>
+                    ))}
+                  </motion.div>
+
                 </div>
 
-                {/* Grid statistics elements */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 w-full max-w-5xl mx-auto mt-12">
-                  {[
-                    { label: 'Clinical Latency', value: '<12ms' },
-                    { label: 'Ecosystem Modules', value: '14 Services' },
-                    { label: 'Security Isolation', value: 'HIPAA compliant' },
-                    { label: 'Autopay Trials', value: '2 Months Free' }
-                  ].map((stat, idx) => (
-                    <div key={idx} className="p-8 bg-white border border-slate-200 rounded-2xl text-center shadow-sm">
-                      <p className="text-2xl font-black text-slate-900 mb-1 tracking-tight font-outfit">{stat.value}</p>
-                      <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest">{stat.label}</p>
+                {/* Right Column: Floating Winking Chitti AI robot integrated natively */}
+                <div className="lg:col-span-5 relative flex items-center justify-center">
+                  
+                  {/* Soft ambient violet-blue radial glow matching Chitti's theme */}
+                  <div className="absolute -inset-10 bg-gradient-to-r from-violet-500/10 to-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+                  {/* Clean mascot image floating directly in the layout without annoying screenshot card borders */}
+                  <motion.div 
+                    animate={{ y: [0, -12, 0] }}
+                    transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+                    className="relative w-full max-w-[360px] select-none flex justify-center items-center"
+                  >
+                    <img 
+                      src={chittiLandingImg} 
+                      alt="Chitti AI Mascot" 
+                      className="w-full h-auto object-contain drop-shadow-[0_20px_50px_rgba(139,92,246,0.18)]"
+                    />
+
+                    {/* Glowing status vitals label floating beside Chitti */}
+                    <motion.div 
+                      animate={{ scale: [1, 1.03, 1] }}
+                      transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                      className="absolute -bottom-2 -left-6 bg-white/90 border border-slate-200/50 backdrop-blur-md px-4 py-2.5 rounded-2xl flex items-center gap-2.5 shadow-lg shadow-violet-500/5"
+                    >
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-violet-500"></span>
+                      </span>
+                      <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest font-inter">Chitti Active Node</span>
+                    </motion.div>
+
+                    {/* Floating Clinical Plus symbol above Chitti */}
+                    <div className="absolute -top-4 -right-2 w-9 h-9 rounded-xl bg-white border border-slate-200/60 flex items-center justify-center shadow-md text-violet-500 font-bold text-lg">
+                      +
                     </div>
-                  ))}
+                  </motion.div>
+
                 </div>
+
               </div>
             </section>
           )}
 
-          {/* PAGE 2: CLINICAL ENGINE DETAILS */}
+          {/* PAGE 2: HOW WE SERVICE - CLINICAL WORKFLOW TRANSFORMATION */}
           {currentPage === 2 && (
-            <section className="py-24 max-w-7xl mx-auto px-8">
-              <div className="text-center mb-16">
-                <span className="badge-futuristic mb-4 inline-block">Chitti AI Engine</span>
-                <h2 className="text-4xl font-extrabold tracking-tight text-slate-950 font-outfit">Forensic Clinical AI Integrations</h2>
-                <p className="text-slate-500 max-w-xl mx-auto mt-2">A double-summary pipeline translating clinical charts for both doctors and families with clinician-override safety.</p>
+            <section className="py-20 max-w-7xl mx-auto px-8 bg-gradient-to-b from-[#F8FAFC] to-[#FFFFFF]">
+              <div className="text-center mb-16 space-y-4">
+                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-violet-200 bg-violet-50 text-[10px] font-black tracking-widest text-violet-600 uppercase">
+                  Service Pipeline
+                </span>
+                <h2 className="text-4xl font-black tracking-tight text-slate-900 font-outfit">How We Service Modern Healthcare</h2>
+                <p className="text-slate-500 max-w-2xl mx-auto text-sm font-medium">
+                  We act as the high-fidelity nervous system for clinical facilities, replacing manual paperwork loops with secure automated workflows.
+                </p>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-8 items-center mb-16">
-                <div className="space-y-6">
-                  <div className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-3">
-                    <div className="flex gap-3 items-center">
-                      <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-primary font-bold"><Brain size={16}/></div>
-                      <span className="font-bold text-slate-950 text-sm">Chitti AI Digital Record Scanning</span>
+              {/* 4-Step Production Clinical Pipeline */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
+                {[
+                  {
+                    step: "01",
+                    title: "Sovereign Registration",
+                    description: "NABH certificates are verified out-of-band and doctors provide front-facing selfies to completely block fake profiles.",
+                    color: "border-blue-200 bg-blue-50/20 text-blue-600",
+                    badge: "100% Manual Review"
+                  },
+                  {
+                    step: "02",
+                    title: "Biometric Passports",
+                    description: "Patients check in using secure, zero-latency clinical QR codes that load longitudinal clinical charts instantly.",
+                    color: "border-violet-200 bg-violet-50/20 text-violet-600",
+                    badge: "Zero-Latency Checkin"
+                  },
+                  {
+                    step: "03",
+                    title: "Verified UPI Autopay",
+                    description: "Initiates ₹2 bank verification charge. Directly connects to hospital accounts for transparent automated settlements.",
+                    color: "border-indigo-200 bg-indigo-50/20 text-indigo-600",
+                    badge: "Instant Bank Link"
+                  },
+                  {
+                    step: "04",
+                    title: "AI Clinical Assist",
+                    description: "Chitti AI processes prescriptions and vitals instantly. Generates plain-language medical briefs overseen by staff overrides.",
+                    color: "border-purple-200 bg-purple-50/20 text-purple-600",
+                    badge: "Double-Summary System"
+                  }
+                ].map((item, idx) => (
+                  <div key={idx} className="p-8 bg-white border border-slate-200/60 rounded-3xl hover:border-violet-300 transition-all duration-300 shadow-sm relative group">
+                    <div className="flex justify-between items-start mb-6">
+                      <span className={`text-xs font-black tracking-wider uppercase px-2.5 py-1 rounded-lg border ${item.color}`}>{item.badge}</span>
+                      <span className="text-4xl font-black text-slate-200 font-outfit group-hover:text-violet-100 transition-colors">{item.step}</span>
                     </div>
-                    <p className="text-xs text-slate-500 leading-relaxed">
-                      Our system performs secure optical scanning (OCR) on unstructured medical uploads. It auto-extracts critical vitals, prescription indexes, and alerts medical officers in under 5 seconds.
-                    </p>
+                    <h3 className="text-lg font-black text-slate-900 mb-3 tracking-tight font-outfit">{item.title}</h3>
+                    <p className="text-xs text-slate-500 leading-relaxed font-medium">{item.description}</p>
                   </div>
-                  <div className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-3">
-                    <div className="flex gap-3 items-center">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold"><Shield size={16}/></div>
-                      <span className="font-bold text-slate-950 text-sm">Doctor-Override Safety Protocol</span>
-                    </div>
-                    <p className="text-xs text-slate-500 leading-relaxed">
-                      AI is never left unmonitored. When Chitti AI outputs diagnostics, clinical staff receive an override ledger requiring manual authorization signature before patient timeline update.
-                    </p>
+                ))}
+              </div>
+
+              {/* Real-time simulated terminal process to show user how we do it */}
+              <div className="bg-slate-900 rounded-3xl border border-slate-800 p-8 font-mono text-xs text-slate-300 shadow-xl space-y-4 max-w-4xl mx-auto">
+                <div className="flex items-center justify-between text-slate-500 border-b border-slate-800 pb-4 mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-rose-500" />
+                    <div className="w-3 h-3 rounded-full bg-amber-500" />
+                    <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 ml-2">Live Sovereign Clinical Verification Pipeline</span>
                   </div>
+                  <span className="px-2.5 py-0.5 rounded bg-violet-500/20 text-violet-400 font-bold uppercase text-[9px] tracking-wider">ACTIVE PIPELINE</span>
                 </div>
-                {/* Visual interface representation */}
-                <div className="bg-slate-900 rounded-[24px] border border-slate-800 p-8 font-mono text-[10px] text-slate-300 shadow-xl space-y-4">
-                  <div className="flex items-center justify-between text-slate-500 border-b border-slate-800 pb-3">
-                    <span>CHITTI_AI_OCR_LEDGER</span>
-                    <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold uppercase text-[8px]">PROCESSED</span>
-                  </div>
-                  <p>✔ [12:01:05] Initializing optical extraction...</p>
-                  <p>✔ [12:01:07] Extracting clinical nodes: HbA1c = 7.1%, BP = 135/88 mmHg</p>
-                  <div className="p-4 bg-slate-800/50 rounded-xl space-y-2">
-                    <p className="text-blue-400 font-bold">🏥 DOCTOR COGNITIVE SUMMARY:</p>
-                    <p>"Patient shows elevated glycemic index (7.1%). Action: Monitor renal values and adjust metformin dose."</p>
-                    <p className="text-emerald-400 font-bold mt-2">🏡 FAMILY COMPASSIONATE SUMMARY:</p>
-                    <p>"The blood sugar is slightly high. The medical team is monitoring this closely. No immediate risk."</p>
-                  </div>
-                </div>
+                <p className="text-slate-500"># Initializing instant hospital node network handshakes...</p>
+                <p>✔ [09:12:01] Forensic selfie analysis complete. Confidence: <span className="text-emerald-400 font-bold">99.8% (Matched with Medical Register)</span></p>
+                <p>✔ [09:12:02] Government NABH license verification: verified by central medical registry.</p>
+                <p>✔ [09:12:03] UPI bank tokenization setup completed. Autopay active direct to bank account.</p>
+                <p className="text-violet-400 font-bold mt-2">🚀 ACTIVE NODE: Hospital certified and cockpit access granted safely.</p>
               </div>
             </section>
           )}
 
-          {/* PAGE 3: PLATFORM VITALS & INFRASTRUCTURE */}
+          {/* PAGE 3: OUR VISION - UNIFYING THE CLINICAL GRID */}
           {currentPage === 3 && (
+            <section className="py-20 max-w-7xl mx-auto px-8 bg-gradient-to-b from-[#F8FAFC] to-[#FFFFFF]">
+              <div className="text-center mb-16 space-y-4">
+                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-indigo-200 bg-indigo-50/70 text-[10px] font-black tracking-widest text-indigo-600 uppercase">
+                  Global Mission
+                </span>
+                <h2 className="text-4xl font-black tracking-tight text-slate-900 font-outfit">Our Vision for Hospital Workflow Unity</h2>
+                <p className="text-slate-500 max-w-2xl mx-auto text-sm font-medium">
+                  We are building the future of health networks. Unified systems, absolute data integrity, and verified access paths.
+                </p>
+              </div>
+
+              {/* Vision Pillars */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch mb-16">
+                
+                {/* Pillar 1 */}
+                <div className="p-8 bg-white border border-slate-200/60 rounded-3xl space-y-6 flex flex-col justify-between hover:border-indigo-300 transition-all duration-300">
+                  <div className="space-y-4">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                      <Lock size={22} />
+                    </div>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight font-outfit">Anti-Fraud Security</h3>
+                    <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                      Zero tolerance for unverified records. By integrating strict doctor OTP validation, forensic document upload checking, and bank account tokenization, we protect hospitals from operational liability.
+                    </p>
+                  </div>
+                  <span className="text-[9px] font-black uppercase text-indigo-500 tracking-widest">Zero Compromise Assurance</span>
+                </div>
+
+                {/* Pillar 2 */}
+                <div className="p-8 bg-white border border-slate-200/60 rounded-3xl space-y-6 flex flex-col justify-between hover:border-indigo-300 transition-all duration-300">
+                  <div className="space-y-4">
+                    <div className="w-12 h-12 rounded-2xl bg-violet-50 border border-violet-100 flex items-center justify-center text-violet-600">
+                      <Users size={22} />
+                    </div>
+                    <h3 className="text-xl font-black text-slate-950 tracking-tight font-outfit">Unified Data Grid</h3>
+                    <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                      Connecting siloed laboratory indexes, pharmacy inventory stocks, and clinical EHR records into a unified command dashboard, updating vitals in under 12ms.
+                    </p>
+                  </div>
+                  <span className="text-[9px] font-black uppercase text-violet-500 tracking-widest">Multi-Branch Syncing</span>
+                </div>
+
+                {/* Pillar 3 */}
+                <div className="p-8 bg-white border border-slate-200/60 rounded-3xl space-y-6 flex flex-col justify-between hover:border-indigo-300 transition-all duration-300">
+                  <div className="space-y-4">
+                    <div className="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600">
+                      <Brain size={22} />
+                    </div>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight font-outfit">Empathetic Clinical AI</h3>
+                    <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                      Bridging the comprehension gap in healthcare. Our AI translates complex clinical vitals for physicians while offering comforting, plain-language translations to patient families under medical supervision.
+                    </p>
+                  </div>
+                  <span className="text-[9px] font-black uppercase text-purple-500 tracking-widest">Empathetic Patient Briefs</span>
+                </div>
+
+              </div>
+
+              {/* Bottom Quote Banner */}
+              <div className="p-10 rounded-3xl bg-indigo-50/50 border border-indigo-100/60 text-center max-w-4xl mx-auto space-y-3">
+                <p className="text-sm font-black italic text-indigo-900 font-outfit leading-relaxed">
+                  "Our mission is to replace friction with flow. Every hospital is a sovereign node in a global network of trusted, verified, and high-fidelity patient care."
+                </p>
+                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-500 block">— HOSPYN SOVEREIGN LEADERSHIP TEAM</span>
+              </div>
+            </section>
+          )}
+
+          {/* PAGE 4: PLATFORM VITALS & INFRASTRUCTURE */}
+          {currentPage === 4 && (
             <section className="py-24 max-w-7xl mx-auto px-8 text-center">
               <h2 className="text-4xl font-extrabold text-slate-950 mb-4 font-outfit">Sovereign Clinical Grid Vitals</h2>
               <p className="text-slate-500 mb-12 max-w-lg mx-auto">Real-time indicators showing active network nodes deployed across regional cloud scopes.</p>
