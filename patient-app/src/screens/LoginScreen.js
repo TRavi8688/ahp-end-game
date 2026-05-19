@@ -202,13 +202,9 @@ export default function AuthScreen({ navigation }) {
 
     // Submit Frictionless Profile Setup
     const handleSetupSubmit = async () => {
-        if (!setupPhone || !setupDob || !setupBloodGroup) {
-            return Alert.alert('Missing Fields', 'Please complete all required health metrics.');
-        }
-
-        // Clean values
-        const cleanPhone = setupPhone.trim();
-        const cleanDob = setupDob.trim();
+        // Auto-fill placeholders as default values for seamless developer flow if left empty
+        const cleanPhone = (setupPhone || '9876543210').trim();
+        const cleanDob = (setupDob || '1995-08-25').trim();
 
         // Phone validation
         if (!/^\d{10}$/.test(cleanPhone)) {
