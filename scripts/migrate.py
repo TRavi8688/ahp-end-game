@@ -14,6 +14,27 @@ async def run_migrations():
     
     try:
         async with engine.begin() as conn:
+            logger.info("MIGRATION: Executing DDL column alignments...")
+            statements = [
+                "ALTER TABLE hospitals ADD COLUMN IF NOT EXISTS physical_address VARCHAR(512);",
+                "ALTER TABLE hospitals ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;",
+                "ALTER TABLE hospitals ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;",
+                "ALTER TABLE hospitals ADD COLUMN IF NOT EXISTS pan_card_photo_url VARCHAR(512);",
+                "ALTER TABLE hospital_branches ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION;",
+                "ALTER TABLE hospital_branches ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;",
+                "ALTER TABLE hospital_branches ADD COLUMN IF NOT EXISTS physical_address VARCHAR(512);",
+                "ALTER TABLE forensic_verification_logs ADD COLUMN IF NOT EXISTS pan_otp_code VARCHAR(10);",
+                "ALTER TABLE forensic_verification_logs ADD COLUMN IF NOT EXISTS pan_otp_verified BOOLEAN DEFAULT FALSE;",
+                "ALTER TABLE forensic_verification_logs ADD COLUMN IF NOT EXISTS pan_card_photo_url VARCHAR(512);"
+            ]
+            
+            from sqlalchemy import text
+            for stmt in statements:
+                try:
+                    await conn.execute(text(stmt))
+                except Exception as ddl_e:
+                    logger.warning(f"MIGRATION_DDL_NOTICE: Statement ignored ({stmt}): {str(ddl_e)}")
+            
             logger.info("MIGRATION: Synchronizing SQLAlchemy models to Database...")
             await conn.run_sync(Base.metadata.create_all)
             logger.info("MIGRATION: Schema sync complete.")

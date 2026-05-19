@@ -4,451 +4,972 @@ import {
   Users, Heart, Cpu, Globe, 
   TrendingUp, Lock, Server, 
   AlertTriangle, CheckCircle, 
-  UploadCloud, X 
+  UploadCloud, X, Menu, Search, 
+  Filter, RefreshCw, Key, CreditCard, 
+  Camera, Activity, Layers, Plus, 
+  Compass, ShoppingBag, Eye, ShieldAlert, 
+  BarChart3, Database, Mail 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
+import ActivationWizard from './components/ActivationWizard';
 
-// --- ACTIVATION WIZARD COMPONENT (PROVISIONING CONSOLE) ---
-const ActivationWizard = ({ isOpen, onClose, onRegisterSuccess }) => {
-  const [step, setStep] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '', license: null });
-  const [file, setFile] = useState(null);
-
-  const handleRegistration = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      // Real-world sync simulation with forensic delay
-      await new Promise(resolve => setTimeout(resolve, 2500));
-      localStorage.setItem('hospyn_app_state', 'pending');
-      onRegisterSuccess();
-      setStep(3);
-    } catch (err) {
-      alert("LEDGER_SYNC_ERROR: Clinical grid unreachable.");
-    } finally { setLoading(false); }
-  };
-
+// --- CUSTOM CORPORATE EMAIL DISPATCH POPUP ---
+const CredentialsEmailModal = ({ isOpen, onClose, staffRecord }) => {
+  if (!isOpen || !staffRecord) return null;
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div 
-          initial={{ opacity: 0 }} 
-          animate={{ opacity: 1 }} 
-          exit={{ opacity: 0 }} 
-          className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-6 font-outfit"
-        >
-          <div className="max-w-4xl w-full grid md:grid-cols-2 bg-[#0A0F1E] border border-cyan-500/20 rounded-[40px] overflow-hidden shadow-[0_0_100px_rgba(6,182,212,0.1)]">
-            <div className="p-12 bg-gradient-to-br from-cyan-900/20 to-transparent">
-              <div className="inline-block px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-[10px] font-black text-cyan-400 uppercase tracking-[0.3em] mb-6">Provisioning Console</div>
-              <h2 className="text-4xl font-black mb-6 leading-tight text-white">Activate Your <br/> Clinical Node.</h2>
-              <p className="text-slate-400 text-sm mb-10 leading-relaxed font-medium">Provisioning a sovereign clinical node ensures end-to-end ledger integrity. This process is irreversible and forensic.</p>
-              <div className="space-y-6">
-                <div className="flex gap-4 items-center opacity-80"><Shield className="text-cyan-400" size={20}/><span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Clinical Audit Ready</span></div>
-                <div className="flex gap-4 items-center opacity-80"><Zap className="text-emerald-400" size={20}/><span className="text-[10px] font-black uppercase tracking-widest text-slate-300">Real-time Node Sync</span></div>
-              </div>
-            </div>
-            <div className="p-12 relative flex flex-col justify-center">
-               <button onClick={onClose} className="absolute top-8 right-8 text-slate-500 hover:text-white transition-colors"><X size={24}/></button>
-               {step === 1 && (
-                 <form onSubmit={(e) => { e.preventDefault(); setStep(2); }} className="space-y-4">
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Hospital Entity</label>
-                        <input className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white text-sm focus:border-cyan-500 outline-none transition-all" placeholder="Legal Healthcare Name" required onChange={(e)=>setFormData({...formData, name: e.target.value})}/>
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Administrator Contact</label>
-                        <input className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white text-sm focus:border-cyan-500 outline-none" placeholder="Official Gmail" required type="email" onChange={(e)=>setFormData({...formData, email: e.target.value})}/>
-                    </div>
-                    <button className="w-full py-5 bg-gradient-to-r from-cyan-500 to-cyan-600 text-black font-black text-xs uppercase tracking-widest rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all shadow-xl shadow-cyan-500/20 mt-4">Next: Forensic Evidence</button>
-                 </form>
-               )}
-               {step === 2 && (
-                 <div className="space-y-6">
-                    <div onClick={()=>document.getElementById('file').click()} className="border-2 border-dashed border-cyan-500/20 rounded-[32px] p-12 text-center cursor-pointer hover:bg-cyan-500/5 transition-all group">
-                       <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                          <UploadCloud className="text-cyan-400" size={32}/>
-                       </div>
-                       <p className="text-[10px] font-black text-white uppercase tracking-widest">Upload License Proof</p>
-                       <p className="text-[10px] text-slate-500 mt-1 uppercase">NABH / ISO / MEDICAL LICENSE</p>
-                       <input id="file" type="file" className="hidden" onChange={(e)=>setFile(e.target.files[0])}/>
-                       {file && <div className="mt-4 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl inline-block text-[10px] font-black text-emerald-400 uppercase tracking-widest">{file.name}</div>}
-                    </div>
-                    <button onClick={handleRegistration} disabled={!file || loading} className="w-full py-5 bg-emerald-500 text-black font-black text-xs uppercase tracking-widest rounded-2xl hover:scale-[1.02] disabled:opacity-50 transition-all shadow-xl shadow-emerald-500/20">
-                       {loading ? 'INITIALIZING CLINICAL GRID...' : 'Activate Sovereign Node'}
-                    </button>
-                 </div>
-               )}
-               {step === 3 && (
-                 <div className="text-center">
-                    <div className="w-24 h-24 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-8 border border-emerald-500/30">
-                        <CheckCircle className="text-emerald-400" size={48}/>
-                    </div>
-                    <h3 className="text-2xl font-black text-white mb-4 leading-tight">Clinical Node Initialized.</h3>
-                    <p className="text-slate-400 text-sm mb-10 font-medium px-4">Forensic data sent to the global governance network. Activation typically completes within 2-4 standard business hours.</p>
-                    <button onClick={onClose} className="px-10 py-4 border border-white/10 rounded-2xl text-[10px] font-black text-white uppercase tracking-widest hover:bg-white/5 transition-all">Close Console</button>
-                 </div>
-               )}
-            </div>
+    <div className="fixed inset-0 z-[200] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-6 font-inter">
+      <motion.div 
+        initial={{ scale: 0.95, opacity: 0 }} 
+        animate={{ scale: 1, opacity: 1 }} 
+        className="max-w-2xl w-full bg-white border border-slate-200 rounded-2xl shadow-2xl overflow-hidden"
+      >
+        <div className="p-6 bg-slate-900 text-white flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Mail className="text-emerald-400" size={20} />
+            <span className="text-xs font-bold uppercase tracking-wider">Hospyn Onboarding Mail Dispatcher</span>
           </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors"><X size={20}/></button>
+        </div>
+        <div className="p-8 bg-slate-50 border-b border-slate-100 font-mono text-xs text-slate-700 space-y-4 max-h-[400px] overflow-y-auto">
+          <p><strong>To:</strong> {staffRecord.email}</p>
+          <p><strong>Subject:</strong> [ACTION REQUIRED] Secure Clinical Credentials Provisioned for {staffRecord.hospitalName}</p>
+          <hr className="border-slate-200" />
+          <p>Dear {staffRecord.name},</p>
+          <p>Your professional access credentials for <strong>{staffRecord.hospitalName}</strong> have been successfully provisioned on the Hospyn clinical grid:</p>
+          <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
+            <p>🔑 <strong>Unique Staff ID:</strong> <span className="text-blue-600 font-bold">{staffRecord.staff_id}</span></p>
+            <p>🔒 <strong>Temporary Password:</strong> <span className="text-blue-600 font-bold">{staffRecord.temporary_password}</span></p>
+          </div>
+          <p>Please access your dedicated clinical console at:</p>
+          <p className="p-4 bg-blue-50 border border-blue-100 rounded-xl font-bold text-blue-700">
+            👉 <a href={staffRecord.dedicated_portal_url} target="_blank" rel="noreferrer" className="underline">{staffRecord.dedicated_portal_url}/login</a>
+          </p>
+          <p>Upon your first sign-in, you will be prompted to set a permanent, password.</p>
+          <hr className="border-slate-200" />
+          <p className="text-slate-400">Securely Synchronized via Hospyn Ledger. System ID: {staffRecord.staff_id}</p>
+        </div>
+        <div className="p-6 bg-white flex justify-end">
+          <button onClick={onClose} className="px-6 py-2.5 bg-slate-900 text-white font-bold text-xs uppercase tracking-wider rounded-lg hover:bg-slate-800 transition-colors">
+            Confirm Dispatch
+          </button>
+        </div>
+      </motion.div>
+    </div>
   );
 };
 
-// --- MAIN PORTFOLIO ECOSYSTEM ---
+// --- ENTERPRISE CLINICAL ACTIVATION GATEWAY ---
+
+// --- CORE SYSTEM APP ---
 export default function App() {
   const [currentPage, setCurrentPage] = useState(1);
-  const [scrollY, setScrollY] = useState(0);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [appStatus, setAppStatus] = useState(localStorage.getItem('hospyn_app_state') || 'unregistered');
+  
+  // Console state
+  const [consoleTab, setConsoleTab] = useState('dashboard');
+  const [selectedBranch, setSelectedBranch] = useState('All');
+  
+  // Custom Dynamic Staff provisioning state
+  const [staffRole, setStaffRole] = useState('doctor');
+  const [staffName, setStaffName] = useState('');
+  const [staffEmail, setStaffEmail] = useState('');
+  const [staffPhone, setStaffPhone] = useState('');
+  const [staffLicense, setStaffLicense] = useState('');
+  const [staffSpecialty, setStaffSpecialty] = useState('Cardiology');
+  const [staffNationalId, setStaffNationalId] = useState('');
+  const [staffBranch, setStaffBranch] = useState('Delhi Branch');
+  
+  const [staffRecords, setStaffRecords] = useState([
+    { name: 'Dr. Vivek Sharma', email: 'vivek@hospyn.com', role: 'doctor', staff_id: 'HOSP-STAFF-F2A48C', temporary_password: 'Temp_e3a98f2d', dedicated_portal_url: 'https://doctor.hospyn.com', credentials_email_status: 'dispatched', hospitalName: 'Hospyn Allied Care' },
+    { name: 'Sister Mini Joseph', email: 'mini@hospyn.com', role: 'nurse', staff_id: 'HOSP-STAFF-7B930D', temporary_password: 'Temp_92fd3a12', dedicated_portal_url: 'https://staff.hospyn.com', credentials_email_status: 'dispatched', hospitalName: 'Hospyn Allied Care' }
+  ]);
 
-  useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  const [activeDispatchMail, setActiveDispatchMail] = useState(null);
+  const [isMailOpen, setIsMailOpen] = useState(false);
 
-  const handleCta = () => {
-    if (appStatus === 'unregistered') {
-      setIsWizardOpen(true);
-    } else {
-      alert("NODE_STATUS_LOCKED: Your clinical node is undergoing forensic validation by the governance layer.");
-    }
+  // Pharmacy Inventory mock state
+  const [pharmacyItems, setPharmacyItems] = useState([
+    { name: 'Paracetamol 650mg', batch: 'PR-9026', expiry: '2027-11-20', quantity: 8, threshold: 10 },
+    { name: 'Amoxicillin 500mg', batch: 'AM-1234', expiry: '2026-08-15', quantity: 45, threshold: 15 },
+    { name: 'Atorvastatin 10mg', batch: 'AT-8822', expiry: '2026-05-30', quantity: 3, threshold: 10 }
+  ]);
+
+  const handleAddStaffDynamic = (e) => {
+    e.preventDefault();
+    if (!staffName || !staffEmail) return;
+
+    const staff_uid = `HOSP-STAFF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const temp_pass = `Temp_${Math.random().toString(36).substring(2, 10)}`;
+
+    let portal_prefix = "staff"; 
+    if (staffRole === "doctor") portal_prefix = "doctor";
+    else if (staffRole === "pharmacist") portal_prefix = "pharmacy";
+    else if (staffRole === "hr_manager") portal_prefix = "hr";
+    else if (staffRole === "admin") portal_prefix = "admin";
+
+    const portal_url = `https://${portal_prefix}.hospyn.com`;
+    const newRecord = {
+      name: staffName,
+      email: staffEmail,
+      role: staffRole,
+      staff_id: staff_uid,
+      temporary_password: temp_pass,
+      dedicated_portal_url: portal_url,
+      credentials_email_status: 'dispatched',
+      hospitalName: localStorage.getItem('hospyn_org_name') || 'Hospyn Sovereign Node'
+    };
+
+    setStaffRecords([newRecord, ...staffRecords]);
+    setActiveDispatchMail(newRecord);
+    setIsMailOpen(true);
+
+    // Reset input states
+    setStaffName('');
+    setStaffEmail('');
+    setStaffPhone('');
+    setStaffLicense('');
+    setStaffNationalId('');
+  };
+
+  const handleDispenseMedicine = (itemName) => {
+    setPharmacyItems(pharmacyItems.map(item => {
+      if (item.name === itemName) {
+        return { ...item, quantity: Math.max(0, item.quantity - 1) };
+      }
+      return item;
+    }));
+  };
+
+  // Helper trigger to instantly bypass pending status for local debugging
+  const handleVerifyBypass = () => {
+    localStorage.setItem('hospyn_app_state', 'approved');
+    setAppStatus('approved');
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('hospyn_app_state');
+    setAppStatus('unregistered');
+    setCurrentPage(1);
   };
 
   return (
-    <div className="bg-[#020617] text-white overflow-hidden font-outfit selection:bg-cyan-500/30">
-      {/* Navigation */}
-      <motion.nav 
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        className="fixed top-0 z-50 w-full backdrop-blur-xl bg-black/40 border-b border-white/5"
-      >
-        <div className="max-w-7xl mx-auto px-8 py-5 flex items-center justify-between">
-          <motion.div 
-            className="text-3xl font-black bg-gradient-to-r from-cyan-400 via-white to-emerald-400 bg-clip-text text-transparent flex items-center gap-3 cursor-pointer"
-            whileHover={{ scale: 1.05 }}
-            onClick={() => setCurrentPage(1)}
-          >
-            <Shield className="text-cyan-400" size={32}/> HOSPYN<span className="text-cyan-400">.</span>
-          </motion.div>
-          
-          <div className="flex gap-10 items-center">
-            {['Hero', 'Services', 'Network', 'Vision'].map((name, idx) => (
-              <motion.button
-                key={idx}
-                onClick={() => { setCurrentPage(idx + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                className={`text-[10px] font-black uppercase tracking-[0.3em] transition-all relative py-2 ${currentPage === idx + 1 ? 'text-cyan-400' : 'text-slate-500 hover:text-cyan-300'}`}
-              >
-                {name}
-                {currentPage === idx + 1 && (
-                    <motion.div layoutId="nav-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-400" />
-                )}
-              </motion.button>
-            ))}
-            <button 
-              onClick={handleCta}
-              className={`ml-6 px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-2xl active:scale-95 ${appStatus === 'pending' ? 'bg-emerald-500 text-black shadow-emerald-500/20' : 'bg-white text-black hover:bg-cyan-400 shadow-white/10'}`}
+    <div className="bg-slate-50 text-slate-800 font-inter min-h-screen relative flex flex-col justify-between selection:bg-blue-100">
+      
+      {/* Dynamic Header */}
+      {appStatus !== 'approved' && (
+        <motion.nav 
+          initial={{ y: -50 }}
+          animate={{ y: 0 }}
+          className="fixed top-0 z-50 w-full backdrop-blur-xl bg-white/95 border-b border-slate-200 shadow-sm"
+        >
+          <div className="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
+            <div 
+              className="text-2xl font-extrabold text-slate-900 flex items-center gap-2 cursor-pointer tracking-tight"
+              onClick={() => setCurrentPage(1)}
             >
-              {appStatus === 'pending' ? 'Tracking Node' : 'Activate Node'}
-            </button>
-          </div>
-        </div>
-      </motion.nav>
-
-      {/* PAGE 1: HERO (REFINED) */}
-      {currentPage === 1 && (
-        <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen pt-20 relative overflow-hidden flex items-center">
-          {/* Neural Grid Overlay */}
-          <div className="absolute inset-0 z-0">
-            <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[120px] animate-pulse-slow" />
-            <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[120px] animate-pulse-slow delay-1000" />
-            <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#06b6d4 1.5px, transparent 1.5px)', backgroundSize: '60px 60px' }} />
-          </div>
-
-          <div className="relative z-10 max-w-7xl mx-auto px-8 py-20 text-center">
-            <motion.div 
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="inline-block px-5 py-2 rounded-full border border-cyan-500/30 bg-cyan-500/5 mb-10 shadow-lg shadow-cyan-500/5"
-            >
-              <span className="text-cyan-400 text-[10px] font-black uppercase tracking-[0.4em]">Sovereign Healthcare Grid v2.0</span>
-            </motion.div>
-
-            <motion.h1 
-                className="text-[5rem] md:text-[8rem] font-black mb-10 leading-[0.85] tracking-[-0.05em] outfit"
-                initial={{ opacity: 0, y: 50 }} 
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8 }}
-            >
-              <span className="bg-gradient-to-r from-white via-cyan-100 to-emerald-200 bg-clip-text text-transparent">Connecting Healthcare</span><br/>
-              <span className="text-slate-700">Beyond Hospitals.</span>
-            </motion.h1>
-
-            <motion.p 
-                className="text-xl text-slate-400 max-w-3xl mx-auto mb-16 font-medium leading-relaxed"
-                initial={{ opacity: 0 }} 
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-            >
-              Hospyn transforms fragmented medical data into one intelligent connected ecosystem for patients, hospitals, doctors, and families. Built on a zero-latency clinical grid for the future of human longevity.
-            </motion.p>
-
-            <motion.div 
-                className="flex flex-col sm:flex-row gap-6 justify-center mb-24"
-                initial={{ opacity: 0, y: 20 }} 
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-            >
-              <button onClick={handleCta} className="px-12 py-6 bg-gradient-to-r from-cyan-500 to-cyan-600 rounded-2xl font-black text-xs tracking-[0.2em] uppercase hover:shadow-[0_0_50px_rgba(6,182,212,0.4)] transition-all hover:scale-105 active:scale-95 text-black">
-                {appStatus === 'pending' ? 'Monitor Activation' : 'Initialize Ecosystem'}
-              </button>
-              <button className="px-12 py-6 border border-white/10 rounded-2xl font-black text-xs tracking-[0.2em] uppercase hover:bg-white/5 transition-all text-white backdrop-blur-md">
-                View Infrastructure
-              </button>
-            </motion.div>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 w-full max-w-5xl mx-auto">
-               {[
-                 { label: 'Latency', value: '<100ms' },
-                 { label: 'Ecosystem', value: 'Unified' },
-                 { label: 'Privacy', value: 'Forensic' },
-                 { label: 'Security', value: 'RS256' }
-               ].map((stat, idx) => (
-                 <motion.div 
-                    key={idx} 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.8 + (idx * 0.1) }}
-                    className="p-10 rounded-[32px] border border-white/5 bg-white/[0.01] backdrop-blur-3xl group hover:border-cyan-500/20 transition-all"
-                 >
-                    <p className="text-3xl font-black text-white mb-2 outfit tracking-tighter group-hover:text-cyan-400 transition-colors">{stat.value}</p>
-                    <p className="text-slate-600 text-[10px] font-black uppercase tracking-widest">{stat.label}</p>
-                 </motion.div>
-               ))}
+              <Shield className="text-primary" size={24} /> HOSPYN<span className="text-primary">.</span>
+            </div>
+            
+            <div className="flex gap-8 items-center">
+              {['Ecosystem Overview', 'Clinical Network', 'Platform Vitals', 'Developer Docs'].map((name, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => { setCurrentPage(idx + 1); }}
+                  className={`text-[10px] font-bold uppercase tracking-widest transition-all relative py-2 ${currentPage === idx + 1 ? 'text-primary' : 'text-slate-500 hover:text-primary'}`}
+                >
+                  {name}
+                  {currentPage === idx + 1 && (
+                    <motion.div layoutId="nav-underline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+                  )}
+                </button>
+              ))}
+              
+              <div className="flex items-center gap-2 ml-6">
+                <a href="#support" className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-[9px] font-bold uppercase tracking-wider hover:bg-slate-50 transition-colors">Support</a>
+                <button 
+                  onClick={() => {
+                    if (appStatus === 'unregistered') setIsWizardOpen(true);
+                    else if (appStatus === 'pending') alert("Forensic ledger setup in progress. Use the bypass button on pending view to instantly approve.");
+                  }}
+                  className={`px-5 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all shadow-md ${appStatus === 'pending' ? 'bg-amber-500 text-white shadow-amber-500/20' : 'bg-primary text-white hover:bg-blue-700 shadow-blue-500/10'}`}
+                >
+                  {appStatus === 'pending' ? 'Verification Pending' : 'Register Console'}
+                </button>
+              </div>
             </div>
           </div>
-        </motion.section>
+        </motion.nav>
       )}
 
-      {/* PAGE 2: SERVICES (REFINED) */}
-      {currentPage === 2 && (
-        <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen pt-40 pb-20 px-8 max-w-7xl mx-auto">
-          <div className="text-center mb-24">
-             <div className="px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-[10px] font-black text-cyan-400 inline-block mb-6 uppercase tracking-[0.3em]">Operational Intelligence</div>
-             <h2 className="text-6xl font-black mb-8 tracking-tighter outfit leading-[1.1]">Inside the <br/> Healthcare Engine.</h2>
-             <p className="text-slate-500 text-lg font-medium max-w-2xl mx-auto">A complete architecture of interconnected clinical protocols designed for maximum throughput and medical accuracy.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              { icon: Users, title: 'Patient Grid', desc: 'Unified profiles with high-fidelity forensic history and digital passport auth.', color: 'text-cyan-400' },
-              { icon: Zap, title: 'Clinical Scheduler', desc: 'AI-optimized resource allocation across surgical and OPD departments.', color: 'text-amber-400' },
-              { icon: Shield, title: 'Medical Ledger', desc: 'Secure, immutable access to clinical documents via Secure Enclave technology.', color: 'text-emerald-400' },
-              { icon: Heart, title: 'Care Circles', desc: 'Decentralized family coordination layers for real-time health updates.', color: 'text-rose-400' },
-              { icon: Brain, title: 'AI Triage', desc: 'Neural-pathway diagnostic assistance for clinical decision support.', color: 'text-indigo-400' },
-              { icon: Server, title: 'Sovereign Node', desc: 'Global cloud scalability with zero-trust clinical data isolation.', color: 'text-slate-400' }
-            ].map((service, idx) => (
-              <motion.div 
-                key={idx} 
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-                className="group p-12 rounded-[40px] border border-white/5 bg-white/[0.01] hover:bg-white/[0.02] hover:border-cyan-500/20 transition-all cursor-pointer relative overflow-hidden"
-              >
-                <div className={`w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mb-8 group-hover:scale-110 transition-transform ${service.color}`}>
-                    <service.icon size={28} />
+      {/* PUBLIC ECOSYSTEM MODE */}
+      {appStatus !== 'approved' && (
+        <div className="pt-16 flex-grow">
+          {/* PAGE 1: ENTERPRISE LANDING */}
+          {currentPage === 1 && (
+            <section className="py-24 relative overflow-hidden neural-grid min-h-screen flex items-center">
+              <div className="max-w-7xl mx-auto px-8 py-20 text-center relative z-10">
+                <div className="inline-block px-4 py-1.5 rounded-full border border-blue-200 bg-blue-50 mb-8 shadow-sm">
+                  <span className="text-primary text-[9px] font-black uppercase tracking-[0.3em]">Sovereign Healthcare Nodes v2.0</span>
                 </div>
-                <h3 className="text-2xl font-black mb-4 outfit">{service.title}</h3>
-                <p className="text-slate-500 text-sm leading-relaxed mb-10 font-medium">{service.desc}</p>
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/5">
-                   <motion.div className={`h-full bg-cyan-500 shadow-[0_0_20px_rgba(6,182,212,0.8)]`} initial={{ width: 0 }} whileInView={{ width: '100%' }} transition={{ duration: 1.5, delay: 0.5 }}/>
+
+                <h1 className="text-5xl md:text-7xl font-extrabold mb-8 leading-none tracking-tight text-slate-950 font-outfit">
+                  Sovereign Healthcare Nodes. <br/>
+                  <span className="text-primary">Connecting Clinical Grids.</span>
+                </h1>
+
+                <p className="text-lg text-slate-500 max-w-3xl mx-auto mb-12 font-medium leading-relaxed">
+                  Consolidating hospital ERPs, laboratory orders, smart pharmacies, and patient health passports into a secure, single-page command center. Built on dynamic auto-login protocols and Chitti AI diagnostics.
+                </p>
+
+                {appStatus === 'pending' && (
+                  <div className="p-6 bg-amber-50 border border-amber-200 rounded-2xl max-w-lg mx-auto mb-10 text-left space-y-4">
+                    <div className="flex gap-3 items-center text-amber-800 font-bold text-sm">
+                      <AlertTriangle size={18}/>
+                      <span>Registration Complete — Node Forensic Audit in Progress</span>
+                    </div>
+                    <p className="text-xs text-amber-700 leading-relaxed">
+                      Your government NABH license certificate and front-facing selfie mapping is currently being audited by the Super Admin governance grid.
+                    </p>
+                    <button onClick={handleVerifyBypass} className="w-full py-2 bg-slate-900 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg hover:bg-slate-800 transition-all">
+                      ⚡ [Super Admin Approval Bypass] - Enter Cockpit Instantly
+                    </button>
+                  </div>
+                )}
+
+                <div className="flex gap-4 justify-center mb-16">
+                  {appStatus !== 'pending' ? (
+                    <button onClick={() => setIsWizardOpen(true)} className="px-10 py-5 bg-primary text-white font-bold text-xs tracking-widest uppercase rounded-xl hover:bg-blue-700 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-blue-500/10">
+                      Activate Sovereign Node
+                    </button>
+                  ) : (
+                    <button onClick={() => setStep(4)} className="px-10 py-5 bg-amber-500 text-white font-bold text-xs tracking-widest uppercase rounded-xl hover:bg-amber-600 transition-all">
+                      Monitor Local Node
+                    </button>
+                  )}
+                  <a href="#vitals" onClick={() => setCurrentPage(3)} className="px-10 py-5 border border-slate-200 bg-white text-slate-700 font-bold text-xs tracking-widest uppercase rounded-xl hover:bg-slate-50 transition-colors">
+                    Infrastructure Vitals
+                  </a>
                 </div>
-              </motion.div>
-            ))}
-          </div>
-        </motion.section>
-      )}
 
-      {/* PAGE 3: NETWORK (THE LIVING HEALTHCARE NETWORK - MERGED FROM DOWNLOADS) */}
-      {currentPage === 3 && (
-        <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen pt-40 pb-20 px-8 max-w-7xl mx-auto">
-           <div className="text-center mb-24">
-              <h2 className="text-7xl font-black mb-10 tracking-tighter outfit bg-gradient-to-r from-emerald-400 via-white to-cyan-400 bg-clip-text text-transparent">The Living Healthcare Network.</h2>
-              <p className="text-slate-500 text-lg font-medium">Every clinical participant synchronized in real-time via the Hospyn Grid.</p>
-           </div>
-           
-           <div className="glass-card p-20 rounded-[60px] border border-white/5 bg-white/[0.01] relative overflow-hidden min-h-[600px] flex items-center justify-center">
-              <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'radial-gradient(#06b6d4 2px, transparent 2px)', backgroundSize: '40px 40px' }} />
-              
-              <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 1000 600">
-                <defs>
-                  <filter id="node-glow">
-                    <feGaussianBlur stdDeviation="8" result="coloredBlur" />
-                    <feMerge>
-                      <feMergeNode in="coloredBlur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                  <linearGradient id="line-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.2" />
-                    <stop offset="50%" stopColor="#10b981" stopOpacity="0.8" />
-                    <stop offset="100%" stopColor="#06b6d4" stopOpacity="0.2" />
-                  </linearGradient>
-                </defs>
-
-                {/* Central Protocol Node */}
-                <motion.circle 
-                    cx="500" cy="300" r="80" fill="#06b6d4" fillOpacity="0.05" stroke="#06b6d4" strokeWidth="1" strokeDasharray="10 5"
-                    animate={{ rotate: 360 }} transition={{ duration: 60, repeat: Infinity, ease: 'linear' }}
-                />
-                <circle cx="500" cy="300" r="60" fill="#06b6d4" fillOpacity="0.1" filter="url(#node-glow)" />
-                <text x="500" y="308" textAnchor="middle" fill="#06b6d4" className="text-[12px] font-black tracking-[0.5em] uppercase" style={{ fontSize: '10px' }}>HOSPYN</text>
-
-                {/* Connected Clinical Pillars */}
-                {[
-                  { x: 150, y: 150, label: 'Patients', icon: Users, color: '#06b6d4' },
-                  { x: 850, y: 150, label: 'Hospitals', icon: Globe, color: '#10b981' },
-                  { x: 200, y: 450, label: 'Doctors', icon: Activity, color: '#06b6d4' },
-                  { x: 800, y: 450, label: 'Families', icon: Heart, color: '#10b981' },
-                  { x: 500, y: 80, label: 'Diagnostics', icon: Brain, color: '#06b6d4' },
-                  { x: 500, y: 520, label: 'Pharmacy', icon: Server, color: '#10b981' },
-                ].map((node, idx) => (
-                  <g key={idx}>
-                    {/* Dynamic Connection Lines */}
-                    <motion.line
-                      x1="500" y1="300"
-                      x2={node.x} y2={node.y}
-                      stroke="url(#line-grad)"
-                      strokeWidth="2"
-                      initial={{ pathLength: 0, opacity: 0 }}
-                      whileInView={{ pathLength: 1, opacity: 0.3 }}
-                      transition={{ delay: idx * 0.2, duration: 2 }}
-                    />
-                    
-                    {/* Node Visuals */}
-                    <motion.circle 
-                        cx={node.x} cy={node.y} r="50" fill={node.color} fillOpacity="0.03" stroke={node.color} strokeWidth="1"
-                        whileHover={{ scale: 1.1, fillOpacity: 0.1 }}
-                    />
-                    <circle cx={node.x} cy={node.y} r="40" fill="none" stroke={node.color} strokeWidth="2" strokeOpacity="0.2" />
-                    <text x={node.x} y={node.y + 5} textAnchor="middle" fill={node.color} className="text-[10px] font-black uppercase tracking-widest" style={{ fontSize: '9px' }}>{node.label}</text>
-                    
-                    {/* Animated Data Packets */}
-                    <motion.circle
-                        r="3" fill={node.color}
-                        animate={{
-                          cx: [500, node.x, 500],
-                          cy: [300, node.y, 300],
-                          opacity: [0, 1, 0]
-                        }}
-                        transition={{
-                          duration: 4,
-                          repeat: Infinity,
-                          delay: idx * 0.8,
-                          ease: 'easeInOut'
-                        }}
-                    />
-                  </g>
-                ))}
-              </svg>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-12 relative z-10 w-full px-12 mt-[450px]">
+                {/* Grid statistics elements */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 w-full max-w-5xl mx-auto mt-12">
                   {[
-                    { label: 'Patient Access', val: 'Direct' },
-                    { label: 'Node Sync', val: 'Global' },
-                    { label: 'Latency', val: '10ms' },
-                    { label: 'Uptime', val: '99.99%' }
-                  ].map((stat, i) => (
-                      <div key={i} className="text-center">
-                          <p className="text-2xl font-black text-white mb-1 outfit">{stat.val}</p>
-                          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{stat.label}</p>
-                      </div>
+                    { label: 'Clinical Latency', value: '<12ms' },
+                    { label: 'Ecosystem Modules', value: '14 Services' },
+                    { label: 'Security Isolation', value: 'HIPAA compliant' },
+                    { label: 'Autopay Trials', value: '2 Months Free' }
+                  ].map((stat, idx) => (
+                    <div key={idx} className="p-8 bg-white border border-slate-200 rounded-2xl text-center shadow-sm">
+                      <p className="text-2xl font-black text-slate-900 mb-1 tracking-tight font-outfit">{stat.value}</p>
+                      <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest">{stat.label}</p>
+                    </div>
                   ))}
+                </div>
               </div>
-           </div>
-        </motion.section>
-      )}
+            </section>
+          )}
 
-      {/* PAGE 4: VISION (REFINED) */}
-      {currentPage === 4 && (
-        <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen pt-40 pb-20 px-8 max-w-7xl mx-auto">
-           <div className="grid lg:grid-cols-2 gap-20 mb-32 items-center">
-              <div className="p-16 rounded-[60px] border border-white/5 bg-white/[0.01] backdrop-blur-3xl relative overflow-hidden">
-                 <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-3xl" />
-                 <h2 className="text-5xl font-black mb-10 tracking-tighter outfit leading-tight">The Story <br/> Behind Hospyn.</h2>
-                 <p className="text-slate-400 text-lg leading-relaxed mb-8 font-medium">Healthcare systems were built in fragments. Hospitals operate in silos. Doctors lack real-time context. Families are left in the dark during clinical transitions.</p>
-                 <p className="text-white text-2xl font-black outfit leading-relaxed">Hospyn was born from a singular mission: to create a forensic clinical grid that connects every participant, every decision, and every medical life.</p>
+          {/* PAGE 2: CLINICAL ENGINE DETAILS */}
+          {currentPage === 2 && (
+            <section className="py-24 max-w-7xl mx-auto px-8">
+              <div className="text-center mb-16">
+                <span className="badge-futuristic mb-4 inline-block">Chitti AI Engine</span>
+                <h2 className="text-4xl font-extrabold tracking-tight text-slate-950 font-outfit">Forensic Clinical AI Integrations</h2>
+                <p className="text-slate-500 max-w-xl mx-auto mt-2">A double-summary pipeline translating clinical charts for both doctors and families with clinician-override safety.</p>
               </div>
+
+              <div className="grid md:grid-cols-2 gap-8 items-center mb-16">
+                <div className="space-y-6">
+                  <div className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-3">
+                    <div className="flex gap-3 items-center">
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-primary font-bold"><Brain size={16}/></div>
+                      <span className="font-bold text-slate-950 text-sm">Chitti AI Digital Record Scanning</span>
+                    </div>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      Our system performs secure optical scanning (OCR) on unstructured medical uploads. It auto-extracts critical vitals, prescription indexes, and alerts medical officers in under 5 seconds.
+                    </p>
+                  </div>
+                  <div className="p-6 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-3">
+                    <div className="flex gap-3 items-center">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 font-bold"><Shield size={16}/></div>
+                      <span className="font-bold text-slate-950 text-sm">Doctor-Override Safety Protocol</span>
+                    </div>
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      AI is never left unmonitored. When Chitti AI outputs diagnostics, clinical staff receive an override ledger requiring manual authorization signature before patient timeline update.
+                    </p>
+                  </div>
+                </div>
+                {/* Visual interface representation */}
+                <div className="bg-slate-900 rounded-[24px] border border-slate-800 p-8 font-mono text-[10px] text-slate-300 shadow-xl space-y-4">
+                  <div className="flex items-center justify-between text-slate-500 border-b border-slate-800 pb-3">
+                    <span>CHITTI_AI_OCR_LEDGER</span>
+                    <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold uppercase text-[8px]">PROCESSED</span>
+                  </div>
+                  <p>✔ [12:01:05] Initializing optical extraction...</p>
+                  <p>✔ [12:01:07] Extracting clinical nodes: HbA1c = 7.1%, BP = 135/88 mmHg</p>
+                  <div className="p-4 bg-slate-800/50 rounded-xl space-y-2">
+                    <p className="text-blue-400 font-bold">🏥 DOCTOR COGNITIVE SUMMARY:</p>
+                    <p>"Patient shows elevated glycemic index (7.1%). Action: Monitor renal values and adjust metformin dose."</p>
+                    <p className="text-emerald-400 font-bold mt-2">🏡 FAMILY COMPASSIONATE SUMMARY:</p>
+                    <p>"The blood sugar is slightly high. The medical team is monitoring this closely. No immediate risk."</p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* PAGE 3: PLATFORM VITALS & INFRASTRUCTURE */}
+          {currentPage === 3 && (
+            <section className="py-24 max-w-7xl mx-auto px-8 text-center">
+              <h2 className="text-4xl font-extrabold text-slate-950 mb-4 font-outfit">Sovereign Clinical Grid Vitals</h2>
+              <p className="text-slate-500 mb-12 max-w-lg mx-auto">Real-time indicators showing active network nodes deployed across regional cloud scopes.</p>
               
-              <div className="space-y-8">
-                 {[
-                   { year: '2025', title: 'Forensic Ledger', desc: 'Implementation of the first immutable clinical audit trail for global hospitals.' },
-                   { year: '2026', title: 'Neural Triage', desc: 'Predictive health analytics enabling pre-hospital intervention protocols.' },
-                   { year: '2027', title: 'National Infrastructure', desc: 'Unified cross-border clinical data exchange nodes for sovereign health.' }
-                 ].map((item, idx) => (
-                   <motion.div 
-                    key={idx} 
-                    initial={{ opacity: 0, x: 50 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.2 }}
-                    className="p-10 rounded-[40px] border border-white/5 bg-white/[0.01] hover:border-emerald-500/30 transition-all group"
-                   >
-                      <p className="text-emerald-400 font-black text-xs mb-4 tracking-[0.4em]">{item.year} MILESTONE</p>
-                      <h4 className="text-2xl font-black mb-3 outfit">{item.title}</h4>
-                      <p className="text-slate-500 text-sm font-medium leading-relaxed">{item.desc}</p>
-                   </motion.div>
-                 ))}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div className="p-8 bg-white border border-slate-200 rounded-[24px] shadow-sm space-y-4 text-left">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Ledger Latency</span>
+                    <span className="px-2 py-1 bg-blue-50 border border-blue-200 rounded-lg text-[9px] font-bold text-primary uppercase">ACTIVE</span>
+                  </div>
+                  <div className="text-3xl font-black font-outfit text-slate-950">12.4ms</div>
+                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                    <div className="bg-primary h-full w-[85%]" />
+                  </div>
+                  <p className="text-[10px] text-slate-400">Consolidated database operations across all regional node configurations.</p>
+                </div>
+                <div className="p-8 bg-white border border-slate-200 rounded-[24px] shadow-sm space-y-4 text-left">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Queue Throughput</span>
+                    <span className="px-2 py-1 bg-emerald-50 border border-emerald-200 rounded-lg text-[9px] font-bold text-emerald-600 uppercase">HEALTHY</span>
+                  </div>
+                  <div className="text-3xl font-black font-outfit text-slate-950">12,492 reqs/s</div>
+                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                    <div className="bg-emerald-500 h-full w-[92%]" />
+                  </div>
+                  <p className="text-[10px] text-slate-400">Real-time patient scheduling queue telemetry operations without latency overhead.</p>
+                </div>
+                <div className="p-8 bg-white border border-slate-200 rounded-[24px] shadow-sm space-y-4 text-left">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">AI Safety Audit</span>
+                    <span className="px-2 py-1 bg-blue-50 border border-blue-200 rounded-lg text-[9px] font-bold text-primary uppercase">100% SECURE</span>
+                  </div>
+                  <div className="text-3xl font-black font-outfit text-slate-950">99.98% Confidence</div>
+                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                    <div className="bg-blue-600 h-full w-[99%]" />
+                  </div>
+                  <p className="text-[10px] text-slate-400">HIPAA compliant diagnostics assist matching medical board standards.</p>
+                </div>
               </div>
-           </div>
+            </section>
+          )}
 
-           <motion.div 
-            className="p-24 rounded-[80px] border border-cyan-500/40 bg-gradient-to-br from-cyan-500/20 via-black to-emerald-500/20 text-center relative overflow-hidden group shadow-2xl shadow-cyan-500/10" 
-            whileInView={{ scale: 1 }} initial={{ scale: 0.95 }}
-           >
-              <div className="absolute inset-0 bg-black opacity-40 group-hover:opacity-20 transition-opacity" />
-              <div className="relative z-10">
-                 <div className="w-24 h-24 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-10 border border-white/10 group-hover:scale-110 transition-transform">
-                    <Zap className="text-cyan-400" size={40} />
-                 </div>
-                 <h2 className="text-7xl font-black mb-8 tracking-tighter outfit">The Future of <br/> Healthcare Starts Here.</h2>
-                 <p className="text-slate-400 text-xl mb-16 max-w-3xl mx-auto font-medium">Infrastructure for a smarter, faster, and more human medical future. Initialize your sovereign node today.</p>
-                 <button onClick={handleCta} className="px-16 py-8 bg-white text-black font-black uppercase tracking-[0.4em] text-[12px] rounded-[32px] hover:bg-cyan-400 transition-all hover:scale-110 active:scale-95 shadow-[0_0_50px_rgba(255,255,255,0.2)]">
-                   {appStatus === 'pending' ? 'Tracking Node Activation' : 'Initialize Clinical Node'}
-                 </button>
+          {/* PAGE 4: INFRASTRUCTURE DEVELOPER DOCUMENTS */}
+          {currentPage === 4 && (
+            <section className="py-24 max-w-4xl mx-auto px-8">
+              <h2 className="text-3xl font-extrabold text-slate-950 mb-8 font-outfit">Sovereign Deployment Standards</h2>
+              <div className="bg-white border border-slate-200 rounded-[24px] overflow-hidden shadow-sm">
+                <div className="p-6 bg-slate-900 text-white flex items-center gap-2 border-b border-slate-800">
+                  <Key size={16} className="text-blue-400"/>
+                  <span className="font-mono text-xs uppercase tracking-wider">Hospyn CLI Initialisation</span>
+                </div>
+                <div className="p-8 font-mono text-xs text-slate-700 bg-slate-50 space-y-4 leading-relaxed">
+                  <p># Install the Hospyn node orchestrator</p>
+                  <p className="bg-white p-3 border border-slate-200 rounded-lg text-slate-800 font-bold">$ npm install -g @hospyn/sovereign-node-cli</p>
+                  <p># Authenticate using your enterprise activation signature</p>
+                  <p className="bg-white p-3 border border-slate-200 rounded-lg text-slate-800 font-bold">$ hospyn auth --activate --key key_enterprise_9a82e9d2f</p>
+                  <p># Deploys safe localized HIPAA database mappings</p>
+                  <p className="bg-white p-3 border border-slate-200 rounded-lg text-slate-800 font-bold">$ hospyn node:deploy --region gcp-us-central1 --multi-branch</p>
+                  <p className="text-emerald-600 font-bold">⚡ NODE RUNNING SUCCESSFULLY IN gcp-us-central1. PORTAL ACTIVE.</p>
+                </div>
               </div>
-           </motion.div>
-        </motion.section>
+            </section>
+          )}
+        </div>
       )}
 
-      {/* PROVISIONING MODAL */}
+      {/* SOVEREIGN CONSOLE MODE (OWNER COCKPIT) */}
+      {appStatus === 'approved' && (
+        <div className="flex min-h-screen text-slate-700 bg-[#F8FAFC]">
+          
+          {/* Collapse Left Sidebar Frame */}
+          <div className="w-64 bg-white border-r border-slate-200 flex flex-col justify-between p-6">
+            <div className="space-y-8">
+              <div className="flex items-center gap-2 text-slate-950 font-extrabold text-lg tracking-tight">
+                <Shield className="text-primary" size={24} />
+                <span>HOSPYN<span className="text-primary">.</span></span>
+              </div>
+
+              {/* Branch Selector Dropdown */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Active Node</label>
+                <div className="relative">
+                  <select 
+                    value={selectedBranch}
+                    onChange={(e)=>setSelectedBranch(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-bold text-slate-900 outline-none appearance-none cursor-pointer focus:border-primary"
+                  >
+                    <option value="All">All Branches</option>
+                    <option value="Delhi">Delhi Branch</option>
+                    <option value="Mumbai">Mumbai Branch</option>
+                  </select>
+                  <ChevronDown className="absolute right-3 top-3 text-slate-500 pointer-events-none" size={14}/>
+                </div>
+              </div>
+
+              {/* Navigation Items audit */}
+              <div className="space-y-2">
+                {[
+                  { id: 'dashboard', label: 'Dashboard Cockpit', icon: BarChart3 },
+                  { id: 'branch-manager', label: 'Branch Analytics', icon: Layers },
+                  { id: 'staff', label: 'Staff Provisioner (IAM)', icon: Users },
+                  { id: 'ehr', label: 'EHR Passports', icon: Database },
+                  { id: 'lab', label: 'LOINC Laboratory', icon: Activity },
+                  { id: 'pharmacy', label: 'Pharmacy Inventory', icon: ShoppingBag },
+                  { id: 'opd', label: 'OPD & Bed Scheduler', icon: Server },
+                  { id: 'ai-governance', label: 'AI Safety Governance', icon: Brain },
+                  { id: 'settings', label: 'System Settings', icon: Key }
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => setConsoleTab(item.id)}
+                    className={`w-full flex gap-3 items-center p-3 rounded-xl text-xs font-bold tracking-tight transition-all ${consoleTab === item.id ? 'bg-primary text-white shadow-md shadow-blue-500/10' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
+                  >
+                    <item.icon size={16}/>
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="p-3 bg-slate-50 rounded-xl flex gap-3 items-center border border-slate-100">
+                <div className="w-8 h-8 rounded-full bg-blue-100 text-primary flex items-center justify-center font-bold text-xs">
+                  O
+                </div>
+                <div className="overflow-hidden">
+                  <p className="text-xs font-bold text-slate-950 truncate">Hospital Owner</p>
+                  <p className="text-[9px] text-slate-400 truncate">{localStorage.getItem('hospyn_owner_email') || 'owner@apollo.com'}</p>
+                </div>
+              </div>
+              <button onClick={handleLogout} className="w-full py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all">
+                Logout Console
+              </button>
+            </div>
+          </div>
+
+          {/* Main workspace container */}
+          <div className="flex-grow p-10 overflow-y-auto max-h-screen">
+
+            {consoleTab === 'dashboard' && (
+              <div className="space-y-8">
+                <div>
+                  <div className="inline-block px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-[9px] font-bold text-primary uppercase mb-3">Enterprise Dashboard</div>
+                  <h2 className="text-3xl font-extrabold text-slate-950 font-outfit tracking-tight">Sovereign Node: {localStorage.getItem('hospyn_org_name') || 'Apollo Hospital Group'}</h2>
+                  <p className="text-xs text-slate-500 mt-1">Platform monitoring and clinical server vitals.</p>
+                </div>
+
+                {/* Vitals indicators */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-2">
+                    <span className="text-[9px] font-bold uppercase text-slate-400">Node Status</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"/>
+                      <span className="text-slate-950 font-bold text-sm">HEALTHY - ACTIVE</span>
+                    </div>
+                  </div>
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-2">
+                    <span className="text-[9px] font-bold uppercase text-slate-400">Server Latency</span>
+                    <span className="text-slate-950 font-extrabold text-lg block font-outfit">12ms</span>
+                  </div>
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-2">
+                    <span className="text-[9px] font-bold uppercase text-slate-400">Redis Cache Hits</span>
+                    <span className="text-slate-950 font-extrabold text-lg block font-outfit">99.8%</span>
+                  </div>
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-2">
+                    <span className="text-[9px] font-bold uppercase text-slate-400">Celery Tasks</span>
+                    <span className="text-slate-950 font-extrabold text-lg block font-outfit">0 Queued</span>
+                  </div>
+                </div>
+
+                {/* Simulated Server Logs */}
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
+                  <div className="p-4 bg-slate-950 text-white flex justify-between items-center border-b border-slate-800">
+                    <span className="text-xs font-mono tracking-wider">SOVEREIGN_NODE_SYSLOG_STREAM</span>
+                    <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[8px] font-bold uppercase">LIVE</span>
+                  </div>
+                  <div className="p-6 font-mono text-[10px] text-slate-300 space-y-2 h-[200px] overflow-y-auto">
+                    <p className="text-slate-500">[12:20:01] DB_CONNECTION - Established secure connection.</p>
+                    <p className="text-slate-500">[12:20:05] REDIS_CLIENT - Initializing access token index...</p>
+                    <p className="text-emerald-400">[12:20:10] SECURE_ENCLAVE - Cryptographic token verification complete.</p>
+                    <p className="text-blue-400">[12:20:15] CHITTI_AI - Warm-up sequence successful. Claude-3-Haiku active.</p>
+                    <p className="text-slate-300">[12:20:22] PLATFORM_HEALTH - 0 warning thresholds crossed.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {consoleTab === 'branch-manager' && (
+              <div className="space-y-8">
+                <div>
+                  <h2 className="text-3xl font-extrabold text-slate-950 font-outfit tracking-tight">Branch Manager</h2>
+                  <p className="text-xs text-slate-500 mt-1">Sovereign analytics and clinical throughput branch-by-branch.</p>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-6">
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+                    <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Delhi Branch Vitals</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs"><span className="text-slate-400">Active Patients:</span> <span className="font-bold text-slate-900">42</span></div>
+                      <div className="flex justify-between text-xs"><span className="text-slate-400">Doctors on Duty:</span> <span className="font-bold text-slate-900">8</span></div>
+                      <div className="flex justify-between text-xs"><span className="text-slate-400">Avg Wait Time:</span> <span className="font-bold text-emerald-600">8 mins</span></div>
+                    </div>
+                  </div>
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+                    <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Mumbai Branch Vitals</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs"><span className="text-slate-400">Active Patients:</span> <span className="font-bold text-slate-900">19</span></div>
+                      <div className="flex justify-between text-xs"><span className="text-slate-400">Doctors on Duty:</span> <span className="font-bold text-slate-900">4</span></div>
+                      <div className="flex justify-between text-xs"><span className="text-slate-400">Avg Wait Time:</span> <span className="font-bold text-emerald-600">11 mins</span></div>
+                    </div>
+                  </div>
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+                    <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Bangalore Branch Vitals</h3>
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs"><span className="text-slate-400">Active Patients:</span> <span className="font-bold text-slate-900">8</span></div>
+                      <div className="flex justify-between text-xs"><span className="text-slate-400">Doctors on Duty:</span> <span className="font-bold text-slate-900">2</span></div>
+                      <div className="flex justify-between text-xs"><span className="text-slate-400">Avg Wait Time:</span> <span className="font-bold text-emerald-600">4 mins</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {consoleTab === 'staff' && (
+              <div className="space-y-8">
+                <div>
+                  <h2 className="text-3xl font-extrabold text-slate-950 font-outfit tracking-tight">Staff Provisioner (IAM Console)</h2>
+                  <p className="text-xs text-slate-500 mt-1">Generate unique, secure access credentials and map dynamic routing profiles for new staff.</p>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-8">
+                  {/* Dynamic Onboarding Form */}
+                  <form onSubmit={handleAddStaffDynamic} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+                    <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Provision Staff Member</h3>
+                    
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Staff Role</label>
+                      <select 
+                        value={staffRole} 
+                        onChange={(e)=>setStaffRole(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-primary cursor-pointer"
+                      >
+                        <option value="doctor">Doctor (doctor.hospyn.com)</option>
+                        <option value="nurse">Nurse (staff.hospyn.com)</option>
+                        <option value="pharmacist">Pharmacist (pharmacy.hospyn.com)</option>
+                        <option value="hr_manager">HR Manager (hr.hospyn.com)</option>
+                        <option value="admin">Administrator (admin.hospyn.com)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Full Name</label>
+                      <input className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" placeholder="Dr. Vivek Sharma" required value={staffName} onChange={(e)=>setStaffName(e.target.value)}/>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Official Email</label>
+                      <input className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" placeholder="vivek@hospyn.com" required type="email" value={staffEmail} onChange={(e)=>setStaffEmail(e.target.value)}/>
+                    </div>
+
+                    {/* Dynamic Fields based on Role Selection */}
+                    {staffRole === 'doctor' && (
+                      <div className="space-y-3">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">License Number</label>
+                          <input className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" placeholder="MCI-12345" required value={staffLicense} onChange={(e)=>setStaffLicense(e.target.value)}/>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Specialty</label>
+                          <select className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" value={staffSpecialty} onChange={(e)=>setStaffSpecialty(e.target.value)}>
+                            <option value="Cardiology">Cardiology</option>
+                            <option value="Neurology">Neurology</option>
+                            <option value="Pediatrics">Pediatrics</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    {staffRole === 'nurse' && (
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Nursing Registry Code</label>
+                        <input className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" placeholder="NUR-9021" required value={staffLicense} onChange={(e)=>setStaffLicense(e.target.value)}/>
+                      </div>
+                    )}
+
+                    {staffRole === 'general' && (
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">National Government ID</label>
+                        <input className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" placeholder="UID-9012" required value={staffNationalId} onChange={(e)=>setStaffNationalId(e.target.value)}/>
+                      </div>
+                    )}
+
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Hospital Branch Assignment</label>
+                      <select className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" value={staffBranch} onChange={(e)=>setStaffBranch(e.target.value)}>
+                        <option value="Delhi Branch">Delhi Branch</option>
+                        <option value="Mumbai Branch">Mumbai Branch</option>
+                      </select>
+                    </div>
+
+                    <button type="submit" className="w-full py-3 bg-primary text-white font-bold text-xs uppercase tracking-widest rounded-lg hover:bg-blue-700 transition-colors">
+                      Onboard Staff Member
+                    </button>
+                  </form>
+
+                  {/* Active Staff Registry Grid */}
+                  <div className="col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+                    <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Active Staff Registry</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-100 text-slate-400">
+                            <th className="py-3 font-bold uppercase tracking-wider">Staff Name</th>
+                            <th className="py-3 font-bold uppercase tracking-wider">Clinical Role</th>
+                            <th className="py-3 font-bold uppercase tracking-wider">Secure UID</th>
+                            <th className="py-3 font-bold uppercase tracking-wider">Portal URL Link</th>
+                            <th className="py-3 font-bold uppercase tracking-wider">Email Link Dispatch</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50 font-medium">
+                          {staffRecords.map((rec, i) => (
+                            <tr key={i} className="hover:bg-slate-50">
+                              <td className="py-3.5 text-slate-950">{rec.name}</td>
+                              <td className="py-3.5">
+                                <span className="px-2 py-0.5 rounded bg-blue-50 text-primary text-[10px] font-bold uppercase">{rec.role}</span>
+                              </td>
+                              <td className="py-3.5 font-mono text-slate-500">{rec.staff_id}</td>
+                              <td className="py-3.5 text-blue-600 underline">
+                                <a href={rec.dedicated_portal_url} target="_blank" rel="noreferrer">{rec.dedicated_portal_url}</a>
+                              </td>
+                              <td className="py-3.5 text-emerald-600 flex items-center gap-1.5">
+                                <CheckCircle size={14}/> <span>Dispatched</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {consoleTab === 'ehr' && (
+              <div className="space-y-8">
+                <div>
+                  <h2 className="text-3xl font-extrabold text-slate-950 font-outfit tracking-tight">EHR Patient Passports</h2>
+                  <p className="text-xs text-slate-500 mt-1">Longitudinal health history audit and Chitti AI double summaries.</p>
+                </div>
+
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+                  <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Active Clinical Consent Profiles</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-slate-400">
+                          <th className="py-3 font-bold">Patient Name</th>
+                          <th className="py-3 font-bold">Linked Health ID</th>
+                          <th className="py-3 font-bold">Dynamic Consent</th>
+                          <th className="py-3 font-bold">Vitals State</th>
+                          <th className="py-3 font-bold">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50 font-medium">
+                        <tr className="hover:bg-slate-50">
+                          <td className="py-3.5 text-slate-950">Aarav Mehta</td>
+                          <td className="py-3.5 font-mono text-slate-500">HP-9021-AA8</td>
+                          <td className="py-3.5"><span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 font-bold uppercase text-[9px]">GRANTED</span></td>
+                          <td className="py-3.5 text-slate-900">BP: 120/80, Pulse: 72</td>
+                          <td className="py-3.5"><button className="text-blue-600 font-bold hover:underline">View AI Summary</button></td>
+                        </tr>
+                        <tr className="hover:bg-slate-50">
+                          <td className="py-3.5 text-slate-950">Priya Nair</td>
+                          <td className="py-3.5 font-mono text-slate-500">HP-8833-P88</td>
+                          <td className="py-3.5"><span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 font-bold uppercase text-[9px]">GRANTED</span></td>
+                          <td className="py-3.5 text-slate-900">BP: 135/88, Pulse: 85</td>
+                          <td className="py-3.5"><button className="text-blue-600 font-bold hover:underline">View AI Summary</button></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {consoleTab === 'lab' && (
+              <div className="space-y-8">
+                <div>
+                  <h2 className="text-3xl font-extrabold text-slate-950 font-outfit tracking-tight">LOINC Laboratory</h2>
+                  <p className="text-xs text-slate-500 mt-1">Diagnostic order queues with LOINC mappings and reference range auditing.</p>
+                </div>
+
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+                  <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Active Diagnostic Test Queue</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-slate-400">
+                          <th className="py-3 font-bold">Order ID</th>
+                          <th className="py-3 font-bold">Test Name</th>
+                          <th className="py-3 font-bold">LOINC Code</th>
+                          <th className="py-3 font-bold">Measured Value</th>
+                          <th className="py-3 font-bold">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50 font-medium">
+                        <tr className="hover:bg-slate-50">
+                          <td className="py-3.5 text-slate-950">ORD-9021</td>
+                          <td className="py-3.5">Hemoglobin A1c</td>
+                          <td className="py-3.5 font-mono text-slate-500">4548-4</td>
+                          <td className="py-3.5 text-amber-600 font-bold">7.2% (Abnormal)</td>
+                          <td className="py-3.5"><span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 font-bold uppercase text-[9px]">COMPLETED</span></td>
+                        </tr>
+                        <tr className="hover:bg-slate-50">
+                          <td className="py-3.5 text-slate-950">ORD-8822</td>
+                          <td className="py-3.5">Serum Creatinine</td>
+                          <td className="py-3.5 font-mono text-slate-500">2160-0</td>
+                          <td className="py-3.5 text-slate-900">0.9 mg/dL (Normal)</td>
+                          <td className="py-3.5"><span className="px-2 py-0.5 rounded bg-blue-50 text-primary font-bold uppercase text-[9px]">PROCESSING</span></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {consoleTab === 'pharmacy' && (
+              <div className="space-y-8">
+                <div>
+                  <h2 className="text-3xl font-extrabold text-slate-950 font-outfit tracking-tight">Pharmacy Stock & Dispenser</h2>
+                  <p className="text-xs text-slate-500 mt-1">Medicine batch registries, threshold warnings, and direct medicine dispenser.</p>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-8">
+                  {/* Stock Grid */}
+                  <div className="col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+                    <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Active Medicine Batch Levels</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-100 text-slate-400">
+                            <th className="py-3 font-bold">Medicine</th>
+                            <th className="py-3 font-bold">Batch</th>
+                            <th className="py-3 font-bold">Quantity</th>
+                            <th className="py-3 font-bold">Stock Warning</th>
+                            <th className="py-3 font-bold">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50 font-medium">
+                          {pharmacyItems.map((item, i) => (
+                            <tr key={i} className="hover:bg-slate-50">
+                              <td className="py-3.5 text-slate-950">{item.name}</td>
+                              <td className="py-3.5 font-mono text-slate-500">{item.batch}</td>
+                              <td className="py-3.5 font-bold text-slate-900">{item.quantity} units</td>
+                              <td className="py-3.5">
+                                {item.quantity <= item.threshold ? (
+                                  <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-600 font-bold uppercase text-[9px] flex gap-1 items-center max-w-fit"><AlertTriangle size={10}/> LOW STOCK</span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 font-bold uppercase text-[9px] flex gap-1 items-center max-w-fit"><CheckCircle size={10}/> ADEQUATE</span>
+                                )}
+                              </td>
+                              <td className="py-3.5">
+                                <button onClick={()=>handleDispenseMedicine(item.name)} disabled={item.quantity === 0} className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[9px] uppercase tracking-wider rounded-lg transition-colors disabled:opacity-50">
+                                  Virtual Dispense
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* QR Dispenser simulator */}
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
+                    <div className="space-y-4">
+                      <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Prescription QR Scanner</h3>
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        Scan incoming dynamic prescription QR codes from patient apps. The grid automatically marks items as dispensed and decrements pharmacy ledger states.
+                      </p>
+                      <div className="w-40 h-40 border border-slate-200 rounded-xl bg-slate-50 mx-auto flex items-center justify-center relative overflow-hidden">
+                        <div className="w-32 h-32 border-2 border-primary/40 rounded bg-slate-200/50 flex items-center justify-center font-mono text-[8px] text-slate-400">
+                          [ VIRTUAL QR CAMERA VIEW ]
+                        </div>
+                      </div>
+                    </div>
+                    <button onClick={()=>{
+                      handleDispenseMedicine('Atorvastatin 10mg');
+                      alert("QR_SCAN_SUCCESS: Dispensed Atorvastatin 10mg from Batch AT-8822.");
+                    }} className="w-full py-3 bg-primary text-white font-bold text-xs uppercase tracking-widest rounded-lg hover:bg-blue-700 mt-4 transition-colors">
+                      Simulate Patient QR Scan
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {consoleTab === 'opd' && (
+              <div className="space-y-8">
+                <div>
+                  <h2 className="text-3xl font-extrabold text-slate-950 font-outfit tracking-tight">OPD & Bed Scheduler</h2>
+                  <p className="text-xs text-slate-500 mt-1">Real-time ICU ward planner and priority scoring emergency token overrides.</p>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-8">
+                  {/* Bed Grid MAP */}
+                  <div className="col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+                    <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">ICU & Bed Allocation Matrix</h3>
+                    <div className="grid grid-cols-4 gap-4">
+                      {[
+                        { id: 'Bed-101', status: 'occupied', label: 'Occupied' },
+                        { id: 'Bed-102', status: 'available', label: 'Available' },
+                        { id: 'Bed-103', status: 'occupied', label: 'Occupied' },
+                        { id: 'Bed-104', status: 'maintenance', label: 'Maintenance' },
+                        { id: 'Bed-201', status: 'available', label: 'Available' },
+                        { id: 'Bed-202', status: 'available', label: 'Available' },
+                        { id: 'Bed-203', status: 'occupied', label: 'Occupied' },
+                        { id: 'Bed-204', status: 'available', label: 'Available' }
+                      ].map((bed) => (
+                        <div key={bed.id} className="p-4 border border-slate-200 bg-slate-50 rounded-xl space-y-2 text-center">
+                          <span className="font-bold text-slate-950 text-xs block">{bed.id}</span>
+                          <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase ${bed.status === 'occupied' ? 'bg-amber-100 text-amber-800' : bed.status === 'maintenance' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                            {bed.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Priority Token Overrider */}
+                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4 flex flex-col justify-between">
+                    <div className="space-y-4">
+                      <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Emergency Queue Override</h3>
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        Chitti AI structures patient scores out-of-band. Admins can bypass recommendations for immediate surgical trauma admissions.
+                      </p>
+                      <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex gap-3 items-center">
+                        <ShieldAlert className="text-rose-600" size={20}/>
+                        <div>
+                          <p className="text-xs font-bold text-rose-950">ICU Capacity Alert</p>
+                          <p className="text-[9px] text-rose-700">ICU Beds at 85% occupancy rate threshold limit.</p>
+                        </div>
+                      </div>
+                    </div>
+                    <button onClick={()=>alert("QUEUE_OVERRIDE_CONFIRMED: Token #08 shifted to immediate priority.")} className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-widest rounded-lg transition-colors mt-4">
+                      Override Patient Token
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {consoleTab === 'ai-governance' && (
+              <div className="space-y-8">
+                <div>
+                  <h2 className="text-3xl font-extrabold text-slate-950 font-outfit tracking-tight">AI Safety Governance</h2>
+                  <p className="text-xs text-slate-500 mt-1">Auditing clinical override registries and safety parameters.</p>
+                </div>
+
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+                  <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Clinician Override Registry</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-slate-400">
+                          <th className="py-3 font-bold">Override ID</th>
+                          <th className="py-3 font-bold">Doctor Name</th>
+                          <th className="py-3 font-bold">AI Diagnosis Suggestion</th>
+                          <th className="py-3 font-bold">Doctor Correction Value</th>
+                          <th className="py-3 font-bold">Audit Ledger Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50 font-medium">
+                        <tr className="hover:bg-slate-50">
+                          <td className="py-3.5 text-slate-950">OR-9021</td>
+                          <td className="py-3.5">Dr. Vivek Sharma</td>
+                          <td className="py-3.5">Prescribe Metformin 1000mg</td>
+                          <td className="py-3.5 text-rose-600 font-bold">Metformin 500mg + lifestyle checks</td>
+                          <td className="py-3.5"><span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 font-bold uppercase text-[9px]">SIGNED & MUTATED</span></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {consoleTab === 'settings' && (
+              <div className="space-y-8">
+                <div>
+                  <h2 className="text-3xl font-extrabold text-slate-950 font-outfit tracking-tight">System Settings & API Keys</h2>
+                  <p className="text-xs text-slate-500 mt-1">Configure secure integrations for Twilio, SMTP, and Razorpay endpoints.</p>
+                </div>
+
+                <div className="bg-white border border-slate-200 rounded-[24px] p-8 shadow-sm max-w-2xl space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Twilio Account SID</label>
+                      <input className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" type="password" value="••••••••••••••••••••••••••••" readOnly/>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Razorpay API Key</label>
+                      <input className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" type="password" value="••••••••••••••••••••••••••••" readOnly/>
+                    </div>
+                  </div>
+
+                  <button onClick={()=>alert("SETTINGS_SYNC_SUCCESS: Encrypted system settings dispatched to FastAPI ledger.")} className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-widest rounded-lg transition-colors">
+                    Save Key Mappings
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* FOOTER */}
+      {appStatus !== 'approved' && (
+        <footer className="py-16 border-t border-slate-200 text-center bg-white text-slate-500">
+          <p className="text-[9px] font-bold uppercase tracking-[0.4em] mb-4">© 2026 Hospyn Sovereign Grid. Forensic Intelligence Protocol.</p>
+          <div className="flex justify-center gap-8 text-[9px] font-bold uppercase tracking-[0.2em]">
+            <a href="#" className="hover:text-primary transition-colors">Forensic Security</a>
+            <a href="#" className="hover:text-primary transition-colors">Privacy Matrix</a>
+            <a href="#" className="hover:text-primary transition-colors">Grid Infrastructure</a>
+          </div>
+        </footer>
+      )}
+
+      {/* MODALS */}
       <ActivationWizard 
         isOpen={isWizardOpen} 
         onClose={() => setIsWizardOpen(false)} 
-        onRegisterSuccess={() => setAppStatus('pending')}
+        onActivationSuccess={(data) => {
+          setAppStatus('approved');
+          localStorage.setItem('hospyn_app_state', 'approved');
+          localStorage.setItem('hospyn_org_name', data.name);
+          localStorage.setItem('hospyn_owner_email', data.owner_email);
+          if (data.branches) {
+            localStorage.setItem('hospyn_branches', data.branches);
+          }
+        }}
       />
 
-      <footer className="py-24 border-t border-white/5 text-center relative overflow-hidden bg-black">
-         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-20" />
-         <p className="text-[10px] font-black uppercase tracking-[0.6em] text-slate-500 mb-8">© 2026 Hospyn Sovereign Grid. Forensic Intelligence Protocol.</p>
-         <div className="flex justify-center gap-12 text-[9px] font-black uppercase tracking-[0.3em] text-slate-400">
-            <a href="#" className="hover:text-cyan-400 transition-colors">Forensic Security</a>
-            <a href="#" className="hover:text-cyan-400 transition-colors">Privacy Matrix</a>
-            <a href="#" className="hover:text-cyan-400 transition-colors">Grid Infrastructure</a>
-         </div>
-      </footer>
-      
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100;300;500;900&display=swap');
-        .outfit { font-family: 'Outfit', sans-serif; }
-        .animate-pulse-slow { animation: pulse 8s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 0.1; scale: 1; } 50% { opacity: 0.3; scale: 1.1; } }
-      `}</style>
+      <CredentialsEmailModal 
+        isOpen={isMailOpen} 
+        onClose={() => setIsMailOpen(false)} 
+        staffRecord={activeDispatchMail}
+      />
     </div>
   );
 }
-
-// Custom Activity Icon
-const Activity = (props) => <svg {...props} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>;

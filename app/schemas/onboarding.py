@@ -23,6 +23,16 @@ class StaffAdd(BaseModel):
     email: EmailStr
     role: str # doctor, nurse, admin, hr
 
+class StaffDynamicOnboard(BaseModel):
+    full_name: str
+    email: EmailStr
+    role: str # doctor, nurse, general, pharmacist, hr_manager, admin
+    phone: Optional[str] = None
+    national_id: Optional[str] = None
+    license_number: Optional[str] = None
+    specialty: Optional[str] = None
+    branch_name: Optional[str] = None
+
 class PaymentVerify(BaseModel):
     razorpay_order_id: str
     razorpay_payment_id: str
