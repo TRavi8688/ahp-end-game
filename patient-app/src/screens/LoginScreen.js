@@ -359,6 +359,26 @@ export default function AuthScreen({ navigation }) {
                                 <Text style={styles.sheetSubtitle}>Secure cryptographic authentication</Text>
                             </View>
 
+                            <View style={{
+                                backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                                borderColor: 'rgba(99, 102, 241, 0.2)',
+                                borderWidth: 1,
+                                borderRadius: 16,
+                                padding: 14,
+                                marginBottom: 20,
+                                gap: 6
+                            }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                    <Ionicons name="information-circle-outline" size={16} color="#6366F1" />
+                                    <Text style={{ color: '#6366F1', fontWeight: 'bold', fontSize: 13 }}>GCP Developer Notice</Text>
+                                </View>
+                                <Text style={{ color: '#94A3B8', fontSize: 11, lineHeight: 16 }}>
+                                    If you see a "Google 401 client not found" screen, it means your GCP Console is still provisioning the Web Client ID. 
+                                    {"\n\n"}
+                                    <Text style={{ color: '#F59E0B', fontWeight: 'bold' }}>To test instantly:</Text> Enter any custom email in the <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Sandbox Mode</Text> input below to register or log in instantly as any patient!
+                                </Text>
+                            </View>
+
                             {/* REAL GOOGLE IDENTITY SERVICES BUTTON CONTAINER */}
                             {Platform.OS === 'web' ? (
                                 <View style={styles.realGoogleBtnWrapper}>
@@ -504,6 +524,26 @@ export default function AuthScreen({ navigation }) {
                             <Ionicons name="logo-google" size={32} color="#4F46E5" />
                             <Text style={styles.sheetTitle}>Sign in with Google</Text>
                             <Text style={styles.sheetSubtitle}>Secure cryptographic authentication</Text>
+                        </View>
+
+                        <View style={{
+                            backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                            borderColor: 'rgba(99, 102, 241, 0.2)',
+                            borderWidth: 1,
+                            borderRadius: 16,
+                            padding: 14,
+                            marginBottom: 20,
+                            gap: 6
+                        }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <Ionicons name="information-circle-outline" size={16} color="#6366F1" />
+                                <Text style={{ color: '#6366F1', fontWeight: 'bold', fontSize: 13 }}>GCP Developer Notice</Text>
+                            </View>
+                            <Text style={{ color: '#94A3B8', fontSize: 11, lineHeight: 16 }}>
+                                If you see a "Google 401 client not found" screen, it means your GCP Console is still provisioning the Web Client ID. 
+                                {"\n\n"}
+                                <Text style={{ color: '#F59E0B', fontWeight: 'bold' }}>To test instantly:</Text> Enter any custom email in the <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Sandbox Mode</Text> input below to register or log in instantly as any patient!
+                            </Text>
                         </View>
 
                         {/* REAL GOOGLE IDENTITY SERVICES BUTTON CONTAINER */}
