@@ -34,9 +34,14 @@ export default function ScanModal({ open, onClose }) {
 
     // Listen for WebSocket Approval
     React.useEffect(() => {
-        if (lastMessage && lastMessage.type === 'access_granted' && step === 3) {
-            handleClose();
-            navigate(`/patient/${patientData.id}`);
+        if (lastMessage && step === 3) {
+            if (lastMessage.type === 'access_granted') {
+                handleClose();
+                navigate(`/patient/${patientData.id}`);
+            } else if (lastMessage.type === 'access_revoked') {
+                setErrorMsg("The patient declined or revoked the access request.");
+                setStep(1); // Reset back to input step
+            }
         }
     }, [lastMessage, step]);
 
