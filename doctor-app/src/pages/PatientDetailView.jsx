@@ -177,6 +177,46 @@ export default function PatientDetailView() {
         }
     }, [lastMessage]);
 
+    // Robust Polling Fallback: Automatically check consent status every 2 seconds when request is pending
+    React.useEffect(() => {
+        let interval;
+        if (patient && patient.consent_required && requestSent) {
+            console.log("DEBUG: Patient consent pending, starting robust polling fallback...");
+            interval = setInterval(() => {
+                const pollStatus = async () => {
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/doctor/patient/${id}`, {
+                            headers: {
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            }
+                        });
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data && !data.consent_required) {
+                                console.log("DEBUG: Access granted detected via background polling!");
+                                data.allergies = data.allergies || [];
+                                data.conditions = data.conditions || [];
+                                data.medications = data.medications || [];
+                                data.records = data.records || [];
+                                data.history = data.history || [];
+                                data.contacts = data.contacts || [];
+                                setPatient(data);
+                                setRequestSent(false);
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Polling error:", err);
+                    }
+                };
+                pollStatus();
+            }, 2000);
+        }
+
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [patient, requestSent, id]);
+
     const handleRequestAccess = async () => {
         setIsSendingRequest(true);
         try {
