@@ -811,6 +811,33 @@ async def get_pending_access(
         } for r in requests
     ]
 
+@router.get("/access-history")
+async def get_patient_access_history(
+    current_patient: Any = Depends(deps.get_current_patient),
+    db: AsyncSession = Depends(deps.get_db)
+):
+    """Retrieve history of doctor access requests, approvals, and revocations for this patient."""
+    stmt = select(models.DoctorAccess).where(
+        models.DoctorAccess.patient_id == current_patient.id
+    ).order_by(models.DoctorAccess.created_at.desc())
+    
+    result = await db.execute(stmt)
+    records = result.scalars().all()
+    
+    history = []
+    for r in records:
+        history.append({
+            "id": str(r.id),
+            "doctor_name": r.doctor_name,
+            "clinic_name": r.clinic_name,
+            "status": r.status,  # "requested", "granted", "revoked"
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+            "granted_at": r.granted_at.isoformat() if r.granted_at else None,
+            "revoked_at": r.revoked_at.isoformat() if r.revoked_at else None,
+            "last_accessed_at": r.last_accessed_at.isoformat() if hasattr(r, "last_accessed_at") and r.last_accessed_at else None
+        })
+    return history
+
 @router.get("/notifications")
 async def get_patient_notifications(
     current_patient: Any = Depends(deps.get_current_patient),
