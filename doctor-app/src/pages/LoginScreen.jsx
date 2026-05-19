@@ -69,6 +69,19 @@ export default function LoginScreen() {
 
             if (!response.ok) throw new Error(data.detail || 'Authentication failed.');
 
+            // Decrypt/decode JWT payload to verify role parity
+            try {
+                const tokenParts = data.access_token.split('.');
+                if (tokenParts.length === 3) {
+                    const payload = JSON.parse(atob(tokenParts[1]));
+                    if (payload.role !== 'doctor') {
+                        throw new Error('Access Denied: This portal is strictly for authorized medical professionals.');
+                    }
+                }
+            } catch (e) {
+                throw new Error(e.message || 'Invalid session credentials.');
+            }
+
             localStorage.setItem('isAuthenticated', 'true');
             localStorage.setItem('token', data.access_token);
             window.location.href = '/';
