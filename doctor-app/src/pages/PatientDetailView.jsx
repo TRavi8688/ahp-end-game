@@ -124,8 +124,8 @@ export default function PatientDetailView() {
         setIntakeAllergies(rows);
     };
 
-    const fetchPatient = async () => {
-        setIsLoading(true);
+    const fetchPatient = async (silent = false) => {
+        if (!silent) setIsLoading(true);
         try {
             const response = await fetch(`${API_BASE_URL}/doctor/patient/${id}`, {
                 headers: {
@@ -150,12 +150,12 @@ export default function PatientDetailView() {
         } catch (error) {
             console.error("Error fetching patient:", error);
         } finally {
-            setIsLoading(false);
+            if (!silent) setIsLoading(false);
         }
     };
 
     React.useEffect(() => {
-        fetchPatient();
+        fetchPatient(false);
     }, [id]);
 
     // Global Socket Logic for Kickout / Updates
@@ -412,7 +412,7 @@ export default function PatientDetailView() {
 
             if (response.ok) {
                 setToastOpen(true);
-                fetchPatient();
+                fetchPatient(true); // Silent reload!
             } else {
                 console.error("Upload failed");
             }
@@ -424,6 +424,14 @@ export default function PatientDetailView() {
     };
 
     const handleVerifyRecord = async (recordId) => {
+        // Optimistic UI Update: Mark record as verified in state instantly with 0ms delay!
+        if (patient && patient.records) {
+            const updatedRecords = patient.records.map(r => 
+                r.id === recordId ? { ...r, verified: true } : r
+            );
+            setPatient(prev => ({ ...prev, records: updatedRecords }));
+        }
+
         try {
             const response = await fetch(`${API_BASE_URL}/clinical/records/${recordId}/verify`, {
                 method: 'POST',
@@ -435,13 +443,15 @@ export default function PatientDetailView() {
 
             if (response.ok) {
                 setToastOpen(true);
-                fetchPatient();
+                fetchPatient(true); // Silent background synchronization!
             } else {
                 const err = await response.json();
                 console.error("Verification failed:", err);
+                fetchPatient(true); // Revert state from backend in case of failure
             }
         } catch (error) {
             console.error("Error verifying record:", error);
+            fetchPatient(true); // Revert state from backend on exception
         }
     };
 
