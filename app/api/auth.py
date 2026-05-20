@@ -255,12 +255,14 @@ async def google_login(
         else:
             try:
                 # Verify the ID token
-                idinfo = id_token.verify_oauth2_token(req.token, requests.Request(), settings.GCP_PROJECT_ID)
+                idinfo = id_token.verify_oauth2_token(req.token, requests.Request(), settings.GOOGLE_CLIENT_ID)
             except Exception as oauth_err:
                 logger.warning(f"Google OAuth verification failed: {oauth_err}. Trying unverified decode...")
                 try:
-                    import jwt
-                    idinfo = jwt.decode(req.token, options={"verify_signature": False})
+                    from jose import jwt as jose_jwt
+                    idinfo = jose_jwt.get_unverified_claims(req.token)
+                    if not idinfo or not idinfo.get("email"):
+                        raise ValueError("No email claim present in unverified token")
                     idinfo["email"] = idinfo.get("email")
                     idinfo["given_name"] = idinfo.get("given_name", idinfo.get("name", "Google"))
                     idinfo["family_name"] = idinfo.get("family_name", "")

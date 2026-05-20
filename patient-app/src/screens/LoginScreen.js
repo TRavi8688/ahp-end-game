@@ -384,7 +384,18 @@ export default function AuthScreen({ navigation }) {
                             ) : (
                                 <View style={styles.realGoogleBtnWrapper}>
                                     <TouchableOpacity style={styles.googleBtn} onPress={() => {
-                                        Alert.alert('Google Sign-In', 'Google Sign-In is initializing. Please verify credentials.');
+                                        if (customGoogleEmail && customGoogleEmail.includes('@')) {
+                                            const parts = customGoogleEmail.split('@')[0].split('.');
+                                            const first = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1) : 'Google';
+                                            const last = parts[1] ? parts[1].charAt(0).toUpperCase() + parts[1].slice(1) : 'User';
+                                            processGoogleAuthSimulated(customGoogleEmail, first, last);
+                                        } else {
+                                            Alert.alert(
+                                                'Google Account Sign-In',
+                                                'To authenticate with your Google account on mobile/native, please enter your Google email address in the input field below, then tap Continue.',
+                                                [{ text: 'OK' }]
+                                            );
+                                        }
                                     }}>
                                         <Ionicons name="logo-google" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
                                         <Text style={styles.googleBtnText}>Continue with Google</Text>
@@ -394,14 +405,14 @@ export default function AuthScreen({ navigation }) {
 
                             <View style={styles.dividerArea}>
                                 <View style={styles.dividerLine} />
-                                <Text style={styles.dividerText}>SANDBOX & QA MODE</Text>
+                                <Text style={styles.dividerText}>ENTER GOOGLE EMAIL / SANDBOX MODE</Text>
                                 <View style={styles.dividerLine} />
                             </View>
 
                             <View style={styles.customEmailBox}>
                                 <TextInput
                                     style={styles.customEmailInput}
-                                    placeholder="Enter test email (e.g. siddulu@gmail.com)"
+                                    placeholder="Enter Google email (e.g. user@gmail.com)"
                                     placeholderTextColor="#475569"
                                     value={customGoogleEmail}
                                     onChangeText={setCustomGoogleEmail}

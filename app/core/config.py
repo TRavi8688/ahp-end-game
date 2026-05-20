@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     # --- 3. CLOUD INFRASTRUCTURE (GCP/AWS) ---
     CLOUD_PROVIDER: str = "gcp" # "gcp" or "aws"
     GCP_PROJECT_ID: Optional[str] = None
+    GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "625745217419-g5j6scb7d1hl0s9l2o1e93t6401sf0x.apps.googleusercontent.com")
     GCS_BUCKET_NAME: Optional[str] = None
     
     # AWS specific
