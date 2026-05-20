@@ -28,5 +28,5 @@ export const WS_BASE_URL = BASE.startsWith('https')
 
 // --- GOOGLE OAUTH CLIENT CONFIGURATION ---
 // Replace with the Google Web Client ID generated for your GCP Project: hospyn-495906-96438
-export const GOOGLE_CLIENT_ID = '625745217419-g5j6scb7d1hl0s9l2o1e93t6401sf0x.apps.googleusercontent.com';
+export const GOOGLE_CLIENT_ID = '535888154531-iut4obunon3eocv6e9lkbv02ojr5v7r5.apps.googleusercontent.com';
 
