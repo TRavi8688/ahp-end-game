@@ -59,12 +59,11 @@ export default function AuthScreen({ navigation }) {
 
             script.onload = () => {
                 if (window.google) {
-                    // Initialize with production Google OAuth Web Client ID for project hospyn-495906-96438
+                    // Initialize with production Google OAuth Web Client ID
                     window.google.accounts.id.initialize({
                         client_id: GOOGLE_CLIENT_ID,
                         callback: async (response) => {
                             // REAL Google Identity Token (JWT) returned from popup!
-                            setGoogleModalVisible(false);
                             setLoading(true);
                             try {
                                 // 1. Verify token with your FastAPI backend /auth/google endpoint
@@ -105,6 +104,20 @@ export default function AuthScreen({ navigation }) {
                             }
                         }
                     });
+
+                    // Define rendering function safely
+                    window.renderGoogleButton = () => {
+                        const container = document.getElementById('real-google-btn-container');
+                        if (container && window.google) {
+                            window.google.accounts.id.renderButton(container, {
+                                theme: 'filled_blue',
+                                size: 'large',
+                                width: width > 400 ? 340 : 280,
+                                shape: 'pill'
+                            });
+                        }
+                    };
+                    window.renderGoogleButton();
                 }
             };
 
@@ -116,7 +129,12 @@ export default function AuthScreen({ navigation }) {
         }
     }, []);
 
-    // Render Google Auth button\n    useEffect(() => {\n        if (Platform.OS === 'web' && window.google) {\n            setTimeout(() => {\n                const container = document.getElementById('real-google-btn-container');\n                if (container) {\n                    window.google.accounts.id.renderButton(container, {\n                        theme: 'filled_blue',\n                        size: 'large',\n                        width: width > 400 ? 340 : 280,\n                        shape: 'pill'\n                    });\n                }\n            }, 150);\n        }\n    }, [mode]);
+    // Re-render Google button when switching between login/landing mode
+    useEffect(() => {
+        if (Platform.OS === 'web' && window.renderGoogleButton) {
+            setTimeout(window.renderGoogleButton, 150);
+        }
+    }, [mode]);
 
     const handleHospynLogin = async () => {
         if (!hospynId || !password) return Alert.alert('Missing Info', 'Please enter your Hospyn ID and Password.');
