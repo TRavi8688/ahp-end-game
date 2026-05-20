@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
     doctorBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#6366f1', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, gap: 5 },
     badgeText: { color: '#fff', fontSize: 10, fontWeight: '900' },
     timeLabel: { fontSize: 11, color: '#9ca3af', fontWeight: '600' },
-    doctorInfo: { flexDirection: 'row', alignItems: 'center', gap: 15, mb: 20 },
+    doctorInfo: { flexDirection: 'row', alignItems: 'center', gap: 15, marginBottom: 20 },
     avatarLarge: { width: 60, height: 60, borderRadius: 30, backgroundColor: '#f5f3ff', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#e9d5ff' },
     avatarTextLarge: { fontSize: 24, fontWeight: 'bold', color: '#4c1d95' },
     doctorNameLarge: { fontSize: 18, fontWeight: 'bold', color: '#1f2937' },
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     activeSub: { fontSize: 12, color: '#9ca3af' },
     revokeIcon: { padding: 10 },
     emptyBox: { alignItems: 'center', paddingVertical: 40 },
-    emptyText: { textAlign: 'center', color: '#9ca3af', fontSize: 14, marginTop: 15, px: 30, lineHeight: 20 },
+    emptyText: { textAlign: 'center', color: '#9ca3af', fontSize: 14, marginTop: 15, paddingHorizontal: 30, lineHeight: 20 },
     footerInfo: { padding: 20, flexDirection: 'row', alignItems: 'center', gap: 8, justifyContent: 'center' },
     footerText: { fontSize: 11, color: '#9ca3af', textAlign: 'center' }
 });

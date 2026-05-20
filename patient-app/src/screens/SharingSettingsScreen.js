@@ -155,5 +155,5 @@ const styles = StyleSheet.create({
     },
     revokeBtnText: { color: '#dc2626', fontWeight: 'bold', fontSize: 14 },
     emptyContainer: { alignItems: 'center', marginTop: 100 },
-    emptyText: { textAlign: 'center', color: '#9ca3af', marginTop: 20, fontSize: 14, px: 40 }
+    emptyText: { textAlign: 'center', color: '#9ca3af', marginTop: 20, fontSize: 14, paddingHorizontal: 40 }
 });

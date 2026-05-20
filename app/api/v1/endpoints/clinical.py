@@ -39,8 +39,10 @@ async def create_prescription(
             hospital_id=hospital_id,
             doctor_id=current_user.doctor_profile.id,
             patient_id=prescription_in.patient_id,
-            medications=prescription_in.medications,
-            notes=prescription_in.notes
+            medications=[m.model_dump() for m in prescription_in.medications],
+            notes=prescription_in.notes,
+            diagnosis=prescription_in.diagnosis,
+            visit_id=prescription_in.visit_id
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -184,3 +186,63 @@ async def verify_medical_record(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/prescriptions", response_model=List[PrescriptionResponse])
+async def get_prescriptions(
+    patient_id: Optional[uuid.UUID] = None,
+    db: AsyncSession = Depends(deps.get_db),
+    hospital_id: uuid.UUID = Depends(deps.get_hospital_id),
+    current_user = Depends(deps.get_current_user)
+):
+    """
+    Get digital prescriptions list.
+    - Patients get their own prescriptions.
+    - Staff/Doctors get prescriptions for their tenant/hospital.
+    """
+    from app.models.models import DigitalPrescription, Patient
+    from sqlalchemy import select
+
+    if current_user.role == RoleEnum.patient:
+        stmt_p = select(Patient).where(Patient.user_id == current_user.id)
+        res_p = await db.execute(stmt_p)
+        patient = res_p.scalar_one_or_none()
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient profile not found.")
+        stmt = select(DigitalPrescription).where(DigitalPrescription.patient_id == patient.id)
+    else:
+        stmt = select(DigitalPrescription).where(DigitalPrescription.hospital_id == hospital_id)
+        if patient_id:
+            stmt = stmt.where(DigitalPrescription.patient_id == patient_id)
+
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+@router.get("/prescriptions/{prescription_id}", response_model=PrescriptionResponse)
+async def get_prescription(
+    prescription_id: uuid.UUID,
+    db: AsyncSession = Depends(deps.get_db),
+    hospital_id: uuid.UUID = Depends(deps.get_hospital_id),
+    current_user = Depends(deps.get_current_user)
+):
+    """
+    Get details of a single digital prescription.
+    """
+    from app.models.models import DigitalPrescription, Patient
+    from sqlalchemy import select
+
+    stmt = select(DigitalPrescription).where(DigitalPrescription.id == prescription_id)
+    if current_user.role == RoleEnum.patient:
+        stmt_p = select(Patient).where(Patient.user_id == current_user.id)
+        res_p = await db.execute(stmt_p)
+        patient = res_p.scalar_one_or_none()
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient profile not found.")
+        stmt = stmt.where(DigitalPrescription.patient_id == patient.id)
+    else:
+        stmt = stmt.where(DigitalPrescription.hospital_id == hospital_id)
+
+    result = await db.execute(stmt)
+    prescription = result.scalar_one_or_none()
+    if not prescription:
+        raise HTTPException(status_code=404, detail="Prescription not found.")
+    return prescription

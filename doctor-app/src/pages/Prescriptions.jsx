@@ -275,12 +275,15 @@ export default function Prescriptions() {
     const [isChecking, setIsChecking] = useState(false);
     const [conflict, setConflict] = useState(null);
     const [toastOpen, setToastOpen] = useState(false);
+    const [toastSeverity, setToastSeverity] = useState('success');
+    const [toastMessage, setToastMessage] = useState('');
     const [forensicSeal, setForensicSeal] = useState(null);
 
     // Smart search
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [showSearch, setShowSearch] = useState(false);
+    const [focusedIndex, setFocusedIndex] = useState(0);
     const searchRef = useRef(null);
 
     useEffect(() => {
@@ -301,25 +304,30 @@ export default function Prescriptions() {
 
     // Smart medicine search with fuzzy matching
     useEffect(() => {
-        if (!searchQuery || searchQuery.length < 2) { setSearchResults([]); return; }
+        if (!searchQuery || searchQuery.length < 2) { setSearchResults([]); setFocusedIndex(0); return; }
         const q = searchQuery.toLowerCase();
         const results = INDIA_DRUG_DB.filter(d =>
             d.name.toLowerCase().includes(q) || d.generic.toLowerCase().includes(q) || d.category.toLowerCase().includes(q)
         ).slice(0, 8);
         setSearchResults(results);
+        setFocusedIndex(0);
     }, [searchQuery]);
 
-    const handleAddDrug = (drug) => {
-        const exists = medications.find(m => m.name === drug.name);
+    const handleAddDrug = (drugOrName) => {
+        const drug = typeof drugOrName === 'string'
+            ? { name: drugOrName, generic: 'Custom medication', category: 'General Medicine', defaultDose: '1 tab', defaultFreq: '1-0-1', defaultRoute: 'Oral' }
+            : drugOrName;
+
+        const exists = medications.find(m => m.name.toLowerCase() === drug.name.toLowerCase());
         if (exists) return;
         setMedications(prev => [...prev, {
             name: drug.name,
             generic: drug.generic,
             category: drug.category,
-            dose: drug.defaultDose,
-            frequency: drug.defaultFreq,
-            route: drug.defaultRoute,
-            duration: 'As directed',
+            dose: drug.defaultDose || '1 tab',
+            frequency: drug.defaultFreq || '1-0-1',
+            route: drug.defaultRoute || 'Oral',
+            duration: '5 days',
         }]);
         setSearchQuery('');
         setSearchResults([]);
@@ -327,6 +335,25 @@ export default function Prescriptions() {
         runAICheck(drug.name);
         // Focus back to search for next drug
         setTimeout(() => { setShowSearch(true); if (medInputRef.current) medInputRef.current.focus(); }, 100);
+    };
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            setFocusedIndex(prev => (searchResults.length > 0 ? (prev + 1) % searchResults.length : 0));
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            setFocusedIndex(prev => (searchResults.length > 0 ? (prev - 1 + searchResults.length) % searchResults.length : 0));
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (showSearch && searchResults.length > 0 && searchResults[focusedIndex]) {
+                handleAddDrug(searchResults[focusedIndex]);
+            } else if (searchQuery.trim().length > 0) {
+                handleAddDrug(searchQuery.trim());
+            }
+        } else if (e.key === 'Escape') {
+            setShowSearch(false);
+        }
     };
 
     const handleUpdateMed = (index, field, value) => {
@@ -375,7 +402,7 @@ export default function Prescriptions() {
         if (!selectedPatient || medications.length === 0) return;
         setIsSending(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/clinical/prescribe`, {
+            const res = await fetch(`${API_BASE_URL}/clinical/prescriptions`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
                 body: JSON.stringify({
@@ -391,10 +418,22 @@ export default function Prescriptions() {
             if (res.ok) {
                 const data = await res.json();
                 setForensicSeal(data.signature_hash);
+                setToastSeverity('success');
+                setToastMessage('Prescription issued successfully!');
                 setToastOpen(true);
                 setMedications([]); setDiagnosis(''); setNotes(''); setConflict(null);
+            } else {
+                const errData = await res.json().catch(() => ({ detail: 'Failed to issue prescription.' }));
+                setToastSeverity('error');
+                setToastMessage(`Error: ${errData.detail || 'Failed to issue prescription.'}`);
+                setToastOpen(true);
             }
-        } catch (e) { console.error(e); } finally { setIsSending(false); }
+        } catch (e) {
+            console.error(e);
+            setToastSeverity('error');
+            setToastMessage('Network error or server unavailable.');
+            setToastOpen(true);
+        } finally { setIsSending(false); }
     };
 
     return (
@@ -496,6 +535,7 @@ export default function Prescriptions() {
                                     fullWidth
                                     value={searchQuery}
                                     onChange={e => { setSearchQuery(e.target.value); setShowSearch(true); }}
+                                    onKeyDown={handleKeyDown}
                                     onFocus={() => setShowSearch(true)}
                                     placeholder="🔍  Type medicine name (e.g. Dolo, Azithromycin, Pan 40)..."
                                     size="small"
@@ -511,7 +551,7 @@ export default function Prescriptions() {
                                             '&.Mui-focused fieldset': { borderColor: '#0d9488', borderWidth: 2 }
                                         }
                                     }}
-                                />
+                                  />
 
                                 {/* Dropdown results */}
                                 {showSearch && searchResults.length > 0 && (
@@ -524,11 +564,13 @@ export default function Prescriptions() {
                                             <Box
                                                 key={i}
                                                 onClick={() => handleAddDrug(drug)}
+                                                onMouseEnter={() => setFocusedIndex(i)}
                                                 sx={{
                                                     display: 'flex', alignItems: 'center', gap: 2,
                                                     px: 3, py: 1.8, cursor: 'pointer',
                                                     borderBottom: i < searchResults.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
-                                                    '&:hover': { bgcolor: 'rgba(13,148,136,0.08)' },
+                                                    bgcolor: i === focusedIndex ? 'rgba(13,148,136,0.18)' : 'transparent',
+                                                    '&:hover': { bgcolor: 'rgba(13,148,136,0.18)' },
                                                     transition: 'background 0.1s'
                                                 }}
                                             >
@@ -721,12 +763,12 @@ export default function Prescriptions() {
             </Grid>
 
             <Snackbar open={toastOpen} autoHideDuration={4000} onClose={() => setToastOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
-                <Alert severity="success" onClose={() => setToastOpen(false)} sx={{
-                    bgcolor: '#0d9488', color: '#fff', borderRadius: '16px', fontWeight: 900,
+                <Alert severity={toastSeverity} onClose={() => setToastOpen(false)} sx={{
+                    bgcolor: toastSeverity === 'success' ? '#0d9488' : '#ef4444', color: '#fff', borderRadius: '16px', fontWeight: 900,
                     '& .MuiAlert-icon': { color: '#fff' }
                 }}>
-                    Prescription issued successfully!
-                    {forensicSeal && <Box sx={{ mt: 0.5, fontSize: '0.65rem', fontFamily: 'monospace', opacity: 0.7 }}>SEAL: {forensicSeal}</Box>}
+                    {toastMessage}
+                    {toastSeverity === 'success' && forensicSeal && <Box sx={{ mt: 0.5, fontSize: '0.65rem', fontFamily: 'monospace', opacity: 0.7 }}>SEAL: {forensicSeal}</Box>}
                 </Alert>
             </Snackbar>
         </Box>

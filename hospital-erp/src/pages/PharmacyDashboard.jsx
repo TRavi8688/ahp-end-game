@@ -122,6 +122,7 @@ const PharmacyDashboard = () => {
             inventory={inventory} 
             initialPatientId={selectedPrescription?.patient_id}
             initialMeds={selectedPrescription?.medications}
+            prescriptionId={selectedPrescription?.id}
             onClose={() => { setIsDispenseModalOpen(false); setSelectedPrescription(null); }} 
             onDispensed={fetchData} 
           />
@@ -370,7 +371,7 @@ const AddStockModal = ({ onClose, onCreated }) => {
   );
 };
 
-const DispenseModal = ({ inventory, onClose, onDispensed, initialPatientId, initialMeds }) => {
+const DispenseModal = ({ inventory, onClose, onDispensed, initialPatientId, initialMeds, prescriptionId }) => {
   const [patientId, setPatientId] = useState(initialPatientId || '');
   const [selectedItem, setSelectedItem] = useState('');
   const [qty, setQty] = useState(1);
@@ -383,13 +384,24 @@ const DispenseModal = ({ inventory, onClose, onDispensed, initialPatientId, init
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      
+      // 1. Dispense inventory
       await axios.post(`${API_BASE_URL}/pharmacy/dispense`, {
         patient_id: patientId,
         items: [{ inventory_item_id: selectedItem, transaction_type: 'SALE', quantity: qty }]
-      }, { headers: { Authorization: `Bearer ${token}` } });
+      }, { headers });
+
+      // 2. Fulfill prescription if it was initiated from the queue
+      if (prescriptionId) {
+        await axios.post(`${API_BASE_URL}/clinical/prescriptions/${prescriptionId}/fulfill`, {}, { headers });
+      }
+
       onDispensed();
       onClose();
-    } catch (err) { alert("Dispensing failed. Check stock levels."); }
+    } catch (err) { 
+      alert("Dispensing failed. Check stock levels or prescription state."); 
+    }
   };
 
   return (

@@ -30,20 +30,24 @@ class ClinicalService(BaseService):
     async def create_prescription(
         self, 
         db: AsyncSession, 
-        hospital_id: int, 
-        doctor_id: int, 
-        patient_id: int, 
+        hospital_id: uuid.UUID, 
+        doctor_id: uuid.UUID, 
+        patient_id: uuid.UUID, 
         medications: List[Dict[str, Any]], 
-        notes: Optional[str] = None
+        notes: Optional[str] = None,
+        diagnosis: Optional[str] = None,
+        visit_id: Optional[uuid.UUID] = None
     ) -> DigitalPrescription:
         # 1. Generate unique QR ID for this prescription
         qr_code_id = f"Hospyn-PR-{uuid.uuid4().hex[:8].upper()}"
         
         # 2. Generate Digital Signature (HMAC-like hash of payload)
         payload = {
-            "hospital_id": hospital_id,
-            "doctor_id": doctor_id,
-            "patient_id": patient_id,
+            "hospital_id": str(hospital_id),
+            "doctor_id": str(doctor_id),
+            "patient_id": str(patient_id),
+            "visit_id": str(visit_id) if visit_id else None,
+            "diagnosis": diagnosis,
             "medications": medications,
             "timestamp": datetime.now().isoformat()
         }
@@ -54,6 +58,8 @@ class ClinicalService(BaseService):
             hospital_id=hospital_id,
             doctor_id=doctor_id,
             patient_id=patient_id,
+            visit_id=visit_id,
+            diagnosis=diagnosis,
             medications=medications,
             notes=notes,
             qr_code_id=qr_code_id,
@@ -84,7 +90,7 @@ class ClinicalService(BaseService):
             event_type="PRESCRIPTION_CREATED",
             event_version="v1",
             tenant_id=hospital_id,
-            payload={"prescription_id": prescription.id, "patient_id": patient_id}
+            payload={"prescription_id": str(prescription.id), "patient_id": str(patient_id)}
         ))
         
         # 5. Audit Logging
@@ -134,7 +140,7 @@ class ClinicalService(BaseService):
             event_type="PRESCRIPTION_FULFILLED",
             event_version="v1",
             tenant_id=hospital_id,
-            payload={"prescription_id": prescription.id, "patient_id": prescription.patient_id}
+            payload={"prescription_id": str(prescription.id), "patient_id": str(prescription.patient_id)}
         ))
         
         await self._audit(db, pharmacist_id, hospital_id, "FULFILL", "prescription", prescription.id)
@@ -176,7 +182,7 @@ class ClinicalService(BaseService):
             event_type="LAB_ORDER_CREATED",
             event_version="v1",
             tenant_id=hospital_id,
-            payload={"order_id": order.id, "patient_id": patient_id}
+            payload={"order_id": str(order.id), "patient_id": str(patient_id)}
         ))
         
         await self._audit(db, doctor_id, hospital_id, "CREATE", "lab_order", order.id)
@@ -221,7 +227,7 @@ class ClinicalService(BaseService):
             event_type="LAB_STATUS_UPDATED",
             event_version="v1",
             tenant_id=hospital_id,
-            payload={"order_id": order.id, "status": status.value}
+            payload={"order_id": str(order.id), "status": status.value}
         ))
         
         await self._audit(db, user_id, hospital_id, "UPDATE_STATUS", "lab_order", order.id)
@@ -296,7 +302,7 @@ class ClinicalService(BaseService):
             event_type="LAB_COMPLETED",
             event_version="v1",
             tenant_id=hospital_id,
-            payload={"order_id": order.id, "patient_id": order.patient_id}
+            payload={"order_id": str(order.id), "patient_id": str(order.patient_id)}
         ))
 
         await self._audit(db, user_id, hospital_id, "RECORD_RESULTS", "lab_order", order.id)

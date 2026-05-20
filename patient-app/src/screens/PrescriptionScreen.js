@@ -107,10 +107,10 @@ const styles = StyleSheet.create({
     headerInfo: { flex: 1 },
     date: { color: '#64748B', fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 },
     diagnosis: { color: '#fff', fontSize: 16, fontWeight: 'bold', marginTop: 2 },
-    statusBadge: { px: 10, py: 4, borderRadius: 8 },
+    statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
     statusText: { fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-    medicationPreview: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', pt: 15, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
+    medicationPreview: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 15, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.05)' },
     previewText: { color: '#94A3B8', fontSize: 13, fontWeight: '500' },
-    emptyBox: { alignItems: 'center', py: 100 },
+    emptyBox: { alignItems: 'center', paddingVertical: 100 },
     emptyText: { color: '#475569', marginTop: 20, fontSize: 14 }
 });

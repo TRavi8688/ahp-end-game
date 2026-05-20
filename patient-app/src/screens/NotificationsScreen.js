@@ -130,10 +130,10 @@ const styles = StyleSheet.create({
     time: { color: '#64748B', fontSize: 11 },
     msg: { color: '#94A3B8', fontSize: 13, lineHeight: 18 },
     actionRow: { flexDirection: 'row', gap: 12, marginTop: 15 },
-    approveBtn: { flex: 2, backgroundColor: Theme.colors.primary, py: 10, borderRadius: 12, alignItems: 'center' },
+    approveBtn: { flex: 2, backgroundColor: Theme.colors.primary, paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
     btnText: { color: '#fff', fontSize: 12, fontWeight: '900' },
-    rejectBtn: { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', py: 10, borderRadius: 12, alignItems: 'center' },
+    rejectBtn: { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
     rejectText: { color: '#64748B', fontSize: 12, fontWeight: 'bold' },
-    emptyBox: { alignItems: 'center', py: 100 },
+    emptyBox: { alignItems: 'center', paddingVertical: 100 },
     emptyText: { color: '#475569', marginTop: 20, fontSize: 14 }
 });

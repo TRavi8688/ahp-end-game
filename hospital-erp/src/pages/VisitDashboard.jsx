@@ -49,7 +49,7 @@ const VisitDashboard = () => {
   const handlePrescribe = async () => {
     if (!activePatient) return;
     try {
-      await axios.post(`${API_BASE_URL}/clinical/prescribe`, {
+      await axios.post(`${API_BASE_URL}/clinical/prescriptions`, {
         patient_id: activePatient.patient_id,
         visit_id: activePatient.id,
         diagnosis,
