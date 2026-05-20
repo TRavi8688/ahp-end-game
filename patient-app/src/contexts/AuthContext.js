@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { SecurityUtils } from '../utils/security';
 import ApiService from '../utils/ApiService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AuthContext = createContext();
 
@@ -12,6 +13,7 @@ export const AuthProvider = ({ children }) => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [user, setUser] = useState(null);
+    const [authProvider, setAuthProvider] = useState('local');
 
     /**
      * Restore session from secure storage on boot.
@@ -26,6 +28,10 @@ export const AuthProvider = ({ children }) => {
                 // In a full production app, we would verify the token with the backend here
                 // For now, we trust the presence of a token if it's not expired
                 setIsAuthenticated(true);
+                
+                // Retrieve auth provider if saved
+                const provider = await AsyncStorage.getItem('auth_provider');
+                if (provider) setAuthProvider(provider);
                 
                 // Fetch profile to verify token and get user data
 
@@ -61,13 +67,15 @@ export const AuthProvider = ({ children }) => {
     /**
      * Centralized Login Handler
      */
-    const login = async (token, hospynId, fullName = null) => {
+    const login = async (token, hospynId, fullName = null, provider = 'local') => {
         try {
             console.log('[Auth] Persisting session...');
             await SecurityUtils.saveToken(token);
             await SecurityUtils.saveHospynId(hospynId);
+            await AsyncStorage.setItem('auth_provider', provider);
             
             setIsAuthenticated(true);
+            setAuthProvider(provider);
             
             // If we have a name from onboarding, set it immediately for the greeting
             if (fullName) {
@@ -96,6 +104,7 @@ export const AuthProvider = ({ children }) => {
         try {
             console.warn('[Auth] Terminating session...');
             await SecurityUtils.deleteToken();
+            await AsyncStorage.removeItem('auth_provider');
             setIsAuthenticated(false);
             setUser(null);
             console.log('[Auth] Session cleared.');
@@ -130,6 +139,7 @@ export const AuthProvider = ({ children }) => {
             isAuthenticated,
             isLoading,
             user,
+            authProvider,
             login,
             logout,
             switchProfile,

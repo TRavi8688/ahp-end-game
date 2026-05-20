@@ -10,7 +10,7 @@ const SocketContext = createContext();
 export const useSocket = () => useContext(SocketContext);
 
 export const SocketProvider = ({ children }) => {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, authProvider } = useAuth();
     const [socket, setSocket] = useState(null);
     const [lastMessage, setLastMessage] = useState(null);
     const [retryCount, setRetryCount] = useState(0);
@@ -160,7 +160,7 @@ export const SocketProvider = ({ children }) => {
     };
 
     const handleGrantAccess = async () => {
-        if (!password) {
+        if (authProvider !== 'google' && !password) {
             setErrorMessage('Password verification is required.');
             return;
         }
@@ -271,16 +271,20 @@ export const SocketProvider = ({ children }) => {
                                 </ScrollView>
                             )}
 
-                            {/* Credentials Verification */}
-                            <Text style={styles.sectionTitle}>Confirm Vault Credentials</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="Enter password to verify vault keys"
-                                placeholderTextColor="#64748B"
-                                secureTextEntry={true}
-                                value={password}
-                                onChangeText={setPassword}
-                            />
+                            {/* Credentials Verification (Skip for Google Users) */}
+                            {authProvider !== 'google' && (
+                                <>
+                                    <Text style={styles.sectionTitle}>Confirm Vault Credentials</Text>
+                                    <TextInput
+                                        style={styles.input}
+                                        placeholder="Enter password to verify vault keys"
+                                        placeholderTextColor="#64748B"
+                                        secureTextEntry={true}
+                                        value={password}
+                                        onChangeText={setPassword}
+                                    />
+                                </>
+                            )}
 
                             {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
 

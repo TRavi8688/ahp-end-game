@@ -86,7 +86,7 @@ export default function AuthScreen({ navigation }) {
                                         headers: { 'Authorization': `Bearer ${access_token}` }
                                     });
                                     await AsyncStorage.removeItem('mock_profile');
-                                    await login(access_token, email);
+                                    await login(access_token, email, null, 'google');
                                 } catch (profileErr) {
                                     if (profileErr.response?.status === 404) {
                                         setTempAuthToken(access_token);
