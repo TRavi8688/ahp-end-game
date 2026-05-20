@@ -24,9 +24,7 @@ export default function AuthScreen({ navigation }) {
     const [mode, setMode] = useState('landing'); // 'landing', 'login'
 
     // Google Login States
-    const [googleModalVisible, setGoogleModalVisible] = useState(false);
-    const [customGoogleEmail, setCustomGoogleEmail] = useState('');
-    const [showCustomGoogleInput, setShowCustomGoogleInput] = useState(false);
+    
 
     // Frictionless Setup Profile States
     const [setupModalVisible, setSetupModalVisible] = useState(false);
@@ -118,22 +116,7 @@ export default function AuthScreen({ navigation }) {
         }
     }, []);
 
-    // Render the REAL Google Auth button dynamically when selector modal opens
-    useEffect(() => {
-        if (googleModalVisible && Platform.OS === 'web' && window.google) {
-            setTimeout(() => {
-                const container = document.getElementById('real-google-btn-container');
-                if (container) {
-                    window.google.accounts.id.renderButton(container, {
-                        theme: 'filled_blue',
-                        size: 'large',
-                        width: width > 400 ? 340 : 280,
-                        shape: 'pill'
-                    });
-                }
-            }, 150);
-        }
-    }, [googleModalVisible]);
+    // Render Google Auth button\n    useEffect(() => {\n        if (Platform.OS === 'web' && window.google) {\n            setTimeout(() => {\n                const container = document.getElementById('real-google-btn-container');\n                if (container) {\n                    window.google.accounts.id.renderButton(container, {\n                        theme: 'filled_blue',\n                        size: 'large',\n                        width: width > 400 ? 340 : 280,\n                        shape: 'pill'\n                    });\n                }\n            }, 150);\n        }\n    }, [mode]);
 
     const handleHospynLogin = async () => {
         if (!hospynId || !password) return Alert.alert('Missing Info', 'Please enter your Hospyn ID and Password.');
@@ -160,45 +143,10 @@ export default function AuthScreen({ navigation }) {
         }
     };
 
-    const handleGoogleLogin = () => {
-        setGoogleModalVisible(true);
-    };
+    
 
     // Callback used by the simulated/developer accounts
-    const processGoogleAuthSimulated = async (email, firstName, lastName) => {
-        setGoogleModalVisible(false);
-        setLoading(true);
-        try {
-            const mockToken = `sandbox_mock_:${email}:${firstName}:${lastName}`;
-            
-            // 1. Authenticate with backend
-            const resp = await axios.post(`${API_BASE_URL}/auth/google`, { token: mockToken });
-            const { access_token } = resp.data;
-
-            // 2. Check if this user has a completed Patient Profile
-            try {
-                const profileResp = await axios.get(`${API_BASE_URL}/patient/profile`, {
-                    headers: { 'Authorization': `Bearer ${access_token}` }
-                });
-                
-                await AsyncStorage.removeItem('mock_profile');
-                await login(access_token, email);
-            } catch (profileErr) {
-                if (profileErr.response?.status === 404) {
-                    setTempAuthToken(access_token);
-                    setTempEmail(email);
-                    setSetupModalVisible(true);
-                } else {
-                    throw profileErr;
-                }
-            }
-        } catch (e) {
-            const errorMsg = e.response?.data?.message || e.response?.data?.detail || 'Google Authentication failed.';
-            Alert.alert('Authentication Error', errorMsg);
-        } finally {
-            setLoading(false);
-        }
-    };
+    
 
     // Submit Frictionless Profile Setup
     const handleSetupSubmit = async () => {
@@ -326,10 +274,16 @@ export default function AuthScreen({ navigation }) {
                             </LinearGradient>
                         </TouchableOpacity>
 
-                        <TouchableOpacity style={styles.googleBtn} onPress={handleGoogleLogin}>
-                            <Ionicons name="logo-google" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
-                            <Text style={styles.googleBtnText}>Continue with Google</Text>
-                        </TouchableOpacity>
+                        {Platform.OS === 'web' ? (
+                            <View style={{height: 48, justifyContent: 'center', alignItems: 'center', width: '100%'}}>
+                                <View id="real-google-btn-container" />
+                            </View>
+                        ) : (
+                            <TouchableOpacity style={styles.googleBtn} onPress={() => Alert.alert('Google Sign-In', 'Native Google Auth is currently being configured.')}>
+                                <Ionicons name="logo-google" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
+                                <Text style={styles.googleBtnText}>Continue with Google</Text>
+                            </TouchableOpacity>
+                        )}
 
                         <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate('Onboarding')}>
                             <Text style={styles.secondaryBtnText}>Create AI Account</Text>
@@ -345,101 +299,7 @@ export default function AuthScreen({ navigation }) {
                     </View>
                 </View>
 
-                {/* Google Sign-in Selector Modal */}
-                <Modal visible={googleModalVisible} transparent animationType="slide" onRequestClose={() => setGoogleModalVisible(false)}>
-                    <View style={styles.modalOverlay}>
-                        <View style={styles.googleSheet}>
-                            <View style={styles.sheetHeader}>
-                                <Ionicons name="logo-google" size={32} color="#4F46E5" />
-                                <Text style={styles.sheetTitle}>Sign in with Google</Text>
-                                <Text style={styles.sheetSubtitle}>Secure cryptographic authentication</Text>
-                            </View>
-
-                            <View style={{
-                                backgroundColor: 'rgba(99, 102, 241, 0.08)',
-                                borderColor: 'rgba(99, 102, 241, 0.2)',
-                                borderWidth: 1,
-                                borderRadius: 16,
-                                padding: 14,
-                                marginBottom: 20,
-                                gap: 6
-                            }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                    <Ionicons name="information-circle-outline" size={16} color="#6366F1" />
-                                    <Text style={{ color: '#6366F1', fontWeight: 'bold', fontSize: 13 }}>GCP Developer Notice</Text>
-                                </View>
-                                <Text style={{ color: '#94A3B8', fontSize: 11, lineHeight: 16 }}>
-                                    If you see a "Google 401 client not found" screen, it means your GCP Console is still provisioning the Web Client ID. 
-                                    {"\n\n"}
-                                    <Text style={{ color: '#F59E0B', fontWeight: 'bold' }}>To test instantly:</Text> Enter any custom email in the <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Sandbox Mode</Text> input below to register or log in instantly as any patient!
-                                </Text>
-                            </View>
-
-                            {/* REAL GOOGLE IDENTITY SERVICES BUTTON CONTAINER */}
-                            {Platform.OS === 'web' ? (
-                                <View style={styles.realGoogleBtnWrapper}>
-                                    <View id="real-google-btn-container" style={styles.realGoogleBtn} />
-                                    <Text style={styles.realGoogleNotice}>Sign in securely using your Google account</Text>
-                                </View>
-                            ) : (
-                                <View style={styles.realGoogleBtnWrapper}>
-                                    <TouchableOpacity style={styles.googleBtn} onPress={() => {
-                                        if (customGoogleEmail && customGoogleEmail.includes('@')) {
-                                            const parts = customGoogleEmail.split('@')[0].split('.');
-                                            const first = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1) : 'Google';
-                                            const last = parts[1] ? parts[1].charAt(0).toUpperCase() + parts[1].slice(1) : 'User';
-                                            processGoogleAuthSimulated(customGoogleEmail, first, last);
-                                        } else {
-                                            Alert.alert(
-                                                'Google Account Sign-In',
-                                                'To authenticate with your Google account on mobile/native, please enter your Google email address in the input field below, then tap Continue.',
-                                                [{ text: 'OK' }]
-                                            );
-                                        }
-                                    }}>
-                                        <Ionicons name="logo-google" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
-                                        <Text style={styles.googleBtnText}>Continue with Google</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            )}
-
-                            <View style={styles.dividerArea}>
-                                <View style={styles.dividerLine} />
-                                <Text style={styles.dividerText}>ENTER GOOGLE EMAIL / SANDBOX MODE</Text>
-                                <View style={styles.dividerLine} />
-                            </View>
-
-                            <View style={styles.customEmailBox}>
-                                <TextInput
-                                    style={styles.customEmailInput}
-                                    placeholder="Enter Google email (e.g. user@gmail.com)"
-                                    placeholderTextColor="#475569"
-                                    value={customGoogleEmail}
-                                    onChangeText={setCustomGoogleEmail}
-                                    autoCapitalize="none"
-                                    keyboardType="email-address"
-                                />
-                                <TouchableOpacity style={styles.customEmailBtn} onPress={() => {
-                                    if (!customGoogleEmail || !customGoogleEmail.includes('@')) {
-                                        return Alert.alert('Invalid Email', 'Please enter a valid email address.');
-                                    }
-                                    const parts = customGoogleEmail.split('@')[0].split('.');
-                                    const first = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1) : 'Google';
-                                    const last = parts[1] ? parts[1].charAt(0).toUpperCase() + parts[1].slice(1) : 'User';
-                                    processGoogleAuthSimulated(customGoogleEmail, first, last);
-                                }}>
-                                    <Ionicons name="arrow-forward" size={20} color="#FFF" />
-                                </TouchableOpacity>
-                            </View>
-
-                            <TouchableOpacity style={styles.sheetCloseBtn} onPress={() => {
-                                setGoogleModalVisible(false);
-                            }}>
-                                <Text style={styles.sheetCloseText}>Cancel</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </Modal>
+                
             </View>
         );
     }
@@ -510,10 +370,16 @@ export default function AuthScreen({ navigation }) {
                                 <View style={styles.dividerLine} />
                             </View>
 
-                            <TouchableOpacity style={styles.googleBtn} onPress={handleGoogleLogin}>
-                                <Ionicons name="logo-google" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
-                                <Text style={styles.googleBtnText}>Continue with Google</Text>
-                            </TouchableOpacity>
+                            {Platform.OS === 'web' ? (
+                                <View style={{height: 48, justifyContent: 'center', alignItems: 'center', width: '100%'}}>
+                                    <View id="real-google-btn-container" />
+                                </View>
+                            ) : (
+                                <TouchableOpacity style={styles.googleBtn} onPress={() => Alert.alert('Google Sign-In', 'Native Google Auth is currently being configured.')}>
+                                    <Ionicons name="logo-google" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
+                                    <Text style={styles.googleBtnText}>Continue with Google</Text>
+                                </TouchableOpacity>
+                            )}
 
                             <TouchableOpacity 
                                 style={[styles.googleBtn, { backgroundColor: 'rgba(99, 102, 241, 0.08)', borderColor: 'rgba(99, 102, 241, 0.25)', borderWidth: 1, marginTop: 10 }]} 
@@ -533,90 +399,7 @@ export default function AuthScreen({ navigation }) {
                 </ScrollView>
             </KeyboardAvoidingView>
 
-            {/* Google Sign-in Selector Modal */}
-            <Modal visible={googleModalVisible} transparent animationType="slide" onRequestClose={() => setGoogleModalVisible(false)}>
-                <View style={styles.modalOverlay}>
-                    <View style={styles.googleSheet}>
-                        <View style={styles.sheetHeader}>
-                            <Ionicons name="logo-google" size={32} color="#4F46E5" />
-                            <Text style={styles.sheetTitle}>Sign in with Google</Text>
-                            <Text style={styles.sheetSubtitle}>Secure cryptographic authentication</Text>
-                        </View>
-
-                        <View style={{
-                            backgroundColor: 'rgba(99, 102, 241, 0.08)',
-                            borderColor: 'rgba(99, 102, 241, 0.2)',
-                            borderWidth: 1,
-                            borderRadius: 16,
-                            padding: 14,
-                            marginBottom: 20,
-                            gap: 6
-                        }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                                <Ionicons name="information-circle-outline" size={16} color="#6366F1" />
-                                <Text style={{ color: '#6366F1', fontWeight: 'bold', fontSize: 13 }}>GCP Developer Notice</Text>
-                            </View>
-                            <Text style={{ color: '#94A3B8', fontSize: 11, lineHeight: 16 }}>
-                                If you see a "Google 401 client not found" screen, it means your GCP Console is still provisioning the Web Client ID. 
-                                {"\n\n"}
-                                <Text style={{ color: '#F59E0B', fontWeight: 'bold' }}>To test instantly:</Text> Enter any custom email in the <Text style={{ color: '#FFF', fontWeight: 'bold' }}>Sandbox Mode</Text> input below to register or log in instantly as any patient!
-                            </Text>
-                        </View>
-
-                        {/* REAL GOOGLE IDENTITY SERVICES BUTTON CONTAINER */}
-                        {Platform.OS === 'web' ? (
-                            <View style={styles.realGoogleBtnWrapper}>
-                                <View id="real-google-btn-container" style={styles.realGoogleBtn} />
-                                <Text style={styles.realGoogleNotice}>Sign in securely using your Google account</Text>
-                            </View>
-                        ) : (
-                            <View style={styles.realGoogleBtnWrapper}>
-                                <TouchableOpacity style={styles.googleBtn} onPress={() => {
-                                    Alert.alert('Google Sign-In', 'Google Sign-In is initializing. Please verify credentials.');
-                                }}>
-                                    <Ionicons name="logo-google" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
-                                    <Text style={styles.googleBtnText}>Continue with Google</Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
-
-                        <View style={styles.dividerArea}>
-                            <View style={styles.dividerLine} />
-                            <Text style={styles.dividerText}>SANDBOX & QA MODE</Text>
-                            <View style={styles.dividerLine} />
-                        </View>
-
-                        <View style={styles.customEmailBox}>
-                            <TextInput
-                                style={styles.customEmailInput}
-                                placeholder="Enter test email (e.g. siddulu@gmail.com)"
-                                placeholderTextColor="#475569"
-                                value={customGoogleEmail}
-                                onChangeText={setCustomGoogleEmail}
-                                autoCapitalize="none"
-                                keyboardType="email-address"
-                            />
-                            <TouchableOpacity style={styles.customEmailBtn} onPress={() => {
-                                if (!customGoogleEmail || !customGoogleEmail.includes('@')) {
-                                    return Alert.alert('Invalid Email', 'Please enter a valid email address.');
-                                }
-                                const parts = customGoogleEmail.split('@')[0].split('.');
-                                const first = parts[0] ? parts[0].charAt(0).toUpperCase() + parts[0].slice(1) : 'Google';
-                                const last = parts[1] ? parts[1].charAt(0).toUpperCase() + parts[1].slice(1) : 'User';
-                                processGoogleAuthSimulated(customGoogleEmail, first, last);
-                            }}>
-                                <Ionicons name="arrow-forward" size={20} color="#FFF" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <TouchableOpacity style={styles.sheetCloseBtn} onPress={() => {
-                            setGoogleModalVisible(false);
-                        }}>
-                            <Text style={styles.sheetCloseText}>Cancel</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
+            
 
             {/* Frictionless Setup Profile Modal */}
             <Modal visible={setupModalVisible} transparent animationType="slide">
@@ -1259,3 +1042,4 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     }
 });
+
