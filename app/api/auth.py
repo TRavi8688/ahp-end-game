@@ -298,6 +298,24 @@ async def google_login(
                 is_active=True
             )
             db.add(user)
+            await db.flush()
+            
+            # --- Auto-Setup Patient Profile for Google Logins ---
+            logger.info(f"Auto-creating patient profile for Google user {user.id}")
+            import uuid
+            hospyn_id = f"Hospyn-{uuid.uuid4().hex[:8].upper()}"
+            skeleton_patient = models.Patient(
+                user_id=user.id,
+                hospyn_id=hospyn_id,
+                phone_number="555" + str(secrets.randbelow(10000000)).zfill(7), # Dummy phone
+                language_code="en",
+                date_of_birth="2000-01-01",
+                gender="Other",
+                blood_group="O+"
+            )
+            db.add(skeleton_patient)
+            user.hospyn_id = hospyn_id
+
             await db.commit()
             await db.refresh(user)
             logger.info(f"GOOGLE_REGISTRATION_SUCCESS: Email={email}")
