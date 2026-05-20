@@ -152,7 +152,7 @@ app.add_middleware(TenantMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins to fix the immediate connectivity blocker
+    allow_origin_regex=".*",  # Dynamic origin matching for universal CORS compatibility
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
