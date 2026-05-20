@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { API_BASE_URL } from '../api';
 import Sidebar from '../components/Sidebar';
+import axios from 'axios';
 
 const LabDashboard = () => {
   const [orders, setOrders] = useState([]);
@@ -26,6 +27,8 @@ const LabDashboard = () => {
   const [showCollectModal, setShowCollectModal] = useState(false);
   const [sampleId, setSampleId] = useState('');
   const [results, setResults] = useState([]);
+  const [reportFileUrl, setReportFileUrl] = useState('');
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   const fetchQueue = async () => {
     try {
@@ -68,13 +71,15 @@ const LabDashboard = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.post(`${API_BASE_URL}/lab/orders/${activeOrder.id}/results`, {
-        results: results
+        results: results,
+        file_url: reportFileUrl
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       alert("Results finalized and patient notified!");
       setShowResultModal(false);
       setActiveOrder(null);
+      setReportFileUrl('');
       fetchQueue();
     } catch (err) {
       alert("Failed to submit results");
@@ -342,6 +347,59 @@ const LabDashboard = () => {
                   </div>
                 </div>
               ))}
+              
+              {/* FILE UPLOAD ATTACHMENT WIDGET */}
+              <div className="result-row-card" style={{ borderStyle: 'dashed', borderWidth: '2px', borderColor: 'rgba(16, 185, 129, 0.3)', background: 'rgba(16, 185, 129, 0.02)' }}>
+                <div className="row-header">
+                  <h4 style={{ color: '#10B981', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <ClipboardList size={18} />
+                    Lab Report Document (Optional)
+                  </h4>
+                </div>
+                <div className="remarks-field">
+                  <label>UPLOAD SCAN OR PDF REPORT</label>
+                  <div style={{ display: 'flex', gap: '15px', alignItems: 'center', marginTop: '8px' }}>
+                    <input 
+                      type="file" 
+                      accept=".pdf,.png,.jpg,.jpeg" 
+                      style={{
+                        background: 'rgba(0,0,0,0.2)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '12px',
+                        padding: '12px 15px',
+                        color: '#fff',
+                        outline: 'none',
+                        cursor: 'pointer'
+                      }}
+                      onChange={async (e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+                        setUploadingFile(true);
+                        try {
+                          const token = localStorage.getItem('token');
+                          const formData = new FormData();
+                          formData.append('file', file);
+                          const res = await axios.post(`${API_BASE_URL}/lab/upload-report`, formData, {
+                            headers: { 
+                              Authorization: `Bearer ${token}`,
+                              'Content-Type': 'multipart/form-data'
+                            }
+                          });
+                          setReportFileUrl(res.data.file_url);
+                          alert("Document uploaded and attached successfully!");
+                        } catch (err) {
+                          console.error(err);
+                          alert("Failed to upload document");
+                        } finally {
+                          setUploadingFile(false);
+                        }
+                      }}
+                    />
+                    {uploadingFile && <span style={{ color: '#f59e0b', fontWeight: 'bold', fontSize: '14px' }}>Uploading...</span>}
+                    {reportFileUrl && <span style={{ color: '#10B981', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '14px' }}><CheckCircle2 size={16} /> Attached</span>}
+                  </div>
+                </div>
+              </div>
             </div>
             <div className="modal-footer">
               <button className="btn-cancel" onClick={() => setShowResultModal(false)}>CANCEL</button>

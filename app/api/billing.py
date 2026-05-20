@@ -14,7 +14,10 @@ from app.schemas.billing import Invoice as InvoiceSchema, InvoiceCreate, Payment
 from app.services.billing_service import BillingService
 from app.utils.pdf_generator import InvoicePDFGenerator
 
-router = APIRouter()
+from app.core.security import require_module
+
+router = APIRouter(dependencies=[Depends(require_module("billing"))])
+
 
 @router.get("/pending-visits")
 async def get_pending_billing_visits(

@@ -4,7 +4,16 @@ import { Platform } from 'react-native';
 // Priority: Env Variable > Local Dev (port 8000) > Production Fallback
 
 const getBaseUrl = () => {
-    // Maintain ONLY cloud servers (production)
+    if (typeof __DEV__ !== 'undefined' && __DEV__) {
+        // In Expo / React Native, Platform.OS determines Android vs iOS/Web
+        try {
+            const { Platform } = require('react-native');
+            if (Platform.OS === 'android') {
+                return 'http://10.0.2.2:8000';
+            }
+        } catch (e) {}
+        return 'http://localhost:8000';
+    }
     return 'https://hospyn-495906-api-625745217419.us-central1.run.app';
 };
 

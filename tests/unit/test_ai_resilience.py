@@ -20,7 +20,8 @@ async def test_ai_fallback_chain(ai_service):
         
         result = await ai_service.unified_ai_engine("Summarize this document")
         
-        assert result == "Reliable Medical Summary"
+        assert result["success"] is True
+        assert "Reliable Medical Summary" in result["response"]
         assert mock_groq.call_count == 1
         assert mock_gemini.call_count == 1
 
@@ -34,4 +35,6 @@ async def test_ai_total_failure(ai_service):
         mock_gemini.return_value = "ERROR"
         
         result = await ai_service.unified_ai_engine("Test")
-        assert result == "SERVICE_UNAVAILABLE"
+        assert result["success"] is False
+        assert result["error"] == "ALL_PROVIDERS_FAILED"
+        assert "CLINICAL SAFE MODE" in result["response"]

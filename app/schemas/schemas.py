@@ -177,6 +177,7 @@ class MedicalRecordBase(BaseModel):
 class MedicalRecordResponse(MedicalRecordBase):
     id: uuid.UUID
     family_member_id: Optional[uuid.UUID] = None
+    visit_id: Optional[uuid.UUID] = None
     record_name: Optional[str] = None
     hospital_name: Optional[str] = None
     ai_summary: Optional[str] = None
@@ -369,6 +370,7 @@ class VisitCreate(BaseModel):
     symptoms: Optional[str] = None
     department: Optional[str] = None
     doctor_name: Optional[str] = None
+    family_member_id: Optional[uuid.UUID] = None
 
 class VisitResponse(BaseModel):
     id: uuid.UUID
@@ -377,6 +379,7 @@ class VisitResponse(BaseModel):
     status: str
     check_in_time: datetime
     queue_token: Optional[str] = None
+    family_member_id: Optional[uuid.UUID] = None
 
     class Config:
         from_attributes = True

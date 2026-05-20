@@ -8,6 +8,23 @@ import { useNavigate, useLocation } from 'react-router-dom';
 const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [settings, setSettings] = React.useState({
+    enable_pharmacy: true,
+    enable_labs: true,
+    enable_inpatient_beds: true,
+    enable_billing: true,
+  });
+
+  React.useEffect(() => {
+    const cached = localStorage.getItem('hospitalSettings');
+    if (cached) {
+      try {
+        setSettings(JSON.parse(cached));
+      } catch (e) {
+        console.error("Failed to parse hospital settings", e);
+      }
+    }
+  }, []);
 
   const NavItem = ({ icon: Icon, label, path, danger }) => {
     const active = location.pathname === path;
@@ -34,6 +51,7 @@ const Sidebar = () => {
   const handleLogout = () => {
     localStorage.removeItem('isAuthenticated');
     localStorage.removeItem('token');
+    localStorage.removeItem('hospitalSettings');
     navigate('/login');
   };
 
@@ -51,11 +69,11 @@ const Sidebar = () => {
 
       <nav className="flex-1 space-y-3">
         <NavItem icon={Activity} label="Consultations" path="/clinical" />
-        <NavItem icon={Bed} label="Ward & IPD" path="/ward" />
-        <NavItem icon={Scissors} label="OT Control" path="/surgery" />
-        <NavItem icon={FlaskConical} label="Laboratory" path="/lab" />
-        <NavItem icon={Package} label="Pharmacy" path="/pharmacy" />
-        <NavItem icon={CreditCard} label="Billing" path="/billing" />
+        {settings.enable_inpatient_beds && <NavItem icon={Bed} label="Ward & IPD" path="/ward" />}
+        {settings.enable_inpatient_beds && <NavItem icon={Scissors} label="OT Control" path="/surgery" />}
+        {settings.enable_labs && <NavItem icon={FlaskConical} label="Laboratory" path="/lab" />}
+        {settings.enable_pharmacy && <NavItem icon={Package} label="Pharmacy" path="/pharmacy" />}
+        {settings.enable_billing && <NavItem icon={CreditCard} label="Billing" path="/billing" />}
         <NavItem icon={BarChart3} label="Intelligence" path="/analytics" />
         <NavItem icon={Settings} label="Settings" path="/settings" />
       </nav>
@@ -77,3 +95,4 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
+

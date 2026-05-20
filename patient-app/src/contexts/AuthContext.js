@@ -51,6 +51,11 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         initializeAuth();
+        // Register the global auth failure callback so ApiService can trigger a logout
+        ApiService.setAuthFailureCallback(() => {
+            console.warn('[Auth] ApiService reported auth failure. Logging out.');
+            logout();
+        });
     }, [initializeAuth]);
 
     /**

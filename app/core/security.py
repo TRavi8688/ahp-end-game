@@ -316,3 +316,43 @@ def calculate_content_checksum(content: str) -> str:
     """Calculates a SHA-256 checksum for string content to verify integrity."""
     return hashlib.sha256(content.encode('utf-8')).hexdigest()
 
+def require_module(module_name: str):
+    """
+    APP STORE SECURITY:
+    Ensures the hospital has enabled the requested module.
+    """
+    async def module_checker(
+        current_user: Any = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+    ):
+        from app.models.models import HospitalSettings
+        
+        # Super admins and patients bypass module checks
+        user_role = str(current_user.role.value) if hasattr(current_user.role, 'value') else str(current_user.role)
+        if user_role in ["admin", "patient"]:
+            return current_user
+
+            
+        staff_profile = getattr(current_user, "staff_profile", None)
+        if not staff_profile:
+            raise HTTPException(status_code=403, detail="Staff profile required for module access.")
+            
+        hospital_id = staff_profile.hospital_id
+        
+        result = await db.execute(
+            select(HospitalSettings).where(HospitalSettings.hospital_id == hospital_id)
+        )
+        settings = result.scalars().first()
+        
+        if not settings:
+            raise HTTPException(status_code=403, detail="Hospital settings not configured. Please complete setup.")
+            
+        module_flag = getattr(settings, f"enable_{module_name}", False)
+        if not module_flag:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. The '{module_name}' module is not enabled for this hospital."
+            )
+            
+        return current_user
+    return module_checker

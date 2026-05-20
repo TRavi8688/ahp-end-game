@@ -52,8 +52,8 @@ async def patient_login_hospyn(
         throw_auth_exception("Invalid Hospyn ID or password")
     
     # 3. Session Issuance
-    access_token = security.create_access_token(user.id, user.role)
-    refresh_token = security.create_refresh_token(user.id, user.role)
+    access_token = security.create_access_token(user.id, user.role, token_version=user.token_version)
+    refresh_token = security.create_refresh_token(user.id, user.role, token_version=user.token_version)
     
     await log_audit_action(db, user_id=user.id, action="LOGIN_SUCCESS", resource_type="AUTH")
     # Unit of Work: Commit handled by dependency or explicit flush if needed
@@ -270,6 +270,194 @@ async def get_my_records(
         except Exception:
             record.secure_url = None
     return records
+
+@router.get("/timeline")
+async def get_patient_clinical_timeline(
+    current_patient: Any = Depends(deps.get_current_patient),
+    active_member_id: Optional[uuid.UUID] = Depends(deps.get_active_family_member_id),
+    db: AsyncSession = Depends(deps.get_db)
+):
+    """
+    Returns a unified, cohesive chronological ledger of the patient's journey,
+    grouping clinical items (prescriptions, lab orders, records) by visits
+    to prevent patient confusion.
+    """
+    from sqlalchemy.orm import selectinload, joinedload
+    from app.services.storage_service import get_secure_url
+    from sqlalchemy import select
+    from app.core.audit import log_audit_action
+    
+    # 1. Fetch all Patient Visits
+    visits_res = await db.execute(
+        select(models.PatientVisit)
+        .options(joinedload(models.PatientVisit.hospital))
+        .where(
+            models.PatientVisit.patient_id == current_patient.id,
+            models.PatientVisit.family_member_id == active_member_id
+        )
+        .order_by(models.PatientVisit.check_in_time.desc())
+    )
+    visits = visits_res.scalars().all()
+
+    # 2. Fetch all Medical Records
+    records_res = await db.execute(
+        select(models.MedicalRecord)
+        .where(
+            models.MedicalRecord.patient_id == current_patient.id,
+            models.MedicalRecord.family_member_id == active_member_id
+        )
+        .order_by(models.MedicalRecord.created_at.desc())
+    )
+    records = records_res.scalars().all()
+
+    # 3. Fetch all Digital Prescriptions
+    prescriptions_res = await db.execute(
+        select(models.DigitalPrescription)
+        .options(selectinload(models.DigitalPrescription.items))
+        .where(
+            models.DigitalPrescription.patient_id == current_patient.id,
+            models.DigitalPrescription.family_member_id == active_member_id
+        )
+        .order_by(models.DigitalPrescription.created_at.desc())
+    )
+    prescriptions = prescriptions_res.scalars().all()
+
+    # 4. Fetch all Lab Orders
+    lab_orders_res = await db.execute(
+        select(models.LabDiagnosticOrder)
+        .options(selectinload(models.LabDiagnosticOrder.results))
+        .where(
+            models.LabDiagnosticOrder.patient_id == current_patient.id,
+            models.LabDiagnosticOrder.family_member_id == active_member_id
+        )
+        .order_by(models.LabDiagnosticOrder.created_at.desc())
+    )
+    lab_orders = lab_orders_res.scalars().all()
+
+    # Prepare secure URLs for records
+    for r in records:
+        try:
+            r.secure_url = await get_secure_url(r.file_url, expires_in=600)
+        except Exception:
+            r.secure_url = None
+
+    # Maps for grouping
+    visits_map = {}
+    for v in visits:
+        visits_map[v.id] = {
+            "id": v.id,
+            "type": "visit",
+            "timestamp": v.check_in_time,
+            "hospital_name": v.hospital.name if v.hospital else "Unknown Hospital",
+            "visit_reason": v.visit_reason,
+            "symptoms": v.symptoms,
+            "department": v.department,
+            "doctor_name": v.doctor_name,
+            "status": v.status.value if hasattr(v.status, "value") else str(v.status),
+            "queue_token": v.queue_token,
+            "prescriptions": [],
+            "lab_orders": [],
+            "records": []
+        }
+
+    timeline_items = []
+
+    # Group prescriptions
+    for p in prescriptions:
+        p_data = {
+            "id": p.id,
+            "type": "prescription",
+            "timestamp": p.created_at,
+            "diagnosis": p.diagnosis,
+            "notes": p.notes,
+            "status": p.status.value if hasattr(p.status, "value") else str(p.status),
+            "medications": p.medications,
+            "items": [{"name": i.name, "dosage": i.dosage, "instructions": i.instructions} for i in p.items]
+        }
+        if p.visit_id and p.visit_id in visits_map:
+            visits_map[p.visit_id]["prescriptions"].append(p_data)
+        else:
+            p_data["type"] = "standalone_prescription"
+            timeline_items.append(p_data)
+
+    # Group lab orders
+    for o in lab_orders:
+        o_data = {
+            "id": o.id,
+            "type": "lab_order",
+            "timestamp": o.created_at,
+            "status": o.status.value if hasattr(o.status, "value") else str(o.status),
+            "tests": o.tests,
+            "clinical_history": o.clinical_history,
+            "collected_at": o.collected_at.isoformat() if o.collected_at else None,
+            "completed_at": o.completed_at.isoformat() if o.completed_at else None,
+            "results": [
+                {
+                    "test_name": res.test_name,
+                    "value": res.value,
+                    "unit": res.unit,
+                    "reference_range": res.reference_range,
+                    "is_abnormal": res.is_abnormal,
+                    "clinical_remarks": res.clinical_remarks
+                } for res in o.results
+            ]
+        }
+        if o.visit_id and o.visit_id in visits_map:
+            visits_map[o.visit_id]["lab_orders"].append(o_data)
+        else:
+            o_data["type"] = "standalone_lab_order"
+            timeline_items.append(o_data)
+
+    # Group medical records
+    for r in records:
+        r_data = {
+            "id": r.id,
+            "type": "medical_record",
+            "timestamp": r.created_at,
+            "record_name": r.record_name,
+            "hospital_name": r.hospital_name,
+            "record_type": r.type.value if hasattr(r.type, "value") else str(r.type),
+            "secure_url": r.secure_url,
+            "patient_summary": r.patient_summary,
+            "ai_summary": r.ai_summary,
+            "ocr_confidence_score": r.ocr_confidence_score,
+            "needs_verification": r.needs_verification
+        }
+        if r.visit_id and r.visit_id in visits_map:
+            visits_map[r.visit_id]["records"].append(r_data)
+        else:
+            r_data["type"] = "standalone_record"
+            timeline_items.append(r_data)
+
+    # Add all visits to timeline
+    for v_id, v_data in visits_map.items():
+        timeline_items.append(v_data)
+
+    # Sort everything descending by timestamp
+    timeline_items.sort(key=lambda x: x["timestamp"], reverse=True)
+
+    # Convert timestamps to isoformat for output serialization
+    for item in timeline_items:
+        item["timestamp"] = item["timestamp"].isoformat()
+        if "prescriptions" in item:
+            for pr in item["prescriptions"]:
+                pr["timestamp"] = pr["timestamp"].isoformat()
+        if "lab_orders" in item:
+            for lo in item["lab_orders"]:
+                lo["timestamp"] = lo["timestamp"].isoformat()
+        if "records" in item:
+            for rec in item["records"]:
+                rec["timestamp"] = rec["timestamp"].isoformat()
+
+    # Log audit action
+    await log_audit_action(
+        db,
+        action="READ_PHI",
+        user_id=current_patient.user_id,
+        details={"patient_id": str(current_patient.id), "scope": "unified_clinical_timeline"}
+    )
+
+    return timeline_items
 
 @router.get("/profile", response_model=schemas.PatientProfileResponse)
 async def get_patient_profile(

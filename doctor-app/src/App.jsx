@@ -126,6 +126,12 @@ function App() {
         window.location.href = './login';
     };
 
+    useEffect(() => {
+        import('./utils/ApiService').then(({ default: ApiService }) => {
+            ApiService.setAuthFailureCallback(handleLogout);
+        });
+    }, []);
+
     // Enable 15-minute idle logout if authenticated
     useIdleLogout(handleLogout, isAuthenticated);
 

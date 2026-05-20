@@ -1,8 +1,5 @@
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
-
-const API_BASE_URL = "https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1";
+import { API_BASE_URL } from '../api';
 
 class ApiService {
     constructor() {
@@ -13,7 +10,7 @@ class ApiService {
         });
 
         this.client.interceptors.request.use(async (config) => {
-            const token = await SecureStore.getItemAsync('hospyn_auth_token');
+            const token = localStorage.getItem('token');
             if (token) config.headers.Authorization = `Bearer ${token}`;
             
             // AUTOMATIC IDEMPOTENCY (Section 3.3)
@@ -22,6 +19,27 @@ class ApiService {
             }
             return config;
         });
+
+        this.onAuthFailure = null;
+
+        // Global Error Handler
+        this.client.interceptors.response.use(
+            (response) => response,
+            (error) => {
+                if (error.response?.status === 401) {
+                    console.error("AUTH_FAILURE: Doctor session expired.");
+                    localStorage.removeItem('token');
+                    if (this.onAuthFailure) {
+                        this.onAuthFailure();
+                    }
+                }
+                return Promise.reject(error);
+            }
+        );
+    }
+
+    setAuthFailureCallback(callback) {
+        this.onAuthFailure = callback;
     }
 
     // --- Doctor Specific Endpoints ---

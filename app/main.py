@@ -127,6 +127,9 @@ async def security_headers_middleware(request: Request, call_next):
 async def https_redirect_middleware(request: Request, call_next):
     """Redirect HTTP to HTTPS in production."""
     if settings.ENVIRONMENT == "production":
+        # Skip redirect for local tests and local development loopback hostnames
+        if request.url.hostname in ("testserver", "localhost", "127.0.0.1", "10.0.2.2"):
+            return await call_next(request)
         if request.url.scheme == "http":
             from fastapi.responses import RedirectResponse
             url = request.url.replace(scheme="https")
@@ -205,7 +208,7 @@ def safe_include(router, name, prefix=settings.API_V1_STR, tags=None):
 
 # Import everything inside a safe block
 try:
-    from app.api import auth, patient, profile, doctor, admin, privacy, auth_onboarding, staff, governance, visit, billing, pharmacy, clinical, lab, ward, surgery
+    from app.api import auth, patient, profile, doctor, admin, privacy, auth_onboarding, staff, governance, visit, billing, pharmacy, clinical, lab, ward, surgery, settings as hospital_settings
     from app.api.v1.endpoints import onboarding
     from app.api.v1.router import api_router as enterprise_v1_router
 
@@ -227,8 +230,13 @@ try:
     safe_include(ward.router, "Ward Management", prefix=settings.API_V1_STR + "/ward", tags=["Ward Management"])
     safe_include(surgery.router, "Surgery Management", prefix=settings.API_V1_STR + "/surgery", tags=["Surgery Management"])
     safe_include(onboarding.router, "Premium Onboarding", prefix=settings.API_V1_STR + "/onboarding", tags=["Premium Onboarding"])
+    safe_include(hospital_settings.router, "Hospital Settings", prefix=settings.API_V1_STR + "/hospital-settings", tags=["Hospital Settings"])
 except Exception as global_e:
     logger.critical(f"GLOBAL_IMPORT_FAILURE: The system is running in DEGRADED MODE. Error: {global_e}")
+
+@app.get("/", tags=["Infrastructure"])
+async def root():
+    return {"message": "Welcome to Hospyn 2.0 Enterprise API"}
 
 # --- HEALTH & SRE PROBES ---
 @app.get("/health", tags=["Infrastructure"])

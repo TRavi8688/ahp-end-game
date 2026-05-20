@@ -3,6 +3,8 @@ from typing import List, Optional
 import uuid
 from datetime import datetime
 from enum import Enum
+from app.models.models import PartnerReferralStatusEnum
+
 
 class InventoryTransactionType(str, Enum):
     PURCHASE = "PURCHASE"
@@ -60,3 +62,20 @@ class DispenseRequest(BaseModel):
     visit_id: Optional[uuid.UUID] = None
     items: List[InventoryTransactionCreate]
     notes: Optional[str] = None
+
+class PartnerPharmacyRequestCreate(BaseModel):
+    prescription_id: uuid.UUID
+    partner_pharmacy_id: uuid.UUID
+
+class PartnerPharmacyRequestResponse(BaseModel):
+    id: uuid.UUID
+    prescription_id: uuid.UUID
+    referring_hospital_id: uuid.UUID
+    partner_pharmacy_id: uuid.UUID
+    patient_id: uuid.UUID
+    status: PartnerReferralStatusEnum
+    created_at: datetime
+    
+    # Optional nested details could be added here
+    
+    model_config = ConfigDict(from_attributes=True)

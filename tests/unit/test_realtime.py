@@ -7,7 +7,7 @@ async def test_websocket_manager_lifecycle():
     """Verify that the ConnectionManager correctly tracks and notifies users."""
     manager = ConnectionManager()
     mock_ws = AsyncMock()
-    user_id = 123
+    user_id = "123"
     
     # Test connection
     await manager.connect(user_id, mock_ws)

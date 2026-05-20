@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
     View, Text, StyleSheet, ScrollView, 
     TouchableOpacity, ActivityIndicator, 
-    RefreshControl, SafeAreaView 
+    RefreshControl, SafeAreaView, Platform 
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ApiService from '../utils/ApiService';

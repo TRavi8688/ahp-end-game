@@ -17,7 +17,10 @@ async def test_extract_medical_entities_success(ai_service):
     }
     
     with patch.object(ai_service, 'unified_ai_engine', new_callable=AsyncMock) as mock_engine:
-        mock_engine.return_value = '{"conditions": [{"name": "Hypertension"}], "medications": [{"name": "Amlodipine"}], "lab_results": [{"test": "BP", "value": "140/90"}]}'
+        mock_engine.return_value = {
+            "success": True,
+            "response": '{"conditions": [{"name": "Hypertension"}], "medications": [{"name": "Amlodipine"}], "lab_results": [{"test": "BP", "value": "140/90"}]}'
+        }
         
         entities = await ai_service.extract_medical_entities("Patient has hypertension and takes amlodipine.")
         
@@ -39,7 +42,8 @@ async def test_ai_service_fallback(ai_service):
         
         result = await ai_service.unified_ai_engine("Test prompt")
         
-        assert result == "Gemini response"
+        assert result["success"] is True
+        assert "Gemini response" in result["response"]
         assert mock_groq.called
         assert mock_gemini.called
 

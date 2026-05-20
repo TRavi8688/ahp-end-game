@@ -48,3 +48,22 @@ class BedResponse(BedBase):
 
     class Config:
         from_attributes = True
+
+class HospitalSettingsBase(BaseModel):
+    enable_pharmacy: bool = False
+    enable_labs: bool = False
+    enable_inpatient_beds: bool = False
+    enable_hr: bool = False
+    enable_billing: bool = True
+    max_beds_configured: int = 0
+    has_multiple_branches: bool = False
+
+class HospitalSettingsUpdate(HospitalSettingsBase):
+    pass
+
+class HospitalSettingsResponse(HospitalSettingsBase):
+    id: str
+    hospital_id: str
+
+    class Config:
+        from_attributes = True

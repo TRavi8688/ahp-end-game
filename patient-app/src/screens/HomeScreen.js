@@ -41,6 +41,8 @@ export default function HomeScreen({ navigation }) {
     const [visitDoctor, setVisitDoctor] = useState('');
     const [visitResult, setVisitResult] = useState(null);
     const [manualQR, setManualQR] = useState('');
+    const [partnerType, setPartnerType] = useState('hospital');
+    const [latestPartnerItem, setLatestPartnerItem] = useState(null);
 
     // Animation values
     const orbScale = useSharedValue(1);
@@ -74,10 +76,23 @@ export default function HomeScreen({ navigation }) {
             const hospital = await ApiService.scanHospitalQR(qrData);
             HapticUtils.success();
             setScannedHospital(hospital);
+            
+            if (qrData.startsWith('PLAB-')) {
+                setPartnerType('lab');
+                const latest = await ApiService.getLatestLabOrder();
+                setLatestPartnerItem(latest);
+            } else if (qrData.startsWith('PPHR-')) {
+                setPartnerType('pharmacy');
+                const latest = await ApiService.getLatestPrescription();
+                setLatestPartnerItem(latest);
+            } else {
+                setPartnerType('hospital');
+            }
+            
             setVisitStep(2);
         } catch (error) {
             HapticUtils.error();
-            Alert.alert("Scan Error", "Invalid Hospyn QR or hospital not found in the cloud.");
+            Alert.alert("Scan Error", "Invalid QR or no recent active orders found for this partner type.");
         } finally {
             setActionLoading(false);
         }
@@ -247,6 +262,24 @@ export default function HomeScreen({ navigation }) {
         }
     };
 
+    const handleSubmitPartnerRequest = async () => {
+        setActionLoading(true);
+        try {
+            if (partnerType === 'lab') {
+                await ApiService.submitPartnerLabRequest(latestPartnerItem.id, scannedHospital.id);
+            } else if (partnerType === 'pharmacy') {
+                await ApiService.submitPartnerPharmacyRequest(latestPartnerItem.id, scannedHospital.id);
+            }
+            HapticUtils.success();
+            setVisitStep(3);
+        } catch (error) {
+            HapticUtils.error();
+            Alert.alert("Error", error.response?.data?.detail || "Failed to share with partner.");
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     const resetVisitFlow = () => {
         setShowVisitModal(false);
         setVisitStep(1);
@@ -257,6 +290,8 @@ export default function HomeScreen({ navigation }) {
         setVisitDoctor('');
         setVisitResult(null);
         setManualQR('');
+        setPartnerType('hospital');
+        setLatestPartnerItem(null);
     };
 
     if (loading) {
@@ -668,7 +703,7 @@ export default function HomeScreen({ navigation }) {
                             </View>
                         )}
 
-                        {visitStep === 2 && scannedHospital && (
+                        {visitStep === 2 && scannedHospital && partnerType === 'hospital' && (
                             <ScrollView style={styles.visitStepContent}>
                                 <View style={styles.hospitalInfoCard}>
                                     <Ionicons name="business" size={32} color={Theme.colors.primary} />
@@ -739,19 +774,60 @@ export default function HomeScreen({ navigation }) {
                             </ScrollView>
                         )}
                         
+                        {visitStep === 2 && scannedHospital && (partnerType === 'lab' || partnerType === 'pharmacy') && (
+                            <View style={styles.visitStepContent}>
+                                <View style={styles.hospitalInfoCard}>
+                                    <Ionicons name={partnerType === 'lab' ? "flask" : "medical"} size={32} color={Theme.colors.primary} />
+                                    <View>
+                                        <Text style={styles.scannedHospitalName}>{scannedHospital.name}</Text>
+                                        <Text style={styles.scannedHospitalId}>{partnerType.toUpperCase()} ID: {scannedHospital.hospyn_id}</Text>
+                                    </View>
+                                </View>
+                                
+                                <View style={[styles.insightCard, GlobalStyles.glass, { marginVertical: 30, padding: 25, borderColor: Theme.colors.primary, borderWidth: 2 }]}>
+                                    <Text style={[styles.sectionTitle, { color: Theme.colors.text, textAlign: 'center', marginBottom: 15, fontSize: 20 }]}>
+                                        {partnerType === 'lab' ? 'Latest Lab Order' : 'Latest Prescription'} (Today)
+                                    </Text>
+                                    <Text style={[styles.insightText, { color: Theme.colors.textMuted, textAlign: 'center', fontSize: 16 }]}>
+                                        Share your most recent active {partnerType} record securely with this partner.
+                                    </Text>
+                                </View>
+                                
+                                <TouchableOpacity 
+                                    style={[styles.primaryBtn, { paddingVertical: 20, borderRadius: 16 }]} 
+                                    onPress={handleSubmitPartnerRequest}
+                                    disabled={actionLoading}
+                                >
+                                    {actionLoading ? <ActivityIndicator color="#fff" /> : <Text style={[styles.btnText, { fontSize: 18 }]}>SHARE WITH {partnerType.toUpperCase()}</Text>}
+                                </TouchableOpacity>
+                                
+                                <TouchableOpacity style={{ marginTop: 24, alignItems: 'center' }} onPress={() => Alert.alert('Coming Soon', 'Manual selection will be available soon.')}>
+                                    <Text style={{ color: Theme.colors.textMuted, fontSize: 14, textDecorationLine: 'underline' }}>Share an older record instead</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                        
                         {visitStep === 3 && (
                             <View style={styles.visitStepContent}>
                                 <View style={styles.successAnimation}>
                                     <Ionicons name="checkmark-circle" size={80} color="#10b981" />
-                                    <Text style={styles.successTitle}>VISIT REGISTERED</Text>
-                                    <Text style={styles.successSub}>Your clinical identity has been synchronized with {scannedHospital?.name}.</Text>
+                                    <Text style={styles.successTitle}>
+                                        {partnerType === 'hospital' ? 'VISIT REGISTERED' : 'SHARED SUCCESSFULLY'}
+                                    </Text>
+                                    <Text style={styles.successSub}>
+                                        {partnerType === 'hospital' 
+                                            ? `Your clinical identity has been synchronized with ${scannedHospital?.name}.` 
+                                            : `Your record was securely shared with ${scannedHospital?.name}. They will process it shortly.`}
+                                    </Text>
                                 </View>
 
-                                <View style={styles.tokenCard}>
-                                    <Text style={styles.tokenLabel}>QUEUE TOKEN</Text>
-                                    <Text style={styles.tokenValue}>{visitResult?.token_number || 'T-100'}</Text>
-                                    <Text style={styles.tokenHint}>Please wait for your turn. You will be notified.</Text>
-                                </View>
+                                {partnerType === 'hospital' && (
+                                    <View style={styles.tokenCard}>
+                                        <Text style={styles.tokenLabel}>QUEUE TOKEN</Text>
+                                        <Text style={styles.tokenValue}>{visitResult?.token_number || 'T-100'}</Text>
+                                        <Text style={styles.tokenHint}>Please wait for your turn. You will be notified.</Text>
+                                    </View>
+                                )}
 
                                 <TouchableOpacity style={styles.secondaryBtn} onPress={resetVisitFlow}>
                                     <Text style={styles.secondaryBtnText}>BACK TO DASHBOARD</Text>

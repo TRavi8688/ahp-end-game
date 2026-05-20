@@ -47,7 +47,8 @@ class LabService:
         hospital_id: uuid.UUID,
         order_id: uuid.UUID,
         results_data: List[Dict[str, Any]],
-        staff_id: uuid.UUID
+        staff_id: uuid.UUID,
+        file_url: Optional[str] = None
     ) -> List[LabResult]:
         """
         LAB TECHNICIAN ACTION:
@@ -88,10 +89,11 @@ class LabService:
         record = MedicalRecord(
             hospital_id=hospital_id,
             patient_id=order.patient_id,
-            record_type=RecordTypeEnum.lab_report,
-            title=f"Lab Report: {datetime.now().strftime('%Y-%m-%d')}",
-            is_verified=True,
-            uploader_id=staff_id
+            type=RecordTypeEnum.lab_report,
+            record_name=f"Lab Report: {datetime.now().strftime('%Y-%m-%d')}",
+            file_url=file_url or "",
+            needs_verification=False,
+            visit_id=order.visit_id
         )
         db.add(record)
         await db.flush()

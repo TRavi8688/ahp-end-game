@@ -129,8 +129,8 @@ async def register(
         await db.commit()
         await db.refresh(new_user)
         
-        access_token = security.create_access_token(new_user.id, new_user.role)
-        refresh_token = security.create_refresh_token(new_user.id, new_user.role)
+        access_token = security.create_access_token(new_user.id, new_user.role, token_version=new_user.token_version)
+        refresh_token = security.create_refresh_token(new_user.id, new_user.role, token_version=new_user.token_version)
         
         await log_audit_action(
             db=db,
@@ -215,8 +215,8 @@ async def login(
         throw_auth_exception("Account is deactivated. Please contact support.")
 
     # 3. SESSION ISSUANCE
-    access_token = security.create_access_token(user.id, user.role)
-    refresh_token = security.create_refresh_token(user.id, user.role)
+    access_token = security.create_access_token(user.id, user.role, token_version=user.token_version)
+    refresh_token = security.create_refresh_token(user.id, user.role, token_version=user.token_version)
     
     await log_audit_action(
         db=db,
@@ -301,8 +301,8 @@ async def google_login(
             logger.info(f"GOOGLE_REGISTRATION_SUCCESS: Email={email}")
         
         # Issue tokens
-        access_token = security.create_access_token(user.id, user.role)
-        refresh_token = security.create_refresh_token(user.id, user.role)
+        access_token = security.create_access_token(user.id, user.role, token_version=user.token_version)
+        refresh_token = security.create_refresh_token(user.id, user.role, token_version=user.token_version)
         
         await log_audit_action(
             db=db,
@@ -479,8 +479,8 @@ async def verify_otp(
         user.is_active = True
         await db.commit()
         
-        access_token = security.create_access_token(user.id, user.role)
-        refresh_token = security.create_refresh_token(user.id, user.role)
+        access_token = security.create_access_token(user.id, user.role, token_version=user.token_version)
+        refresh_token = security.create_refresh_token(user.id, user.role, token_version=user.token_version)
         
         # Resolve hospyn_id safely (relationship name is 'patient', NOT 'patient_profile')
         hospyn_id = None

@@ -3,11 +3,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
 from app.core.database import get_db
-from app.core.security import require_roles
+from app.core.security import require_roles, require_module
 from app.schemas.admission import AdmissionCreate, AdmissionRead, BedRead
 from app.services.admission_service import AdmissionService
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_module("inpatient_beds"))])
 
 @router.post("/", response_model=AdmissionRead, status_code=status.HTTP_201_CREATED)
 async def create_admission(

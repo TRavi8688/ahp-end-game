@@ -44,6 +44,7 @@ async def scan_hospital_qr(
 async def create_visit(
     data: schemas.VisitCreate,
     current_patient: models.Patient = Depends(deps.get_current_patient),
+    active_member_id: Optional[uuid.UUID] = Depends(deps.get_active_family_member_id),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """
@@ -57,10 +58,14 @@ async def create_visit(
     if not hospital:
         raise HTTPException(status_code=404, detail="Hospital not found")
 
+    # Determine family member scope
+    f_member_id = data.family_member_id or active_member_id
+
     # 2. Create Visit Record
     new_visit = models.PatientVisit(
         patient_id=current_patient.id,
         hospital_id=data.hospital_id,
+        family_member_id=f_member_id,
         visit_reason=data.visit_reason,
         symptoms=data.symptoms,
         department=data.department,
@@ -90,16 +95,21 @@ async def create_visit(
         "visit_reason": new_visit.visit_reason,
         "status": new_visit.status,
         "check_in_time": new_visit.check_in_time,
-        "queue_token": new_visit.queue_token
+        "queue_token": new_visit.queue_token,
+        "family_member_id": new_visit.family_member_id
     }
 
 @router.get("/my-visits", response_model=List[schemas.VisitResponse])
 async def get_my_visits(
     current_patient: models.Patient = Depends(deps.get_current_patient),
+    active_member_id: Optional[uuid.UUID] = Depends(deps.get_active_family_member_id),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Lists all hospital visits for the current patient."""
-    stmt = select(models.PatientVisit).where(models.PatientVisit.patient_id == current_patient.id).order_by(models.PatientVisit.check_in_time.desc())
+    stmt = select(models.PatientVisit).where(
+        models.PatientVisit.patient_id == current_patient.id,
+        models.PatientVisit.family_member_id == active_member_id
+    ).order_by(models.PatientVisit.check_in_time.desc())
     result = await db.execute(stmt)
     visits = result.scalars().all()
     
@@ -114,7 +124,8 @@ async def get_my_visits(
             "visit_reason": v.visit_reason,
             "status": v.status,
             "check_in_time": v.check_in_time,
-            "queue_token": v.queue_token
+            "queue_token": v.queue_token,
+            "family_member_id": v.family_member_id
         })
         
     return enriched_visits

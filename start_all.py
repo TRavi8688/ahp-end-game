@@ -5,7 +5,9 @@ import sys
 
 def start_process(command, cwd, name):
     print(f"[Launcher] Starting {name}...")
-    return subprocess.Popen(command, cwd=cwd, shell=True)
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "utf-8"
+    return subprocess.Popen(command, cwd=cwd, shell=True, env=env)
 
 def main():
     root_dir = os.path.dirname(os.path.abspath(__file__))
@@ -15,7 +17,7 @@ def main():
     time.sleep(3)
     
     # 2. Start Doctor App
-    doctor = start_process("npm run start", os.path.join(root_dir, "doctor-app"), "Doctor App")
+    doctor = start_process("npm run dev", os.path.join(root_dir, "doctor-app"), "Doctor App")
     
     # 3. Start Patient App
     patient = start_process("npm run web", os.path.join(root_dir, "patient-app"), "Patient App")
@@ -25,7 +27,7 @@ def main():
     print("="*50)
     print("Backend API:   http://localhost:8000")
     print("Doctor App:    http://localhost:3000")
-    print("Patient App:   http://localhost:19006")
+    print("Patient App:   http://localhost:19008")
     print("="*50)
     print("\nPress Ctrl+C to stop all services.")
     

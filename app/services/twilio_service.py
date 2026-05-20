@@ -5,6 +5,10 @@ from app.core.logging import logger
 
 def validate_twilio_config():
     """Validates Twilio credentials at startup/first use."""
+    if settings.ENVIRONMENT == "testing":
+        logger.info("ENVIRONMENT is testing. Twilio SMS delivery will be mocked.")
+        return False, None, None, None
+
     sid = settings.TWILIO_ACCOUNT_SID
     token = settings.TWILIO_AUTH_TOKEN
     from_num = settings.TWILIO_FROM_NUMBER

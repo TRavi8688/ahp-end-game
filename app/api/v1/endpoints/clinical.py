@@ -14,6 +14,7 @@ from app.schemas.lab import (
 )
 from app.services.clinical_service import ClinicalService
 from app.models.models import RoleEnum
+from app.core.security import require_module
 
 router = APIRouter()
 clinical_service = ClinicalService()
@@ -77,7 +78,8 @@ async def create_lab_order(
     db: AsyncSession = Depends(deps.get_db),
     order_in: LabOrderCreate,
     hospital_id: uuid.UUID = Depends(deps.get_hospital_id),
-    current_user = Depends(deps.get_current_user)
+    current_user = Depends(deps.get_current_user),
+    _gate = Depends(require_module("labs"))
 ):
     """
     Create a new lab diagnostic order. (Doctor only)
@@ -104,7 +106,8 @@ async def update_lab_status(
     order_id: uuid.UUID,
     status_in: LabStatusUpdate,
     hospital_id: uuid.UUID = Depends(deps.get_hospital_id),
-    current_user = Depends(deps.get_current_user)
+    current_user = Depends(deps.get_current_user),
+    _gate = Depends(require_module("labs"))
 ):
     """
     Update the status of a lab order. (Lab Staff/Doctor only)
@@ -132,7 +135,8 @@ async def record_lab_results(
     order_id: uuid.UUID,
     results_in: List[dict],
     hospital_id: uuid.UUID = Depends(deps.get_hospital_id),
-    current_user = Depends(deps.get_current_user)
+    current_user = Depends(deps.get_current_user),
+    _gate = Depends(require_module("labs"))
 ):
     """
     Record structured observations for a lab order.

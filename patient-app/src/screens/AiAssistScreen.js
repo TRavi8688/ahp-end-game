@@ -135,7 +135,7 @@ function RecordCard({ record, onShare }) {
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
-export default function AiAssistScreen({ navigation }) {
+export default function AiAssistScreen({ navigation, route }) {
     // Chat state
     const [messages, setMessages] = useState([]);
     const [inputText, setInputText] = useState('');
@@ -315,8 +315,15 @@ export default function AiAssistScreen({ navigation }) {
     useFocusEffect(
         useCallback(() => {
             loadAll();
+            if (route?.params?.initialMessage) {
+                const initMsg = route.params.initialMessage;
+                navigation.setParams({ initialMessage: undefined });
+                setTimeout(() => {
+                    sendMessage(initMsg);
+                }, 600);
+            }
             return () => {};
-        }, [])
+        }, [route, navigation])
     );
 
 

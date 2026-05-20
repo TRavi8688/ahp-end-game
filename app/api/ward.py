@@ -8,7 +8,10 @@ from app.api import deps
 from app.schemas.admission import AdmissionCreate, AdmissionRead, BedRead, WardStatusResponse
 from app.services.admission_service import AdmissionService
 
-router = APIRouter()
+from app.core.security import require_module
+
+router = APIRouter(dependencies=[Depends(require_module("inpatient_beds"))])
+
 
 @router.post("/admissions", response_model=AdmissionRead)
 async def admit_patient(

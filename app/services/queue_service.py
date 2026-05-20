@@ -1,9 +1,24 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime
+from contextlib import asynccontextmanager
 
 from app.models.queue import QueueToken, QueueTokenStatus
 from app.core.outbox import add_event_to_outbox  # assuming you already have this helper
+
+
+@asynccontextmanager
+async def transaction_context(db: AsyncSession):
+    if db.in_transaction():
+        try:
+            yield db
+            await db.commit()
+        except Exception:
+            await db.rollback()
+            raise
+    else:
+        async with db.begin():
+            yield db
 
 
 def compute_priority(payload):
@@ -24,7 +39,7 @@ async def create_token(db: AsyncSession, payload, user):
     * idempotent – returns existing active token if present
     * emits a transactional outbox event
     """
-    async with db.begin():  # atomic transaction
+    async with transaction_context(db):  # atomic transaction
         # 1️⃣ Prevent duplicate active tokens for same patient/hospital
         result = await db.execute(
             select(QueueToken).where(
@@ -50,7 +65,6 @@ async def create_token(db: AsyncSession, payload, user):
             patient_id=payload.patient_id,
             status=QueueTokenStatus.WAITING,
             priority_score=priority_score,
-            created_by_id=user.id,
             last_modified_by_id=user.id,
         )
         db.add(token)
@@ -64,8 +78,8 @@ async def create_token(db: AsyncSession, payload, user):
             "trace_id": getattr(user, "trace_id", None),
             "occurred_at": datetime.utcnow().isoformat(),
             "payload": {
-                "token_id": token.id,
-                "patient_id": payload.patient_id,
+                "token_id": str(token.id),
+                "patient_id": str(payload.patient_id),
                 "priority_score": priority_score,
             },
         }
@@ -97,7 +111,7 @@ async def update_token_status(db: AsyncSession, token_id: int, new_status: Queue
     """
     Strict State Machine enforcement for Queue transitions.
     """
-    async with db.begin():
+    async with transaction_context(db):
         # Enforce DB-Level Tenant Isolation
         result = await db.execute(
             select(QueueToken).where(
@@ -133,10 +147,10 @@ async def update_token_status(db: AsyncSession, token_id: int, new_status: Queue
             "tenant_id": user.hospital_id,
             "occurred_at": datetime.utcnow().isoformat(),
             "payload": {
-                "token_id": token.id,
+                "token_id": str(token.id),
                 "old_status": current_status,
                 "new_status": new_status,
-                "updated_by": user.id,
+                "updated_by": str(user.id),
             },
         }
         add_event_to_outbox(db, event)

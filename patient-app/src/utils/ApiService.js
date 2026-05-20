@@ -50,7 +50,7 @@ class ApiService {
                 const { config, response } = error;
                 
                 // PRODUCTION-GRADE RETRY: Exponential Backoff for Infrastructure Faults
-                if (!response || (response.status >= 500 && response.status <= 599)) {
+                if (response && response.status >= 500 && response.status <= 599) {
                     config.__retryCount = config.__retryCount || 0;
                     if (config.__retryCount < 3) {
                         config.__retryCount += 1;
@@ -62,11 +62,12 @@ class ApiService {
                 }
 
                 if (response?.status === 401) {
-                    console.error("AUTH_FAILURE: Session expired. (Mock Bypass - Not logging out)");
-                    // Disabled automatic logout so the user can browse the UI
-                    // if (this.onAuthFailure) {
-                    //     this.onAuthFailure();
-                    // }
+                    console.error("AUTH_FAILURE: Session expired. Clearing token.");
+                    // Clear stored token to force re-authentication
+                    SecurityUtils.deleteToken();
+                    if (this.onAuthFailure) {
+                        this.onAuthFailure();
+                    }
                     // Prevent further retries on auth failure
                     return Promise.reject(error);
                 }
@@ -238,6 +239,33 @@ class ApiService {
 
     async getNotifications() {
         const response = await this.client.get('/patient/notifications');
+        return response.data;
+    }
+
+    // --- Partner Referral Network ---
+    async getLatestLabOrder() {
+        const response = await this.client.get('/referrals/patients/latest-lab-order');
+        return response.data;
+    }
+
+    async getLatestPrescription() {
+        const response = await this.client.get('/referrals/patients/latest-prescription');
+        return response.data;
+    }
+
+    async submitPartnerLabRequest(orderId, partnerHospitalId) {
+        const response = await this.client.post('/referrals/labs/request', {
+            order_id: orderId,
+            partner_hospital_id: partnerHospitalId
+        });
+        return response.data;
+    }
+
+    async submitPartnerPharmacyRequest(prescriptionId, partnerPharmacyId) {
+        const response = await this.client.post('/referrals/pharmacies/request', {
+            prescription_id: prescriptionId,
+            partner_pharmacy_id: partnerPharmacyId
+        });
         return response.data;
     }
 

@@ -10,7 +10,10 @@ from app.api import deps
 from app.models.models import PharmacyInventory, InventoryTransaction, InventoryTransactionType, Invoice, BillItem, PaymentStatus, Patient
 from app.schemas.pharmacy import Pharmacy as PharmacySchema, PharmacyCreate, InventoryTransaction as TransactionSchema, DispenseRequest
 
-router = APIRouter()
+from app.core.security import require_module
+
+router = APIRouter(dependencies=[Depends(require_module("pharmacy"))])
+
 
 @router.get("/stats")
 async def get_pharmacy_stats(

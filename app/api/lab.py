@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Optional
 import uuid
+import os
 
 from app.core.database import get_db
 from app.api import deps
@@ -9,7 +10,10 @@ from app.schemas.lab import LabOrderCreate, LabOrderResponse, LabOrderResultSubm
 from app.services.lab_service import LabService
 from app.models.models import LabDiagnosticOrder, LabOrderStatusEnum
 
-router = APIRouter(prefix="/lab", tags=["Laboratory"])
+from app.core.security import require_module
+
+router = APIRouter(prefix="/lab", tags=["Laboratory"], dependencies=[Depends(require_module("labs"))])
+
 
 @router.post("/orders", response_model=LabOrderResponse)
 async def create_order(
@@ -34,6 +38,33 @@ async def create_order(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.post("/upload-report", response_model=dict)
+async def upload_lab_report(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    user = Depends(deps.get_current_hospital_admin) # Staff/Technicians
+):
+    """
+    Allows authorized technicians to upload PDF/Image results directly to secure storage.
+    """
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in {".pdf", ".png", ".jpg", ".jpeg"}:
+        raise HTTPException(status_code=400, detail="Invalid file type. Only PDF and Images are allowed.")
+    
+    from app.services.storage_service import StorageService
+    
+    storage = StorageService()
+    safe_filename = f"{uuid.uuid4()}{ext}"
+    s3_object_name = f"reports/lab/{safe_filename}"
+    
+    s3_url = await storage.upload_stream(
+        file_obj=file.file, 
+        object_name=s3_object_name, 
+        mime_type=file.content_type or "application/octet-stream"
+    )
+    
+    return {"status": "success", "file_url": s3_url}
+
 @router.post("/orders/{order_id}/results", response_model=dict)
 async def submit_results(
     order_id: uuid.UUID,
@@ -51,7 +82,8 @@ async def submit_results(
             hospital_id=user.staff_profile.hospital_id,
             order_id=order_id,
             results_data=[r.dict() for r in obj_in.results],
-            staff_id=user.id
+            staff_id=user.id,
+            file_url=obj_in.file_url
         )
         return {"status": "success", "message": f"{len(results)} results finalized and bound to patient."}
     except ValueError as e:

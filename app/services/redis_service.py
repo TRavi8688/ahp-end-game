@@ -19,6 +19,7 @@ class RedisService:
     def __init__(self):
         self._client: Optional[redis.Redis] = None
         self.redis_url = settings.REDIS_URL
+        self._local_cache: Dict[str, Any] = {}
 
     def get_client(self) -> Optional[redis.Redis]:
         if not settings.USE_REDIS:
@@ -48,7 +49,9 @@ class RedisService:
 
     async def set(self, key: str, value: str, expire: int = 600):
         client = self.get_client()
-        if not client: return
+        if not client:
+            self._local_cache[key] = value
+            return
         try:
             await client.setex(key, expire, value)
         except Exception as e:
@@ -56,7 +59,8 @@ class RedisService:
 
     async def get(self, key: str) -> Optional[str]:
         client = self.get_client()
-        if not client: return None
+        if not client:
+            return self._local_cache.get(key)
         try:
             return await client.get(key)
         except Exception as e:
@@ -70,12 +74,17 @@ class RedisService:
                 await client.delete(key)
             except Exception as e:
                 logger.error(f"REDIS_DELETE_ERROR: {e}")
+        else:
+            self._local_cache.pop(key, None)
 
     async def set_nx(self, key: str, value: str, expire: int = 30) -> bool:
         """STRICTLY ATOMIC SET-IF-NOT-EXISTS."""
         client = self.get_client()
         if not client:
-            return True # In dev or zero-cost prod, we allow it.
+            if key in self._local_cache:
+                return False
+            self._local_cache[key] = value
+            return True
         
         try:
             return await client.set(key, value, ex=expire, nx=True)
@@ -85,7 +94,10 @@ class RedisService:
 
     async def incr(self, key: str) -> int:
         client = self.get_client()
-        if not client: return 0
+        if not client:
+            val = int(self._local_cache.get(key, 0)) + 1
+            self._local_cache[key] = str(val)
+            return val
         return await client.incr(key)
 
     async def set_otp(self, identifier: str, otp: str, expire_seconds: int = 600):

@@ -6,8 +6,9 @@ from app.models.models import User, RoleEnum, PharmacyStock
 from sqlalchemy import select
 from typing import List, Dict, Any
 import uuid
+from app.core.security import require_module
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_module("pharmacy"))])
 
 @router.get("/inventory")
 async def get_inventory(

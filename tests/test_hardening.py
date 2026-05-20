@@ -25,32 +25,32 @@ async def override_get_db():
     async with TestingSessionLocal() as session:
         yield session
 
-app.dependency_overrides[get_db] = override_get_db
-
 @pytest.fixture(autouse=True)
 async def setup_db():
+    app.dependency_overrides[get_db] = override_get_db
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+    app.dependency_overrides.clear()
 
 @pytest.fixture
 async def client():
     from httpx import ASGITransport
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as ac:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="https://testserver") as ac:
         yield ac
 
 @pytest.fixture
 async def setup_data():
     async with TestingSessionLocal() as session:
         # Create Hospital A
-        hosp_a = Hospital(name="Hospital A", registration_number="HOSP-A", version_id=1)
+        hosp_a = Hospital(name="Hospital A", registration_number="HOSP-A", version_id=1, hospyn_id="Hospyn-HOSPA", short_code="HOSPA")
         session.add(hosp_a)
         await session.flush()
         
         # Create Hospital B
-        hosp_b = Hospital(name="Hospital B", registration_number="HOSP-B", version_id=1)
+        hosp_b = Hospital(name="Hospital B", registration_number="HOSP-B", version_id=1, hospyn_id="Hospyn-HOSPB", short_code="HOSPB")
         session.add(hosp_b)
         await session.flush()
 
@@ -96,7 +96,7 @@ async def test_multi_tenant_isolation(client, setup_data):
     # First create a token in Hospital B directly via DB.
     async with TestingSessionLocal() as session:
         from app.models.queue import QueueToken, QueueTokenStatus
-        token_b = QueueToken(hospital_id=setup_data["hosp_b"], patient_id=999, status=QueueTokenStatus.WAITING)
+        token_b = QueueToken(hospital_id=setup_data["hosp_b"], patient_id=uuid.uuid4(), status=QueueTokenStatus.WAITING)
         session.add(token_b)
         await session.commit()
         token_b_id = token_b.id
@@ -120,11 +120,11 @@ async def test_queue_stress_concurrency(client, setup_data):
     async def create_q(pid):
         return await client.post(
             "/api/v1/queue/",
-            headers={"Authorization": f"Bearer {token_a}", "X-Idempotency-Key": str(uuid.uuid4())},
-            json={"patient_id": pid}
+            headers={"Authorization": f"Bearer {token_a}", "idempotency-key": str(uuid.uuid4())},
+            json={"patient_id": str(pid)}
         )
     
-    responses = await asyncio.gather(*(create_q(i) for i in range(10)))
+    responses = await asyncio.gather(*(create_q(uuid.uuid4()) for _ in range(10)))
     for r in responses:
         # Expect either success or failure, but NO 500s due to async/sync mismatch
         assert r.status_code in [200, 201, 400], f"Failed with {r.status_code}: {r.text}"

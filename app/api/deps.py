@@ -143,3 +143,59 @@ async def get_active_family_member_id(
         return active_id
     except (ValueError, AttributeError):
         return None
+
+def check_module_enabled(module_name: str):
+    async def dependency(
+        user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db)
+    ):
+        from sqlalchemy import select
+        from app.models.models import HospitalSettings, RoleEnum
+
+        hospital_id = None
+        role_str = str(user.role.value) if hasattr(user.role, 'value') else str(user.role)
+        if role_str in ["hospital_admin", "admin", "doctor", "receptionist", "pharmacy", "lab", "nurse"]:
+            if hasattr(user, 'staff_profile') and user.staff_profile:
+                hospital_id = user.staff_profile.hospital_id
+            elif hasattr(user, 'doctor_profile') and user.doctor_profile:
+                hospital_id = user.doctor_profile.hospital_id
+            else:
+                from app.models.models import StaffProfile, Doctor
+                if role_str == "doctor":
+                    doc_res = await db.execute(select(Doctor).where(Doctor.user_id == user.id))
+                    doc = doc_res.scalars().first()
+                    if doc:
+                        hospital_id = doc.hospital_id
+                else:
+                    staff_res = await db.execute(select(StaffProfile).where(StaffProfile.user_id == user.id))
+                    staff = staff_res.scalars().first()
+                    if staff:
+                        hospital_id = staff.hospital_id
+
+        if not hospital_id:
+            return
+
+        result = await db.execute(
+            select(HospitalSettings).where(HospitalSettings.hospital_id == hospital_id)
+        )
+        settings = result.scalars().first()
+
+        is_enabled = True
+        if module_name == "pharmacy":
+            is_enabled = settings.enable_pharmacy if settings else False
+        elif module_name == "labs":
+            is_enabled = settings.enable_labs if settings else False
+        elif module_name == "inpatient_beds":
+            is_enabled = settings.enable_inpatient_beds if settings else False
+        elif module_name == "hr":
+            is_enabled = settings.enable_hr if settings else False
+        elif module_name == "billing":
+            is_enabled = settings.enable_billing if settings else True
+
+        if not is_enabled:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Module '{module_name}' is disabled for this hospital."
+            )
+    return dependency
+

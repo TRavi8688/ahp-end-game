@@ -94,6 +94,13 @@ class LabOrderStatusEnum(str, enum.Enum):
     completed = "completed"
     rejected = "rejected"
 
+class PartnerReferralStatusEnum(str, enum.Enum):
+    pending = "pending"
+    accepted = "accepted"
+    fulfilled = "fulfilled"
+    rejected = "rejected"
+
+
 class AISafetyMode(str, enum.Enum):
     informational = "informational"
     clinical_assist = "clinical_assist"
@@ -140,6 +147,14 @@ class User(Base):
     doctor_profile: Mapped["Doctor"] = relationship(back_populates="user", uselist=False)
     staff_profile: Mapped["StaffProfile"] = relationship(back_populates="user", uselist=False)
 
+    @property
+    def hospital_id(self) -> Optional[uuid.UUID]:
+        if self.staff_profile:
+            return self.staff_profile.hospital_id
+        if self.patient:
+            return self.patient.hospital_id
+        return None
+
     __mapper_args__ = {"version_id_col": version_id}
 
 class Patient(Base, TenantScopedMixin, TimestampMixin):
@@ -182,6 +197,12 @@ class Doctor(Base):
     verification_notes: Mapped[Optional[str]] = mapped_column(Text)
     
     user: Mapped["User"] = relationship(back_populates="doctor_profile")
+
+    @property
+    def hospital_id(self) -> Optional[uuid.UUID]:
+        if self.user and self.user.staff_profile:
+            return self.user.staff_profile.hospital_id
+        return None
 
     __mapper_args__ = {"version_id_col": version_id}
 
@@ -229,8 +250,33 @@ class Hospital(Base):
     beds: Mapped[List["Bed"]] = relationship(back_populates="hospital")
     inventory: Mapped[List["PharmacyStock"]] = relationship(back_populates="hospital")
     patient_visits: Mapped[List["PatientVisit"]] = relationship(back_populates="hospital")
+    settings: Mapped[Optional["HospitalSettings"]] = relationship(back_populates="hospital", uselist=False, cascade="all, delete-orphan")
+
 
     __mapper_args__ = {"version_id_col": version_id}
+
+class HospitalSettings(Base):
+    """
+    APP STORE CONFIGURATION:
+    Defines which modules are enabled for a specific hospital.
+    """
+    __tablename__ = "hospital_settings"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), unique=True, index=True)
+    
+    # Module Toggles
+    enable_pharmacy: Mapped[bool] = mapped_column(default=False)
+    enable_labs: Mapped[bool] = mapped_column(default=False)
+    enable_inpatient_beds: Mapped[bool] = mapped_column(default=False)
+    enable_hr: Mapped[bool] = mapped_column(default=False)
+    enable_billing: Mapped[bool] = mapped_column(default=True)
+    
+    # Quotas & Limits
+    max_beds_configured: Mapped[int] = mapped_column(default=0)
+    has_multiple_branches: Mapped[bool] = mapped_column(default=False)
+    
+    hospital: Mapped["Hospital"] = relationship(back_populates="settings")
 
 class PatientVisit(Base, TenantScopedMixin, TimestampMixin):
     __tablename__ = "patient_visits"
@@ -238,6 +284,7 @@ class PatientVisit(Base, TenantScopedMixin, TimestampMixin):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
     patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
     hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    family_member_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("family_members.id"), nullable=True, index=True)
     
     visit_reason: Mapped[str] = mapped_column(TextEncryptedType)
     symptoms: Mapped[Optional[str]] = mapped_column(TextEncryptedType)
@@ -250,6 +297,7 @@ class PatientVisit(Base, TenantScopedMixin, TimestampMixin):
     
     patient: Mapped["Patient"] = relationship(back_populates="patient_visits")
     hospital: Mapped["Hospital"] = relationship(back_populates="patient_visits")
+    medical_records: Mapped[List["MedicalRecord"]] = relationship(back_populates="visit")
 
 class Department(Base):
     __tablename__ = "departments"
@@ -315,7 +363,10 @@ class MedicalRecord(Base, TenantScopedMixin):
     verified_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("doctors.id"), nullable=True)
     malware_scan_status: Mapped[str] = mapped_column(String(50), default="pending") # pending, clean, quarantined
     
+    visit_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("patient_visits.id"), nullable=True)
+    
     patient: Mapped["Patient"] = relationship(back_populates="records")
+    visit: Mapped[Optional["PatientVisit"]] = relationship(back_populates="medical_records")
     lab_results: Mapped[List["LabResult"]] = relationship(back_populates="record", cascade="all, delete-orphan")
 
 class Condition(Base, TenantScopedMixin, TimestampMixin):
@@ -579,6 +630,7 @@ class DigitalPrescription(Base, TenantScopedMixin, TimestampMixin):
     hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
     doctor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("doctors.id"), index=True)
     patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    family_member_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("family_members.id"), nullable=True, index=True)
     visit_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("patient_visits.id"), nullable=True)
     
     status: Mapped[PrescriptionStatusEnum] = mapped_column(SQLEnum(PrescriptionStatusEnum), default=PrescriptionStatusEnum.pending)
@@ -623,6 +675,7 @@ class LabDiagnosticOrder(Base, TenantScopedMixin, TimestampMixin):
     hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
     doctor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("doctors.id"), index=True)
     patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    family_member_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("family_members.id"), nullable=True, index=True)
     visit_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("patient_visits.id"), nullable=True)
     prescription_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("digital_prescriptions.id"), nullable=True)
     
@@ -664,6 +717,46 @@ class LabResult(Base, TenantScopedMixin, TimestampMixin):
     order: Mapped[Optional["LabDiagnosticOrder"]] = relationship(back_populates="results")
     patient: Mapped["Patient"] = relationship(back_populates="lab_results")
     record: Mapped[Optional["MedicalRecord"]] = relationship(back_populates="lab_results")
+
+class PartnerLabRequest(Base, TenantScopedMixin, TimestampMixin):
+    """
+    B2B2C Referral: Routes a lab order from a referring clinic to a partner diagnostic center.
+    """
+    __tablename__ = "partner_lab_requests"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    order_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("lab_diagnostic_orders.id"), index=True)
+    referring_hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    partner_hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    status: Mapped[PartnerReferralStatusEnum] = mapped_column(
+        SQLEnum(PartnerReferralStatusEnum), default=PartnerReferralStatusEnum.pending
+    )
+    
+    order: Mapped["LabDiagnosticOrder"] = relationship()
+    patient: Mapped["Patient"] = relationship()
+    referring_hospital: Mapped["Hospital"] = relationship(foreign_keys=[referring_hospital_id])
+    partner_hospital: Mapped["Hospital"] = relationship(foreign_keys=[partner_hospital_id])
+
+class PartnerPharmacyRequest(Base, TenantScopedMixin, TimestampMixin):
+    """
+    B2B2C Referral: Routes a prescription from a referring clinic to a partner pharmacy shop.
+    """
+    __tablename__ = "partner_pharmacy_requests"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    prescription_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("digital_prescriptions.id"), index=True)
+    referring_hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    partner_pharmacy_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    status: Mapped[PartnerReferralStatusEnum] = mapped_column(
+        SQLEnum(PartnerReferralStatusEnum), default=PartnerReferralStatusEnum.pending
+    )
+    
+    prescription: Mapped["DigitalPrescription"] = relationship()
+    patient: Mapped["Patient"] = relationship()
+    referring_hospital: Mapped["Hospital"] = relationship(foreign_keys=[referring_hospital_id])
+    partner_pharmacy: Mapped["Hospital"] = relationship(foreign_keys=[partner_pharmacy_id])
 
 class PharmacyStock(Base, TenantScopedMixin, TimestampMixin):
     __tablename__ = "pharmacy_stock"

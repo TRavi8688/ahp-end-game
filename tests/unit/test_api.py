@@ -16,7 +16,7 @@ def test_send_otp():
         headers={"X-Idempotency-Key": "test-otp-1"}
     )
     assert response.status_code == 200
-    assert response.json()["status"] == "success"
+    assert response.json()["success"] is True
 
 def test_medical_upload_unauthorized():
     # Attempting upload without token

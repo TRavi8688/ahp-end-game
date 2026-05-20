@@ -73,6 +73,8 @@ async function start() {
   const compiler = Webpack(config);
 
   const serverConfig = {
+    port: 19008,
+    host: '0.0.0.0', // Allow binding to all interfaces so localhost and LAN work
     client: {
       overlay: true,
     },
