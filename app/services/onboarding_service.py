@@ -35,7 +35,7 @@ class OnboardingService:
         raw_token = secrets.token_urlsafe(32)
         token_hash = cls._hash_token(raw_token)
         
-        expires_at = datetime.now(timezone.utc) + timedelta(hours=expires_in_hours)
+        expires_at = (datetime.now(timezone.utc) + timedelta(hours=expires_in_hours)).replace(tzinfo=None)
         
         invite = HospitalInvite(
             hospital_id=hospital_id,
@@ -68,7 +68,7 @@ class OnboardingService:
         query = select(HospitalInvite).where(
             HospitalInvite.token_hash == token_hash,
             HospitalInvite.is_used == False,
-            HospitalInvite.expires_at > datetime.now(timezone.utc)
+            HospitalInvite.expires_at > datetime.now(timezone.utc).replace(tzinfo=None)
         )
         
         result = await db.execute(query)
@@ -83,6 +83,6 @@ class OnboardingService:
         await db.execute(
             update(HospitalInvite)
             .where(HospitalInvite.id == invite_id)
-            .values(is_used=True, used_at=datetime.now(timezone.utc))
+            .values(is_used=True, used_at=datetime.now(timezone.utc).replace(tzinfo=None))
         )
         await db.commit()

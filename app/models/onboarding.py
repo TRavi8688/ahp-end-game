@@ -15,7 +15,7 @@ class HospitalInvite(Base):
     role: Mapped[str] = mapped_column(String(50), default="hospital_admin")
     is_used: Mapped[bool] = mapped_column(Boolean, default=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     hospyn_id: Mapped[str] = mapped_column(String(50), index=True) # Tenant isolation link
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), nullable=True)
     ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True) # IPv6 support
