@@ -19,10 +19,10 @@ async def run_migrations():
     
     try:
         # 1. Create all tables first
-        async with engine.begin() as conn:
-            logger.info("MIGRATION: Synchronizing SQLAlchemy models to Database...")
-            await conn.run_sync(Base.metadata.create_all)
-            logger.info("MIGRATION: Schema sync complete.")
+        # async with engine.begin() as conn:
+        #     logger.info("MIGRATION: Synchronizing SQLAlchemy models to Database...")
+        #     await conn.run_sync(Base.metadata.create_all)
+        #     logger.info("MIGRATION: Schema sync complete.")
             
         # 2. Run DDL statements one by one, each in its own transaction block
         statements = [

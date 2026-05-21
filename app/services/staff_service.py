@@ -44,7 +44,6 @@ class StaffService:
         
         if not user:
             # Map the role string to core RoleEnum
-            from app.models.models import RoleEnum
             role_enum_val = RoleEnum.hospital_admin
             role_lower = role.lower()
             if "doctor" in role_lower:
@@ -122,7 +121,6 @@ class StaffService:
         
         # Retrieval of the invite object for the return (since create_invite returns strings)
         from app.models.onboarding import HospitalInvite
-        from app.services.onboarding_service import OnboardingService
         token_hash = OnboardingService._hash_token(raw_token)
         stmt = select(HospitalInvite).where(HospitalInvite.token_hash == token_hash)
         invite = (await db.execute(stmt)).scalar_one()

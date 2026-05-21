@@ -141,3 +141,71 @@ async def test_enterprise_onboarding_database_flow():
         status_resp = await client.get(f"/api/v1/onboarding/hospital-status/{hosp_id}")
         assert status_resp.json()["verification_status"] == VerificationStatusEnum.completed
         assert status_resp.json()["is_approved"] is True
+
+
+@pytest.mark.asyncio
+async def test_invite_staff_member_with_existing_user():
+    """Verify that invite_staff_member succeeds even if the user already exists in the database."""
+    from app.services.staff_service import StaffService
+    from app.models.models import User, RoleEnum, StaffProfile, Hospital
+    
+    async with TestingSessionLocal() as db:
+        # Create a mock hospital first
+        hospital = Hospital(
+            id=uuid.uuid4(),
+            hospyn_id="HOSP-1234",
+            short_code="HOSP12",
+            name="Test Hospital",
+            registration_number="REG12345"
+        )
+        db.add(hospital)
+        await db.flush()
+        
+        # Create an existing user (e.g. inviter)
+        inviter = User(
+            id=uuid.uuid4(),
+            email="inviter@test.com",
+            hashed_password="hashed_pass",
+            role=RoleEnum.admin,
+            is_active=True
+        )
+        db.add(inviter)
+        await db.flush()
+        
+        # Give inviter a staff profile
+        inviter_staff = StaffProfile(
+            user_id=inviter.id,
+            hospital_id=hospital.id,
+            job_title="Admin"
+        )
+        db.add(inviter_staff)
+        await db.flush()
+        
+        # Create a target user that ALREADY exists (the staff member we want to invite)
+        existing_staff_email = "existing_staff@test.com"
+        existing_user = User(
+            id=uuid.uuid4(),
+            email=existing_staff_email,
+            hashed_password="hashed_pass",
+            role=RoleEnum.doctor,
+            is_active=True
+        )
+        db.add(existing_user)
+        await db.flush()
+        
+        # Invite this existing user - this previously threw UnboundLocalError
+        invite, raw_token, temp_password = await StaffService.invite_staff_member(
+            db=db,
+            inviter_user_id=inviter.id,
+            hospital_id=hospital.id,
+            hospital_hospyn_id="HOSP-1234",
+            email=existing_staff_email,
+            role="doctor",
+            phone_number="+919999999999",
+            specialty="Cardiology",
+            job_title="Senior Cardiologist"
+        )
+        
+        assert invite is not None
+        assert raw_token is not None
+        assert temp_password is not None

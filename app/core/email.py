@@ -20,9 +20,12 @@ def send_staff_invite_email(to_email: str, staff_name: str, role: str, portal_ur
     
     if not all([smtp_server, smtp_port, smtp_username, smtp_password]):
         logger.warning(f"SMTP is not configured in .env. Email dispatch simulated for {to_email}.")
-        # Dump to outbox file for local verification
-        with open("local_outbox.log", "a") as f:
-            f.write(f"\n--- EMAIL DISPATCH ---\nTo: {to_email}\nRole: {role}\nURL: {portal_url}\nPass: {temp_password}\n----------------------\n")
+        # Dump to outbox file for local verification, safe for read-only containers
+        try:
+            with open("local_outbox.log", "a") as f:
+                f.write(f"\n--- EMAIL DISPATCH ---\nTo: {to_email}\nRole: {role}\nURL: {portal_url}\nPass: {temp_password}\n----------------------\n")
+        except Exception as file_err:
+            logger.warning(f"Unable to write to local_outbox.log (simulated for {to_email}): {file_err}")
         return False
 
     try:
@@ -59,7 +62,10 @@ def send_staff_invite_email(to_email: str, staff_name: str, role: str, portal_ur
         return True
     except Exception as e:
         logger.error(f"EMAIL_DISPATCH_FAILED for {to_email}: {str(e)}")
-        # Dump to outbox file as fallback
-        with open("local_outbox.log", "a") as f:
-            f.write(f"\n--- EMAIL DISPATCH (FAILED SEND) ---\nTo: {to_email}\nRole: {role}\nURL: {portal_url}\nPass: {temp_password}\n----------------------\n")
+        # Dump to outbox file as fallback, safe for read-only containers
+        try:
+            with open("local_outbox.log", "a") as f:
+                f.write(f"\n--- EMAIL DISPATCH (FAILED SEND) ---\nTo: {to_email}\nRole: {role}\nURL: {portal_url}\nPass: {temp_password}\n----------------------\n")
+        except Exception as file_err:
+            logger.warning(f"Unable to write to local_outbox.log (fallback for {to_email}): {file_err}")
         return False
