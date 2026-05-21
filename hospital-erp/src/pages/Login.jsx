@@ -80,6 +80,7 @@ const Login = () => {
                   className="w-full bg-black/40 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-slate-600 outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all font-medium"
                   placeholder="Enter username or email"
                   required
+                  autoComplete="off"
                 />
               </div>
             </div>
@@ -97,6 +98,7 @@ const Login = () => {
                   className="w-full bg-black/40 border border-white/5 rounded-2xl py-4 pl-12 pr-12 text-white placeholder-slate-600 outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all font-medium"
                   placeholder="••••••••"
                   required
+                  autoComplete="off"
                 />
                 <button 
                   type="button"

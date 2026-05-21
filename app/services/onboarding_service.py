@@ -23,7 +23,10 @@ class OnboardingService:
         created_by: uuid.UUID,
         ip_address: Optional[str] = None,
         role: str = "hospital_admin",
-        expires_in_hours: int = 24
+        expires_in_hours: int = 24,
+        phone_number: Optional[str] = None,
+        specialty: Optional[str] = None,
+        job_title: Optional[str] = None
     ) -> Tuple[str, str]:
         """
         Generates a raw token and stores its hash.
@@ -42,7 +45,10 @@ class OnboardingService:
             expires_at=expires_at,
             hospyn_id=hospyn_id,
             created_by=created_by,
-            ip_address=ip_address
+            ip_address=ip_address,
+            phone_number=phone_number,
+            specialty=specialty,
+            job_title=job_title
         )
         
         db.add(invite)

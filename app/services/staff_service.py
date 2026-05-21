@@ -23,11 +23,90 @@ class StaffService:
         hospital_hospyn_id: str,
         email: str,
         role: str,
+        phone_number: Optional[str] = None,
+        specialty: Optional[str] = None,
+        job_title: Optional[str] = None,
+        first_name: Optional[str] = "Staff",
+        last_name: Optional[str] = "Member",
         department_id: Optional[uuid.UUID] = None
-    ) -> HospitalInvite:
+    ):
         """
-        Creates a secure invitation for a new staff member (Doctor, Nurse, Pharmacist).
+        Creates a secure invitation for a new staff member and provisions their account instantly.
         """
+        # Check if user already exists
+        stmt_u = select(User).where(User.email == email)
+        user = (await db.execute(stmt_u)).scalars().first()
+        
+        import secrets
+        from app.core.security import get_password_hash
+        
+        temp_password = f"Temp-{secrets.token_hex(4).upper()}!"
+        
+        if not user:
+            # Map the role string to core RoleEnum
+            from app.models.models import RoleEnum
+            role_enum_val = RoleEnum.hospital_admin
+            role_lower = role.lower()
+            if "doctor" in role_lower:
+                role_enum_val = RoleEnum.doctor
+            elif "nurse" in role_lower:
+                role_enum_val = RoleEnum.nurse
+            elif "receptionist" in role_lower:
+                role_enum_val = RoleEnum.receptionist
+            elif "lab" in role_lower or "technician" in role_lower:
+                role_enum_val = RoleEnum.lab
+            elif "pharmacist" in role_lower or "pharmacy" in role_lower:
+                role_enum_val = RoleEnum.pharmacy
+            
+            user = User(
+                email=email,
+                hashed_password=get_password_hash(temp_password),
+                role=role_enum_val,
+                hospyn_id=hospital_hospyn_id,
+                first_name=first_name,
+                last_name=last_name,
+                is_active=True,
+                is_temporary_password=True
+            )
+            db.add(user)
+            await db.flush()
+            
+        # Create Staff Profile instantly
+        from app.models.models import StaffProfile, Doctor
+        stmt_sp = select(StaffProfile).where(StaffProfile.user_id == user.id)
+        staff_prof = (await db.execute(stmt_sp)).scalars().first()
+        if not staff_prof:
+            staff_prof = StaffProfile(
+                user_id=user.id,
+                hospital_id=hospital_id,
+                department_id=department_id,
+                phone_number=phone_number,
+                specialty=specialty,
+                job_title=job_title
+            )
+            db.add(staff_prof)
+            await db.flush()
+        else:
+            staff_prof.phone_number = phone_number
+            staff_prof.specialty = specialty
+            staff_prof.job_title = job_title
+            if department_id:
+                staff_prof.department_id = department_id
+                
+        # If doctor, also ensure Doctor profile exists
+        if user.role.value == "doctor" or user.role == RoleEnum.doctor:
+            stmt_doc = select(Doctor).where(Doctor.user_id == user.id)
+            doc_prof = (await db.execute(stmt_doc)).scalars().first()
+            if not doc_prof:
+                doc_prof = Doctor(
+                    user_id=user.id,
+                    specialty=specialty or "General Medicine",
+                    license_number=f"LIC-{secrets.token_hex(4).upper()}",
+                    license_status="verified"
+                )
+                db.add(doc_prof)
+                await db.flush()
+
         # Call OnboardingService with CORRECT ARGUMENTS and ORDER
         raw_token, onboarding_url = await OnboardingService.create_invite(
             db,
@@ -35,7 +114,10 @@ class StaffService:
             email=email,
             hospyn_id=hospital_hospyn_id,
             created_by=inviter_user_id,
-            role=role
+            role=role,
+            phone_number=phone_number,
+            specialty=specialty,
+            job_title=job_title
         )
         
         # Retrieval of the invite object for the return (since create_invite returns strings)
@@ -45,8 +127,10 @@ class StaffService:
         stmt = select(HospitalInvite).where(HospitalInvite.token_hash == token_hash)
         invite = (await db.execute(stmt)).scalar_one()
 
-        logger.info(f"STAFFING: New {role} invited to {hospital_hospyn_id} | Email: {email}")
-        return invite
+        await db.commit()
+
+        logger.info(f"STAFFING: New {role} invited to {hospital_hospyn_id} | Email: {email} | Instant user created")
+        return invite, raw_token, temp_password
 
     @classmethod
     async def get_hospital_staff(

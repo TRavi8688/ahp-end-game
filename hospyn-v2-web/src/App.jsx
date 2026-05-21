@@ -161,6 +161,7 @@ const LedgerLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
                 setError('');
               }}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:border-violet-400 focus:bg-white transition-all font-semibold"
+              autoComplete="off"
             />
           </div>
 
@@ -175,6 +176,7 @@ const LedgerLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
                 setError('');
               }}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs outline-none focus:border-violet-400 focus:bg-white transition-all font-semibold font-mono"
+              autoComplete="off"
             />
           </div>
 
@@ -276,8 +278,12 @@ export default function App() {
   const [staffPhone, setStaffPhone] = useState('');
   const [staffLicense, setStaffLicense] = useState('');
   const [staffSpecialty, setStaffSpecialty] = useState('Cardiology');
+  const [staffJobTitle, setStaffJobTitle] = useState('');
   const [staffNationalId, setStaffNationalId] = useState('');
   const [staffBranch, setStaffBranch] = useState('Delhi Branch');
+  
+  const [activeSpecialties, setActiveSpecialties] = useState(['Cardiology', 'Neurology', 'Pediatrics', 'Orthopedics', 'General Medicine']);
+  const [activeRoles, setActiveRoles] = useState(['doctor', 'nurse', 'receptionist', 'lab', 'pharmacist', 'hr_manager', 'admin']);
   
   const [staffRecords, setStaffRecords] = useState([]);
 
@@ -290,6 +296,35 @@ export default function App() {
 
     try {
       const token = localStorage.getItem('hospyn_owner_token');
+      
+      let dbRole = 'nurse';
+      let specialtyVal = '';
+      let jobTitleVal = '';
+
+      if (staffRole === 'doctor') {
+        dbRole = 'doctor';
+        specialtyVal = staffSpecialty;
+        jobTitleVal = `${staffSpecialty} Specialist`;
+      } else if (staffRole === 'nurse') {
+        dbRole = 'nurse';
+        jobTitleVal = staffJobTitle || 'General Nurse';
+      } else if (staffRole === 'receptionist') {
+        dbRole = 'receptionist';
+        jobTitleVal = staffJobTitle || 'Front Desk Receptionist';
+      } else if (staffRole === 'lab') {
+        dbRole = 'lab';
+        jobTitleVal = staffJobTitle || 'Lab Specialist';
+      } else if (staffRole === 'pharmacist') {
+        dbRole = 'pharmacy';
+        jobTitleVal = 'Pharmacist';
+      } else if (staffRole === 'admin') {
+        dbRole = 'admin';
+        jobTitleVal = 'Administrator';
+      } else if (staffRole === 'hr_manager') {
+        dbRole = 'hospital_admin';
+        jobTitleVal = 'HR Manager';
+      }
+
       // Call the actual backend API to send real email and register user
       const res = await fetch(`${API_BASE}/staff/invites`, {
         method: 'POST',
@@ -297,7 +332,14 @@ export default function App() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ email: staffEmail, role: staffRole })
+        body: JSON.stringify({
+          email: staffEmail,
+          role: dbRole,
+          full_name: staffName,
+          phone_number: staffPhone,
+          specialty: specialtyVal || undefined,
+          job_title: jobTitleVal || undefined
+        })
       });
       
       if (!res.ok) {
@@ -309,18 +351,18 @@ export default function App() {
       const data = await res.json();
       
       let portal_prefix = "staff"; 
-      if (staffRole === "doctor") portal_prefix = "doctor";
-      else if (staffRole === "pharmacist") portal_prefix = "pharmacy";
-      else if (staffRole === "hr_manager") portal_prefix = "hr";
-      else if (staffRole === "admin") portal_prefix = "admin";
+      if (dbRole === "doctor") portal_prefix = "doctor";
+      else if (dbRole === "pharmacy") portal_prefix = "pharmacy";
+      else if (dbRole === "hospital_admin" || dbRole === "admin") portal_prefix = "admin";
+      else if (dbRole === "receptionist" || dbRole === "lab") portal_prefix = "staff";
 
       const portal_url = `https://${portal_prefix}.hospyn.com`;
       const newRecord = {
         name: staffName,
         email: staffEmail,
-        role: staffRole,
+        role: dbRole,
         staff_id: data.staff_id || "GENERATED-BY-BACKEND",
-        temporary_password: data.temporary_password || "Sent via Email",
+        temporary_password: data.temp_password || "Sent via Email",
         dedicated_portal_url: portal_url,
         credentials_email_status: 'dispatched',
         hospitalName: localStorage.getItem('hospyn_org_name') || 'Hospyn Sovereign Node'
@@ -336,6 +378,7 @@ export default function App() {
       setStaffPhone('');
       setStaffLicense('');
       setStaffNationalId('');
+      setStaffJobTitle('');
     } catch (err) {
       alert("Error adding staff: " + err.message);
     }
@@ -1684,78 +1727,279 @@ export default function App() {
                   <p className="text-xs text-slate-500 mt-1">Generate unique, secure access credentials and map dynamic routing profiles for new staff.</p>
                 </div>
 
+                {/* Tailor IAM Cockpit Profiles (Smart Customization) */}
+                <div className="bg-slate-50/60 backdrop-blur-sm border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-6">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-600 font-bold text-sm">
+                      ⚙️
+                    </span>
+                    <div>
+                      <h3 className="font-bold text-slate-950 text-xs uppercase tracking-wider">Tailor IAM Cockpit Profiles</h3>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Configure your hospital's operational focus. Toggled items instantly filter options in the recruitment form below.</p>
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {/* Active Specialties */}
+                    <div className="space-y-3">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Supported Specialties & Departments</span>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { name: 'Cardiology', color: 'from-pink-500/10 to-rose-500/10 border-pink-200/80 text-rose-700' },
+                          { name: 'Neurology', color: 'from-purple-500/10 to-indigo-500/10 border-purple-200/80 text-indigo-700' },
+                          { name: 'Pediatrics', color: 'from-amber-500/10 to-orange-500/10 border-amber-200/80 text-amber-700' },
+                          { name: 'Orthopedics', color: 'from-teal-500/10 to-emerald-500/10 border-teal-200/80 text-emerald-700' },
+                          { name: 'General Medicine', color: 'from-sky-500/10 to-blue-500/10 border-sky-200/80 text-blue-700' }
+                        ].map((spec) => {
+                          const isSelected = activeSpecialties.includes(spec.name);
+                          return (
+                            <button
+                              key={spec.name}
+                              type="button"
+                              onClick={() => {
+                                let updated;
+                                if (isSelected) {
+                                  updated = activeSpecialties.filter(x => x !== spec.name);
+                                } else {
+                                  updated = [...activeSpecialties, spec.name];
+                                }
+                                setActiveSpecialties(updated);
+                                if (staffSpecialty === spec.name && isSelected && updated.length > 0) {
+                                  setStaffSpecialty(updated[0]);
+                                }
+                              }}
+                              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 cursor-pointer flex items-center gap-1.5 select-none ${
+                                isSelected 
+                                  ? `bg-gradient-to-r ${spec.color} shadow-sm active:scale-95` 
+                                  : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                              }`}
+                            >
+                              <span>{isSelected ? '✓' : '+'}</span>
+                              <span>{spec.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Active Roles */}
+                    <div className="space-y-3">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Available Staff Roles</span>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { id: 'doctor', name: 'Doctor Profile' },
+                          { id: 'nurse', name: 'Nurse Profile' },
+                          { id: 'receptionist', name: 'Receptionist' },
+                          { id: 'lab', name: 'Lab Specialist' },
+                          { id: 'pharmacist', name: 'Pharmacist' },
+                          { id: 'hr_manager', name: 'HR Manager' },
+                          { id: 'admin', name: 'Administrator' }
+                        ].map((role) => {
+                          const isSelected = activeRoles.includes(role.id);
+                          return (
+                            <button
+                              key={role.id}
+                              type="button"
+                              onClick={() => {
+                                let updated;
+                                if (isSelected) {
+                                  updated = activeRoles.filter(x => x !== role.id);
+                                } else {
+                                  updated = [...activeRoles, role.id];
+                                }
+                                setActiveRoles(updated);
+                                if (staffRole === role.id && isSelected && updated.length > 0) {
+                                  setStaffRole(updated[0]);
+                                }
+                              }}
+                              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 cursor-pointer flex items-center gap-1.5 select-none ${
+                                isSelected 
+                                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm active:scale-95' 
+                                  : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                              }`}
+                            >
+                              <span>{isSelected ? '✓' : '+'}</span>
+                              <span>{role.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="grid md:grid-cols-3 gap-8">
                   {/* Dynamic Onboarding Form */}
-                  <form onSubmit={handleAddStaffDynamic} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                    <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Provision Staff Member</h3>
+                  <form onSubmit={handleAddStaffDynamic} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4" autoComplete="off">
+                    <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Smart Staff Provisioner</h3>
                     
                     <div className="space-y-1">
-                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Staff Role</label>
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Profile Category *</label>
                       <select 
                         value={staffRole} 
-                        onChange={(e)=>setStaffRole(e.target.value)}
+                        onChange={(e)=>{
+                          setStaffRole(e.target.value);
+                          setStaffJobTitle('');
+                        }}
                         className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-primary cursor-pointer"
+                        autoComplete="new-password"
                       >
-                        <option value="doctor">Doctor (doctor.hospyn.com)</option>
-                        <option value="nurse">Nurse (staff.hospyn.com)</option>
-                        <option value="pharmacist">Pharmacist (pharmacy.hospyn.com)</option>
-                        <option value="hr_manager">HR Manager (hr.hospyn.com)</option>
-                        <option value="admin">Administrator (admin.hospyn.com)</option>
+                        {activeRoles.includes('doctor') && <option value="doctor">Doctor Profile (doctor.hospyn.com)</option>}
+                        {activeRoles.includes('nurse') && <option value="nurse">Nurse Profile (staff.hospyn.com)</option>}
+                        {activeRoles.includes('receptionist') && <option value="receptionist">Receptionist / Front Desk (staff.hospyn.com)</option>}
+                        {activeRoles.includes('lab') && <option value="lab">Lab / Diagnostics Specialist (staff.hospyn.com)</option>}
+                        {activeRoles.includes('pharmacist') && <option value="pharmacist">Pharmacist Profile (pharmacy.hospyn.com)</option>}
+                        {activeRoles.includes('hr_manager') && <option value="hr_manager">HR Manager Profile (hr.hospyn.com)</option>}
+                        {activeRoles.includes('admin') && <option value="admin">Administrator Profile (admin.hospyn.com)</option>}
                       </select>
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Full Name</label>
-                      <input className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" placeholder="Dr. Vivek Sharma" required value={staffName} onChange={(e)=>setStaffName(e.target.value)}/>
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Full Name *</label>
+                      <input 
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" 
+                        placeholder="Enter full name" 
+                        required 
+                        value={staffName} 
+                        onChange={(e)=>setStaffName(e.target.value)}
+                        autoComplete="new-password"
+                      />
                     </div>
 
                     <div className="space-y-1">
-                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Official Email</label>
-                      <input className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" placeholder="vivek@hospyn.com" required type="email" value={staffEmail} onChange={(e)=>setStaffEmail(e.target.value)}/>
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Official Email Address *</label>
+                      <input 
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" 
+                        placeholder="Enter email address" 
+                        required 
+                        type="email" 
+                        value={staffEmail} 
+                        onChange={(e)=>setStaffEmail(e.target.value)}
+                        autoComplete="new-password"
+                      />
                     </div>
 
-                    {/* Dynamic Fields based on Role Selection */}
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Mobile Phone Number *</label>
+                      <input 
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" 
+                        placeholder="Enter mobile (e.g. +91 9876543210)" 
+                        required 
+                        type="tel" 
+                        value={staffPhone} 
+                        onChange={(e)=>setStaffPhone(e.target.value)}
+                        autoComplete="new-password"
+                      />
+                    </div>
+
+                    {/* Dynamic Smart Sub-profiles based on Role Selection */}
                     {staffRole === 'doctor' && (
-                      <div className="space-y-3">
+                      <div className="space-y-3 border-t border-slate-100 pt-3">
                         <div className="space-y-1">
-                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">License Number</label>
-                          <input className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" placeholder="MCI-12345" required value={staffLicense} onChange={(e)=>setStaffLicense(e.target.value)}/>
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Medical License Number *</label>
+                          <input 
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" 
+                            placeholder="MCI-XXXXX" 
+                            required 
+                            value={staffLicense} 
+                            onChange={(e)=>setStaffLicense(e.target.value)}
+                            autoComplete="new-password"
+                          />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Specialty</label>
-                          <select className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" value={staffSpecialty} onChange={(e)=>setStaffSpecialty(e.target.value)}>
-                            <option value="Cardiology">Cardiology</option>
-                            <option value="Neurology">Neurology</option>
-                            <option value="Pediatrics">Pediatrics</option>
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Doctor Specialty Profile *</label>
+                          <select 
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary font-bold" 
+                            value={staffSpecialty} 
+                            onChange={(e)=>setStaffSpecialty(e.target.value)}
+                          >
+                            {activeSpecialties.includes('Cardiology') && <option value="Cardiology">Cardiology Department</option>}
+                            {activeSpecialties.includes('Neurology') && <option value="Neurology">Neurology Department</option>}
+                            {activeSpecialties.includes('Pediatrics') && <option value="Pediatrics">Pediatrics Department</option>}
+                            {activeSpecialties.includes('Orthopedics') && <option value="Orthopedics">Orthopedics Department</option>}
+                            {activeSpecialties.includes('General Medicine') && <option value="General Medicine">General Medicine Department</option>}
                           </select>
                         </div>
                       </div>
                     )}
 
                     {staffRole === 'nurse' && (
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Nursing Registry Code</label>
-                        <input className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" placeholder="NUR-9021" required value={staffLicense} onChange={(e)=>setStaffLicense(e.target.value)}/>
+                      <div className="space-y-3 border-t border-slate-100 pt-3">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Nursing Registry Code *</label>
+                          <input 
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" 
+                            placeholder="NUR-XXXXX" 
+                            required 
+                            value={staffLicense} 
+                            onChange={(e)=>setStaffLicense(e.target.value)}
+                            autoComplete="new-password"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Nurse Profile Type *</label>
+                          <select 
+                            value={staffJobTitle} 
+                            onChange={(e)=>setStaffJobTitle(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary font-bold cursor-pointer"
+                          >
+                            <option value="General Nurse">General Nurse</option>
+                            <option value="ICU Nurse">ICU Nurse</option>
+                            <option value="ER Nurse">ER Nurse</option>
+                            <option value="Ward Nurse">Ward Nurse</option>
+                          </select>
+                        </div>
                       </div>
                     )}
 
-                    {staffRole === 'general' && (
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">National Government ID</label>
-                        <input className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" placeholder="UID-9012" required value={staffNationalId} onChange={(e)=>setStaffNationalId(e.target.value)}/>
+                    {staffRole === 'receptionist' && (
+                      <div className="space-y-3 border-t border-slate-100 pt-3">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Receptionist Profile Type *</label>
+                          <select 
+                            value={staffJobTitle} 
+                            onChange={(e)=>setStaffJobTitle(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary font-bold cursor-pointer"
+                          >
+                            <option value="Front Desk Receptionist">Front Desk Receptionist</option>
+                            <option value="Admissions Clerk">Admissions Clerk</option>
+                            <option value="Billing Assistant">Billing Assistant</option>
+                          </select>
+                        </div>
                       </div>
                     )}
 
-                    <div className="space-y-1">
+                    {staffRole === 'lab' && (
+                      <div className="space-y-3 border-t border-slate-100 pt-3">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Lab Specialist Profile Type *</label>
+                          <select 
+                            value={staffJobTitle} 
+                            onChange={(e)=>setStaffJobTitle(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary font-bold cursor-pointer"
+                          >
+                            <option value="Lab Technician">Lab Technician</option>
+                            <option value="Pathologist">Pathologist</option>
+                            <option value="Radiologist">Radiologist</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-1 border-t border-slate-100 pt-3">
                       <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Hospital Branch Assignment</label>
-                      <select className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" value={staffBranch} onChange={(e)=>setStaffBranch(e.target.value)}>
+                      <select 
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary cursor-pointer font-medium" 
+                        value={staffBranch} 
+                        onChange={(e)=>setStaffBranch(e.target.value)}
+                      >
                         <option value="Delhi Branch">Delhi Branch</option>
                         <option value="Mumbai Branch">Mumbai Branch</option>
                       </select>
                     </div>
 
-                    <button type="submit" className="w-full py-3 bg-primary text-white font-bold text-xs uppercase tracking-widest rounded-lg hover:bg-blue-700 transition-colors">
-                      Onboard Staff Member
+                    <button type="submit" className="w-full py-3 bg-primary text-white font-bold text-xs uppercase tracking-widest rounded-lg hover:bg-blue-700 transition-all duration-200 hover:shadow-md active:scale-[0.98]">
+                      Onboard Staff Member Instantly
                     </button>
                   </form>
 

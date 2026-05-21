@@ -20,3 +20,6 @@ class HospitalInvite(Base):
     created_by: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), nullable=True)
     ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True) # IPv6 support
     used_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    phone_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    specialty: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    job_title: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)

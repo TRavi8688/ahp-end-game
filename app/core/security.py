@@ -35,6 +35,7 @@ def create_access_token(
     dept_scope: Optional[List[uuid.UUID]] = None,
     token_version: int = 1,
     expires_delta: Optional[timedelta] = None,
+    is_temporary_password: bool = False,
 ) -> str:
     """
     Creates a cryptographically signed JWT.
@@ -57,6 +58,7 @@ def create_access_token(
         "type": "access",
         "iss": settings.PROJECT_NAME,
         "aud": settings.JWT_AUDIENCE,
+        "is_temporary_password": is_temporary_password,
     }
     
     # 1. Prefer RS256 for Production

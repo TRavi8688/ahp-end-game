@@ -25,3 +25,17 @@ async def test_ai_timeout_reduction():
     # Check if timeout is 10s
     assert client.timeout.connect == 10.0
     assert client.timeout.read == 10.0
+
+@pytest.mark.asyncio
+async def test_is_temporary_password_claim():
+    user_id = str(uuid.uuid4())
+    
+    # 1. Access token created with is_temporary_password=True should preserve the claim in payload
+    access_token = create_access_token(user_id, role="nurse", is_temporary_password=True)
+    payload = decode_token(access_token, token_type="access")
+    assert payload["is_temporary_password"] is True
+
+    # 2. Access token created with is_temporary_password=False should set the claim to False
+    access_token_sec = create_access_token(user_id, role="nurse", is_temporary_password=False)
+    payload_sec = decode_token(access_token_sec, token_type="access")
+    assert payload_sec.get("is_temporary_password") is False

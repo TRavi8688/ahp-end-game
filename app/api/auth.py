@@ -145,7 +145,7 @@ async def register(
         await db.commit()
         await db.refresh(new_user)
         
-        access_token = security.create_access_token(new_user.id, new_user.role, token_version=new_user.token_version)
+        access_token = security.create_access_token(new_user.id, new_user.role, token_version=new_user.token_version, is_temporary_password=getattr(new_user, 'is_temporary_password', False))
         refresh_token = security.create_refresh_token(new_user.id, new_user.role, token_version=new_user.token_version)
         
         await log_audit_action(
@@ -195,16 +195,18 @@ async def login(
 
     
     alt_identifier = f"+91{identifier}" if not identifier.startswith("+") else identifier.replace("+91", "")
-    from app.models.models import User, Patient
+    from app.models.models import User, Patient, StaffProfile
     from sqlalchemy import or_
 
     
-    stmt = select(User).join(Patient, isouter=True).where(
+    stmt = select(User).join(Patient, isouter=True).join(StaffProfile, isouter=True).where(
         or_(
             User.email == identifier,
             User.email == alt_identifier,
             Patient.phone_number == identifier,
             Patient.phone_number == alt_identifier,
+            StaffProfile.phone_number == identifier,
+            StaffProfile.phone_number == alt_identifier,
             func.lower(User.hospyn_id) == identifier.lower(),
             func.lower(Patient.hospyn_id) == identifier.lower()
         )
@@ -231,7 +233,7 @@ async def login(
         throw_auth_exception("Account is deactivated. Please contact support.")
 
     # 3. SESSION ISSUANCE
-    access_token = security.create_access_token(user.id, user.role, token_version=user.token_version)
+    access_token = security.create_access_token(user.id, user.role, token_version=user.token_version, is_temporary_password=getattr(user, 'is_temporary_password', False))
     refresh_token = security.create_refresh_token(user.id, user.role, token_version=user.token_version)
     
     await log_audit_action(
@@ -337,7 +339,7 @@ async def google_login(
             logger.info(f"GOOGLE_REGISTRATION_SUCCESS: Email={email}")
         
         # Issue tokens
-        access_token = security.create_access_token(user.id, user.role, token_version=user.token_version)
+        access_token = security.create_access_token(user.id, user.role, token_version=user.token_version, is_temporary_password=getattr(user, 'is_temporary_password', False))
         refresh_token = security.create_refresh_token(user.id, user.role, token_version=user.token_version)
         
         await log_audit_action(
@@ -497,11 +499,16 @@ async def verify_otp(
             
         # 3. Retrieve User
         alt_identifier = f"+91{req.identifier}" if not req.identifier.startswith("+") else req.identifier.replace("+91", "")
+        from app.models.models import StaffProfile
         result = await db.execute(
-            select(models.User).where(
+            select(models.User).join(models.Patient, isouter=True).join(StaffProfile, isouter=True).where(
                 or_(
                     models.User.email == req.identifier,
-                    models.User.email == alt_identifier
+                    models.User.email == alt_identifier,
+                    models.Patient.phone_number == req.identifier,
+                    models.Patient.phone_number == alt_identifier,
+                    models.StaffProfile.phone_number == req.identifier,
+                    models.StaffProfile.phone_number == alt_identifier
                 )
             )
         )
@@ -515,7 +522,7 @@ async def verify_otp(
         user.is_active = True
         await db.commit()
         
-        access_token = security.create_access_token(user.id, user.role, token_version=user.token_version)
+        access_token = security.create_access_token(user.id, user.role, token_version=user.token_version, is_temporary_password=getattr(user, 'is_temporary_password', False))
         refresh_token = security.create_refresh_token(user.id, user.role, token_version=user.token_version)
         
         # Resolve hospyn_id safely (relationship name is 'patient', NOT 'patient_profile')
@@ -731,6 +738,7 @@ async def change_password(
         raise HTTPException(status_code=400, detail="Incorrect current password")
         
     current_user.hashed_password = security.get_password_hash(req.new_password)
+    current_user.is_temporary_password = False
     # Intentionally NOT incrementing token_version so their current session survives
     
     await log_audit_action(

@@ -18,6 +18,8 @@ class RoleEnum(str, enum.Enum):
     nurse = "nurse"
     pharmacy = "pharmacy"
     hospital_admin = "hospital_admin"
+    receptionist = "receptionist"
+    lab = "lab"
 
 class LicenseStatusEnum(str, enum.Enum):
     pending = "pending"
@@ -136,6 +138,7 @@ class User(Base):
     first_name: Mapped[Optional[str]] = mapped_column(String(100))
     last_name: Mapped[Optional[str]] = mapped_column(String(100))
     is_active: Mapped[bool] = mapped_column(default=True)
+    is_temporary_password: Mapped[bool] = mapped_column(default=False)
     # --- Enterprise: JWT Revocation ---
     # Incrementing this field instantly invalidates ALL existing tokens for
     # this user without a token blacklist. One-click revoke for any staff.
@@ -323,6 +326,10 @@ class StaffProfile(Base):
     department_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("departments.id"))
     
     branch_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("hospital_branches.id"), nullable=True)
+    
+    phone_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    specialty: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    job_title: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     
     user: Mapped["User"] = relationship(back_populates="staff_profile")
     hospital: Mapped["Hospital"] = relationship(back_populates="staff")
