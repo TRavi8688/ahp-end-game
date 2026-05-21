@@ -27,9 +27,15 @@ async def invite_staff(
 ):
     """Hospital-side invitation endpoint. Only Owners and HR can invite staff."""
     from app.core.audit import log_clinical_audit
+    from app.models.models import StaffProfile
+    from sqlalchemy import select
+    
+    # Query staff profile explicitly using current db session to avoid lazy loading / detached session 500 errors
+    stmt_sp = select(StaffProfile).where(StaffProfile.user_id == current_user.id)
+    staff_profile = (await db.execute(stmt_sp)).scalars().first()
     
     # 1. Trigger Invitation
-    if not current_user.staff_profile:
+    if not staff_profile:
          raise HTTPException(status_code=400, detail="Inviter has no linked hospital profile.")
 
     # Parsing full name into first/last
@@ -44,7 +50,7 @@ async def invite_staff(
     invite, raw_token, temp_password = await StaffService.invite_staff_member(
         db,
         inviter_user_id=current_user.id,
-        hospital_id=current_user.staff_profile.hospital_id,
+        hospital_id=staff_profile.hospital_id,
         hospital_hospyn_id=current_user.hospyn_id or "HOSPYN-GENERIC",
         email=invite_data.email,
         role=invite_data.role,
@@ -89,9 +95,15 @@ async def list_staff(
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Returns the list of all staff members in the hospital."""
-    if not current_user.staff_profile:
+    from app.models.models import StaffProfile
+    from sqlalchemy import select
+    
+    stmt_sp = select(StaffProfile).where(StaffProfile.user_id == current_user.id)
+    staff_profile = (await db.execute(stmt_sp)).scalars().first()
+    
+    if not staff_profile:
         return []
-    profiles = await StaffService.get_hospital_staff(db, current_user.staff_profile.hospital_id)
+    profiles = await StaffService.get_hospital_staff(db, staff_profile.hospital_id)
     
     # Safe serialization to ensure nested 'user' object is always delivered to frontend
     results = []
