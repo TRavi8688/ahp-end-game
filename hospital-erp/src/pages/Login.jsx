@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://hospyn-api-7ixs2fhkna-el.a.run.app/api/v1';
 
 const Login = () => {
   const [identifier, setIdentifier] = useState('');

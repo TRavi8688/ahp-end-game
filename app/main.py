@@ -101,14 +101,14 @@ async def security_headers_middleware(request: Request, call_next):
     # Enable XSS protection
     response.headers["X-XSS-Protection"] = "1; mode=block"
     
-    # Content Security Policy (Allowing documentation CDNs and local development)
+    # Content Security Policy (Cloud-first: allows GCP Cloud Run and Firebase Hosting origins)
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "
         "script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
         "style-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
         "img-src 'self' data: https: fastly.jsdelivr.net; "
         "font-src 'self' cdn.jsdelivr.net; "
-        "connect-src 'self' http://localhost:8000 http://localhost:8080; "
+        "connect-src 'self' https://hospyn-api-7ixs2fhkna-el.a.run.app https://hospyn-495906-api-7ixs2fhkna-uc.a.run.app https://*.web.app https://*.firebaseapp.com; "
         "frame-ancestors 'none'"
     )
     
@@ -116,7 +116,7 @@ async def security_headers_middleware(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     
     # Permissions policy (formerly Feature-Policy)
-    response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    response.headers["Permissions-Policy"] = "geolocation=(self), microphone=(), camera=(self)"
     
     # HSTS (Strict-Transport-Security) - only in production
     if settings.ENVIRONMENT == "production":

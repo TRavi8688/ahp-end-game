@@ -12,7 +12,7 @@ const getBaseUrl = () => {
                 return 'http://10.0.2.2:8000';
             }
         } catch (e) {}
-        return 'http://localhost:8000';
+        return 'https://hospyn-api-7ixs2fhkna-el.a.run.app';
     }
     return 'https://hospyn-495906-api-625745217419.us-central1.run.app';
 };
