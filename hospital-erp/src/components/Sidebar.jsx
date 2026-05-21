@@ -74,6 +74,7 @@ const Sidebar = () => {
         {settings.enable_labs && <NavItem icon={FlaskConical} label="Laboratory" path="/lab" />}
         {settings.enable_pharmacy && <NavItem icon={Package} label="Pharmacy" path="/pharmacy" />}
         {settings.enable_billing && <NavItem icon={CreditCard} label="Billing" path="/billing" />}
+        <NavItem icon={Users} label="Staff Directory" path="/staff" />
         <NavItem icon={BarChart3} label="Intelligence" path="/analytics" />
         <NavItem icon={Settings} label="Settings" path="/settings" />
       </nav>

@@ -11,6 +11,7 @@ import AnalyticsDashboard from './pages/AnalyticsDashboard'
 import SettingsPage from './pages/SettingsPage'
 import WardDashboard from './pages/WardDashboard'
 import SurgeryDashboard from './pages/SurgeryDashboard'
+import StaffDashboard from './pages/StaffDashboard'
 import axios from 'axios'
 import { API_BASE_URL } from './api'
 import './App.css'
@@ -107,6 +108,7 @@ function App() {
           <Route path="/lab" element={<ProtectedRoute><LabDashboard /></ProtectedRoute>} />
           <Route path="/ward" element={<ProtectedRoute><WardDashboard /></ProtectedRoute>} />
           <Route path="/surgery" element={<ProtectedRoute><SurgeryDashboard /></ProtectedRoute>} />
+          <Route path="/staff" element={<ProtectedRoute><StaffDashboard /></ProtectedRoute>} />
           <Route path="/analytics" element={<ProtectedRoute><AnalyticsDashboard /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
           

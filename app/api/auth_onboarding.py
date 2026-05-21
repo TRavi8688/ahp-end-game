@@ -43,10 +43,18 @@ async def activate_professional_account(
         hospyn_id=invite.hospyn_id,
         is_active=True
     )
-    
     db.add(new_user)
+    await db.flush()
     
-    # 3. Mark the invite as used
+    # 3. Create Staff Profile
+    from app.models.models import StaffProfile
+    staff_prof = StaffProfile(
+        user_id=new_user.id,
+        hospital_id=invite.hospital_id
+    )
+    db.add(staff_prof)
+    
+    # 4. Mark the invite as used
     await OnboardingService.complete_onboarding(db, invite.id)
     await db.commit()
 
