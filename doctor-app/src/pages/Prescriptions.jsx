@@ -406,12 +406,17 @@ export default function Prescriptions() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
                 body: JSON.stringify({
-                    patient_id: selectedPatient.id,
+                    // Use UUID id field. If not present (older API), fall back to hospyn_id lookup
+                    patient_id: selectedPatient.id || selectedPatient.patient_id,
                     visit_id: location.state?.visitId || null,
-                    diagnosis, notes,
+                    diagnosis: diagnosis || null,
+                    notes: notes || null,
                     medications: medications.map(m => ({
-                        name: m.name, dosage: m.dose, frequency: m.frequency,
-                        duration: m.duration, instructions: notes
+                        name: m.name,
+                        dosage: m.dose || '1 tab',
+                        frequency: m.frequency || 'OD',
+                        duration: m.duration || 'As directed',
+                        instructions: notes || null
                     }))
                 })
             });
@@ -470,7 +475,7 @@ export default function Prescriptions() {
                             </Typography>
                             <Autocomplete
                                 options={patients}
-                                getOptionLabel={o => `${o.name} [${o.hospyn_id}]`}
+                                getOptionLabel={o => `${o.name} [${o.hospyn_id || o.id}]`}
                                 value={selectedPatient}
                                 disabled={!!preSelectedPatient}
                                 onChange={(e, v) => { setSelectedPatient(v); setConflict(null); }}

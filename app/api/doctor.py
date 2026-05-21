@@ -627,8 +627,12 @@ async def list_patients(
     patients = []
     for access, patient, user in result:
         patients.append({
+            "id": str(patient.id),           # UUID for prescription patient_id
             "hospyn_id": patient.hospyn_id,
             "name": f"{user.first_name} {user.last_name}",
+            "age": patient.age if hasattr(patient, 'age') else None,
+            "gender": patient.gender if hasattr(patient, 'gender') else None,
+            "blood_group": patient.blood_group if hasattr(patient, 'blood_group') else None,
             "access_level": access.access_level,
             "granted_at": access.granted_at
         })
