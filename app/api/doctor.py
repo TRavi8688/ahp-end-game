@@ -198,6 +198,7 @@ async def lookup_patient(
         
         return {
             "profile": {
+                "id": str(target_patient_id),   # UUID needed for prescriptions
                 "hospyn_id": hospyn_id, 
                 "name": masked_name
             },
@@ -329,6 +330,7 @@ async def lookup_patient(
 
     return {
         "profile": {
+            "id": str(target_patient_id),       # UUID for prescription patient_id
             "hospyn_id": hospyn_id, 
             "name": name,
             "age": age,
