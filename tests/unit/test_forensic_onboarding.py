@@ -5,9 +5,38 @@ import io
 import httpx
 from PIL import Image
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import sessionmaker
+
 from app.main import app
-from app.models.models import VerificationStatusEnum
+from app.models.models import Base, VerificationStatusEnum
+from app.core.database import get_db
 from app.api.v1.endpoints.onboarding import OTP_STORE
+
+DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+
+engine = create_async_engine(
+    DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
+TestingSessionLocal = sessionmaker(engine, autocommit=False, autoflush=False, expire_on_commit=False, class_=AsyncSession)
+
+async def override_get_db():
+    async with TestingSessionLocal() as session:
+        yield session
+
+@pytest.fixture(autouse=True)
+async def setup_db():
+    app.dependency_overrides[get_db] = override_get_db
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+    app.dependency_overrides.clear()
+
 
 def test_pan_card_regex_rules():
     """Verify that NSDL format requirements match Indian PAN standard structure."""
