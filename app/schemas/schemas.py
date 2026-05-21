@@ -79,6 +79,8 @@ class UserCreate(UserBase):
     date_of_birth: Optional[str] = None
     gender: Optional[str] = None
     blood_group: Optional[str] = None
+    facility_name: Optional[str] = None
+    license_number: Optional[str] = None
 
     @field_validator('password')
     @classmethod

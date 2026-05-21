@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Shield, CreditCard, Zap, X, UploadCloud, CheckCircle, 
@@ -46,9 +46,24 @@ const ActivationWizard = ({ isOpen, onClose, onActivationSuccess }) => {
   const [selfieCaptured, setSelfieCaptured] = useState(false);
   const [selfieBlob, setSelfieBlob] = useState(null);
   
-  // Dynamic Scanning & Simulated States
+  // Webcam capture refs
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
+
+  // Dynamic Scanning States
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [isOcrScanning, setIsOcrScanning] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
+
+  // Stop camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+      }
+    };
+  }, []);
   
   // OTP Verification States
   const [govtOtpCode, setGovtOtpCode] = useState('');
@@ -98,15 +113,45 @@ const ActivationWizard = ({ isOpen, onClose, onActivationSuccess }) => {
     }
   };
 
-  // Simulate webcam capture
-  const triggerCameraCapture = () => {
+  // Real webcam capture using MediaDevices API
+  const triggerCameraCapture = async () => {
+    setCameraError(null);
     setIsCameraActive(true);
-    setTimeout(() => {
-      const mockCanvasBlob = new Blob(["MOCK_WEBCAM_BIOMETRIC_SELFIE"], { type: 'image/jpeg' });
-      setSelfieBlob(mockCanvasBlob);
-      setSelfieCaptured(true);
+    setSelfieBlob(null);
+    setSelfieCaptured(false);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+    } catch (err) {
+      setCameraError('Camera access denied. Please allow camera permissions and try again.');
       setIsCameraActive(false);
-    }, 1500);
+    }
+  };
+
+  // Capture snapshot from live video feed
+  const captureSnapshot = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    canvas.toBlob((blob) => {
+      if (blob) {
+        setSelfieBlob(blob);
+        setSelfieCaptured(true);
+      }
+    }, 'image/jpeg', 0.92);
+    // Stop the stream after capture
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    setIsCameraActive(false);
   };
 
   // Register Hospital Step
@@ -153,10 +198,8 @@ const ActivationWizard = ({ isOpen, onClose, onActivationSuccess }) => {
 
     if (selfieBlob) {
       payload.append('selfie', selfieBlob, 'biometric_selfie.jpg');
-    } else {
-      const dummyBlob = new Blob(["dummy_selfie_data"], { type: 'image/jpeg' });
-      payload.append('selfie', dummyBlob, 'selfie.jpg');
     }
+    // No selfie captured — backend handles optional selfie gracefully
 
     setIsOcrScanning(true);
 
@@ -636,17 +679,23 @@ const ActivationWizard = ({ isOpen, onClose, onActivationSuccess }) => {
                               <span className="text-slate-800 text-xs font-semibold">Live Representative Biometric Captured</span>
                             </div>
                             <span className={`text-2xs font-extrabold tracking-wider uppercase ${selfieCaptured ? 'text-emerald-600' : 'text-slate-400'}`}>
-                              {selfieCaptured ? 'Verified' : 'Ready'}
+                              {selfieCaptured ? 'Verified' : isCameraActive ? 'Live' : 'Ready'}
                             </span>
                           </div>
 
                           <div className="aspect-[16/9] w-full rounded-xl bg-slate-900 flex items-center justify-center overflow-hidden relative border border-slate-800 shadow-inner">
-                            {isCameraActive ? (
-                              <div className="text-center text-white space-y-2">
-                                <RefreshCw className="animate-spin text-indigo-400 mx-auto" size={24} />
-                                <p className="text-2xs font-semibold tracking-widest uppercase">Capturing face biometric mapping...</p>
-                              </div>
-                            ) : selfieCaptured ? (
+                            {/* Live video feed — shown when camera is active and selfie not yet taken */}
+                            <video
+                              ref={videoRef}
+                              autoPlay
+                              playsInline
+                              muted
+                              className={`absolute inset-0 w-full h-full object-cover ${isCameraActive && !selfieCaptured ? 'block' : 'hidden'}`}
+                            />
+                            {/* Hidden canvas for snapshot */}
+                            <canvas ref={canvasRef} className="hidden" />
+
+                            {selfieCaptured ? (
                               <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 text-center p-4">
                                 <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-2">
                                   <Check size={18} strokeWidth={3} />
@@ -654,21 +703,50 @@ const ActivationWizard = ({ isOpen, onClose, onActivationSuccess }) => {
                                 <p className="text-white text-xs font-bold uppercase tracking-wider">Representative Biometric Captured</p>
                                 <p className="text-slate-500 text-3xs">UIDAI and NSDL compliant biometric structure</p>
                               </div>
-                            ) : (
+                            ) : !isCameraActive ? (
                               <div className="text-center text-slate-600">
                                 <Cpu size={28} className="mx-auto text-slate-700 mb-2" />
-                                <p className="text-3xs uppercase tracking-widest">Webcam Live Scanner Simulator</p>
+                                <p className="text-3xs uppercase tracking-widest">Click below to open camera</p>
                               </div>
-                            )}
+                            ) : null}
                           </div>
 
-                          <button 
-                            type="button"
-                            onClick={triggerCameraCapture}
-                            className="mt-3 w-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 font-semibold text-xs py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
-                          >
-                            Capture Face Biometrics <Camera size={14} />
-                          </button>
+                          {cameraError && (
+                            <p className="mt-2 text-xs text-red-500 font-medium flex items-center gap-1">
+                              <AlertCircle size={13} /> {cameraError}
+                            </p>
+                          )}
+
+                          {/* Buttons: open camera / take snapshot / retake */}
+                          <div className="mt-3 flex gap-2">
+                            {!isCameraActive && !selfieCaptured && (
+                              <button
+                                type="button"
+                                onClick={triggerCameraCapture}
+                                className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 font-semibold text-xs py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
+                              >
+                                Open Camera <Camera size={14} />
+                              </button>
+                            )}
+                            {isCameraActive && !selfieCaptured && (
+                              <button
+                                type="button"
+                                onClick={captureSnapshot}
+                                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
+                              >
+                                Take Snapshot <Camera size={14} />
+                              </button>
+                            )}
+                            {selfieCaptured && (
+                              <button
+                                type="button"
+                                onClick={triggerCameraCapture}
+                                className="flex-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold text-xs py-2.5 rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
+                              >
+                                Retake <RefreshCw size={13} />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
 

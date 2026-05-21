@@ -8,7 +8,7 @@ import {
   Filter, RefreshCw, Key, CreditCard, 
   Camera, Activity, Layers, Plus, 
   Compass, ShoppingBag, Eye, ShieldAlert, 
-  BarChart3, Database, Mail 
+  BarChart3, Database, Mail, ChevronRight, ArrowLeft 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ActivationWizard from './components/ActivationWizard';
@@ -61,15 +61,25 @@ const CredentialsEmailModal = ({ isOpen, onClose, staffRecord }) => {
   );
 };
 
+// --- SQL TRANSPARENCY BADGE ---
+const SqlBadge = ({ sql }) => {
+  if (!sql) return null;
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-[8px] font-mono text-slate-500 ml-2 align-middle" title={sql}>
+      <Database size={9} className="text-slate-400" />
+      {sql.length > 60 ? sql.substring(0, 57) + '...' : sql}
+    </span>
+  );
+};
+
 // --- SECURE LEDGER LOGIN MODAL ---
+const API_BASE = 'http://localhost:8000/api/v1';
+
 const LedgerLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-
-  const savedOrg = localStorage.getItem('hospyn_org_name') || 'Apollo Hospital Group';
-  const savedEmail = localStorage.getItem('hospyn_owner_email') || 'owner@apollo.com';
-  const savedPassword = localStorage.getItem('hospyn_owner_password') || 'admin123';
+  const [isLoading, setIsLoading] = useState(false);
 
   // Pre-fill email if session is active
   useEffect(() => {
@@ -80,24 +90,46 @@ const LedgerLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
       setError('Please fill in both email and password.');
       return;
     }
+    setIsLoading(true);
+    setError('');
 
-    // Validate credentials strictly matching saved registration or demo default
-    if (
-      email.toLowerCase().trim() === savedEmail.toLowerCase().trim() &&
-      password === savedPassword
-    ) {
-      onLoginSuccess({
-        name: savedOrg,
-        owner_email: savedEmail
+    try {
+      // Real FastAPI OAuth2 form-data login
+      const formBody = new URLSearchParams();
+      formBody.append('username', email.trim());
+      formBody.append('password', password);
+
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formBody.toString()
       });
-    } else {
-      setError('Invalid email or password signature. Authentication rejected.');
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.detail || `Authentication failed (${res.status})`);
+      }
+
+      const data = await res.json();
+      // Store real access token
+      localStorage.setItem('hospyn_owner_token', data.access_token);
+      localStorage.setItem('hospyn_owner_email', email.trim());
+
+      onLoginSuccess({
+        name: email.trim(),
+        owner_email: email.trim(),
+        access_token: data.access_token
+      });
+    } catch (err) {
+      setError(err.message || 'Authentication failed. Check credentials.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -115,14 +147,6 @@ const LedgerLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-650 transition-colors">✕</button>
         </div>
-
-        {localStorage.getItem('hospyn_org_name') && (
-          <div className="p-4 bg-violet-50/50 border border-violet-100 rounded-2xl text-left">
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Active Configuration Found</p>
-            <p className="text-xs text-slate-700 font-bold mt-0.5">{savedOrg}</p>
-            <p className="text-[9px] text-slate-400 mt-1 font-semibold">Enter your secure password below to unlock this node.</p>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1">
@@ -157,19 +181,30 @@ const LedgerLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
 
           <button 
             type="submit"
-            className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md shadow-slate-900/10"
+            disabled={isLoading}
+            className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md shadow-slate-900/10 disabled:opacity-60"
           >
-            Authenticate Credentials
+            {isLoading ? 'Authenticating...' : 'Authenticate Credentials'}
           </button>
         </form>
 
-        {/* Informative credentials note to guide manual testing */}
-        <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-xl text-center">
-          <p className="text-[9px] text-slate-450 font-bold uppercase tracking-wider">Demo / Testing Credentials</p>
-          <p className="text-[10px] text-slate-600 mt-1 font-semibold">
-            Email: <code className="bg-white px-1.5 py-0.5 rounded border border-slate-150 text-slate-800 font-bold">owner@apollo.com</code> <br />
-            Password: <code className="bg-white px-1.5 py-0.5 rounded border border-slate-150 text-slate-800 font-bold">admin123</code>
-          </p>
+        {/* Five real hospital logins */}
+        <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-xl space-y-2">
+          <p className="text-[9px] text-slate-450 font-bold uppercase tracking-wider text-center">Hospital Owner Logins (Password: admin123)</p>
+          <div className="grid grid-cols-1 gap-1">
+            {[
+              { label: 'Apollo (High)', email: 'owner@apollo.com' },
+              { label: 'Narayana (High)', email: 'owner@narayana.com' },
+              { label: 'Cloudnine (Mid)', email: 'owner@cloudnine.com' },
+              { label: 'Care First (Low)', email: 'owner@carefirst.com' },
+              { label: 'Medall (Low)', email: 'owner@medall.com' }
+            ].map((h) => (
+              <button key={h.email} onClick={() => { setEmail(h.email); setPassword('admin123'); }} className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-white border border-transparent hover:border-slate-200 transition-all flex justify-between items-center">
+                <span className="text-[10px] font-bold text-slate-700">{h.label}</span>
+                <code className="text-[9px] text-slate-500 font-mono">{h.email}</code>
+              </button>
+            ))}
+          </div>
         </div>
 
         <p className="text-[9px] text-slate-400 font-bold text-center uppercase tracking-widest">
@@ -199,7 +234,49 @@ export default function App() {
   // Console state
   const [consoleTab, setConsoleTab] = useState('dashboard');
   const [selectedBranch, setSelectedBranch] = useState('All');
+  const [dashboardDrilldown, setDashboardDrilldown] = useState(null); // null | 'staff' | 'beds' | 'pharmacy' | 'ledger'
   
+  // --- LIVE DATABASE-BACKED DASHBOARD STATE ---
+  const [dashboardData, setDashboardData] = useState(null);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [dashboardError, setDashboardError] = useState(null);
+
+  // Fetch dashboard data from API
+  const fetchDashboard = async (branchId) => {
+    const token = localStorage.getItem('hospyn_owner_token');
+    if (!token) return;
+    setDashboardLoading(true);
+    setDashboardError(null);
+    try {
+      let url = `${API_BASE}/owner/dashboard`;
+      if (branchId && branchId !== 'All') url += `?branch_id=${branchId}`;
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        if (res.status === 401) {
+          localStorage.removeItem('hospyn_owner_token');
+          setAppStatus('unregistered');
+          return;
+        }
+        throw new Error(`API Error ${res.status}`);
+      }
+      const data = await res.json();
+      setDashboardData(data);
+    } catch (err) {
+      setDashboardError(err.message);
+    } finally {
+      setDashboardLoading(false);
+    }
+  };
+
+  // Fetch dashboard on login or branch change
+  useEffect(() => {
+    if (appStatus === 'approved' && localStorage.getItem('hospyn_owner_token')) {
+      fetchDashboard(selectedBranch);
+    }
+  }, [appStatus, selectedBranch]);
+
   // Custom Dynamic Staff provisioning state
   const [staffRole, setStaffRole] = useState('doctor');
   const [staffName, setStaffName] = useState('');
@@ -210,20 +287,10 @@ export default function App() {
   const [staffNationalId, setStaffNationalId] = useState('');
   const [staffBranch, setStaffBranch] = useState('Delhi Branch');
   
-  const [staffRecords, setStaffRecords] = useState([
-    { name: 'Dr. Vivek Sharma', email: 'vivek@hospyn.com', role: 'doctor', staff_id: 'HOSP-STAFF-F2A48C', temporary_password: 'Temp_e3a98f2d', dedicated_portal_url: 'https://doctor.hospyn.com', credentials_email_status: 'dispatched', hospitalName: 'Hospyn Allied Care' },
-    { name: 'Sister Mini Joseph', email: 'mini@hospyn.com', role: 'nurse', staff_id: 'HOSP-STAFF-7B930D', temporary_password: 'Temp_92fd3a12', dedicated_portal_url: 'https://staff.hospyn.com', credentials_email_status: 'dispatched', hospitalName: 'Hospyn Allied Care' }
-  ]);
+  const [staffRecords, setStaffRecords] = useState([]);
 
   const [activeDispatchMail, setActiveDispatchMail] = useState(null);
   const [isMailOpen, setIsMailOpen] = useState(false);
-
-  // Pharmacy Inventory mock state
-  const [pharmacyItems, setPharmacyItems] = useState([
-    { name: 'Paracetamol 650mg', batch: 'PR-9026', expiry: '2027-11-20', quantity: 8, threshold: 10 },
-    { name: 'Amoxicillin 500mg', batch: 'AM-1234', expiry: '2026-08-15', quantity: 45, threshold: 15 },
-    { name: 'Atorvastatin 10mg', batch: 'AT-8822', expiry: '2026-05-30', quantity: 3, threshold: 10 }
-  ]);
 
   const handleAddStaffDynamic = (e) => {
     e.preventDefault();
@@ -279,7 +346,10 @@ export default function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('hospyn_app_state');
+    localStorage.removeItem('hospyn_owner_token');
+    localStorage.removeItem('hospyn_owner_email');
     setAppStatus('unregistered');
+    setDashboardData(null);
     setCurrentPage(1);
   };
 
@@ -986,8 +1056,9 @@ export default function App() {
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-bold text-slate-900 outline-none appearance-none cursor-pointer focus:border-primary"
                   >
                     <option value="All">All Branches</option>
-                    <option value="Delhi">Delhi Branch</option>
-                    <option value="Mumbai">Mumbai Branch</option>
+                    {(dashboardData?.branches || []).map((br) => (
+                      <option key={br.id} value={br.id}>{br.name} ({br.city})</option>
+                    ))}
                   </select>
                   <ChevronDown className="absolute right-3 top-3 text-slate-500 pointer-events-none" size={14}/>
                 </div>
@@ -1021,11 +1092,18 @@ export default function App() {
             <div className="space-y-4">
               <div className="p-3 bg-slate-50 rounded-xl flex gap-3 items-center border border-slate-100">
                 <div className="w-8 h-8 rounded-full bg-blue-100 text-primary flex items-center justify-center font-bold text-xs">
-                  O
+                  {(dashboardData?.hospital_name || 'H')[0]}
                 </div>
                 <div className="overflow-hidden">
-                  <p className="text-xs font-bold text-slate-950 truncate">Hospital Owner</p>
-                  <p className="text-[9px] text-slate-400 truncate">{localStorage.getItem('hospyn_owner_email') || 'owner@apollo.com'}</p>
+                  <p className="text-xs font-bold text-slate-950 truncate">{dashboardData?.hospital_name || 'Loading...'}</p>
+                  <p className="text-[9px] text-slate-400 truncate">{localStorage.getItem('hospyn_owner_email') || '...'}</p>
+                  {dashboardData?.scale && (
+                    <span className={`text-[8px] font-bold uppercase px-1.5 py-0.5 rounded mt-0.5 inline-block ${
+                      dashboardData.scale === 'High' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
+                      dashboardData.scale === 'Mid' ? 'bg-blue-50 text-blue-700 border border-blue-100' :
+                      'bg-slate-100 text-slate-600 border border-slate-200'
+                    }`}>{dashboardData.scale}-Level</span>
+                  )}
                 </div>
               </div>
               <button onClick={handleLogout} className="w-full py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all">
@@ -1039,52 +1117,407 @@ export default function App() {
 
             {consoleTab === 'dashboard' && (
               <div className="space-y-8">
-                <div>
-                  <div className="inline-block px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-[9px] font-bold text-primary uppercase mb-3">Enterprise Dashboard</div>
-                  <h2 className="text-3xl font-extrabold text-slate-950 font-outfit tracking-tight">Sovereign Node: {localStorage.getItem('hospyn_org_name') || 'Apollo Hospital Group'}</h2>
-                  <p className="text-xs text-slate-500 mt-1">Platform monitoring and clinical server vitals.</p>
-                </div>
 
-                {/* Vitals indicators */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-2">
-                    <span className="text-[9px] font-bold uppercase text-slate-400">Node Status</span>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"/>
-                      <span className="text-slate-950 font-bold text-sm">HEALTHY - ACTIVE</span>
+                {/* ── DRILL-DOWN: STAFF DETAIL ── */}
+                {dashboardDrilldown === 'staff' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => setDashboardDrilldown(null)} className="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-900 border border-slate-200 rounded-lg px-3 py-2 bg-white shadow-sm transition-all">
+                        <ArrowLeft size={14}/> Back to Overview
+                      </button>
+                      <h2 className="text-xl font-black text-slate-900 font-outfit">Staff Workforce — Full Detail</h2>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm text-center"><span className="text-3xl font-black text-emerald-600">24</span><p className="text-[10px] font-bold text-slate-500 uppercase mt-1">Active Duty</p></div>
+                      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm text-center"><span className="text-3xl font-black text-amber-600">4</span><p className="text-[10px] font-bold text-slate-500 uppercase mt-1">On Break</p></div>
+                      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm text-center"><span className="text-3xl font-black text-slate-400">2</span><p className="text-[10px] font-bold text-slate-500 uppercase mt-1">On Leave</p></div>
+                    </div>
+                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                      <div className="p-4 bg-slate-50 border-b border-slate-100">
+                        <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Live Staff Status Board</h3>
+                      </div>
+                      <table className="w-full text-xs text-left">
+                        <thead className="border-b border-slate-100 bg-white">
+                          <tr>
+                            <th className="py-3 px-4 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Name</th>
+                            <th className="py-3 px-4 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Role</th>
+                            <th className="py-3 px-4 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Department</th>
+                            <th className="py-3 px-4 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Clock In</th>
+                            <th className="py-3 px-4 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Patients Today</th>
+                            <th className="py-3 px-4 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50 font-medium">
+                          {[
+                            { name: 'Dr. Arun Sharma', role: 'Physician', dept: 'General OPD', clockIn: '08:00 AM', patients: 18, status: 'Active', color: 'emerald' },
+                            { name: 'Dr. Priya Gupta', role: 'Neurologist', dept: 'Neurology', clockIn: '09:00 AM', patients: 7, status: 'On Break', color: 'amber' },
+                            { name: 'Dr. Salim Khan', role: 'Cardiologist', dept: 'Cardiology', clockIn: '08:30 AM', patients: 5, status: 'Active', color: 'emerald' },
+                            { name: 'Dr. Meena Reddy', role: 'Orthopedic', dept: 'Orthopaedics', clockIn: '10:00 AM', patients: 9, status: 'Active', color: 'emerald' },
+                            { name: 'Nurse Lakshmi R.', role: 'Staff Nurse', dept: 'Ward A', clockIn: '07:00 AM', patients: 32, status: 'Active', color: 'emerald' },
+                            { name: 'Nurse Preethi S.', role: 'Staff Nurse', dept: 'ICU', clockIn: '07:00 AM', patients: 6, status: 'Active', color: 'emerald' },
+                            { name: 'Rajan Kumar', role: 'Pharmacist', dept: 'Pharmacy', clockIn: '09:00 AM', patients: 0, status: 'On Break', color: 'amber' },
+                            { name: 'Dr. Suresh Nair', role: 'Radiologist', dept: 'Radiology', clockIn: '-', patients: 0, status: 'On Leave', color: 'slate' },
+                          ].map((s, i) => (
+                            <tr key={i} className="hover:bg-slate-50">
+                              <td className="py-3 px-4 font-bold text-slate-900">{s.name}</td>
+                              <td className="py-3 px-4 text-slate-600">{s.role}</td>
+                              <td className="py-3 px-4 text-slate-500">{s.dept}</td>
+                              <td className="py-3 px-4 text-slate-500">{s.clockIn}</td>
+                              <td className="py-3 px-4 font-bold text-slate-900">{s.patients > 0 ? s.patients : '—'}</td>
+                              <td className="py-3 px-4">
+                                <span className={`px-2 py-0.5 text-[9px] font-bold uppercase rounded border ${
+                                  s.color === 'emerald' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                  s.color === 'amber' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                  'bg-slate-50 text-slate-700 border-slate-100'
+                                }`}>{s.status}</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
-                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-2">
-                    <span className="text-[9px] font-bold uppercase text-slate-400">Server Latency</span>
-                    <span className="text-slate-950 font-extrabold text-lg block font-outfit">12ms</span>
+                )}
+
+                {/* ── DRILL-DOWN: BEDS DETAIL ── */}
+                {dashboardDrilldown === 'beds' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => setDashboardDrilldown(null)} className="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-900 border border-slate-200 rounded-lg px-3 py-2 bg-white shadow-sm transition-all">
+                        <ArrowLeft size={14}/> Back to Overview
+                      </button>
+                      <h2 className="text-xl font-black text-slate-900 font-outfit">Bed Management — Ward Map</h2>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm text-center"><span className="text-3xl font-black text-slate-900">50</span><p className="text-[10px] font-bold text-slate-500 uppercase mt-1">Total Beds</p></div>
+                      <div className="bg-white border border-rose-100 rounded-xl p-4 shadow-sm text-center"><span className="text-3xl font-black text-rose-600">42</span><p className="text-[10px] font-bold text-rose-500 uppercase mt-1">Occupied</p></div>
+                      <div className="bg-white border border-emerald-100 rounded-xl p-4 shadow-sm text-center"><span className="text-3xl font-black text-emerald-600">8</span><p className="text-[10px] font-bold text-emerald-500 uppercase mt-1">Available</p></div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {[
+                        { ward: 'General Ward A', total: 12, occupied: 11, patients: ['Amit Desai — Cardiac', 'Ravi Iyer — Fever', 'Sunil Rao — Fracture', 'Pooja M — Post-op', 'Divya K — Asthma', 'Kiran T — Typhoid', 'Anand P — Malaria', 'Lakshmi N — Dengue', 'Harish B — Pneumonia', 'Nisha C — TB', 'Gopal D — Injury'] },
+                        { ward: 'ICU', total: 6, occupied: 6, patients: ['Venkat R — Critical (Cardiac)', 'Suma D — Respiratory Fail', 'Mohan V — Post-Surgery', 'Prabha L — Stroke', 'Naveen K — Trauma', 'Chandra S — Multi-Organ'] },
+                        { ward: 'Private Rooms', total: 20, occupied: 16, patients: ['Sheela R', 'Ramesh P', 'Anjali K', 'Suresh N', 'Anil M', 'Kavitha T', 'Pradeep G', 'Usha B', 'Vijay C', 'Indu S', 'Krishna R', 'Meena V', 'Arjun D', 'Bharathi L', 'Ganesh P', 'Saranya A'] },
+                        { ward: 'Paediatric Ward', total: 12, occupied: 9, patients: ['Child: Arya (4y) — Fever', 'Child: Rishi (7y) — Fracture', 'Child: Priya (2y) — Malnutrition', 'Child: Dev (9y) — Dengue', 'Child: Kavya (5y) — Asthma', 'Child: Aadi (3y) — Viral', 'Child: Neel (11y) — Typhoid', 'Child: Sara (6y) — Pneumonia', 'Child: Rohan (8y) — Injury'] },
+                      ].map((ward, i) => (
+                        <div key={i} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                          <div className="flex justify-between items-center mb-3">
+                            <h3 className="text-sm font-bold text-slate-900">{ward.ward}</h3>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-rose-600">{ward.occupied} Occupied</span>
+                              <span className="text-slate-300">/</span>
+                              <span className="text-xs font-bold text-emerald-600">{ward.total - ward.occupied} Free</span>
+                            </div>
+                          </div>
+                          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-3">
+                            <div className={`h-full bg-rose-400 rounded-full`} style={{width: `${(ward.occupied/ward.total)*100}%`}}/>
+                          </div>
+                          <div className="space-y-1 max-h-[160px] overflow-y-auto">
+                            {ward.patients.map((p, j) => (
+                              <div key={j} className="text-[11px] text-slate-600 py-1 px-2 bg-slate-50 rounded flex justify-between">
+                                <span>Bed {j+1}: {p}</span>
+                                <span className="text-rose-500 font-bold text-[9px]">OCCUPIED</span>
+                              </div>
+                            ))}
+                            {Array.from({length: ward.total - ward.occupied}).map((_, j) => (
+                              <div key={`empty-${j}`} className="text-[11px] text-emerald-600 py-1 px-2 bg-emerald-50 rounded flex justify-between">
+                                <span>Bed {ward.occupied + j + 1}: Available</span>
+                                <span className="text-emerald-600 font-bold text-[9px]">FREE</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-2">
-                    <span className="text-[9px] font-bold uppercase text-slate-400">Redis Cache Hits</span>
-                    <span className="text-slate-950 font-extrabold text-lg block font-outfit">99.8%</span>
+                )}
+
+                {/* ── DRILL-DOWN: PHARMACY DETAIL ── */}
+                {dashboardDrilldown === 'pharmacy' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => setDashboardDrilldown(null)} className="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-900 border border-slate-200 rounded-lg px-3 py-2 bg-white shadow-sm transition-all">
+                        <ArrowLeft size={14}/> Back to Overview
+                      </button>
+                      <h2 className="text-xl font-black text-slate-900 font-outfit">Pharmacy — Full Stock Register</h2>
+                    </div>
+                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                      <div className="p-4 bg-slate-50 border-b border-slate-100">
+                        <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">A–Z Medicine Inventory</h3>
+                      </div>
+                      <table className="w-full text-xs text-left">
+                        <thead className="border-b border-slate-100 bg-white">
+                          <tr>
+                            <th className="py-3 px-4 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Medicine</th>
+                            <th className="py-3 px-4 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Category</th>
+                            <th className="py-3 px-4 font-bold text-slate-400 uppercase text-[9px] tracking-wider">In Stock</th>
+                            <th className="py-3 px-4 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Dispensed Today</th>
+                            <th className="py-3 px-4 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50 font-medium">
+                          {[
+                            { name: 'Amoxicillin 500mg', cat: 'Antibiotic', stock: 320, dispensed: 14, status: 'Adequate' },
+                            { name: 'Atorvastatin 10mg', cat: 'Statin', stock: 14, dispensed: 6, status: 'Low' },
+                            { name: 'Azithromycin 500mg', cat: 'Antibiotic', stock: 210, dispensed: 8, status: 'Adequate' },
+                            { name: 'Cetirizine 10mg', cat: 'Antihistamine', stock: 480, dispensed: 21, status: 'Adequate' },
+                            { name: 'Dolo 650mg (Paracetamol)', cat: 'Analgesic', stock: 850, dispensed: 67, status: 'Adequate' },
+                            { name: 'Ibuprofen 400mg', cat: 'NSAID', stock: 390, dispensed: 18, status: 'Adequate' },
+                            { name: 'Insulin Glargine 100U', cat: 'Antidiabetic', stock: 28, dispensed: 4, status: 'Low' },
+                            { name: 'Metformin 500mg', cat: 'Antidiabetic', stock: 560, dispensed: 32, status: 'Adequate' },
+                            { name: 'Omeprazole 20mg', cat: 'PPI', stock: 700, dispensed: 41, status: 'Adequate' },
+                            { name: 'Pantoprazole 40mg', cat: 'PPI', stock: 620, dispensed: 28, status: 'Adequate' },
+                            { name: 'Salbutamol Inhaler', cat: 'Bronchodilator', stock: 12, dispensed: 3, status: 'Critical' },
+                            { name: 'Sumatriptan 50mg', cat: 'Antimigraine', stock: 85, dispensed: 2, status: 'Adequate' },
+                          ].map((m, i) => (
+                            <tr key={i} className={`hover:bg-slate-50 ${m.status === 'Critical' ? 'bg-rose-50' : m.status === 'Low' ? 'bg-amber-50' : ''}`}>
+                              <td className="py-3 px-4 font-bold text-slate-900">{m.name}</td>
+                              <td className="py-3 px-4 text-slate-500">{m.cat}</td>
+                              <td className="py-3 px-4 font-bold text-slate-900">{m.stock}</td>
+                              <td className="py-3 px-4 text-slate-600">{m.dispensed}</td>
+                              <td className="py-3 px-4">
+                                <span className={`px-2 py-0.5 text-[9px] font-bold uppercase rounded border ${
+                                  m.status === 'Critical' ? 'bg-rose-100 text-rose-700 border-rose-200' :
+                                  m.status === 'Low' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                                  'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                }`}>{m.status}</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-2">
-                    <span className="text-[9px] font-bold uppercase text-slate-400">Celery Tasks</span>
-                    <span className="text-slate-950 font-extrabold text-lg block font-outfit">0 Queued</span>
+                )}
+
+                {/* ── DRILL-DOWN: FINANCIAL LEDGER DETAIL ── */}
+                {dashboardDrilldown === 'ledger' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => setDashboardDrilldown(null)} className="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-900 border border-slate-200 rounded-lg px-3 py-2 bg-white shadow-sm transition-all">
+                        <ArrowLeft size={14}/> Back to Overview
+                      </button>
+                      <h2 className="text-xl font-black text-slate-900 font-outfit">Rupee-Precise Financial Ledger</h2>
+                      <SqlBadge sql={dashboardData?.sql_sources?.ledger} />
+                    </div>
+                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                      <div className="p-4 bg-slate-50 border-b border-slate-100">
+                        <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Itemized Payment Splits &amp; Escrow Routing</h3>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs text-left">
+                          <thead className="border-b border-slate-100 bg-white">
+                            <tr>
+                              <th className="py-3 px-3 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Patient</th>
+                              <th className="py-3 px-3 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Invoice</th>
+                              <th className="py-3 px-3 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Consult</th>
+                              <th className="py-3 px-3 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Pharmacy</th>
+                              <th className="py-3 px-3 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Lab</th>
+                              <th className="py-3 px-3 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Room/OT</th>
+                              <th className="py-3 px-3 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Tax</th>
+                              <th className="py-3 px-3 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Total</th>
+                              <th className="py-3 px-3 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Method</th>
+                              <th className="py-3 px-3 font-bold text-slate-400 uppercase text-[9px] tracking-wider">TXN ID</th>
+                              <th className="py-3 px-3 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Escrow Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-50 font-medium">
+                            {(dashboardData?.ledger || []).map((row, i) => (
+                              <tr key={i} className="hover:bg-slate-50">
+                                <td className="py-3 px-3"><div className="font-bold text-slate-900">{row.patient_name}</div><div className="text-[9px] text-slate-400 font-mono">{row.patient_hospyn_id}</div></td>
+                                <td className="py-3 px-3 font-mono text-slate-500 text-[10px]">{row.invoice_number}</td>
+                                <td className="py-3 px-3 text-slate-700">{'\u20B9'}{row.splits.consultation.toFixed(2)}</td>
+                                <td className="py-3 px-3 text-slate-700">{row.splits.pharmacy > 0 ? `${'\u20B9'}${row.splits.pharmacy.toFixed(2)}` : '\u2014'}</td>
+                                <td className="py-3 px-3 text-slate-700">{row.splits.lab > 0 ? `${'\u20B9'}${row.splits.lab.toFixed(2)}` : '\u2014'}</td>
+                                <td className="py-3 px-3 text-slate-700">{row.splits.room_ot > 0 ? `${'\u20B9'}${row.splits.room_ot.toFixed(2)}` : '\u2014'}</td>
+                                <td className="py-3 px-3 text-slate-500">{'\u20B9'}{row.splits.tax.toFixed(2)}</td>
+                                <td className="py-3 px-3 font-bold text-slate-900">{'\u20B9'}{row.total_amount.toFixed(2)}</td>
+                                <td className="py-3 px-3"><span className={`px-2 py-0.5 text-[9px] font-bold uppercase rounded border ${row.payment_method === 'UPI' ? 'bg-violet-50 text-violet-700 border-violet-100' : row.payment_method === 'CARD' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>{row.payment_method}</span></td>
+                                <td className="py-3 px-3 font-mono text-[10px] text-slate-500">{row.transaction_id}</td>
+                                <td className="py-3 px-3"><span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${row.escrow.status === 'Routed_to_Owner' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>{row.escrow.status}</span><div className="font-mono text-[9px] text-slate-500 mt-1">{row.escrow.hospital_owner_account_id}</div></td>
+                              </tr>
+                            ))}
+                            {(!dashboardData?.ledger || dashboardData.ledger.length === 0) && (
+                              <tr><td colSpan="11" className="py-8 text-center text-slate-400 text-xs">No payment records found.</td></tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── MAIN OVERVIEW (visible only when no drilldown active) ── */}
+                {!dashboardDrilldown && (
+                <>
+                {dashboardLoading && (
+                  <div className="flex items-center justify-center py-20">
+                    <div className="text-center space-y-3">
+                      <RefreshCw className="animate-spin text-primary mx-auto" size={24} />
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Loading Dashboard from Database...</p>
+                    </div>
+                  </div>
+                )}
+                {dashboardError && (
+                  <div className="p-6 bg-rose-50 border border-rose-200 rounded-xl text-center">
+                    <p className="text-xs font-bold text-rose-700">Dashboard Error: {dashboardError}</p>
+                    <button onClick={() => fetchDashboard(selectedBranch)} className="mt-3 px-4 py-2 bg-slate-900 text-white text-[10px] font-bold uppercase rounded-lg">Retry</button>
+                  </div>
+                )}
+
+                {dashboardData && !dashboardLoading && (
+                <>
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900 tracking-tight font-outfit">
+                      {dashboardData.hospital_name} {'\u2014'} {dashboardData.scale}-Level Cockpit
+                    </h2>
+                    <p className="text-xs text-slate-500 font-medium mt-1">End-to-End Hospital Flow and Operations Monitor. <SqlBadge sql={dashboardData.sql_sources?.telemetry} /></p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => fetchDashboard(selectedBranch)} className="px-3 py-2 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all">
+                      <RefreshCw size={14} className="text-slate-500" />
+                    </button>
+                    <div className="px-4 py-2 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Live DB Sync</span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Simulated Server Logs */}
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
-                  <div className="p-4 bg-slate-950 text-white flex justify-between items-center border-b border-slate-800">
-                    <span className="text-xs font-mono tracking-wider">SOVEREIGN_NODE_SYSLOG_STREAM</span>
-                    <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[8px] font-bold uppercase">LIVE</span>
+                {/* Top Metrics Row */}
+                <div className={`grid grid-cols-1 gap-4 ${dashboardData.scale === 'Low' ? 'md:grid-cols-3' : 'md:grid-cols-4'}`}>
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">Total Visits</span>
+                    <div className="mt-2 flex items-end gap-2">
+                      <span className="text-2xl font-black text-slate-900">{dashboardData.telemetry.visits}</span>
+                      <span className="text-[10px] font-bold text-slate-400 mb-1">patients</span>
+                    </div>
                   </div>
-                  <div className="p-6 font-mono text-[10px] text-slate-300 space-y-2 h-[200px] overflow-y-auto">
-                    <p className="text-slate-500">[12:20:01] DB_CONNECTION - Established secure connection.</p>
-                    <p className="text-slate-500">[12:20:05] REDIS_CLIENT - Initializing access token index...</p>
-                    <p className="text-emerald-400">[12:20:10] SECURE_ENCLAVE - Cryptographic token verification complete.</p>
-                    <p className="text-blue-400">[12:20:15] CHITTI_AI - Warm-up sequence successful. Claude-3-Haiku active.</p>
-                    <p className="text-slate-300">[12:20:22] PLATFORM_HEALTH - 0 warning thresholds crossed.</p>
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">Total Revenue</span>
+                    <div className="mt-2 flex items-end gap-2">
+                      <span className="text-2xl font-black text-slate-900">{'\u20B9'}{Number(dashboardData.telemetry.revenue).toLocaleString('en-IN', {maximumFractionDigits: 2})}</span>
+                      <span className="text-[10px] font-bold text-emerald-600 mb-1">Cleared</span>
+                    </div>
+                  </div>
+                  {dashboardData.scale !== 'Low' && (
+                    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                      <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">Bed Occupancy</span>
+                      <div className="mt-2 flex items-end gap-2">
+                        <span className="text-2xl font-black text-slate-900">{dashboardData.telemetry.beds_occupied}/{dashboardData.telemetry.beds_total}</span>
+                        <span className="text-[10px] font-bold text-amber-600 mb-1">{dashboardData.telemetry.beds_total > 0 ? Math.round((dashboardData.telemetry.beds_occupied / dashboardData.telemetry.beds_total) * 100) : 0}%</span>
+                      </div>
+                    </div>
+                  )}
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                    <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">Low Stock Alerts</span>
+                    <div className="mt-2 flex items-end gap-2">
+                      <span className={`text-2xl font-black ${dashboardData.telemetry.low_stock_count > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{dashboardData.telemetry.low_stock_count}</span>
+                      <span className="text-[10px] font-bold text-slate-400 mb-1">medicines</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {/* Left Column - Financial Ledger Summary */}
+                  <div className="lg:col-span-2 space-y-6">
+                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden flex flex-col h-[420px]">
+                      <div className="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                        <div className="flex items-center">
+                          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">{'\u20B9'} Financial Ledger</h3>
+                          <SqlBadge sql={dashboardData.sql_sources?.ledger} />
+                        </div>
+                        <button onClick={() => setDashboardDrilldown('ledger')} className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 transition-colors">
+                          Full Ledger <ChevronRight size={12}/>
+                        </button>
+                      </div>
+                      <div className="overflow-y-auto flex-grow p-0">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-white sticky top-0 border-b border-slate-100 z-10 shadow-sm">
+                            <tr>
+                              <th className="py-3 px-4 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Patient</th>
+                              <th className="py-3 px-4 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Amount</th>
+                              <th className="py-3 px-4 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Method</th>
+                              <th className="py-3 px-4 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Escrow</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-50 font-medium">
+                            {(dashboardData.ledger || []).slice(0, 10).map((row, i) => (
+                              <tr key={i} className="hover:bg-slate-50 cursor-pointer" onClick={() => setDashboardDrilldown('ledger')}>
+                                <td className="py-3 px-4"><span className="text-slate-900 font-bold">{row.patient_name}</span><span className="text-[9px] text-slate-400 ml-2 font-mono">{row.patient_hospyn_id}</span></td>
+                                <td className="py-3 px-4 font-bold text-slate-900">{'\u20B9'}{row.total_amount.toFixed(2)}</td>
+                                <td className="py-3 px-4"><span className={`px-2 py-0.5 text-[9px] font-bold uppercase rounded border ${row.payment_method === 'UPI' ? 'bg-violet-50 text-violet-700 border-violet-100' : row.payment_method === 'CARD' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100'}`}>{row.payment_method}</span></td>
+                                <td className="py-3 px-4"><span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${row.escrow.status === 'Routed_to_Owner' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>{row.escrow.status === 'Routed_to_Owner' ? '\u2713 Routed' : row.escrow.status}</span></td>
+                              </tr>
+                            ))}
+                            {(!dashboardData.ledger || dashboardData.ledger.length === 0) && (
+                              <tr><td colSpan="4" className="py-8 text-center text-slate-400 text-xs">No payment records in database.</td></tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column - Operations */}
+                  <div className="space-y-6">
+                    {/* Staff Card */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-2 mb-4">
+                        <div className="flex items-center"><h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Staff</h3><SqlBadge sql={dashboardData.sql_sources?.staff} /></div>
+                        <button onClick={() => setDashboardDrilldown('staff')} className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 transition-colors">Detail <ChevronRight size={12}/></button>
+                      </div>
+                      <button onClick={() => setDashboardDrilldown('staff')} className="w-full flex justify-between items-center p-3 rounded-lg bg-slate-50 border border-slate-100 hover:border-emerald-200 hover:bg-emerald-50 transition-all group">
+                        <span className="text-xs font-semibold text-slate-600">Total Staff</span>
+                        <div className="flex items-center gap-2"><span className="text-sm font-black text-emerald-600">{(dashboardData.staff || []).length}</span><ChevronRight size={12} className="text-slate-300 group-hover:text-emerald-500"/></div>
+                      </button>
+                    </div>
+
+                    {/* Bed Matrix — Hidden for Low */}
+                    {dashboardData.scale !== 'Low' && (
+                    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-2 mb-4">
+                        <div className="flex items-center"><h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Beds</h3><SqlBadge sql={dashboardData.sql_sources?.beds} /></div>
+                        <button onClick={() => setDashboardDrilldown('beds')} className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 transition-colors">Ward Map <ChevronRight size={12}/></button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-center">
+                        <div className="p-3 bg-slate-50 rounded-lg border border-slate-100"><span className="block text-xl font-black text-slate-900">{dashboardData.telemetry.beds_total}</span><span className="text-[9px] font-bold text-slate-500 uppercase">Total</span></div>
+                        <button onClick={() => setDashboardDrilldown('beds')} className="p-3 bg-rose-50 rounded-lg border border-rose-100 hover:border-rose-300 transition-all"><span className="block text-xl font-black text-rose-700">{dashboardData.telemetry.beds_occupied}</span><span className="text-[9px] font-bold text-rose-600 uppercase">Occupied</span></button>
+                        <button onClick={() => setDashboardDrilldown('beds')} className="p-3 bg-emerald-50 rounded-lg border border-emerald-100 hover:border-emerald-300 transition-all"><span className="block text-xl font-black text-emerald-700">{dashboardData.telemetry.beds_total - dashboardData.telemetry.beds_occupied}</span><span className="text-[9px] font-bold text-emerald-600 uppercase">Free</span></button>
+                      </div>
+                    </div>
+                    )}
+
+                    {/* Pharmacy — Hidden if no pharmacy */}
+                    {(dashboardData.pharmacy || []).length > 0 && (
+                    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-2 mb-4">
+                        <div className="flex items-center"><h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Pharmacy</h3><SqlBadge sql={dashboardData.sql_sources?.pharmacy} /></div>
+                        <div className="flex items-center gap-2">
+                          {dashboardData.telemetry.low_stock_count > 0 && <span className="px-2 py-0.5 bg-rose-100 border border-rose-200 text-rose-700 text-[9px] rounded font-bold uppercase">{dashboardData.telemetry.low_stock_count} Alerts</span>}
+                          <button onClick={() => setDashboardDrilldown('pharmacy')} className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 transition-colors">Full <ChevronRight size={12}/></button>
+                        </div>
+                      </div>
+                      <div className="space-y-2 text-xs font-medium">
+                        {(dashboardData.pharmacy || []).slice(0, 4).map((item, i) => (
+                          <div key={i} className="flex justify-between items-center text-slate-600 px-1">
+                            <span>{item.item_name}</span>
+                            <span className={`font-bold ${item.stock_quantity <= item.reorder_level ? 'text-rose-600' : 'text-emerald-600'}`}>{item.stock_quantity <= item.reorder_level ? `LOW (${item.stock_quantity})` : `OK (${item.stock_quantity})`}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    )}
+                  </div>
+                </div>
+                </>
+                )}
+              </>
             )}
-
+          </div>
+        )}
             {consoleTab === 'branch-manager' && (
               <div className="space-y-8">
                 <div>

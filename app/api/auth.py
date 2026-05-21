@@ -125,6 +125,22 @@ async def register(
             )
             db.add(skeleton_patient)
             new_user.hospyn_id = hospyn_id
+            
+        elif new_user.role == "admin":
+            logger.info(f"Auto-creating hospital profile for admin {new_user.id}")
+            import uuid
+            hospyn_id = f"HOS-{uuid.uuid4().hex[:6].upper()}"
+            short_code = uuid.uuid4().hex[:6].upper()
+            hospital = models.Hospital(
+                name=user_in.facility_name or "New Hospital",
+                hospyn_id=hospyn_id,
+                short_code=short_code
+            )
+            db.add(hospital)
+            await db.flush()
+            
+            # Link admin to this hospital
+            new_user.hospital_id = hospital.id
 
         await db.commit()
         await db.refresh(new_user)
