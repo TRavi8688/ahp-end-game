@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ActivationWizard from './components/ActivationWizard';
+import QuickRegister from './components/QuickRegister';
 import chittiLandingImg from './assets/chitti_landing.jpg';
 import chittiSuperImg from './assets/chitti_super.jpg';
 import logoImg from './assets/logo.png';
@@ -217,6 +218,11 @@ const LedgerLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
 
 // --- CORE SYSTEM APP ---
 export default function App() {
+  const isRegisterRoute = window.location.pathname === '/register';
+  if (isRegisterRoute) {
+    return <QuickRegister />;
+  }
+
   const [currentPage, setCurrentPage] = useState(1);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);

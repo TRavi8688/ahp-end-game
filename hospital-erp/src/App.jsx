@@ -12,6 +12,7 @@ import SettingsPage from './pages/SettingsPage'
 import WardDashboard from './pages/WardDashboard'
 import SurgeryDashboard from './pages/SurgeryDashboard'
 import StaffDashboard from './pages/StaffDashboard'
+import AcceptInvite from './pages/AcceptInvite'
 import axios from 'axios'
 import { API_BASE_URL } from './api'
 import './App.css'
@@ -95,6 +96,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/accept-invite" element={<AcceptInvite />} />
           
           <Route path="/setup-services" element={
             <ProtectedRoute>
