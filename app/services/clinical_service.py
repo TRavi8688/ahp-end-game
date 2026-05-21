@@ -317,7 +317,7 @@ class ClinicalService(BaseService):
             user_id=user_id,
             resource_type=entity,
             resource_id=entity_id,
-            details={"hospital_id": hospital_id}
+            details={"hospital_id": str(hospital_id)}
         )
 
     async def verify_medical_record(
