@@ -57,11 +57,27 @@ class StaffService:
             elif "pharmacist" in role_lower or "pharmacy" in role_lower:
                 role_enum_val = RoleEnum.pharmacy
             
+            # Generate a unique Hospyn ID for this staff member (NOT the hospital's ID)
+            role_prefix = "STF"
+            if role_enum_val == RoleEnum.doctor:
+                role_prefix = "DOC"
+            elif role_enum_val == RoleEnum.nurse:
+                role_prefix = "NRS"
+            elif role_enum_val == RoleEnum.receptionist:
+                role_prefix = "RCP"
+            elif role_enum_val == RoleEnum.lab:
+                role_prefix = "LAB"
+            elif role_enum_val == RoleEnum.pharmacy:
+                role_prefix = "PHR"
+            elif role_enum_val == RoleEnum.hospital_admin:
+                role_prefix = "ADM"
+            staff_hospyn_id = f"HOSPYN-{role_prefix}-{uuid.uuid4().hex[:6].upper()}"
+
             user = User(
                 email=email,
                 hashed_password=get_password_hash(temp_password),
                 role=role_enum_val,
-                hospyn_id=hospital_hospyn_id,
+                hospyn_id=staff_hospyn_id,
                 first_name=first_name,
                 last_name=last_name,
                 is_active=True,
@@ -127,8 +143,9 @@ class StaffService:
 
         await db.commit()
 
-        logger.info(f"STAFFING: New {role} invited to {hospital_hospyn_id} | Email: {email} | Instant user created")
-        return invite, raw_token, temp_password
+        staff_hospyn_id = user.hospyn_id
+        logger.info(f"STAFFING: New {role} [{staff_hospyn_id}] invited to {hospital_hospyn_id} | Email: {email}")
+        return invite, raw_token, temp_password, staff_hospyn_id
 
     @classmethod
     async def get_hospital_staff(

@@ -26,17 +26,33 @@ const Login = () => {
     setError('');
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth/login`, {
-        username: identifier,
-        password: password
+      // Backend uses OAuth2PasswordRequestForm → must send form-encoded data
+      const formData = new URLSearchParams();
+      formData.append('username', identifier);
+      formData.append('password', password);
+
+      const response = await axios.post(`${API_BASE_URL}/auth/login`, formData, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
 
-      const { access_token, user } = response.data;
+      const { access_token } = response.data;
       
+      // Decode JWT to get user info (role, id, etc.)
+      let userInfo = {};
+      try {
+        const payload = JSON.parse(atob(access_token.split('.')[1]));
+        userInfo = {
+          id: payload.sub,
+          role: payload.role,
+          is_temporary_password: payload.is_temporary_password || false
+        };
+      } catch (e) {
+        console.warn('Could not decode JWT payload:', e);
+      }
+
       // Store security credentials
       localStorage.setItem('token', access_token);
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('hospital_id', user.hospital_id);
+      localStorage.setItem('user', JSON.stringify(userInfo));
       localStorage.setItem('isAuthenticated', 'true');
 
       // Redirect to the clinical command center
@@ -78,7 +94,7 @@ const Login = () => {
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   className="w-full bg-black/40 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-white placeholder-slate-600 outline-none focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 transition-all font-medium"
-                  placeholder="Enter username or email"
+                  placeholder="Hospyn ID (e.g. HOSPYN-ADM-XXXX) or email"
                   required
                   autoComplete="off"
                 />

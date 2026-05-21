@@ -7,7 +7,7 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-def send_staff_invite_email(to_email: str, staff_name: str, role: str, portal_url: str, temp_password: str):
+def send_staff_invite_email(to_email: str, staff_name: str, role: str, portal_url: str, temp_password: str, staff_hospyn_id: str = None):
     """
     Sends an onboarding email with credentials.
     Requires SMTP variables in .env:
@@ -34,12 +34,18 @@ def send_staff_invite_email(to_email: str, staff_name: str, role: str, portal_ur
         msg["From"] = smtp_username
         msg["To"] = to_email
 
-        # Derive the clean login URL (base portal without invite token)
-        login_url = portal_url.split("?")[0].rstrip("/accept-invite").rstrip("/")
-        if not login_url.endswith("/login"):
-            login_url_display = login_url + "/login"
-        else:
-            login_url_display = login_url
+        # Derive the clean login URL 
+        login_url_display = portal_url.rstrip("/") + "/login"
+
+        hospyn_id_section = ""
+        if staff_hospyn_id:
+            hospyn_id_section = f"""
+                <div style="background-color: #fafafa; border: 2px solid #0ea5e9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="color: #0369a1; margin: 0 0 12px 0;">🪪 Your Hospyn ID (Primary Login)</h3>
+                    <p style="margin: 4px 0; font-size: 22px; font-weight: 900; font-family: monospace; color: #0f172a; letter-spacing: 2px;">{staff_hospyn_id}</p>
+                    <p style="margin: 8px 0 0 0; color: #64748b; font-size: 12px;">Use this ID as your username when logging in. Keep it safe.</p>
+                </div>
+                """
 
         html_content = f"""
         <html>
@@ -51,14 +57,17 @@ def send_staff_invite_email(to_email: str, staff_name: str, role: str, portal_ur
                 <p>Hello <strong>{staff_name}</strong>,</p>
                 <p>You have been successfully onboarded to the Hospyn Clinical Network as a <strong>{role.upper()}</strong>.</p>
 
+                {hospyn_id_section}
+
                 <div style="background-color: #f0fdf4; border: 2px solid #16a34a; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                    <h3 style="color: #15803d; margin: 0 0 12px 0;">✅ Your Login Credentials</h3>
-                    <p style="margin: 6px 0;"><strong>Email:</strong> {to_email}</p>
+                    <h3 style="color: #15803d; margin: 0 0 12px 0;">🔐 Your Login Credentials</h3>
+                    <p style="margin: 6px 0;"><strong>Primary Login:</strong> Your Hospyn ID above</p>
+                    <p style="margin: 6px 0;"><strong>Backup Login:</strong> {to_email}</p>
                     <p style="margin: 6px 0;"><strong>Temporary Password:</strong> <code style="background: #dcfce7; padding: 2px 8px; border-radius: 4px; font-size: 14px;">{temp_password}</code></p>
                 </div>
 
                 <div style="background-color: #eff6ff; border: 2px solid #3b82f6; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                    <h3 style="color: #1d4ed8; margin: 0 0 12px 0;">🔗 Your Portal Login Link</h3>
+                    <h3 style="color: #1d4ed8; margin: 0 0 12px 0;">🔗 Your Portal Login</h3>
                     <a href="{login_url_display}" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">
                         Login to Your Dashboard →
                     </a>

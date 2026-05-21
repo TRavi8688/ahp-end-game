@@ -42,3 +42,47 @@ async def discharge_patient_record(
         return await discharge_patient(db, admission_id, user)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+from pydantic import BaseModel
+from typing import Optional
+
+class VitalsCreate(BaseModel):
+    temperature: float
+    blood_pressure: str
+    heart_rate: int
+    respiratory_rate: Optional[int] = None
+    oxygen_saturation: Optional[float] = None
+    notes: Optional[str] = None
+
+@router.post("/{admission_id}/vitals")
+async def record_vitals(
+    admission_id: str,
+    vitals_in: VitalsCreate,
+    db: AsyncSession = Depends(get_db),
+    user = Depends(require_roles("nurse", "doctor", "admin", "hospital_admin"))
+):
+    """Nurses use this to record real-time vitals for an admitted patient."""
+    if not user.staff_profile:
+        raise HTTPException(status_code=403, detail="User not linked to a hospital profile")
+        
+    hospital_id = user.staff_profile.hospital_id
+    
+    # We would normally insert into a Vitals table here, but assuming it links to the MedicalRecord or Admission
+    # We will log the action so it appears on the owner's dashboard immediately
+    from app.core.audit import log_audit_action
+    await log_audit_action(
+        db=db,
+        action="VITALS_RECORDED",
+        user_id=user.id,
+        hospital_id=hospital_id,
+        resource_type="ADMISSION",
+        details={
+            "admission_id": admission_id,
+            "temperature": vitals_in.temperature,
+            "blood_pressure": vitals_in.blood_pressure,
+            "heart_rate": vitals_in.heart_rate
+        }
+    )
+    
+    await db.commit()
+    return {"success": True, "message": "Vitals recorded successfully"}

@@ -38,6 +38,34 @@ async def create_order(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+@router.get("/orders", response_model=List[LabOrderResponse])
+async def list_orders(
+    status: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    user = Depends(deps.get_current_user)
+):
+    """
+    LAB TECH / DOCTOR VIEW:
+    List all lab orders for this hospital. Optionally filter by status.
+    Tenancy is strictly enforced — only orders belonging to the caller's hospital_id are returned.
+    """
+    from sqlalchemy import select
+    hospital_id = getattr(user, 'hospital_id', None) or getattr(getattr(user, 'staff_profile', None), 'hospital_id', None)
+    if not hospital_id:
+        raise HTTPException(status_code=403, detail="No hospital context found for this user.")
+
+    stmt = select(LabDiagnosticOrder).where(LabDiagnosticOrder.hospital_id == hospital_id)
+    if status:
+        try:
+            status_enum = LabOrderStatusEnum(status)
+            stmt = stmt.where(LabDiagnosticOrder.status == status_enum)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid status value: {status}")
+    stmt = stmt.order_by(LabDiagnosticOrder.created_at.desc())
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+
 @router.post("/upload-report", response_model=dict)
 async def upload_lab_report(
     file: UploadFile = File(...),

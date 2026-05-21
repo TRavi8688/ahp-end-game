@@ -47,7 +47,7 @@ async def invite_staff(
         if len(parts) > 1:
             last_name = parts[1]
 
-    invite, raw_token, temp_password = await StaffService.invite_staff_member(
+    invite, raw_token, temp_password, staff_hospyn_id = await StaffService.invite_staff_member(
         db,
         inviter_user_id=current_user.id,
         hospital_id=staff_profile.hospital_id,
@@ -67,25 +67,26 @@ async def invite_staff(
         user_id=current_user.id, 
         action="STAFF_INVITE_SENT", 
         resource_type="STAFF_INVITE",
-        details={"invited_email": invite_data.email, "role": invite_data.role}
+        details={"invited_email": invite_data.email, "role": invite_data.role, "staff_hospyn_id": staff_hospyn_id}
     )
     
-    portal_url = "https://hospyn-erp-portal.web.app/accept-invite" 
+    portal_url = "https://hospyn-erp-portal.web.app" 
     if invite_data.role == "doctor":
-        portal_url = "https://hospyn-doctor-pro.web.app/accept-invite"
+        portal_url = "https://hospyn-doctor-pro.web.app"
 
     from app.core.email import send_staff_invite_email
     email_sent = send_staff_invite_email(
         to_email=invite_data.email,
         staff_name=invite_data.full_name or "New Staff Member",
         role=invite_data.role,
-        portal_url=f"{portal_url}?token={raw_token}",
-        temp_password=temp_password
+        portal_url=portal_url,
+        temp_password=temp_password,
+        staff_hospyn_id=staff_hospyn_id
     )
     
     return {
         "message": "Invitation sent successfully to staff email" if email_sent else "Invitation simulated (SMTP not configured)", 
-        "token_preview": raw_token[:8] + "...",
+        "staff_id": staff_hospyn_id,
         "temp_password": temp_password
     }
 

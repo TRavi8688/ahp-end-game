@@ -4,6 +4,9 @@ import { Building2, Users, LayoutDashboard, LogOut, ChevronRight } from 'lucide-
 import AdminDashboard from './AdminDashboard';
 import DoctorQueue from './DoctorQueue';
 import NurseVitals from './NurseVitals';
+import PharmacyStockEntry from './PharmacyStockEntry';
+import ReceptionRegister from './ReceptionRegister';
+import LabManager from './LabManager';
 
 export default function DashboardRouter() {
   const user = useAuthStore((s) => s.user);
@@ -19,6 +22,7 @@ export default function DashboardRouter() {
     doctor: 'Doctor',
     nurse: 'Nurse',
     pharmacy: 'Pharmacist',
+    lab_tech: 'Lab Technician',
   }[user?.role] || 'Staff';
 
   const quickLinks = {
@@ -31,6 +35,15 @@ export default function DashboardRouter() {
     ],
     nurse: [
       { label: 'Vitals Queue', icon: LayoutDashboard, path: '/dashboard/nurse/vitals' },
+    ],
+    pharmacy: [
+      { label: 'Stock Manager', icon: LayoutDashboard, path: '/dashboard/pharmacy/stock' },
+    ],
+    receptionist: [
+      { label: 'Register Patient', icon: LayoutDashboard, path: '/dashboard/reception/register' },
+    ],
+    lab_tech: [
+      { label: 'Lab Manager', icon: LayoutDashboard, path: '/dashboard/lab/manager' },
     ],
   }[user?.role] || [];
 
@@ -66,6 +79,9 @@ export default function DashboardRouter() {
           <Route path="admin/staff" element={<AdminDashboard />} />
           <Route path="doctor/queue" element={<DoctorQueue />} />
           <Route path="nurse/vitals" element={<NurseVitals />} />
+          <Route path="pharmacy/stock" element={<PharmacyStockEntry />} />
+          <Route path="reception/register" element={<ReceptionRegister />} />
+          <Route path="lab/manager" element={<LabManager />} />
           <Route path="" element={
             <div style={styles.welcomeCard} className="card">
               <span className={`badge badge--${user?.role === 'hospital_admin' ? 'admin' : user?.role || 'doctor'}`} style={{ marginBottom: '1rem' }}>

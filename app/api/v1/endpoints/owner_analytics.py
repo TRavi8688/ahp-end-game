@@ -3,10 +3,49 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
 from app.api import deps
-from app.models.models import User, RoleEnum, HospitalBranch, Patient, Bed, AuditLog, StaffProfile
+from app.models.models import User, RoleEnum, HospitalBranch, Patient, Bed, AuditLog, StaffProfile, QueueToken, Admission, AdmissionStatus, QueueTokenStatus
 from typing import List, Dict, Any
 
 router = APIRouter()
+
+@router.get("/global-metrics")
+async def get_global_metrics(
+    current_user: User = Depends(deps.RoleChecker([RoleEnum.hospital_admin])),
+    db: AsyncSession = Depends(deps.get_db)
+):
+    """Supreme Owner: Live Global Hospital Metrics"""
+    if not current_user.staff_profile:
+        raise HTTPException(status_code=400, detail="Owner profile missing")
+        
+    hospital_id = current_user.staff_profile.hospital_id
+    
+    # Active Staff
+    stmt = select(func.count(StaffProfile.id)).where(StaffProfile.hospital_id == hospital_id)
+    active_staff = (await db.execute(stmt)).scalar() or 0
+    
+    # Total Beds
+    stmt = select(func.count(Bed.id)).where(Bed.hospital_id == hospital_id)
+    total_beds = (await db.execute(stmt)).scalar() or 0
+    
+    # Occupied Beds
+    stmt = select(func.count(Bed.id)).where(Bed.hospital_id == hospital_id, Bed.status == 'occupied')
+    occupied_beds = (await db.execute(stmt)).scalar() or 0
+    
+    # Patients in Queue
+    stmt = select(func.count(QueueToken.id)).where(QueueToken.hospital_id == hospital_id, QueueToken.status.in_([QueueTokenStatus.WAITING, QueueTokenStatus.IN_PROGRESS, QueueTokenStatus.EMERGENCY_OVERRIDE]))
+    patients_in_queue = (await db.execute(stmt)).scalar() or 0
+    
+    # Active Admissions
+    stmt = select(func.count(Admission.id)).where(Admission.hospital_id == hospital_id, Admission.status == AdmissionStatus.ADMITTED)
+    active_admissions = (await db.execute(stmt)).scalar() or 0
+
+    return {
+        "active_staff": active_staff,
+        "total_beds": total_beds,
+        "occupied_beds": occupied_beds,
+        "patients_in_queue": patients_in_queue,
+        "active_admissions": active_admissions
+    }
 
 @router.get("/branch-metrics")
 async def get_branch_metrics(

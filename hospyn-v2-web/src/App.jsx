@@ -1841,13 +1841,13 @@ export default function App() {
                         className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs font-bold text-slate-900 outline-none focus:border-primary cursor-pointer"
                         autoComplete="new-password"
                       >
-                        {activeRoles.includes('doctor') && <option value="doctor">Doctor Profile (doctor.hospyn.com)</option>}
-                        {activeRoles.includes('nurse') && <option value="nurse">Nurse Profile (staff.hospyn.com)</option>}
-                        {activeRoles.includes('receptionist') && <option value="receptionist">Receptionist / Front Desk (staff.hospyn.com)</option>}
-                        {activeRoles.includes('lab') && <option value="lab">Lab / Diagnostics Specialist (staff.hospyn.com)</option>}
-                        {activeRoles.includes('pharmacist') && <option value="pharmacist">Pharmacist Profile (pharmacy.hospyn.com)</option>}
-                        {activeRoles.includes('hr_manager') && <option value="hr_manager">HR Manager Profile (hr.hospyn.com)</option>}
-                        {activeRoles.includes('admin') && <option value="admin">Administrator Profile (admin.hospyn.com)</option>}
+                        {activeRoles.includes('doctor') && <option value="doctor">Doctor Profile (hospyn-doctor-pro.web.app)</option>}
+                        {activeRoles.includes('nurse') && <option value="nurse">Nurse Profile (hospyn-erp-portal.web.app)</option>}
+                        {activeRoles.includes('receptionist') && <option value="receptionist">Receptionist / Front Desk (hospyn-erp-portal.web.app)</option>}
+                        {activeRoles.includes('lab') && <option value="lab">Lab / Diagnostics Specialist (hospyn-erp-portal.web.app)</option>}
+                        {activeRoles.includes('pharmacist') && <option value="pharmacist">Pharmacist Profile (hospyn-erp-portal.web.app)</option>}
+                        {activeRoles.includes('hr_manager') && <option value="hr_manager">HR Manager Profile (hospyn-erp-portal.web.app)</option>}
+                        {activeRoles.includes('admin') && <option value="admin">Administrator Profile (hospyn-erp-portal.web.app)</option>}
                       </select>
                     </div>
 
@@ -2016,7 +2016,18 @@ export default function App() {
                         </thead>
                         <tbody className="divide-y divide-slate-50 font-medium">
                           {[...staffRecords, ...(dashboardData?.staff || [])].map((rec, i) => {
-                            const portal_url = rec.dedicated_portal_url || `https://${rec.role_name || rec.role || 'staff'}.hospyn.com`;
+                            const ROLE_PORTALS = {
+                              doctor: 'https://hospyn-doctor-pro.web.app',
+                              nurse: 'https://hospyn-erp-portal.web.app',
+                              receptionist: 'https://hospyn-erp-portal.web.app',
+                              lab: 'https://hospyn-erp-portal.web.app',
+                              pharmacy: 'https://hospyn-erp-portal.web.app',
+                              pharmacist: 'https://hospyn-erp-portal.web.app',
+                              hospital_admin: 'https://hospyn-erp-portal.web.app',
+                              admin: 'https://hospyn-erp-portal.web.app',
+                              hr_manager: 'https://hospyn-erp-portal.web.app',
+                            };
+                            const portal_url = rec.dedicated_portal_url || ROLE_PORTALS[rec.role] || ROLE_PORTALS[rec.role_name] || 'https://hospyn-erp-portal.web.app';
                             return (
                               <tr key={i} className="hover:bg-slate-50">
                                 <td className="py-3.5 text-slate-950">{rec.name || rec.user_name}</td>
