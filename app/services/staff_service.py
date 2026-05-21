@@ -42,37 +42,37 @@ class StaffService:
         
         temp_password = f"Temp-{secrets.token_hex(4).upper()}!"
         
-        if not user:
-            # Map the role string to core RoleEnum
-            role_enum_val = RoleEnum.hospital_admin
-            role_lower = role.lower()
-            if "doctor" in role_lower:
-                role_enum_val = RoleEnum.doctor
-            elif "nurse" in role_lower:
-                role_enum_val = RoleEnum.nurse
-            elif "receptionist" in role_lower:
-                role_enum_val = RoleEnum.receptionist
-            elif "lab" in role_lower or "technician" in role_lower:
-                role_enum_val = RoleEnum.lab
-            elif "pharmacist" in role_lower or "pharmacy" in role_lower:
-                role_enum_val = RoleEnum.pharmacy
-            
-            # Generate a unique Hospyn ID for this staff member (NOT the hospital's ID)
-            role_prefix = "STF"
-            if role_enum_val == RoleEnum.doctor:
-                role_prefix = "DOC"
-            elif role_enum_val == RoleEnum.nurse:
-                role_prefix = "NRS"
-            elif role_enum_val == RoleEnum.receptionist:
-                role_prefix = "RCP"
-            elif role_enum_val == RoleEnum.lab:
-                role_prefix = "LAB"
-            elif role_enum_val == RoleEnum.pharmacy:
-                role_prefix = "PHR"
-            elif role_enum_val == RoleEnum.hospital_admin:
-                role_prefix = "ADM"
-            staff_hospyn_id = f"HOSPYN-{role_prefix}-{uuid.uuid4().hex[:6].upper()}"
+        # Map the role string to core RoleEnum
+        role_enum_val = RoleEnum.hospital_admin
+        role_lower = role.lower()
+        if "doctor" in role_lower:
+            role_enum_val = RoleEnum.doctor
+        elif "nurse" in role_lower:
+            role_enum_val = RoleEnum.nurse
+        elif "receptionist" in role_lower:
+            role_enum_val = RoleEnum.receptionist
+        elif "lab" in role_lower or "technician" in role_lower:
+            role_enum_val = RoleEnum.lab
+        elif "pharmacist" in role_lower or "pharmacy" in role_lower:
+            role_enum_val = RoleEnum.pharmacy
+        
+        # Generate a unique Hospyn ID for this staff member (NOT the hospital's ID)
+        role_prefix = "STF"
+        if role_enum_val == RoleEnum.doctor:
+            role_prefix = "DOC"
+        elif role_enum_val == RoleEnum.nurse:
+            role_prefix = "NRS"
+        elif role_enum_val == RoleEnum.receptionist:
+            role_prefix = "RCP"
+        elif role_enum_val == RoleEnum.lab:
+            role_prefix = "LAB"
+        elif role_enum_val == RoleEnum.pharmacy:
+            role_prefix = "PHR"
+        elif role_enum_val == RoleEnum.hospital_admin:
+            role_prefix = "ADM"
+        staff_hospyn_id = f"HOSPYN-{role_prefix}-{uuid.uuid4().hex[:6].upper()}"
 
+        if not user:
             user = User(
                 email=email,
                 hashed_password=get_password_hash(temp_password),
@@ -85,6 +85,15 @@ class StaffService:
             )
             db.add(user)
             await db.flush()
+        else:
+            # FIX: If user exists, update their password so the new temp password works
+            user.hashed_password = get_password_hash(temp_password)
+            user.is_temporary_password = True
+            user.role = role_enum_val
+            
+            # Upgrade Hospyn ID if it's a legacy or patient ID
+            if not user.hospyn_id or not user.hospyn_id.startswith("HOSPYN-"):
+                user.hospyn_id = staff_hospyn_id
             
         # Create Staff Profile instantly
         from app.models.models import StaffProfile, Doctor
