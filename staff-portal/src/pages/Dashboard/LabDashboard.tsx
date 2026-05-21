@@ -5,7 +5,7 @@ import {
   FileText, 
   Zap, 
   Search, 
-  Trello, 
+  Layout, 
   CheckCircle2, 
   Clock, 
   Dna,
@@ -103,7 +103,7 @@ const LabDashboard: React.FC = () => {
               </h2>
               <div className="flex gap-2">
                 <button className="p-2 bg-slate-800 text-slate-400 rounded-lg"><Search size={16} /></button>
-                <button className="p-2 bg-slate-800 text-slate-400 rounded-lg"><Trello size={16} /></button>
+                <button className="p-2 bg-slate-800 text-slate-400 rounded-lg"><Layout size={16} /></button>
               </div>
             </div>
 

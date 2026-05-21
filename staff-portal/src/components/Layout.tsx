@@ -97,10 +97,10 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
         <div className="mt-auto p-8 border-t border-white/5 bg-slate-900/10">
           <div className="flex items-center gap-4 mb-8">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 flex items-center justify-center text-lg font-black text-white shadow-xl">
-              {user?.name?.substring(0, 1) || 'D'}
+              {((user as any)?.first_name)?.substring(0, 1) || ((user as any)?.email)?.substring(0, 1) || 'D'}
             </div>
             <div className="flex flex-col overflow-hidden">
-              <span className="text-sm font-black text-white truncate uppercase tracking-tighter">{user?.name || 'Demo User'}</span>
+              <span className="text-sm font-black text-white truncate uppercase tracking-tighter">{(user as any)?.first_name || (user as any)?.email || 'Demo User'}</span>
               <span className="text-[10px] text-blue-500 font-black uppercase tracking-widest">{role.replace('_', ' ')}</span>
             </div>
           </div>

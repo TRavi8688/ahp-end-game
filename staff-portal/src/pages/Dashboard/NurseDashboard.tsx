@@ -110,7 +110,7 @@ const NurseDashboard: React.FC = () => {
                              <div className="flex items-center gap-4 text-xs font-bold text-slate-500 uppercase tracking-tighter">
                                 <span className="font-mono text-slate-400">{p.id}</span>
                                 <div className="w-1 h-1 rounded-full bg-slate-800" />
-                                <span>WAIT: <span className="text-blue-500">{p.time}</span></span>
+                                <span>WAIT: <span className="text-blue-500">{(p as any).time}</span></span>
                              </div>
                           </div>
                        </div>
