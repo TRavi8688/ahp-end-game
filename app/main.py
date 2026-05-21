@@ -209,9 +209,10 @@ def safe_include(router, name, prefix=settings.API_V1_STR, tags=None):
 # Import everything inside a safe block
 try:
     from app.api import auth, patient, profile, doctor, admin, privacy, auth_onboarding, staff, governance, visit, billing, pharmacy, clinical, lab, ward, surgery, settings as hospital_settings
-    from app.api.v1.endpoints import onboarding
+    from app.api.v1.endpoints import onboarding, owner_analytics
     from app.api.v1.router import api_router as enterprise_v1_router
 
+    safe_include(owner_analytics.router, "Owner Analytics", prefix=f"{settings.API_V1_STR}/owner", tags=["Owner Analytics"])
     safe_include(auth.router, "Authentication", tags=["Authentication"])
     safe_include(patient.router, "Patient", tags=["Patient"])
     safe_include(profile.router, "Profile", tags=["Profile"])

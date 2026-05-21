@@ -64,6 +64,44 @@ async def seed_owner():
 
         await db.commit()
 
+        # Create Branches
+        from app.models.models import HospitalBranch, Bed, AuditLog, BedStatusEnum
+        branches = []
+        for loc in ["Delhi", "Mumbai", "Bangalore"]:
+            branch = HospitalBranch(
+                hospital_id=hospital.id,
+                name=f"{loc} Super Specialty",
+                address=f"123 {loc} Plaza"
+            )
+            db.add(branch)
+            branches.append(branch)
+        await db.flush()
+
+        # Create Beds
+        for i in range(1, 10):
+            bed = Bed(
+                hospital_id=hospital.id,
+                bed_number=f"ICU-10{i}",
+                status=BedStatusEnum.available if i % 2 == 0 else BedStatusEnum.occupied
+            )
+            db.add(bed)
+        await db.flush()
+
+        # Create Audit Logs
+        for i in range(5):
+            log = AuditLog(
+                hospital_id=hospital.id,
+                user_id=owner.id,
+                action="AI_OVERRIDE",
+                resource_type="PRESCRIPTION",
+                details={"doctor_correction": "Metformin 500mg instead of 1000mg", "ai_suggestion": "Metformin 1000mg"},
+                signature="signed_mock_hash",
+                prev_hash="prev_mock_hash"
+            )
+            db.add(log)
+
+        await db.commit()
+
         print("=== OWNER ACCOUNT CREATED SUCCESSFULLY ===")
         print(f"Login Email: {owner_email}")
         print(f"Password: {owner_password}")

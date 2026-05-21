@@ -11,6 +11,7 @@ import {
   BarChart3, Database, Mail, ChevronRight, ArrowLeft 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import SovereignConsole from './components/SovereignConsole';
 import ActivationWizard from './components/ActivationWizard';
 import QuickRegister from './components/QuickRegister';
 import chittiLandingImg from './assets/chitti_landing.jpg';
@@ -41,12 +42,12 @@ const CredentialsEmailModal = ({ isOpen, onClose, staffRecord }) => {
           <p>Dear {staffRecord.name},</p>
           <p>Your professional access credentials for <strong>{staffRecord.hospitalName}</strong> have been successfully provisioned on the Hospyn clinical grid:</p>
           <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
-            <p>🔑 <strong>Unique Staff ID:</strong> <span className="text-blue-600 font-bold">{staffRecord.staff_id}</span></p>
-            <p>🔒 <strong>Temporary Password:</strong> <span className="text-blue-600 font-bold">{staffRecord.temporary_password}</span></p>
+            <p>≡ƒöæ <strong>Unique Staff ID:</strong> <span className="text-blue-600 font-bold">{staffRecord.staff_id}</span></p>
+            <p>≡ƒöÆ <strong>Temporary Password:</strong> <span className="text-blue-600 font-bold">{staffRecord.temporary_password}</span></p>
           </div>
           <p>Please access your dedicated clinical console at:</p>
           <p className="p-4 bg-blue-50 border border-blue-100 rounded-xl font-bold text-blue-700">
-            👉 <a href={staffRecord.dedicated_portal_url} target="_blank" rel="noreferrer" className="underline">{staffRecord.dedicated_portal_url}/login</a>
+            ≡ƒæë <a href={staffRecord.dedicated_portal_url} target="_blank" rel="noreferrer" className="underline">{staffRecord.dedicated_portal_url}/login</a>
           </p>
           <p>Upon your first sign-in, you will be prompted to set a permanent, password.</p>
           <hr className="border-slate-200" />
@@ -143,10 +144,10 @@ const LedgerLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
       >
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2.5">
-            <span className="text-violet-600 font-bold text-lg">🔒</span>
+            <span className="text-violet-600 font-bold text-lg">≡ƒöÆ</span>
             <span className="text-xs font-black uppercase tracking-widest text-slate-850 font-outfit">Sovereign Node Login</span>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-650 transition-colors">✕</button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-650 transition-colors">Γ£ò</button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -442,7 +443,7 @@ export default function App() {
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-500 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-600"></span>
                     </span>
-                    <span className="text-violet-600 text-[10px] font-black uppercase tracking-[0.2em] font-inter">✦ Connected Clinical Network</span>
+                    <span className="text-violet-600 text-[10px] font-black uppercase tracking-[0.2em] font-inter">Γ£ª Connected Clinical Network</span>
                   </motion.div>
  
                   {/* Title Header: Polished & High-End */}
@@ -463,7 +464,7 @@ export default function App() {
                     transition={{ delay: 0.2 }}
                     className="text-slate-600 text-base md:text-lg max-w-2xl font-medium leading-relaxed"
                   >
-                    Hospyn puts your entire healthcare ecosystem in the palm of your hand. Track your team’s performance in real time, monitor daily clinical operations, and keep all patient records completely digitalized, secure, and instant.
+                    Hospyn puts your entire healthcare ecosystem in the palm of your hand. Track your teamΓÇÖs performance in real time, monitor daily clinical operations, and keep all patient records completely digitalized, secure, and instant.
                   </motion.p>
  
                   {/* Forensic Pending Banner (if registered but waiting for manual review) */}
@@ -475,13 +476,13 @@ export default function App() {
                     >
                       <div className="flex gap-3 items-center text-violet-800 font-bold text-sm">
                         <AlertTriangle size={18} className="text-violet-600" />
-                        <span>Registration Sent — Manual Verification Pending</span>
+                        <span>Registration Sent ΓÇö Manual Verification Pending</span>
                       </div>
                       <p className="text-xs text-violet-700 leading-relaxed">
                         Our team is verifying your registration out-of-band to ensure zero-bypass clinical safety. Enter your dashboard cockpit instantly using the super-admin approval bypass below.
                       </p>
                       <button onClick={handleVerifyBypass} className="w-full py-2.5 bg-slate-900 text-white font-bold text-[10px] uppercase tracking-wider rounded-lg hover:bg-slate-800 transition-all shadow-md">
-                        ⚡ [Super Admin Approval Bypass] - Enter Cockpit Instantly
+                        ΓÜí [Super Admin Approval Bypass] - Enter Cockpit Instantly
                       </button>
                     </motion.div>
                   )}
@@ -498,14 +499,14 @@ export default function App() {
                         onClick={() => setIsWizardOpen(true)} 
                         className="px-8 py-4 bg-violet-600 text-white font-bold text-xs tracking-widest uppercase rounded-xl hover:bg-violet-700 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-violet-500/20 flex items-center gap-2"
                       >
-                        Register Your Hospital ➔
+                        Register Your Hospital Γ₧ö
                       </button>
                     ) : (
                       <button 
                         onClick={handleVerifyBypass} 
                         className="px-8 py-4 bg-violet-600 text-white font-bold text-xs tracking-widest uppercase rounded-xl hover:bg-violet-700 transition-all flex items-center gap-2"
                       >
-                        Monitor Local Node ➔
+                        Monitor Local Node Γ₧ö
                       </button>
                     )}
                     <button 
@@ -554,19 +555,19 @@ export default function App() {
                       Unifying the Fragmented Clinical Grid
                     </h2>
                     <p className="text-slate-600 text-sm font-medium leading-relaxed">
-                      Hospyn’s vision is to replace unverified manual medical steps with absolute operational transparency. We are building the clinical nervous system where hospital owners, senior staff, and doctors coordinate instantly under a fully digitalized, zero-fraud ledger network.
+                      HospynΓÇÖs vision is to replace unverified manual medical steps with absolute operational transparency. We are building the clinical nervous system where hospital owners, senior staff, and doctors coordinate instantly under a fully digitalized, zero-fraud ledger network.
                     </p>
                     
                     {/* Checkmarks */}
                     <div className="space-y-3.5 pt-2">
                       {[
                         'Manage your entire multi-branch hospital ecosystem from a single cockpit screen.',
-                        'Monitor every doctor’s task flow and track clinical queue backlogs in real time.',
+                        'Monitor every doctorΓÇÖs task flow and track clinical queue backlogs in real time.',
                         'Secure clinical profiles with multi-factor OTP validation and out-of-band NABH license verification.'
                       ].map((bullet, idx) => (
                         <div key={idx} className="flex gap-3 items-start">
                           <div className="w-5 h-5 rounded-full bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 mt-0.5">
-                            ✓
+                            Γ£ô
                           </div>
                           <span className="text-xs text-slate-600 font-semibold leading-normal">{bullet}</span>
                         </div>
@@ -608,13 +609,13 @@ export default function App() {
                 
                 <div className="text-center space-y-4 max-w-2xl mx-auto">
                   <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full border border-violet-200 bg-white text-[9px] font-black tracking-widest text-violet-600 uppercase shadow-sm">
-                    ✦ Chitti AI Cognition
+                    Γ£ª Chitti AI Cognition
                   </span>
                   <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 font-outfit">
                     Zero-Error Clinical Intelligence
                   </h2>
                   <p className="text-slate-500 text-xs md:text-sm font-semibold leading-relaxed">
-                    Explore how Chitti’s sovereign intelligence engines eliminate manual mistakes, secure patient prescriptions, and coordinate clinic queues in real-time.
+                    Explore how ChittiΓÇÖs sovereign intelligence engines eliminate manual mistakes, secure patient prescriptions, and coordinate clinic queues in real-time.
                   </p>
                 </div>
 
@@ -685,7 +686,7 @@ export default function App() {
                               {activeAiSlide === 2 && 'Immutable Private Ledger Cryptographic Sync'}
                             </h3>
                             <p className="text-slate-650 text-xs md:text-sm leading-relaxed font-semibold">
-                              {activeAiSlide === 0 && 'Scan physical clinical certificates and prescriptions instantly. Chitti’s high-precision OCR pipeline isolates medical license registries, extracts text parameters, and checks signature stamps for complete security compliance.'}
+                              {activeAiSlide === 0 && 'Scan physical clinical certificates and prescriptions instantly. ChittiΓÇÖs high-precision OCR pipeline isolates medical license registries, extracts text parameters, and checks signature stamps for complete security compliance.'}
                               {activeAiSlide === 1 && 'Hospyn continuously checks drug names and intake dosages against clinical databases. If a doctor drafts an outlier prescription (e.g. 1000mg vs 500mg standard), Chitti raises a non-intrusive warning to double-verify medical intents.'}
                               {activeAiSlide === 2 && 'Every verified transaction, doctor assignment, and medicine dispense is packaged into a cryptographic transaction block. The block is stamped onto your local sovereign database node, establishing a permanent, zero-fraud audit trail.'}
                             </p>
@@ -717,11 +718,11 @@ export default function App() {
                           {activeAiSlide === 1 && (
                             <motion.div key="vis1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-sm space-y-3">
                               <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex items-center justify-between text-[10px]">
-                                <span className="text-rose-700 font-bold flex items-center gap-1">⚠ High Dosage Flagged</span>
+                                <span className="text-rose-700 font-bold flex items-center gap-1">ΓÜá High Dosage Flagged</span>
                                 <span className="text-rose-600 font-black">1000mg Metformin</span>
                               </div>
                               <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center justify-between text-[10px]">
-                                <span className="text-emerald-700 font-bold flex items-center gap-1">✔ Adjusted Standard</span>
+                                <span className="text-emerald-700 font-bold flex items-center gap-1">Γ£ö Adjusted Standard</span>
                                 <span className="text-emerald-600 font-black">500mg Metformin</span>
                               </div>
                             </motion.div>
@@ -756,7 +757,7 @@ export default function App() {
                 
                 <div className="text-center space-y-4 max-w-2xl mx-auto">
                   <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full border border-violet-200 bg-violet-50 text-[9px] font-black tracking-widest text-violet-600 uppercase shadow-sm">
-                    ♥ Patient Experience Flow
+                    ΓÖÑ Patient Experience Flow
                   </span>
                   <h2 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 font-outfit">
                     Streamlining the Patient Journey
@@ -869,13 +870,13 @@ export default function App() {
                           {activePatientSlide === 2 && (
                             <motion.div key="pvis2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-sm p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">✔</div>
+                                <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">Γ£ö</div>
                                 <div>
                                   <p className="text-[10px] font-black text-slate-900 uppercase">Razorpay Settlement Locked</p>
                                   <p className="text-[8px] text-slate-450 mt-0.5">UPI Auto-pay settlement: success</p>
                                 </div>
                               </div>
-                              <span className="text-[10px] font-black text-emerald-600">₹200.00</span>
+                              <span className="text-[10px] font-black text-emerald-600">Γé╣200.00</span>
                             </motion.div>
                           )}
                         </AnimatePresence>
@@ -959,10 +960,10 @@ export default function App() {
                   <span className="px-2.5 py-0.5 rounded bg-violet-500/20 text-violet-400 font-bold uppercase text-[9px] tracking-wider">ACTIVE PIPELINE</span>
                 </div>
                 <p className="text-slate-500"># Initializing instant hospital node network handshakes...</p>
-                <p>✔ [09:12:01] Doctor biometric identity check complete. Confidence: <span className="text-emerald-400 font-bold">99.8%</span></p>
-                <p>✔ [09:12:02] Government NABH license verification: verified by central medical registry.</p>
-                <p>✔ [09:12:03] Secure bank settlement configuration tokenized direct to primary account.</p>
-                <p className="text-violet-400 font-bold mt-2">🚀 ACTIVE NODE: Hospital cockpit digitalized and security audits passed.</p>
+                <p>Γ£ö [09:12:01] Doctor biometric identity check complete. Confidence: <span className="text-emerald-400 font-bold">99.8%</span></p>
+                <p>Γ£ö [09:12:02] Government NABH license verification: verified by central medical registry.</p>
+                <p>Γ£ö [09:12:03] Secure bank settlement configuration tokenized direct to primary account.</p>
+                <p className="text-violet-400 font-bold mt-2">≡ƒÜÇ ACTIVE NODE: Hospital cockpit digitalized and security audits passed.</p>
               </div>
             </section>
           )}
@@ -1032,7 +1033,7 @@ export default function App() {
                 <p className="text-sm font-black italic text-indigo-900 font-outfit leading-relaxed">
                   "Our mission is to replace friction with flow. Every hospital is a sovereign node in a global network of trusted, verified, and high-fidelity patient care."
                 </p>
-                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-500 block">— HOSPYN SOVEREIGN LEADERSHIP TEAM</span>
+                <span className="text-[10px] font-black uppercase tracking-wider text-indigo-500 block">ΓÇö HOSPYN SOVEREIGN LEADERSHIP TEAM</span>
               </div>
             </section>
           )}
@@ -1042,30 +1043,16 @@ export default function App() {
 
       {/* SOVEREIGN CONSOLE MODE (OWNER COCKPIT) */}
       {appStatus === 'approved' && (
-
-        <div className="flex flex-col items-center justify-center min-h-screen text-slate-700 bg-[#F8FAFC] p-10">
-          <div className="bg-white p-12 rounded-[32px] border border-slate-200 shadow-2xl shadow-blue-900/5 max-w-2xl text-center flex flex-col items-center">
-            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            </div>
-            <h2 className="text-4xl font-extrabold text-slate-950 font-outfit tracking-tight mb-4">Activation Successful</h2>
-            <p className="text-slate-500 mb-8 max-w-md leading-relaxed text-sm">
-              Your hospital network has been securely activated. For HIPAA compliance and enterprise security, all clinical and staff management operations must be performed via the dedicated ERP Portal.
-            </p>
-            <a 
-              href="https://hospyn-erp-portal.web.app/login" 
-              className="px-8 py-4 bg-primary text-white rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-500/20"
-            >
-              Secure Login to ERP Portal
-            </a>
-          </div>
-        </div>
+        <SovereignConsole onLogout={() => { 
+          setAppStatus('unregistered'); 
+          localStorage.removeItem('hospyn_owner_token'); 
+        }} />
       )}
 
       {/* FOOTER */}
       {appStatus !== 'approved' && (
         <footer className="py-16 border-t border-slate-200 text-center bg-white text-slate-500">
-          <p className="text-[9px] font-bold uppercase tracking-[0.4em] mb-4">© 2026 Hospyn Sovereign Grid. Forensic Intelligence Protocol.</p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.4em] mb-4">┬⌐ 2026 Hospyn Sovereign Grid. Forensic Intelligence Protocol.</p>
           <div className="flex justify-center gap-8 text-[9px] font-bold uppercase tracking-[0.2em]">
             <a href="#" className="hover:text-primary transition-colors">Forensic Security</a>
             <a href="#" className="hover:text-primary transition-colors">Privacy Matrix</a>
@@ -1125,7 +1112,7 @@ export default function App() {
                 <div className="p-5 bg-violet-600 text-white flex items-center justify-between shadow-md">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white font-bold">
-                      ✦
+                      Γ£ª
                     </div>
                     <div>
                       <h4 className="text-xs font-black uppercase tracking-wider font-outfit">Chitti AI Clinical Bot</h4>
@@ -1177,7 +1164,7 @@ export default function App() {
                     className="flex-grow bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold outline-none focus:border-violet-400 focus:bg-white transition-all"
                   />
                   <button type="submit" className="w-9 h-9 rounded-xl bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center font-bold shadow-md shadow-violet-500/10">
-                    ➔
+                    Γ₧ö
                   </button>
                 </form>
               </motion.div>
@@ -1191,7 +1178,7 @@ export default function App() {
             onClick={() => setIsChatOpen(!isChatOpen)}
             className="w-16 h-16 rounded-full bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center shadow-xl shadow-violet-500/20 text-2xl font-bold border-2 border-white/20"
           >
-            💬
+            ≡ƒÆ¼
           </motion.button>
         </div>
       )}

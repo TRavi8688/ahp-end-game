@@ -720,4 +720,26 @@ async def forgot_password_reset(
     logger.info(f"FORGOT_PASSWORD_RESET_SUCCESS: User={user.email}")
     return {"success": True, "message": "Password successfully updated. You can now log in."}
 
-
+@router.post("/change-password")
+async def change_password(
+    req: schemas.ChangePasswordRequest,
+    current_user: models.User = Depends(deps.get_current_user),
+    db: AsyncSession = Depends(deps.get_db)
+):
+    """Authenticated endpoint for staff to change their own password."""
+    if not security.verify_password(req.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Incorrect current password")
+        
+    current_user.hashed_password = security.get_password_hash(req.new_password)
+    # Intentionally NOT incrementing token_version so their current session survives
+    
+    await log_audit_action(
+        db=db,
+        user_id=current_user.id,
+        action="PASSWORD_CHANGED",
+        resource_type="USER",
+        details={"method": "self-service"}
+    )
+    
+    await db.commit()
+    return {"success": True, "message": "Password updated successfully."}

@@ -33,6 +33,10 @@ class ForgotPasswordReset(BaseModel):
     reset_token: str
     new_password: str
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
 class PatientSetupRequest(BaseModel):
     phone_number: str
     date_of_birth: str
