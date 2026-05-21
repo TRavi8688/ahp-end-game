@@ -190,24 +190,7 @@ const LedgerLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
           </button>
         </form>
 
-        {/* Five real hospital logins */}
-        <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-xl space-y-2">
-          <p className="text-[9px] text-slate-450 font-bold uppercase tracking-wider text-center">Hospital Owner Logins (Password: admin123)</p>
-          <div className="grid grid-cols-1 gap-1">
-            {[
-              { label: 'Apollo (High)', email: 'owner@apollo.com' },
-              { label: 'Narayana (High)', email: 'owner@narayana.com' },
-              { label: 'Cloudnine (Mid)', email: 'owner@cloudnine.com' },
-              { label: 'Care First (Low)', email: 'owner@carefirst.com' },
-              { label: 'Medall (Low)', email: 'owner@medall.com' }
-            ].map((h) => (
-              <button key={h.email} onClick={() => { setEmail(h.email); setPassword('admin123'); }} className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-white border border-transparent hover:border-slate-200 transition-all flex justify-between items-center">
-                <span className="text-[10px] font-bold text-slate-700">{h.label}</span>
-                <code className="text-[9px] text-slate-500 font-mono">{h.email}</code>
-              </button>
-            ))}
-          </div>
-        </div>
+
 
         <p className="text-[9px] text-slate-400 font-bold text-center uppercase tracking-widest">
           Secured by Hospyn Ledger Protocol.

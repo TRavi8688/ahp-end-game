@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc
 from app.api import deps
-from app.models.models import User, RoleEnum, HospitalBranch, Patient, Encounter, Bed, AuditLog, StaffProfile
+from app.models.models import User, RoleEnum, HospitalBranch, Patient, Bed, AuditLog, StaffProfile
 from typing import List, Dict, Any
 
 router = APIRouter()
