@@ -165,7 +165,49 @@ async def get_owner_dashboard(
             detail="User is not authorized as a hospital owner or staff member."
         )
         
-    # 2. Fetch Settings and Determine Scale Profile
+    # 2. Fetch Settings and Determine Scale
+    
+    # Fetch Beds
+    stmt_beds = select(models.Bed).where(models.Bed.hospital_id == hospital.id)
+    res_beds = await db.execute(stmt_beds)
+    beds = res_beds.scalars().all()
+    
+    # Fetch AuditLogs (Operations Activity Feed)
+    # Joining with User and Patient to get rich names
+    stmt_audit = select(models.AuditLog, models.User, models.Patient).outerjoin(
+        models.User, models.AuditLog.user_id == models.User.id
+    ).outerjoin(
+        models.Patient, models.AuditLog.patient_id == models.Patient.id
+    ).where(models.AuditLog.hospital_id == hospital.id).order_by(models.AuditLog.timestamp.desc()).limit(50)
+    res_audit = await db.execute(stmt_audit)
+    audit_rows = res_audit.all()
+    
+    activity_feed = []
+    for audit, u, p in audit_rows:
+        actor_name = f"{u.first_name or ''} {u.last_name or ''}".strip() or u.email if u else "System"
+        actor_role = u.role.value if (u and hasattr(u, "role")) else "System"
+        patient_name = "Unknown"
+        patient_hospyn_id = "N/A"
+        if p:
+            # We would need a join to get patient.user for the name, but for simplicity we can check if there's a quick way
+            # Or just use hospyn_id
+            patient_hospyn_id = p.hospyn_id
+        
+        # If we need patient name we should do another join, let's just use what's in details if available, or hospyn_id
+        details = audit.details or {}
+        patient_desc = details.get("patient_name") or patient_hospyn_id
+        
+        activity_feed.append({
+            "id": str(audit.id),
+            "timestamp": audit.timestamp.isoformat() if audit.timestamp else None,
+            "action": audit.action,
+            "resource_type": audit.resource_type,
+            "actor_name": actor_name,
+            "actor_role": actor_role,
+            "patient": patient_desc,
+            "details": details
+        })
+    
     stmt_settings = select(HospitalSettings).where(HospitalSettings.hospital_id == hospital.id)
     res_settings = await db.execute(stmt_settings)
     settings = res_settings.scalars().first()
@@ -349,6 +391,7 @@ async def get_owner_dashboard(
         "pharmacy": pharm_list,
         "staff": staff_list,
         "ledger": ledger_list,
+        "activity_feed": activity_feed,
         "sql_sources": {
             "telemetry": "SELECT SUM(payments.amount), COUNT(patient_visits.id), COUNT(beds.id) FROM payments, patient_visits, beds",
             "ledger": "FROM payments JOIN invoices ON payments.invoice_id = invoices.id JOIN patients ON payments.patient_id = patients.id JOIN users ON patients.user_id = users.id",

@@ -230,7 +230,10 @@ export default function App() {
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState(null);
 
-  // Fetch dashboard data from API
+  // --- LOCAL FILTER STATES ---
+  const [activityFilterDate, setActivityFilterDate] = useState('');
+  
+  // Custom Hook to load state from hashAPI
   const fetchDashboard = async (branchId) => {
     const token = localStorage.getItem('hospyn_owner_token');
     if (!token) return;
@@ -1363,6 +1366,86 @@ export default function App() {
                   </div>
                 )}
 
+                {/* ── DRILL-DOWN: ACTIVITY LOGS ── */}
+                {dashboardDrilldown === 'activity' && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => setDashboardDrilldown(null)} className="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-slate-900 border border-slate-200 rounded-lg px-3 py-2 bg-white shadow-sm transition-all">
+                          <ArrowLeft size={14}/> Back to Overview
+                        </button>
+                        <h2 className="text-xl font-black text-slate-900 font-outfit">Full Operations Log (Audit Trail)</h2>
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => {
+                          const csvLines = [
+                            ['Timestamp', 'Action', 'Resource', 'Actor', 'Role', 'Patient ID'].join(',')
+                          ];
+                          (dashboardData?.activity_feed || []).forEach(log => {
+                            csvLines.push([
+                              `"${log.timestamp || ''}"`,
+                              `"${log.action || ''}"`,
+                              `"${log.resource_type || ''}"`,
+                              `"${log.actor_name || ''}"`,
+                              `"${log.actor_role || ''}"`,
+                              `"${log.patient || ''}"`
+                            ].join(','));
+                          });
+                          const blob = new Blob([csvLines.join('\\n')], { type: 'text/csv' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `Hospital_Operations_Log_${new Date().toISOString().split('T')[0]}.csv`;
+                          a.click();
+                        }} className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white font-bold text-xs rounded-lg uppercase tracking-wider hover:bg-slate-800 transition-colors">
+                          <UploadCloud size={14}/> Export to Excel
+                        </button>
+                      </div>
+                    </div>
+                    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                      <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                        <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Enterprise Audit Trail</h3>
+                        <div className="flex gap-2">
+                          <input type="date" value={activityFilterDate} onChange={e => setActivityFilterDate(e.target.value)} className="px-3 py-1.5 border border-slate-200 rounded text-[10px] text-slate-700 outline-none focus:border-primary" />
+                          <button onClick={() => setActivityFilterDate('')} className="px-3 py-1.5 border border-slate-200 bg-white text-slate-500 hover:text-slate-900 rounded text-[10px] font-bold uppercase tracking-widest transition-colors"><Filter size={10} className="inline mr-1"/> Clear</button>
+                        </div>
+                      </div>
+                      <div className="overflow-x-auto max-h-[600px]">
+                        <table className="w-full text-xs text-left whitespace-nowrap">
+                          <thead className="bg-white sticky top-0 border-b border-slate-100 z-10 shadow-sm">
+                            <tr>
+                              <th className="py-3 px-4 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Timestamp</th>
+                              <th className="py-3 px-4 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Action</th>
+                              <th className="py-3 px-4 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Actor (Role)</th>
+                              <th className="py-3 px-4 font-bold text-slate-400 uppercase text-[9px] tracking-wider">Patient (Target)</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-50 font-medium">
+                            {(dashboardData.activity_feed || [])
+                              .filter(log => !activityFilterDate || (log.timestamp && log.timestamp.startsWith(activityFilterDate)))
+                              .map((log, i) => (
+                              <tr key={i} className="hover:bg-slate-50">
+                                <td className="py-3 px-4 text-slate-500 font-mono">{log.timestamp ? new Date(log.timestamp).toLocaleString() : 'N/A'}</td>
+                                <td className="py-3 px-4 font-bold text-slate-900">
+                                  <div className="flex items-center gap-2">
+                                    {log.action.includes('PAYMENT') ? <CreditCard size={12} className="text-emerald-500"/> : log.action.includes('INTAKE') ? <Activity size={12} className="text-blue-500"/> : <Layers size={12} className="text-indigo-500"/>}
+                                    {log.action.replace(/_/g, ' ')}
+                                  </div>
+                                </td>
+                                <td className="py-3 px-4"><span className="text-slate-800 font-bold">{log.actor_name}</span> <span className="text-slate-400 ml-1">({log.actor_role})</span></td>
+                                <td className="py-3 px-4 text-slate-600">{log.patient}</td>
+                              </tr>
+                            ))}
+                            {(!dashboardData?.activity_feed || dashboardData.activity_feed.length === 0) && (
+                              <tr><td colSpan="4" className="py-8 text-center text-slate-400 text-xs">No activity records found.</td></tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* ── MAIN OVERVIEW (visible only when no drilldown active) ── */}
                 {!dashboardDrilldown && (
                 <>
@@ -1526,6 +1609,30 @@ export default function App() {
                       </div>
                     </div>
                     )}
+
+                    {/* Quick Operations Feed */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-2 mb-4">
+                        <div className="flex items-center"><h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Live Feed</h3></div>
+                        <button onClick={() => setDashboardDrilldown('activity')} className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 transition-colors">Full Feed <ChevronRight size={12}/></button>
+                      </div>
+                      <div className="space-y-3">
+                        {(dashboardData.activity_feed || []).slice(0, 5).map((log, i) => (
+                          <div key={i} className="flex gap-3 text-xs border-b border-slate-50 pb-2 last:border-0 last:pb-0">
+                            <div className="pt-0.5 text-slate-400">
+                              {log.action.includes('PAYMENT') ? <CreditCard size={14} className="text-emerald-500" /> : log.action.includes('INTAKE') ? <Activity size={14} className="text-blue-500" /> : <Layers size={14} className="text-indigo-500" />}
+                            </div>
+                            <div>
+                              <p className="font-bold text-slate-800">{log.action.replace(/_/g, ' ')}</p>
+                              <p className="text-[10px] text-slate-500 line-clamp-1">{log.actor_name} • Patient: {log.patient}</p>
+                            </div>
+                          </div>
+                        ))}
+                        {(!dashboardData.activity_feed || dashboardData.activity_feed.length === 0) && (
+                          <p className="text-[10px] text-slate-400 text-center py-2">No recent activity.</p>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
                 </>

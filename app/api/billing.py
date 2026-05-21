@@ -13,6 +13,7 @@ from app.models.models import Invoice, BillItem, Payment, Patient, RoleEnum, Hos
 from app.schemas.billing import Invoice as InvoiceSchema, InvoiceCreate, PaymentCreate, PaymentResponse
 from app.services.billing_service import BillingService
 from app.utils.pdf_generator import InvoicePDFGenerator
+from app.core.audit import log_clinical_audit
 
 from app.core.security import require_module
 
@@ -99,14 +100,30 @@ async def record_payment(
     invoice_id: uuid.UUID,
     obj_in: PaymentCreate,
     db: AsyncSession = Depends(get_db),
-    hospital_id: uuid.UUID = Depends(deps.get_hospital_id)
+    hospital_id: uuid.UUID = Depends(deps.get_hospital_id),
+    current_user = Depends(deps.get_current_user)
 ):
     """
     RECORD REVENUE:
     Applies a payment to an existing invoice.
     """
     try:
-        payment = await BillingService.record_payment(db, invoice_id, obj_in)
+        payment, invoice = await BillingService.record_payment(db, invoice_id, obj_in)
+        
+        await log_clinical_audit(
+            db=db,
+            user_id=current_user.id,
+            action="PAYMENT_RECEIVED",
+            resource_type="INVOICE",
+            resource_id=invoice.id,
+            patient_id=invoice.patient_id,
+            hospital_id=hospital_id,
+            details={
+                "amount": float(payment.amount),
+                "method": payment.method,
+                "invoice_number": invoice.invoice_number
+            }
+        )
         return payment
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

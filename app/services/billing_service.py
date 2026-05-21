@@ -131,7 +131,7 @@ class BillingService:
         await db.commit()
         await db.refresh(transaction)
         
-        return transaction
+        return transaction, invoice
 
     @staticmethod
     async def get_patient_invoices(
