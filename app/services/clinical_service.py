@@ -96,6 +96,7 @@ class ClinicalService(BaseService):
         # 5. Audit Logging
         await self._audit(db, doctor_id, hospital_id, "CREATE", "prescription", prescription.id)
         
+        await db.refresh(prescription)
         return prescription
 
     async def fulfill_prescription(
@@ -186,6 +187,7 @@ class ClinicalService(BaseService):
         ))
         
         await self._audit(db, doctor_id, hospital_id, "CREATE", "lab_order", order.id)
+        await db.refresh(order)
         return order
 
     async def update_lab_status(
