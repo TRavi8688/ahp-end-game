@@ -407,7 +407,7 @@ export default function Prescriptions() {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
                 body: JSON.stringify({
                     // Use UUID id field. If not present (older API), fall back to hospyn_id lookup
-                    patient_id: selectedPatient.id || selectedPatient.patient_id,
+                    patient_id: selectedPatient.id || selectedPatient.patient_id || selectedPatient.hospyn_id,
                     visit_id: location.state?.visitId || null,
                     diagnosis: diagnosis || null,
                     notes: notes || null,
