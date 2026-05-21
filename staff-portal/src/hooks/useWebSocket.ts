@@ -15,7 +15,7 @@ export const useWebSocket = (hospitalId: string | undefined) => {
   const connect = useCallback(() => {
     if (!hospitalId || !token || socketRef.current?.readyState === WebSocket.OPEN) return;
 
-    const wsUrl = `${import.meta.env.VITE_WS_URL || 'wss://hospyn-api-7ixs2fhkna-el.a.run.app'}/ws/${hospitalId}?token=${token}`;
+    const wsUrl = `${import.meta.env.VITE_WS_URL || 'wss://hospyn-495906-api-625745217419.us-central1.run.app'}/ws/${hospitalId}?token=${token}`;
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {

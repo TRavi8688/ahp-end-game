@@ -108,7 +108,7 @@ async def security_headers_middleware(request: Request, call_next):
         "style-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
         "img-src 'self' data: https: fastly.jsdelivr.net; "
         "font-src 'self' cdn.jsdelivr.net; "
-        "connect-src 'self' https://hospyn-api-7ixs2fhkna-el.a.run.app https://hospyn-495906-api-7ixs2fhkna-uc.a.run.app https://*.web.app https://*.firebaseapp.com; "
+        "connect-src 'self' https://hospyn-495906-api-625745217419.us-central1.run.app https://hospyn-495906-api-7ixs2fhkna-uc.a.run.app https://*.web.app https://*.firebaseapp.com; "
         "frame-ancestors 'none'"
     )
     

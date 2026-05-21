@@ -73,7 +73,7 @@ const SqlBadge = ({ sql }) => {
 };
 
 // --- SECURE LEDGER LOGIN MODAL ---
-const API_BASE = 'https://hospyn-api-7ixs2fhkna-el.a.run.app/api/v1';
+const API_BASE = 'https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1';
 
 const LedgerLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
   const [email, setEmail] = useState('');

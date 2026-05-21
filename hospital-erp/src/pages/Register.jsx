@@ -12,7 +12,7 @@ import {
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://hospyn-api-7ixs2fhkna-el.a.run.app/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1';
 
 const Register = () => {
   const navigate = useNavigate();

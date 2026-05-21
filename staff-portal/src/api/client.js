@@ -9,7 +9,7 @@
  */
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://hospyn-api-7ixs2fhkna-el.a.run.app/api/v1';
+const BASE_URL = import.meta.env.VITE_API_URL || 'https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1';
 
 // Utility: generate a short trace ID for correlation
 const generateTraceId = () => `req_${Math.random().toString(36).slice(2, 12)}`;

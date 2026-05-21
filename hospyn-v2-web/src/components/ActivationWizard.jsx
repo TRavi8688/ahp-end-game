@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://hospyn-api-7ixs2fhkna-el.a.run.app/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1';
 
 const ActivationWizard = ({ isOpen, onClose, onActivationSuccess }) => {
   const [step, setStep] = useState(1);
