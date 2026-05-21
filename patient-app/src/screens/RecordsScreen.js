@@ -437,7 +437,12 @@ export default function RecordsScreen({ navigation }) {
                 </View>
             ) : (
                 <FlatList
-                    data={activeTab === 'visits' ? getGroupedVisits() : records}
+                    data={activeTab === 'visits' ? getGroupedVisits() : [...records, ...prescriptions.map(p => ({
+                        ...p, 
+                        type: 'prescription', 
+                        record_name: 'Digital Prescription', 
+                        ai_summary: p.diagnosis || 'Clinical Prescription'
+                    }))].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))}
                     renderItem={activeTab === 'visits' ? renderVisitItem : renderRecordItem}
                     keyExtractor={item => item.id.toString()}
                     contentContainerStyle={styles.listContent}
