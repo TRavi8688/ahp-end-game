@@ -7,7 +7,7 @@ from pydantic import BaseModel, EmailStr
 import uuid
 from typing import List, Dict, Any, Optional
 
-router = APIRouter()
+router = APIRouter(prefix="/staff", tags=["Staff"])
 
 class StaffInviteCreate(BaseModel):
     email: EmailStr

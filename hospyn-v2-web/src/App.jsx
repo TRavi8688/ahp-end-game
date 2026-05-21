@@ -281,41 +281,61 @@ export default function App() {
   const [activeDispatchMail, setActiveDispatchMail] = useState(null);
   const [isMailOpen, setIsMailOpen] = useState(false);
 
-  const handleAddStaffDynamic = (e) => {
+  const handleAddStaffDynamic = async (e) => {
     e.preventDefault();
     if (!staffName || !staffEmail) return;
 
-    const staff_uid = `HOSP-STAFF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-    const temp_pass = `Temp_${Math.random().toString(36).substring(2, 10)}`;
+    try {
+      const token = localStorage.getItem('hospyn_owner_token');
+      // Call the actual backend API to send real email and register user
+      const res = await fetch(`${API_BASE}/staff/invites`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ email: staffEmail, role: staffRole })
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Failed to dispatch credentials");
+      }
 
-    let portal_prefix = "staff"; 
-    if (staffRole === "doctor") portal_prefix = "doctor";
-    else if (staffRole === "pharmacist") portal_prefix = "pharmacy";
-    else if (staffRole === "hr_manager") portal_prefix = "hr";
-    else if (staffRole === "admin") portal_prefix = "admin";
+      // Read real response from backend
+      const data = await res.json();
+      
+      let portal_prefix = "staff"; 
+      if (staffRole === "doctor") portal_prefix = "doctor";
+      else if (staffRole === "pharmacist") portal_prefix = "pharmacy";
+      else if (staffRole === "hr_manager") portal_prefix = "hr";
+      else if (staffRole === "admin") portal_prefix = "admin";
 
-    const portal_url = `https://${portal_prefix}.hospyn.com`;
-    const newRecord = {
-      name: staffName,
-      email: staffEmail,
-      role: staffRole,
-      staff_id: staff_uid,
-      temporary_password: temp_pass,
-      dedicated_portal_url: portal_url,
-      credentials_email_status: 'dispatched',
-      hospitalName: localStorage.getItem('hospyn_org_name') || 'Hospyn Sovereign Node'
-    };
+      const portal_url = `https://${portal_prefix}.hospyn.com`;
+      const newRecord = {
+        name: staffName,
+        email: staffEmail,
+        role: staffRole,
+        staff_id: data.staff_id || "GENERATED-BY-BACKEND",
+        temporary_password: data.temporary_password || "Sent via Email",
+        dedicated_portal_url: portal_url,
+        credentials_email_status: 'dispatched',
+        hospitalName: localStorage.getItem('hospyn_org_name') || 'Hospyn Sovereign Node'
+      };
 
-    setStaffRecords([newRecord, ...staffRecords]);
-    setActiveDispatchMail(newRecord);
-    setIsMailOpen(true);
+      setStaffRecords([newRecord, ...staffRecords]);
+      setActiveDispatchMail(newRecord);
+      setIsMailOpen(true);
 
-    // Reset input states
-    setStaffName('');
-    setStaffEmail('');
-    setStaffPhone('');
-    setStaffLicense('');
-    setStaffNationalId('');
+      // Reset input states
+      setStaffName('');
+      setStaffEmail('');
+      setStaffPhone('');
+      setStaffLicense('');
+      setStaffNationalId('');
+    } catch (err) {
+      alert("Error adding staff: " + err.message);
+    }
   };
 
   const handleDispenseMedicine = (itemName) => {
@@ -1183,12 +1203,19 @@ export default function App() {
                       <div className="bg-white border border-emerald-100 rounded-xl p-4 shadow-sm text-center"><span className="text-3xl font-black text-emerald-600">8</span><p className="text-[10px] font-bold text-emerald-500 uppercase mt-1">Available</p></div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {[
-                        { ward: 'General Ward A', total: 12, occupied: 11, patients: ['Amit Desai — Cardiac', 'Ravi Iyer — Fever', 'Sunil Rao — Fracture', 'Pooja M — Post-op', 'Divya K — Asthma', 'Kiran T — Typhoid', 'Anand P — Malaria', 'Lakshmi N — Dengue', 'Harish B — Pneumonia', 'Nisha C — TB', 'Gopal D — Injury'] },
-                        { ward: 'ICU', total: 6, occupied: 6, patients: ['Venkat R — Critical (Cardiac)', 'Suma D — Respiratory Fail', 'Mohan V — Post-Surgery', 'Prabha L — Stroke', 'Naveen K — Trauma', 'Chandra S — Multi-Organ'] },
-                        { ward: 'Private Rooms', total: 20, occupied: 16, patients: ['Sheela R', 'Ramesh P', 'Anjali K', 'Suresh N', 'Anil M', 'Kavitha T', 'Pradeep G', 'Usha B', 'Vijay C', 'Indu S', 'Krishna R', 'Meena V', 'Arjun D', 'Bharathi L', 'Ganesh P', 'Saranya A'] },
-                        { ward: 'Paediatric Ward', total: 12, occupied: 9, patients: ['Child: Arya (4y) — Fever', 'Child: Rishi (7y) — Fracture', 'Child: Priya (2y) — Malnutrition', 'Child: Dev (9y) — Dengue', 'Child: Kavya (5y) — Asthma', 'Child: Aadi (3y) — Viral', 'Child: Neel (11y) — Typhoid', 'Child: Sara (6y) — Pneumonia', 'Child: Rohan (8y) — Injury'] },
-                      ].map((ward, i) => (
+                      {(()=>{
+                        const bedMap = {};
+                        (dashboardData?.beds || []).forEach(b => {
+                          const w = b.ward_type || 'General Ward';
+                          if (!bedMap[w]) bedMap[w] = { ward: w, total: 0, occupied: 0, patients: [] };
+                          bedMap[w].total++;
+                          if (b.status === 'occupied') {
+                            bedMap[w].occupied++;
+                            bedMap[w].patients.push('Patient (Bed ' + (b.bed_number || b.id) + ')');
+                          }
+                        });
+                        return Object.values(bedMap);
+                      })().map((ward, i) => (
                         <div key={i} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
                           <div className="flex justify-between items-center mb-3">
                             <h3 className="text-sm font-bold text-slate-900">{ward.ward}</h3>
@@ -1625,16 +1652,42 @@ export default function App() {
                     </button>
                   </form>
 
-                  {/* Staff Management Directed to ERP Portal */}
-                  <div className="col-span-2 bg-white border border-slate-200 rounded-2xl p-8 shadow-sm flex flex-col items-center justify-center text-center">
-                    <ShieldCheck size={48} className="text-slate-200 mb-4" />
-                    <h3 className="font-bold text-slate-950 text-lg mb-2">Staff Directory Locked</h3>
-                    <p className="text-slate-500 text-sm max-w-md">
-                      For HIPAA compliance and enterprise security, real-time staff management is restricted to the dedicated ERP Portal.
-                    </p>
-                    <a href="https://hospyn-erp-portal.web.app/login" target="_blank" rel="noreferrer" className="mt-6 px-6 py-2 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-colors">
-                      Open ERP Portal
-                    </a>
+                  {/* Active Staff Registry Grid */}
+                  <div className="col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+                    <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Active Staff Registry</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-100 text-slate-400">
+                            <th className="py-3 font-bold uppercase tracking-wider">Staff Name</th>
+                            <th className="py-3 font-bold uppercase tracking-wider">Clinical Role</th>
+                            <th className="py-3 font-bold uppercase tracking-wider">Secure UID</th>
+                            <th className="py-3 font-bold uppercase tracking-wider">Portal URL Link</th>
+                            <th className="py-3 font-bold uppercase tracking-wider">Email Link Dispatch</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50 font-medium">
+                          {[...staffRecords, ...(dashboardData?.staff || [])].map((rec, i) => {
+                            const portal_url = rec.dedicated_portal_url || `https://${rec.role_name || rec.role || 'staff'}.hospyn.com`;
+                            return (
+                              <tr key={i} className="hover:bg-slate-50">
+                                <td className="py-3.5 text-slate-950">{rec.name || rec.user_name}</td>
+                                <td className="py-3.5">
+                                  <span className="px-2 py-0.5 rounded bg-blue-50 text-primary text-[10px] font-bold uppercase">{rec.role || rec.role_name}</span>
+                                </td>
+                                <td className="py-3.5 font-mono text-slate-500">{rec.staff_id || rec.hospyn_id || rec.id}</td>
+                                <td className="py-3.5 text-blue-600 underline">
+                                  <a href={portal_url} target="_blank" rel="noreferrer">{portal_url}</a>
+                                </td>
+                                <td className="py-3.5 text-emerald-600 flex items-center gap-1.5">
+                                  <CheckCircle size={14}/> <span>Dispatched</span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1747,7 +1800,7 @@ export default function App() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50 font-medium">
-                          {pharmacyItems.map((item, i) => (
+                          {(dashboardData.pharmacy || []).map((item, i) => (
                             <tr key={i} className="hover:bg-slate-50">
                               <td className="py-3.5 text-slate-950">{item.name}</td>
                               <td className="py-3.5 font-mono text-slate-500">{item.batch}</td>
@@ -1760,7 +1813,7 @@ export default function App() {
                                 )}
                               </td>
                               <td className="py-3.5">
-                                <button onClick={()=>handleDispenseMedicine(item.name)} disabled={item.quantity === 0} className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[9px] uppercase tracking-wider rounded-lg transition-colors disabled:opacity-50">
+                                <button disabled={item.quantity === 0} className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[9px] uppercase tracking-wider rounded-lg transition-colors disabled:opacity-50">
                                   Virtual Dispense
                                 </button>
                               </td>
@@ -1807,20 +1860,11 @@ export default function App() {
                   <div className="col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
                     <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">ICU & Bed Allocation Matrix</h3>
                     <div className="grid grid-cols-4 gap-4">
-                      {[
-                        { id: 'Bed-101', status: 'occupied', label: 'Occupied' },
-                        { id: 'Bed-102', status: 'available', label: 'Available' },
-                        { id: 'Bed-103', status: 'occupied', label: 'Occupied' },
-                        { id: 'Bed-104', status: 'maintenance', label: 'Maintenance' },
-                        { id: 'Bed-201', status: 'available', label: 'Available' },
-                        { id: 'Bed-202', status: 'available', label: 'Available' },
-                        { id: 'Bed-203', status: 'occupied', label: 'Occupied' },
-                        { id: 'Bed-204', status: 'available', label: 'Available' }
-                      ].map((bed) => (
+                      {(dashboardData?.beds || []).map((bed) => (
                         <div key={bed.id} className="p-4 border border-slate-200 bg-slate-50 rounded-xl space-y-2 text-center">
-                          <span className="font-bold text-slate-950 text-xs block">{bed.id}</span>
+                          <span className="font-bold text-slate-950 text-xs block">{bed.bed_number || bed.id}</span>
                           <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase ${bed.status === 'occupied' ? 'bg-amber-100 text-amber-800' : bed.status === 'maintenance' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                            {bed.label}
+                            {bed.status}
                           </span>
                         </div>
                       ))}
