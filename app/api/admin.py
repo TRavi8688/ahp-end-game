@@ -193,7 +193,7 @@ async def get_owner_dashboard(
     
     metrics_sql = text("""
         SELECT
-            COALESCE((SELECT SUM(amount) FROM payments WHERE hospital_id = :hid AND status = 'paid'), 0) AS total_revenue,
+            COALESCE((SELECT SUM(amount) FROM payments WHERE hospital_id = :hid AND status = 'PAID'), 0) AS total_revenue,
             COALESCE((SELECT COUNT(id) FROM patient_visits WHERE hospital_id = :hid), 0) AS total_visits,
             COALESCE((SELECT COUNT(id) FROM beds WHERE hospital_id = :hid), 0) AS total_beds,
             COALESCE((SELECT COUNT(id) FROM beds WHERE hospital_id = :hid AND status = 'occupied'), 0) AS occupied_beds,
