@@ -7,18 +7,36 @@ from app.models.models import User, Patient, Doctor
 from app.repositories.base import UserRepository, PatientRepository
 import logging
 import uuid
-async def get_hospital_id(user: User = Depends(get_current_user)) -> uuid.UUID:
+async def get_hospital_id(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> uuid.UUID:
     """
     Mandatory Enterprise Dependency to enforce Tenant Isolation.
-    Extracts the hospital_id from the user's staff profile.
+    Extracts the hospital_id from the user's staff profile OR doctor profile.
     Prevents cross-hospital data leakage at the query level.
     """
-    if not user.staff_profile:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Staff profile not found. Access denied."
-        )
-    return user.staff_profile.hospital_id
+    # 1. Try StaffProfile first (nurses, receptionists, admins, etc.)
+    if user.staff_profile:
+        return user.staff_profile.hospital_id
+    
+    # 2. For doctors, fall back to the Doctor table
+    from app.models.models import Doctor, StaffProfile
+    if user.role and user.role.value == "doctor":
+        stmt = select(Doctor).where(Doctor.user_id == user.id)
+        result = await db.execute(stmt)
+        doctor = result.scalars().first()
+        if doctor and doctor.hospital_id:
+            return doctor.hospital_id
+    
+    # 3. Broader fallback — check StaffProfile by user_id directly
+    stmt = select(StaffProfile).where(StaffProfile.user_id == user.id)
+    result = await db.execute(stmt)
+    staff = result.scalars().first()
+    if staff and staff.hospital_id:
+        return staff.hospital_id
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="No hospital profile linked to this account. Please contact your administrator."
+    )
 
 from typing import List, Optional
 from app.models.models import User, Patient, Doctor, RoleEnum

@@ -30,14 +30,24 @@ async def create_prescription(
     """
     Issue a new digital prescription. (Doctor only)
     """
+    from sqlalchemy import select as sa_select
+    from app.models.models import Doctor
+
     if current_user.role != RoleEnum.doctor:
         raise HTTPException(status_code=403, detail="Only doctors can issue prescriptions")
+    
+    # Eagerly load Doctor profile by user_id (avoids lazy-load 422 bug)
+    stmt = sa_select(Doctor).where(Doctor.user_id == current_user.id)
+    result = await db.execute(stmt)
+    doctor = result.scalars().first()
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor profile not found. Please contact admin.")
         
     try:
         return await clinical_service.create_prescription(
             db=db,
             hospital_id=hospital_id,
-            doctor_id=current_user.doctor_profile.id,
+            doctor_id=doctor.id,
             patient_id=prescription_in.patient_id,
             medications=[m.model_dump() for m in prescription_in.medications],
             notes=prescription_in.notes,
@@ -86,14 +96,24 @@ async def create_lab_order(
     """
     Create a new lab diagnostic order. (Doctor only)
     """
+    from sqlalchemy import select as sa_select
+    from app.models.models import Doctor
+
     if current_user.role != RoleEnum.doctor:
         raise HTTPException(status_code=403, detail="Only doctors can order lab tests")
+    
+    # Eagerly load Doctor profile
+    stmt = sa_select(Doctor).where(Doctor.user_id == current_user.id)
+    result = await db.execute(stmt)
+    doctor = result.scalars().first()
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor profile not found. Please contact admin.")
         
     try:
         return await clinical_service.create_lab_order(
             db=db,
             hospital_id=hospital_id,
-            doctor_id=current_user.doctor_profile.id,
+            doctor_id=doctor.id,
             patient_id=order_in.patient_id,
             tests=order_in.tests,
             history=order_in.clinical_history
