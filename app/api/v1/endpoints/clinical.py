@@ -31,7 +31,7 @@ async def create_prescription(
     Issue a new digital prescription. (Doctor only)
     """
     from sqlalchemy import select as sa_select
-    from app.models.models import Doctor
+    from app.models.models import Doctor, Patient
 
     if current_user.role != RoleEnum.doctor:
         raise HTTPException(status_code=403, detail="Only doctors can issue prescriptions")
@@ -43,16 +43,43 @@ async def create_prescription(
     if not doctor:
         raise HTTPException(status_code=404, detail="Doctor profile not found. Please contact admin.")
         
+    # Robust Patient ID Resolution (handles UUIDs, Hospyn IDs, and missing frontend data)
+    final_patient_id = None
+    try:
+        if prescription_in.patient_id and prescription_in.patient_id not in ["null", "undefined", ""]:
+            try:
+                final_patient_id = uuid.UUID(prescription_in.patient_id)
+            except ValueError:
+                # It's a Hospyn ID (e.g. "Hospyn-D0AAB75D"), resolve it to UUID
+                stmt_p = sa_select(Patient).where(Patient.hospyn_id == prescription_in.patient_id)
+                patient_res = await db.execute(stmt_p)
+                patient_obj = patient_res.scalars().first()
+                if patient_obj:
+                    final_patient_id = patient_obj.id
+                else:
+                    raise HTTPException(status_code=404, detail="Patient not found in system")
+        else:
+            raise ValueError("Empty patient_id")
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Invalid patient_id format. Must be UUID or Hospyn ID. Got: {prescription_in.patient_id}")
+
+    final_visit_id = None
+    if prescription_in.visit_id and prescription_in.visit_id not in ["null", "undefined", ""]:
+        try:
+            final_visit_id = uuid.UUID(prescription_in.visit_id)
+        except ValueError:
+            pass
+
     try:
         return await clinical_service.create_prescription(
             db=db,
             hospital_id=hospital_id,
             doctor_id=doctor.id,
-            patient_id=prescription_in.patient_id,
+            patient_id=final_patient_id,
             medications=[m.model_dump() for m in prescription_in.medications],
             notes=prescription_in.notes,
             diagnosis=prescription_in.diagnosis,
-            visit_id=prescription_in.visit_id
+            visit_id=final_visit_id
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

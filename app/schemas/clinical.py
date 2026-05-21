@@ -18,8 +18,8 @@ class MedicationOrder(BaseModel):
     instructions: Optional[str] = None
 
 class PrescriptionBase(BaseModel):
-    patient_id: uuid.UUID
-    visit_id: Optional[uuid.UUID] = None
+    patient_id: str  # Now accepts either UUID string or Hospyn ID string (e.g. "Hospyn-123")
+    visit_id: Optional[str] = None
     diagnosis: Optional[str] = None
     medications: List[MedicationOrder]
     notes: Optional[str] = None
