@@ -868,18 +868,10 @@ async def add_staff_dynamic(
         temp_pass = f"Temp_{uuid.uuid4().hex[:8]}"
 
         # Dynamic Link Resolution matching user's exact specification
-        portal_prefix = "staff" # Default fallback
+        portal_url = "https://hospyn-erp-portal.web.app/login" # Default fallback
         if staff.role == "doctor":
-            portal_prefix = "doctor"
-        elif staff.role == "pharmacist":
-            portal_prefix = "pharmacy"
-        elif staff.role == "hr_manager":
-            portal_prefix = "hr"
-        elif staff.role == "admin":
-            portal_prefix = "admin"
+            portal_url = "https://hospyn-doctor-pro.web.app/login"
         
-        portal_url = f"https://{portal_prefix}.hospyn.com"
-
         # Formulate onboarding payload to save in DB request
         new_request = StaffOnboardingRequest(
             hospital_id=hospital_id,
@@ -889,6 +881,16 @@ async def add_staff_dynamic(
         )
         db.add(new_request)
 
+        # Send actual email
+        from app.core.email import send_staff_invite_email
+        email_sent = send_staff_invite_email(
+            to_email=staff.email,
+            staff_name=staff.full_name,
+            role=staff.role,
+            portal_url=portal_url,
+            temp_password=temp_pass
+        )
+
         onboarded_records.append({
             "name": staff.full_name,
             "email": staff.email,
@@ -896,7 +898,7 @@ async def add_staff_dynamic(
             "staff_id": staff_uid,
             "temporary_password": temp_pass,
             "dedicated_portal_url": portal_url,
-            "credentials_email_status": "dispatched"
+            "credentials_email_status": "dispatched" if email_sent else "simulated"
         })
 
     await db.commit()

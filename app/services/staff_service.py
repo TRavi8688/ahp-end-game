@@ -58,7 +58,8 @@ class StaffService:
         Retrieves the full list of staff for a hospital via StaffProfile join.
         """
         from app.models.models import StaffProfile
-        stmt = select(User).join(StaffProfile).where(StaffProfile.hospital_id == hospital_id)
+        from sqlalchemy.orm import selectinload
+        stmt = select(StaffProfile).options(selectinload(StaffProfile.user)).where(StaffProfile.hospital_id == hospital_id)
         result = await db.execute(stmt)
         return result.scalars().all()
 

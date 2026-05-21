@@ -1642,39 +1642,16 @@ export default function App() {
                     </button>
                   </form>
 
-                  {/* Active Staff Registry Grid */}
-                  <div className="col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                    <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Active Staff Registry</h3>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs border-collapse">
-                        <thead>
-                          <tr className="border-b border-slate-100 text-slate-400">
-                            <th className="py-3 font-bold uppercase tracking-wider">Staff Name</th>
-                            <th className="py-3 font-bold uppercase tracking-wider">Clinical Role</th>
-                            <th className="py-3 font-bold uppercase tracking-wider">Secure UID</th>
-                            <th className="py-3 font-bold uppercase tracking-wider">Portal URL Link</th>
-                            <th className="py-3 font-bold uppercase tracking-wider">Email Link Dispatch</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50 font-medium">
-                          {staffRecords.map((rec, i) => (
-                            <tr key={i} className="hover:bg-slate-50">
-                              <td className="py-3.5 text-slate-950">{rec.name}</td>
-                              <td className="py-3.5">
-                                <span className="px-2 py-0.5 rounded bg-blue-50 text-primary text-[10px] font-bold uppercase">{rec.role}</span>
-                              </td>
-                              <td className="py-3.5 font-mono text-slate-500">{rec.staff_id}</td>
-                              <td className="py-3.5 text-blue-600 underline">
-                                <a href={rec.dedicated_portal_url} target="_blank" rel="noreferrer">{rec.dedicated_portal_url}</a>
-                              </td>
-                              <td className="py-3.5 text-emerald-600 flex items-center gap-1.5">
-                                <CheckCircle size={14}/> <span>Dispatched</span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                  {/* Staff Management Directed to ERP Portal */}
+                  <div className="col-span-2 bg-white border border-slate-200 rounded-2xl p-8 shadow-sm flex flex-col items-center justify-center text-center">
+                    <ShieldCheck size={48} className="text-slate-200 mb-4" />
+                    <h3 className="font-bold text-slate-950 text-lg mb-2">Staff Directory Locked</h3>
+                    <p className="text-slate-500 text-sm max-w-md">
+                      For HIPAA compliance and enterprise security, real-time staff management is restricted to the dedicated ERP Portal.
+                    </p>
+                    <a href="https://hospyn-erp-portal.web.app/login" target="_blank" rel="noreferrer" className="mt-6 px-6 py-2 bg-primary text-white rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-blue-700 transition-colors">
+                      Open ERP Portal
+                    </a>
                   </div>
                 </div>
               </div>

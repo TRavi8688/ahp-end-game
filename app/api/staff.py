@@ -45,7 +45,23 @@ async def invite_staff(
         details={"invited_email": invite_data.email, "role": invite_data.role}
     )
     
-    return {"message": "Invitation sent successfully", "token_preview": invite.token[:8] + "..."}
+    portal_url = "https://hospyn-erp-portal.web.app/accept-invite" 
+    if invite_data.role == "doctor":
+        portal_url = "https://hospyn-doctor-pro.web.app/accept-invite"
+
+    from app.core.email import send_staff_invite_email
+    email_sent = send_staff_invite_email(
+        to_email=invite_data.email,
+        staff_name="New Staff Member",
+        role=invite_data.role,
+        portal_url=f"{portal_url}?token={invite.token}",
+        temp_password="Set via the link provided above."
+    )
+    
+    return {
+        "message": "Invitation sent successfully to staff email" if email_sent else "Invitation simulated (SMTP not configured)", 
+        "token_preview": invite.token[:8] + "..."
+    }
 
 @router.get("/members")
 async def list_staff(
@@ -55,4 +71,22 @@ async def list_staff(
     """Returns the list of all staff members in the hospital."""
     if not current_user.staff_profile:
         return []
-    return await StaffService.get_hospital_staff(db, current_user.staff_profile.hospital_id)
+    profiles = await StaffService.get_hospital_staff(db, current_user.staff_profile.hospital_id)
+    
+    # Safe serialization to ensure nested 'user' object is always delivered to frontend
+    results = []
+    for p in profiles:
+        results.append({
+            "id": str(p.id),
+            "user_id": str(p.user_id),
+            "department_id": str(p.department_id) if p.department_id else None,
+            "user": {
+                "id": str(p.user.id),
+                "email": p.user.email,
+                "first_name": p.user.first_name,
+                "last_name": p.user.last_name,
+                "role": p.user.role.value if p.user.role else None,
+                "is_active": p.user.is_active
+            } if p.user else None
+        })
+    return results
