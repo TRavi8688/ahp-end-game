@@ -350,13 +350,10 @@ export default function App() {
       // Read real response from backend
       const data = await res.json();
       
-      let portal_prefix = "staff"; 
-      if (dbRole === "doctor") portal_prefix = "doctor";
-      else if (dbRole === "pharmacy") portal_prefix = "pharmacy";
-      else if (dbRole === "hospital_admin" || dbRole === "admin") portal_prefix = "admin";
-      else if (dbRole === "receptionist" || dbRole === "lab") portal_prefix = "staff";
-
-      const portal_url = `https://${portal_prefix}.hospyn.com`;
+      let portal_url;
+      if (dbRole === "doctor") portal_url = "https://hospyn-doctor-pro.web.app";
+      else if (dbRole === "pharmacy") portal_url = "https://hospyn-erp-portal.web.app";
+      else portal_url = "https://hospyn-erp-portal.web.app";
       const newRecord = {
         name: staffName,
         email: staffEmail,
