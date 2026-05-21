@@ -10,11 +10,165 @@ import EmailIcon from '@mui/icons-material/Email';
 import LockIcon from '@mui/icons-material/Lock';
 import ShieldIcon from '@mui/icons-material/Shield';
 import KeyIcon from '@mui/icons-material/Key';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { API_BASE_URL } from '../api';
 
+// ─── Forgot Password Flow ──────────────────────────────────────
+function ForgotPasswordScreen({ onBack }) {
+    const [step, setStep] = useState('request'); // 'request' | 'verify' | 'reset' | 'done'
+    const [identifier, setIdentifier] = useState('');
+    const [otp, setOtp] = useState('');
+    const [resetToken, setResetToken] = useState(''); // stored from verify step
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [showNewPw, setShowNewPw] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
+    const [successMsg, setSuccessMsg] = useState('');
+
+    const inputSx = {
+        mb: 3,
+        '& .MuiOutlinedInput-root': {
+            color: 'white', borderRadius: 4, bgcolor: 'rgba(255,255,255,0.03)',
+            '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
+            '&:hover fieldset': { borderColor: '#6366f1' },
+            '&.Mui-focused fieldset': { borderColor: '#6366f1' }
+        },
+        '& .MuiInputLabel-root': { color: '#64748b' }
+    };
+
+    const handleRequest = async () => {
+        setIsLoading(true); setErrorMsg(''); setSuccessMsg('');
+        try {
+            const res = await fetch(`${API_BASE_URL}/auth/forgot-password/request`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ identifier })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Failed to send reset code.');
+            setSuccessMsg('A 6-digit reset code has been sent to your registered email / phone.');
+            setStep('verify');
+        } catch (err) { setErrorMsg(err.message); }
+        finally { setIsLoading(false); }
+    };
+
+    const handleVerify = async () => {
+        setIsLoading(true); setErrorMsg('');
+        try {
+            const res = await fetch(`${API_BASE_URL}/auth/forgot-password/verify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ identifier, otp })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Invalid or expired code.');
+            // Backend returns a secure reset_token — store it
+            setResetToken(data.reset_token);
+            setStep('reset');
+        } catch (err) { setErrorMsg(err.message); }
+        finally { setIsLoading(false); }
+    };
+
+    const handleReset = async () => {
+        if (newPassword !== confirmPassword) {
+            setErrorMsg('Passwords do not match.'); return;
+        }
+        if (newPassword.length < 8) {
+            setErrorMsg('Password must be at least 8 characters.'); return;
+        }
+        setIsLoading(true); setErrorMsg('');
+        try {
+            // Backend expects reset_token + new_password (not identifier/otp)
+            const res = await fetch(`${API_BASE_URL}/auth/forgot-password/reset`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reset_token: resetToken, new_password: newPassword })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Reset failed. Please try again.');
+            setStep('done');
+        } catch (err) { setErrorMsg(err.message); }
+        finally { setIsLoading(false); }
+    };
+
+    return (
+        <Box sx={{ width: '100%', maxWidth: 450 }}>
+            <Box sx={{ mb: 4 }}>
+                <IconButton onClick={onBack} sx={{ color: '#64748b', mb: 2, ml: -1 }}>
+                    <ArrowBackIcon /> <Typography sx={{ ml: 1, fontSize: '0.9rem' }}>Back to Login</Typography>
+                </IconButton>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: 'white', mb: 1 }}>
+                    {step === 'done' ? 'Password Reset ✓' : 'Recover Access'}
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#64748b' }}>
+                    {step === 'request' && 'Enter your Hospyn ID or registered email to receive a reset code.'}
+                    {step === 'verify' && 'Enter the 6-digit code sent to your registered contact.'}
+                    {step === 'reset' && 'Set a new secure password for your practitioner account.'}
+                    {step === 'done' && 'Your password has been reset successfully. You can now log in.'}
+                </Typography>
+            </Box>
+
+            {errorMsg && <Alert severity="error" sx={{ mb: 3, borderRadius: 3, bgcolor: 'rgba(244,63,94,0.1)', color: '#fb7185', border: '1px solid rgba(244,63,94,0.2)' }}>{errorMsg}</Alert>}
+            {successMsg && <Alert severity="success" sx={{ mb: 3, borderRadius: 3, bgcolor: 'rgba(16,185,129,0.1)', color: '#34d399', border: '1px solid rgba(16,185,129,0.2)' }}>{successMsg}</Alert>}
+
+            {step === 'request' && (
+                <>
+                    <TextField fullWidth label="Hospyn ID or Email" value={identifier} onChange={e => setIdentifier(e.target.value)} sx={inputSx}
+                        InputProps={{ startAdornment: <EmailIcon sx={{ mr: 2, color: '#475569' }} /> }} />
+                    <button type="button" onClick={handleRequest} disabled={isLoading || !identifier} className="btn-premium w-full">
+                        {isLoading ? 'Sending...' : 'Send Reset Code'}
+                    </button>
+                </>
+            )}
+
+            {step === 'verify' && (
+                <>
+                    <TextField fullWidth label="6-Digit Reset Code" value={otp} onChange={e => setOtp(e.target.value)} sx={inputSx}
+                        InputProps={{ startAdornment: <KeyIcon sx={{ mr: 2, color: '#6366f1' }} /> }} />
+                    <button type="button" onClick={handleVerify} disabled={isLoading || otp.length < 6} className="btn-premium w-full">
+                        {isLoading ? 'Verifying...' : 'Verify Code'}
+                    </button>
+                    <Button onClick={handleRequest} sx={{ color: '#64748b', mt: 2, width: '100%', textTransform: 'none' }}>
+                        Resend code
+                    </Button>
+                </>
+            )}
+
+            {step === 'reset' && (
+                <>
+                    <TextField fullWidth label="New Password" type={showNewPw ? 'text' : 'password'} value={newPassword} onChange={e => setNewPassword(e.target.value)} sx={inputSx}
+                        InputProps={{
+                            startAdornment: <LockIcon sx={{ mr: 2, color: '#475569' }} />,
+                            endAdornment: (
+                                <IconButton onClick={() => setShowNewPw(v => !v)} edge="end" sx={{ color: '#475569' }}>
+                                    {showNewPw ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                </IconButton>
+                            )
+                        }} />
+                    <TextField fullWidth label="Confirm New Password" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} sx={{ ...inputSx, mb: 4 }}
+                        InputProps={{ startAdornment: <LockIcon sx={{ mr: 2, color: '#475569' }} /> }} />
+                    <button type="button" onClick={handleReset} disabled={isLoading || !newPassword || !confirmPassword} className="btn-premium w-full">
+                        {isLoading ? 'Updating...' : 'Set New Password'}
+                    </button>
+                </>
+            )}
+
+            {step === 'done' && (
+                <button type="button" onClick={onBack} className="btn-premium w-full">
+                    Return to Login
+                </button>
+            )}
+        </Box>
+    );
+}
+
+// ─── Main Login Screen ─────────────────────────────────────────
 export default function LoginScreen() {
     const navigate = useNavigate();
-
+    const [showForgotPassword, setShowForgotPassword] = useState(false);
     const [loginMode, setLoginMode] = useState('otp');
     const [identifier, setIdentifier] = useState('');
     const [passwordOrOtp, setPasswordOrOtp] = useState('');
@@ -23,6 +177,16 @@ export default function LoginScreen() {
     const [isLoading, setIsLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+
+    const inputSx = {
+        '& .MuiOutlinedInput-root': {
+            color: 'white', borderRadius: 4, bgcolor: 'rgba(255,255,255,0.02)',
+            '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
+            '&:hover fieldset': { borderColor: '#6366f1' },
+            '&.Mui-focused fieldset': { borderColor: '#6366f1' }
+        }
+    };
 
     const handleSendOTP = async () => {
         setIsLoading(true);
@@ -66,10 +230,9 @@ export default function LoginScreen() {
             });
 
             const data = await response.json();
-
             if (!response.ok) throw new Error(data.detail || 'Authentication failed.');
 
-            // Decrypt/decode JWT payload to verify role parity
+            // Decode JWT to verify role
             try {
                 const tokenParts = data.access_token.split('.');
                 if (tokenParts.length === 3) {
@@ -151,115 +314,119 @@ export default function LoginScreen() {
                 {/* Form Side */}
                 <Grid item xs={12} md={6} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', p: 4 }}>
                     <Box className="glass-panel animate-fade-in" sx={{ width: '100%', maxWidth: 450, p: { xs: 4, md: 8 } }}>
-                        <Typography variant="h4" sx={{ fontWeight: 800, color: 'white', mb: 1 }}>Login</Typography>
-                        <Typography variant="body2" sx={{ color: '#64748b', mb: 6 }}>Initialize your secure practitioner session.</Typography>
+                        
+                        {showForgotPassword ? (
+                            <ForgotPasswordScreen onBack={() => setShowForgotPassword(false)} />
+                        ) : (
+                            <>
+                                <Typography variant="h4" sx={{ fontWeight: 800, color: 'white', mb: 1 }}>Login</Typography>
+                                <Typography variant="body2" sx={{ color: '#64748b', mb: 6 }}>Initialize your secure practitioner session.</Typography>
 
-                        <Tabs 
-                            value={loginMode} 
-                            onChange={(e, v) => { setLoginMode(v); setOtpSent(false); }}
-                            sx={{ 
-                                mb: 4, minHeight: 48, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.03)', p: 0.5,
-                                '& .MuiTabs-indicator': { display: 'none' },
-                                '& .MuiTab-root': { 
-                                    textTransform: 'none', fontWeight: 800, color: '#64748b', borderRadius: 2,
-                                    '&.Mui-selected': { bgcolor: 'rgba(255,255,255,0.05)', color: 'white' }
-                                }
-                            }}
-                            variant="fullWidth"
-                        >
-                            <Tab label="Access Token" value="otp" />
-                            <Tab label="Global Password" value="password" />
-                        </Tabs>
-
-                        <form onSubmit={handleLogin}>
-                            {errorMsg && <Alert severity="error" sx={{ mb: 3, borderRadius: 3, bgcolor: 'rgba(244,63,94,0.1)', color: '#fb7185', border: '1px solid rgba(244,63,94,0.2)' }}>{errorMsg}</Alert>}
-                            {successMsg && <Alert severity="success" sx={{ mb: 3, borderRadius: 3, bgcolor: 'rgba(16,185,129,0.1)', color: '#34d399', border: '1px solid rgba(16,185,129,0.2)' }}>{successMsg}</Alert>}
-
-                            <TextField
-                                fullWidth
-                                placeholder="Practitioner ID or Email"
-                                variant="outlined"
-                                value={identifier}
-                                onChange={(e) => setIdentifier(e.target.value)}
-                                sx={{ 
-                                    mb: 3,
-                                    '& .MuiOutlinedInput-root': { 
-                                        color: 'white', borderRadius: 4, bgcolor: 'rgba(255,255,255,0.02)',
-                                        '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
-                                        '&:hover fieldset': { borderColor: '#6366f1' },
-                                        '&.Mui-focused fieldset': { borderColor: '#6366f1' }
-                                    }
-                                }}
-                                InputProps={{
-                                    startAdornment: <SmartphoneIcon sx={{ mr: 2, color: '#475569' }} />
-                                }}
-                            />
-
-                            {loginMode === 'otp' ? (
-                                <>
-                                    {!otpSent ? (
-                                        <Box>
-                                            <RadioGroup row value={otpChannel} onChange={(e) => setOtpChannel(e.target.value)} sx={{ mb: 3, justifyContent: 'center' }}>
-                                                <FormControlLabel value="sms" control={<Radio sx={{ color: '#334155', '&.Mui-checked': { color: '#6366f1' } }} />} label={<Typography sx={{ color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600 }}>SMS</Typography>} />
-                                                <FormControlLabel value="email" control={<Radio sx={{ color: '#334155', '&.Mui-checked': { color: '#6366f1' } }} />} label={<Typography sx={{ color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600 }}>Email</Typography>} />
-                                            </RadioGroup>
-                                            <button type="button" onClick={handleSendOTP} disabled={isLoading || !identifier} className="btn-premium w-full">
-                                                {isLoading ? 'Processing...' : 'Dispatch Token'}
-                                            </button>
-                                        </Box>
-                                    ) : (
-                                        <TextField
-                                            fullWidth
-                                            placeholder="6-Digit Verification Code"
-                                            value={passwordOrOtp}
-                                            onChange={(e) => setPasswordOrOtp(e.target.value)}
-                                            autoFocus
-                                            sx={{ 
-                                                mb: 4,
-                                                '& .MuiOutlinedInput-root': { 
-                                                    color: 'white', borderRadius: 4, bgcolor: 'rgba(255,255,255,0.02)',
-                                                    '& fieldset': { borderColor: '#6366f1' }
-                                                }
-                                            }}
-                                            InputProps={{ startAdornment: <KeyIcon sx={{ mr: 2, color: '#6366f1' }} /> }}
-                                        />
-                                    )}
-                                </>
-                            ) : (
-                                <TextField
-                                    fullWidth
-                                    type="password"
-                                    placeholder="Secure Password"
-                                    value={passwordOrOtp}
-                                    onChange={(e) => setPasswordOrOtp(e.target.value)}
+                                <Tabs 
+                                    value={loginMode} 
+                                    onChange={(e, v) => { setLoginMode(v); setOtpSent(false); setPasswordOrOtp(''); }}
                                     sx={{ 
-                                        mb: 4,
-                                        '& .MuiOutlinedInput-root': { 
-                                            color: 'white', borderRadius: 4, bgcolor: 'rgba(255,255,255,0.02)',
-                                            '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
-                                            '&:hover fieldset': { borderColor: '#6366f1' }
+                                        mb: 4, minHeight: 48, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.03)', p: 0.5,
+                                        '& .MuiTabs-indicator': { display: 'none' },
+                                        '& .MuiTab-root': { 
+                                            textTransform: 'none', fontWeight: 800, color: '#64748b', borderRadius: 2,
+                                            '&.Mui-selected': { bgcolor: 'rgba(255,255,255,0.05)', color: 'white' }
                                         }
                                     }}
-                                    InputProps={{ startAdornment: <LockIcon sx={{ mr: 2, color: '#475569' }} /> }}
-                                />
-                            )}
-
-                            {(loginMode === 'password' || otpSent) && (
-                                <button type="submit" disabled={isLoading} className="btn-premium w-full">
-                                    {isLoading ? 'Authorizing...' : 'Initialize Session'}
-                                </button>
-                            )}
-
-                            <Box sx={{ mt: 6, textAlign: 'center' }}>
-                                <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mb: 2 }}>Unauthorized access attempts are monitored and logged.</Typography>
-                                <Button 
-                                    onClick={() => navigate('/verify')}
-                                    sx={{ color: '#6366f1', fontWeight: 900, letterSpacing: 1, '&:hover': { bgcolor: 'rgba(99, 102, 241, 0.05)' } }}
+                                    variant="fullWidth"
                                 >
-                                    REGISTRATION GATEWAY
-                                </Button>
-                            </Box>
-                        </form>
+                                    <Tab label="Access Token" value="otp" />
+                                    <Tab label="Global Password" value="password" />
+                                </Tabs>
+
+                                <form onSubmit={handleLogin}>
+                                    {errorMsg && <Alert severity="error" sx={{ mb: 3, borderRadius: 3, bgcolor: 'rgba(244,63,94,0.1)', color: '#fb7185', border: '1px solid rgba(244,63,94,0.2)' }}>{errorMsg}</Alert>}
+                                    {successMsg && <Alert severity="success" sx={{ mb: 3, borderRadius: 3, bgcolor: 'rgba(16,185,129,0.1)', color: '#34d399', border: '1px solid rgba(16,185,129,0.2)' }}>{successMsg}</Alert>}
+
+                                    <TextField
+                                        fullWidth
+                                        placeholder="Hospyn ID, Email or Phone"
+                                        variant="outlined"
+                                        value={identifier}
+                                        onChange={(e) => setIdentifier(e.target.value)}
+                                        sx={{ mb: 3, ...inputSx }}
+                                        InputProps={{
+                                            startAdornment: <SmartphoneIcon sx={{ mr: 2, color: '#475569' }} />
+                                        }}
+                                    />
+
+                                    {loginMode === 'otp' ? (
+                                        <>
+                                            {!otpSent ? (
+                                                <Box>
+                                                    <RadioGroup row value={otpChannel} onChange={(e) => setOtpChannel(e.target.value)} sx={{ mb: 3, justifyContent: 'center' }}>
+                                                        <FormControlLabel value="sms" control={<Radio sx={{ color: '#334155', '&.Mui-checked': { color: '#6366f1' } }} />} label={<Typography sx={{ color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600 }}>SMS</Typography>} />
+                                                        <FormControlLabel value="email" control={<Radio sx={{ color: '#334155', '&.Mui-checked': { color: '#6366f1' } }} />} label={<Typography sx={{ color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600 }}>Email</Typography>} />
+                                                    </RadioGroup>
+                                                    <button type="button" onClick={handleSendOTP} disabled={isLoading || !identifier} className="btn-premium w-full">
+                                                        {isLoading ? 'Processing...' : 'Dispatch Token'}
+                                                    </button>
+                                                </Box>
+                                            ) : (
+                                                <TextField
+                                                    fullWidth
+                                                    placeholder="6-Digit Verification Code"
+                                                    value={passwordOrOtp}
+                                                    onChange={(e) => setPasswordOrOtp(e.target.value)}
+                                                    autoFocus
+                                                    sx={{ mb: 4, ...inputSx }}
+                                                    InputProps={{ startAdornment: <KeyIcon sx={{ mr: 2, color: '#6366f1' }} /> }}
+                                                />
+                                            )}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <TextField
+                                                fullWidth
+                                                type={showPassword ? 'text' : 'password'}
+                                                placeholder="Secure Passkey"
+                                                value={passwordOrOtp}
+                                                onChange={(e) => setPasswordOrOtp(e.target.value)}
+                                                sx={{ mb: 1, ...inputSx }}
+                                                InputProps={{
+                                                    startAdornment: <LockIcon sx={{ mr: 2, color: '#475569' }} />,
+                                                    endAdornment: (
+                                                        <IconButton onClick={() => setShowPassword(v => !v)} edge="end" sx={{ color: '#475569', '&:hover': { color: '#6366f1' } }}>
+                                                            {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                                        </IconButton>
+                                                    )
+                                                }}
+                                            />
+                                            {/* Forgot Password link */}
+                                            <Box sx={{ textAlign: 'right', mb: 3 }}>
+                                                <Button
+                                                    onClick={() => setShowForgotPassword(true)}
+                                                    sx={{ color: '#6366f1', fontWeight: 700, textTransform: 'none', fontSize: '0.8rem', p: 0, minWidth: 0, '&:hover': { bgcolor: 'transparent', textDecoration: 'underline' } }}
+                                                >
+                                                    Forgot password?
+                                                </Button>
+                                            </Box>
+                                        </>
+                                    )}
+
+                                    {(loginMode === 'password' || otpSent) && (
+                                        <button type="submit" disabled={isLoading} className="btn-premium w-full">
+                                            {isLoading ? 'Authorizing...' : 'Initialize Session'}
+                                        </button>
+                                    )}
+
+                                    <Box sx={{ mt: 6, textAlign: 'center' }}>
+                                        <Typography variant="caption" sx={{ color: '#64748b', display: 'block', mb: 2 }}>Unauthorized access attempts are monitored and logged.</Typography>
+                                        <Button 
+                                            onClick={() => navigate('/verify')}
+                                            sx={{ color: '#6366f1', fontWeight: 900, letterSpacing: 1, '&:hover': { bgcolor: 'rgba(99, 102, 241, 0.05)' } }}
+                                        >
+                                            REGISTRATION GATEWAY
+                                        </Button>
+                                    </Box>
+                                </form>
+                            </>
+                        )}
                     </Box>
                 </Grid>
             </Grid>

@@ -41,8 +41,16 @@ async def doctor_token(
     from app.api.auth import throw_auth_exception
     from app.core.audit import log_clinical_audit as log_audit_action
     from app.core.config import settings
-    # Standard lookup
-    result = await db.execute(select(User).where(User.email == username))
+    # Allow login via Email, Phone Number, or Hospyn ID
+    from sqlalchemy import or_
+    stmt = select(User).where(
+        or_(
+            User.email == username,
+            User.email == f"+91{username}" if not username.startswith("+") else username.replace("+91", ""),
+            func.lower(User.hospyn_id) == username.lower()
+        )
+    )
+    result = await db.execute(stmt)
     user = result.scalars().first()
 
     if not user:
