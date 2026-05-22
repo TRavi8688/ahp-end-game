@@ -241,7 +241,6 @@ async def verify_medical_record(
 async def get_prescriptions(
     patient_id: Optional[uuid.UUID] = None,
     db: AsyncSession = Depends(deps.get_db),
-    hospital_id: uuid.UUID = Depends(deps.get_hospital_id),
     current_user = Depends(deps.get_current_user)
 ):
     """
@@ -260,6 +259,7 @@ async def get_prescriptions(
             raise HTTPException(status_code=404, detail="Patient profile not found.")
         stmt = select(DigitalPrescription).where(DigitalPrescription.patient_id == patient.id)
     else:
+        hospital_id = await deps.get_hospital_id(current_user, db)
         stmt = select(DigitalPrescription).where(DigitalPrescription.hospital_id == hospital_id)
         if patient_id:
             stmt = stmt.where(DigitalPrescription.patient_id == patient_id)
@@ -271,7 +271,6 @@ async def get_prescriptions(
 async def get_prescription(
     prescription_id: uuid.UUID,
     db: AsyncSession = Depends(deps.get_db),
-    hospital_id: uuid.UUID = Depends(deps.get_hospital_id),
     current_user = Depends(deps.get_current_user)
 ):
     """
@@ -289,6 +288,7 @@ async def get_prescription(
             raise HTTPException(status_code=404, detail="Patient profile not found.")
         stmt = stmt.where(DigitalPrescription.patient_id == patient.id)
     else:
+        hospital_id = await deps.get_hospital_id(current_user, db)
         stmt = stmt.where(DigitalPrescription.hospital_id == hospital_id)
 
     result = await db.execute(stmt)

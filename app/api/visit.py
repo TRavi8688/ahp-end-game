@@ -1,5 +1,6 @@
 import uuid
 from typing import List, Optional
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -210,10 +211,10 @@ async def get_my_visits(
         h_name = (await db.execute(h_stmt)).scalar()
         enriched_visits.append({
             "id": v.id,
-            "hospital_name": h_name or "Unknown Hospital",
-            "visit_reason": v.visit_reason,
+            "hospital_name": h_name or "Hospyn Clinic",
+            "visit_reason": v.visit_reason or "Clinical Consultation",
             "status": v.status,
-            "check_in_time": v.check_in_time,
+            "check_in_time": v.check_in_time or v.created_at or datetime.now(timezone.utc),
             "queue_token": v.queue_token,
             "family_member_id": v.family_member_id
         })
