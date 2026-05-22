@@ -3,7 +3,7 @@ import { Shield, Zap, Users, Activity, Plus, Database, Lock, Search, RefreshCcw,
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1';
 
 const StatCard = ({ icon: Icon, label, value, trend, loading, color }) => (
   <motion.div 
