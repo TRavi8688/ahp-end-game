@@ -93,18 +93,26 @@ async def test_hospital_id_dependency_security():
     """
     Verifies the get_hospital_id dependency correctly blocks access if staff profile is missing.
     """
+    mock_db = AsyncMock()
+    mock_result = MagicMock()
+    mock_result.scalars.return_value.first.return_value = None
+    mock_db.execute.return_value = mock_result
+
     # Case 1: User with staff profile
     mock_user = MagicMock(spec=User)
     mock_user.staff_profile = MagicMock(spec=StaffProfile)
     mock_user.staff_profile.hospital_id = 99
     
-    hid = await deps.get_hospital_id(user=mock_user)
+    hid = await deps.get_hospital_id(user=mock_user, db=mock_db)
     assert hid == 99
     
     # Case 2: User without staff profile (Security Violation)
     mock_user_no_profile = MagicMock(spec=User)
     mock_user_no_profile.staff_profile = None
+    mock_user_no_profile.role = MagicMock()
+    mock_user_no_profile.role.value = "receptionist"
     
     with pytest.raises(HTTPException) as excinfo:
-        await deps.get_hospital_id(user=mock_user_no_profile)
+        await deps.get_hospital_id(user=mock_user_no_profile, db=mock_db)
     assert excinfo.value.status_code == 403
+

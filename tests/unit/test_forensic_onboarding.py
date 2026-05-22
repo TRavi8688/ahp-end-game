@@ -194,7 +194,7 @@ async def test_invite_staff_member_with_existing_user():
         await db.flush()
         
         # Invite this existing user - this previously threw UnboundLocalError
-        invite, raw_token, temp_password = await StaffService.invite_staff_member(
+        invite, raw_token, temp_password, staff_hospyn_id = await StaffService.invite_staff_member(
             db=db,
             inviter_user_id=inviter.id,
             hospital_id=hospital.id,
@@ -209,3 +209,5 @@ async def test_invite_staff_member_with_existing_user():
         assert invite is not None
         assert raw_token is not None
         assert temp_password is not None
+        assert staff_hospyn_id is not None
+
