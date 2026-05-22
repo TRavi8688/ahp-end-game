@@ -1,14 +1,35 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Typography, Grid, Card, CardContent, Divider, Switch, Button, TextField, FormControlLabel, Avatar } from '@mui/material';
 import LockIcon from '@mui/icons-material/Lock';
 import SecurityIcon from '@mui/icons-material/Security';
 import ComputerIcon from '@mui/icons-material/Computer';
+import { API_BASE_URL } from '../api';
 
 export default function Settings() {
+    const [profile, setProfile] = useState(null);
     const [twoFA, setTwoFA] = useState(true);
     const [timeout, setTimeout] = useState("15");
     const [emailNotif, setEmailNotif] = useState(true);
     const [smsNotif, setSmsNotif] = useState(false);
+
+    useEffect(() => {
+        const fetchProfile = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            try {
+                const res = await fetch(`${API_BASE_URL}/doctor/profile/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setProfile(data);
+                }
+            } catch (err) {
+                console.error("Failed to fetch profile in Settings", err);
+            }
+        };
+        fetchProfile();
+    }, []);
 
     return (
         <Box sx={{ maxWidth: 1200, mx: 'auto', pb: 8 }}>
@@ -34,7 +55,9 @@ export default function Settings() {
                         </Box>
                         <CardContent sx={{ p: 3 }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-                                <Avatar sx={{ width: 80, height: 80, bgcolor: '#0d9488', fontSize: '2rem', mr: 3 }}>SM</Avatar>
+                                <Avatar sx={{ width: 80, height: 80, bgcolor: '#0d9488', fontSize: '2rem', mr: 3 }}>
+                                    {profile ? `${profile.first_name?.[0] || ''}${profile.last_name?.[0] || ''}` : 'SM'}
+                                </Avatar>
                                 <Box>
                                     <Button variant="outlined" size="small" sx={{ color: '#4b5563', borderColor: '#d1d5db', mb: 1 }}>Change Photo</Button>
                                     <Typography variant="caption" display="block" color="text.secondary">JPG, GIF or PNG. 1MB max.</Typography>
@@ -43,16 +66,16 @@ export default function Settings() {
 
                             <Grid container spacing={3}>
                                 <Grid item xs={12} sm={6}>
-                                    <TextField fullWidth label="Full Name" defaultValue="Dr. Sarah Mitchell" size="small" />
+                                    <TextField fullWidth label="Full Name" value={profile ? `Dr. ${profile.first_name || ''} ${profile.last_name || ''}`.trim() : "Loading..."} size="small" disabled={!profile} />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
-                                    <TextField fullWidth label="Medical License ID" defaultValue="MCI-19942" size="small" disabled />
+                                    <TextField fullWidth label="Medical License ID" value={profile?.license_number || "Loading..."} size="small" disabled />
                                 </Grid>
                                 <Grid item xs={12}>
-                                    <TextField fullWidth label="Primary Clinic" defaultValue="City General Hospital" size="small" />
+                                    <TextField fullWidth label="Primary Clinic" value={profile?.hospital_name || "Loading..."} size="small" disabled={!profile} />
                                 </Grid>
                                 <Grid item xs={12}>
-                                    <TextField fullWidth label="Specialization" defaultValue="General Medicine" size="small" />
+                                    <TextField fullWidth label="Specialization" value={profile?.specialty || "Loading..."} size="small" disabled={!profile} />
                                 </Grid>
                             </Grid>
 

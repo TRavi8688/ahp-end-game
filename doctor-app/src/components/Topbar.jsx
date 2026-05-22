@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppBar, Toolbar, Typography, IconButton, Badge, Avatar, Box, InputBase, Menu, MenuItem, Divider } from '@mui/material';
 import { useLocation } from 'react-router-dom';
+import { API_BASE_URL } from '../api';
 
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
@@ -9,9 +10,26 @@ import SearchIcon from '@mui/icons-material/Search';
 export default function Topbar({ onLogout, onOpenScan }) {
     const location = useLocation();
     const [anchorEl, setAnchorEl] = useState(null);
+    const [profile, setProfile] = useState(null);
 
     const handleProfileClick = (event) => setAnchorEl(event.currentTarget);
     const handleProfileClose = () => setAnchorEl(null);
+
+    useEffect(() => {
+        const fetchProfile = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+            try {
+                const res = await fetch(`${API_BASE_URL}/doctor/profile/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) setProfile(await res.json());
+            } catch (err) {
+                console.error("Failed to fetch profile in Topbar", err);
+            }
+        };
+        fetchProfile();
+    }, []);
 
     // Dynamic Title based on route
     const getPageTitle = () => {
@@ -141,7 +159,7 @@ export default function Topbar({ onLogout, onOpenScan }) {
                                 border: '1px solid rgba(255,255,255,0.1)'
                             }}
                         >
-                            GS
+                            {profile ? `${profile.first_name?.[0] || 'D'}${profile.last_name?.[0] || 'R'}` : 'GS'}
                         </Avatar>
                     </Box>
 
