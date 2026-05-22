@@ -31,6 +31,7 @@ class ClinicalService(BaseService):
         self, 
         db: AsyncSession, 
         hospital_id: uuid.UUID, 
+        user_id: uuid.UUID,
         doctor_id: uuid.UUID, 
         patient_id: uuid.UUID, 
         medications: List[Dict[str, Any]], 
@@ -74,7 +75,7 @@ class ClinicalService(BaseService):
             db=db,
             tenant_id=hospital_id,
             patient_id=patient_id,
-            actor_id=doctor_id,
+            actor_id=user_id,
             event_type="PRESCRIPTION_CREATED",
             aggregate_type="prescription",
             aggregate_id=str(prescription.id),
@@ -94,7 +95,7 @@ class ClinicalService(BaseService):
         ))
         
         # 5. Audit Logging
-        await self._audit(db, doctor_id, hospital_id, "CREATE", "prescription", prescription.id)
+        await self._audit(db, user_id, hospital_id, "CREATE", "prescription", prescription.id)
         
         await db.refresh(prescription)
         return prescription
@@ -151,6 +152,7 @@ class ClinicalService(BaseService):
         self, 
         db: AsyncSession, 
         hospital_id: int, 
+        user_id: uuid.UUID,
         doctor_id: int, 
         patient_id: int, 
         tests: List[str],
@@ -172,7 +174,7 @@ class ClinicalService(BaseService):
             db=db,
             tenant_id=hospital_id,
             patient_id=patient_id,
-            actor_id=doctor_id,
+            actor_id=user_id,
             event_type="LAB_ORDER_CREATED",
             aggregate_type="lab_order",
             aggregate_id=str(order.id),
@@ -186,7 +188,7 @@ class ClinicalService(BaseService):
             payload={"order_id": str(order.id), "patient_id": str(patient_id)}
         ))
         
-        await self._audit(db, doctor_id, hospital_id, "CREATE", "lab_order", order.id)
+        await self._audit(db, user_id, hospital_id, "CREATE", "lab_order", order.id)
         await db.refresh(order)
         return order
 
@@ -324,6 +326,7 @@ class ClinicalService(BaseService):
         self,
         db: AsyncSession,
         record_id: int,
+        user_id: uuid.UUID,
         doctor_id: uuid.UUID,
         hospital_id: int
     ) -> Any:
@@ -349,12 +352,12 @@ class ClinicalService(BaseService):
             db=db,
             tenant_id=hospital_id,
             patient_id=record.patient_id,
-            actor_id=str(doctor_id),
+            actor_id=user_id,
             event_type="RECORD_VERIFIED",
             aggregate_type="medical_record",
             aggregate_id=str(record.id),
             payload={"verified_by": str(doctor_id)}
         )
         
-        await self._audit(db, doctor_id, hospital_id, "VERIFY", "medical_record", record.id)
+        await self._audit(db, user_id, hospital_id, "VERIFY", "medical_record", record.id)
         return record

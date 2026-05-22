@@ -74,6 +74,7 @@ async def create_prescription(
         return await clinical_service.create_prescription(
             db=db,
             hospital_id=hospital_id,
+            user_id=current_user.id,
             doctor_id=doctor.id,
             patient_id=final_patient_id,
             medications=[m.model_dump() for m in prescription_in.medications],
@@ -140,6 +141,7 @@ async def create_lab_order(
         return await clinical_service.create_lab_order(
             db=db,
             hospital_id=hospital_id,
+            user_id=current_user.id,
             doctor_id=doctor.id,
             patient_id=order_in.patient_id,
             tests=order_in.tests,
@@ -226,6 +228,7 @@ async def verify_medical_record(
         return await clinical_service.verify_medical_record(
             db=db,
             record_id=record_id,
+            user_id=current_user.id,
             doctor_id=current_user.doctor_profile.id,
             hospital_id=hospital_id
         )
