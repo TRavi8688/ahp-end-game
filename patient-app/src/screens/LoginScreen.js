@@ -92,13 +92,21 @@ export default function AuthScreen({ navigation }) {
                                         setTempAuthToken(access_token);
                                         setTempEmail(email);
                                         setSetupModalVisible(true);
+                                    } else if (profileErr.response?.status === 403) {
+                                        Alert.alert(
+                                            'Access Denied', 
+                                            'This Google account is registered as a Doctor/Staff. The Patient App is strictly for patients. Please use a different email to create a Patient account.'
+                                        );
+                                        throw new Error("Handled403");
                                     } else {
                                         throw profileErr;
                                     }
                                 }
                             } catch (e) {
-                                const errorMsg = e.response?.data?.message || e.response?.data?.detail || 'Google Auth verification failed.';
-                                Alert.alert('Google Authentication Error', errorMsg);
+                                if (e.message !== "Handled403") {
+                                    const errorMsg = e.response?.data?.message || e.response?.data?.detail || 'Google Auth verification failed.';
+                                    Alert.alert('Google Authentication Error', errorMsg);
+                                }
                             } finally {
                                 setLoading(false);
                             }
@@ -399,15 +407,7 @@ export default function AuthScreen({ navigation }) {
                                 </TouchableOpacity>
                             )}
 
-                            <TouchableOpacity 
-                                style={[styles.googleBtn, { backgroundColor: 'rgba(99, 102, 241, 0.08)', borderColor: 'rgba(99, 102, 241, 0.25)', borderWidth: 1, marginTop: 10 }]} 
-                                onPress={() => {
-                                    setGoogleModalVisible(true);
-                                }}
-                            >
-                                <Ionicons name="construct-outline" size={18} color="#6366F1" style={{ marginRight: 10 }} />
-                                <Text style={[styles.googleBtnText, { color: '#6366F1' }]}>Developer Sandbox Bypass</Text>
-                            </TouchableOpacity>
+
 
                             <Text style={styles.encryptedNotice}>
                                 <Ionicons name="lock-closed" size={12} color="#94A3B8" /> End-to-end encrypted session
