@@ -72,3 +72,32 @@ class BillItem(Base, TimestampMixin):
     
     invoice: Mapped["Invoice"] = relationship(back_populates="items")
 
+
+class Payment(Base, TenantScopedMixin, VersionedMixin, TimestampMixin):
+    """
+    FINANCIAL INTEGRITY LAYER (Section 2.2).
+    Tracks every transaction with exactly-once semantic potential.
+    """
+    __tablename__ = "payments"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    invoice_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("invoices.id"), index=True)
+    
+    amount: Mapped[float] = mapped_column()
+    currency: Mapped[str] = mapped_column(String(10), default="INR")
+    status: Mapped[PaymentStatus] = mapped_column(SQLEnum(PaymentStatus), default=PaymentStatus.PENDING)
+    payment_method: Mapped[PaymentMethod] = mapped_column(SQLEnum(PaymentMethod), default=PaymentMethod.CASH)
+    
+    provider: Mapped[Optional[str]] = mapped_column(String(50)) # razorpay, stripe
+    provider_transaction_id: Mapped[Optional[str]] = mapped_column(String(100), index=True)
+    idempotency_key: Mapped[Optional[str]] = mapped_column(String(100), unique=True, index=True)
+    
+    metadata_json: Mapped[Optional[dict]] = mapped_column(JSON_TYPE) # Store billing items
+    
+    invoice: Mapped[Optional["Invoice"]] = relationship(back_populates="payments")
+    
+    __mapper_args__ = {"version_id_col": VersionedMixin.version_id}
+
+
