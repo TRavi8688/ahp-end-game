@@ -213,18 +213,10 @@ async def login(
     )
     
     result = await db.execute(stmt)
-    users = result.scalars().all()
+    user = result.scalars().first()
     
     # 2. STRICT VERIFICATION
-    # Since an identifier (like a phone number) might belong to multiple accounts (e.g. a Doctor and a Patient),
-    # we must check all matching accounts to see if the password matches any of them.
-    user = None
-    for u in users:
-        if security.verify_password(form_data.password, u.hashed_password):
-            user = u
-            break
-
-    if not user:
+    if not user or not security.verify_password(form_data.password, user.hashed_password):
         await log_audit_action(
             db=db,
             user_id=None,
