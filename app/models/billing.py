@@ -6,6 +6,7 @@ from typing import List, Optional
 import enum
 import uuid
 from app.models.mixins import TenantScopedMixin, VersionedMixin, AuditableMixin, TimestampMixin
+from app.core.encryption import StringEncryptedType, TextEncryptedType
 from app.models.core import *
 from app.models.clinical import *
 
@@ -99,5 +100,44 @@ class Payment(Base, TenantScopedMixin, VersionedMixin, TimestampMixin):
     invoice: Mapped[Optional["Invoice"]] = relationship(back_populates="payments")
     
     __mapper_args__ = {"version_id_col": VersionedMixin.version_id}
+
+
+class InsuranceClaim(Base, TenantScopedMixin, VersionedMixin, TimestampMixin):
+    """
+    REVENUE CYCLE MANAGEMENT (RCM).
+    Tracks claims submitted to TPAs.
+    """
+    __tablename__ = "insurance_claims"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    payment_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("payments.id"))
+    
+    tpa_name: Mapped[str] = mapped_column(String(100), index=True)
+    policy_number: Mapped[str] = mapped_column(StringEncryptedType(100))
+    claim_amount: Mapped[float] = mapped_column()
+    status: Mapped[str] = mapped_column(String(50), default="SUBMITTED") # SUBMITTED, APPROVED, REJECTED, DISBURSED
+    
+    rejection_reason: Mapped[Optional[str]] = mapped_column(Text)
+    
+    __mapper_args__ = {"version_id_col": VersionedMixin.version_id}
+
+
+class BillingSubscription(Base, TimestampMixin):
+    __tablename__ = "billing_subscriptions"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), unique=True)
+    stripe_customer_id: Mapped[Optional[str]] = mapped_column(String(100))
+    auto_debit_token: Mapped[Optional[str]] = mapped_column(String(255)) # Tokenized card ref
+    upi_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True) # Unified Payment Interface
+    payment_method_type: Mapped[str] = mapped_column(String(50), default="card") # card or upi
+    trial_starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    trial_ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc) + timedelta(days=60))
+    subscription_status: Mapped[str] = mapped_column(String(50), default="trialing") # trialing, active, past_due, cancelled
+    
+    hospital: Mapped["Hospital"] = relationship(back_populates="subscription")
+
 
 
