@@ -55,6 +55,15 @@ class ApiService {
         return (await this.client.post('/doctor/prescription/create', data)).data;
     }
 
+    // --- Generic HTTP Methods ---
+    async get(url, config = {}) {
+        return (await this.client.get(url, config)).data;
+    }
+
+    async post(url, data = {}, config = {}) {
+        return (await this.client.post(url, data, config)).data;
+    }
+
     async getAnalytics() {
         return (await this.client.get('/doctor/analytics/summary')).data;
     }

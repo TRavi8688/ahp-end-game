@@ -430,7 +430,11 @@ export default function Prescriptions() {
             } else {
                 const errData = await res.json().catch(() => ({ detail: 'Failed to issue prescription.' }));
                 setToastSeverity('error');
-                setToastMessage(`Error: ${errData.detail || 'Failed to issue prescription.'}`);
+                let errMsg = errData.detail || 'Failed to issue prescription.';
+                if (Array.isArray(errData.detail)) {
+                    errMsg = errData.detail.map(e => `${e.loc[e.loc.length-1]}: ${e.msg}`).join(', ');
+                }
+                setToastMessage(`Error: ${errMsg}`);
                 setToastOpen(true);
             }
         } catch (e) {

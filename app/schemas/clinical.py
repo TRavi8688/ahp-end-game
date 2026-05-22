@@ -16,6 +16,18 @@ class MedicationOrder(BaseModel):
     frequency: str
     duration: str
     instructions: Optional[str] = None
+    status: Optional[str] = "pending" # pending, fulfilled, partial
+    fulfilled_qty: Optional[int] = 0
+
+class PrescriptionShareRequest(BaseModel):
+    pharmacy_id: Union[uuid.UUID, str] # Can be UUID or Hospyn-ID
+
+class DispenseItem(BaseModel):
+    name: str
+    action: str # "accept" or "decline"
+
+class PartialDispenseRequest(BaseModel):
+    items: List[DispenseItem]
 
 class PrescriptionBase(BaseModel):
     patient_id: Union[uuid.UUID, str]  # Accepts UUID object from DB, or UUID/Hospyn ID string from frontend

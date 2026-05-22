@@ -394,10 +394,16 @@ export default function RecordsScreen({ navigation }) {
                     <Text style={styles.headerTitle}>CLINICAL VAULT</Text>
                     <Text style={[styles.headerSub, { color: 'rgba(255, 255, 255, 0.7)' }]}>End-to-End Encrypted Records</Text>
                 </View>
-                <TouchableOpacity style={styles.uploadBtn} onPress={() => { HapticUtils.light(); navigation.navigate('Upload'); }}>
-                    <Ionicons name="cloud-upload" size={18} color="#fff" />
-                    <Text style={styles.uploadBtnText}>VAULT</Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TouchableOpacity style={styles.uploadBtn} onPress={() => { HapticUtils.light(); navigation.navigate('Prescriptions'); }}>
+                        <Ionicons name="medkit" size={18} color="#fff" />
+                        <Text style={styles.uploadBtnText}>RX</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.uploadBtn} onPress={() => { HapticUtils.light(); navigation.navigate('Upload'); }}>
+                        <Ionicons name="cloud-upload" size={18} color="#fff" />
+                        <Text style={styles.uploadBtnText}>VAULT</Text>
+                    </TouchableOpacity>
+                </View>
             </LinearGradient>
 
             {/* SEGMENTED TAB SELECTOR */}

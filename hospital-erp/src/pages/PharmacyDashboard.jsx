@@ -48,7 +48,7 @@ const PharmacyDashboard = () => {
       
       setStats(statsRes.data);
       setInventory(invRes.data);
-      setPrescriptions(presRes.data.filter(p => p.status === 'active'));
+      setPrescriptions(presRes.data.filter(p => p.status === 'pending'));
     } catch (error) {
       console.error("DATA_FETCH_FAILURE:", error);
     } finally {

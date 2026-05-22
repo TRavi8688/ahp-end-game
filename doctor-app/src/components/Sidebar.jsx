@@ -14,6 +14,7 @@ import BarChartIcon from '@mui/icons-material/BarChart';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import SettingsIcon from '@mui/icons-material/Settings';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import LocalPharmacyIcon from '@mui/icons-material/LocalPharmacy';
 
 const drawerWidth = 240;
 
@@ -67,6 +68,7 @@ export default function Sidebar({ onOpenScan }) {
             items: [
                 { text: 'Scan QR / Enter ID', icon: <QrCodeScannerIcon />, action: onOpenScan },
                 { text: 'Prescriptions', icon: <MedicationIcon />, path: '/prescriptions', badge: stats.pending_rx_count },
+                { text: 'Pharmacy Queue', icon: <LocalPharmacyIcon />, path: '/pharmacy-queue' },
                 { text: 'Records Shared', icon: <FolderSharedIcon />, path: '/history' },
             ]
         },
