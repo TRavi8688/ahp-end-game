@@ -6,3 +6,4 @@ from .onboarding_request import *
 from .queue import *
 from .verification import *
 from .clinical import *
+from .billing import *
