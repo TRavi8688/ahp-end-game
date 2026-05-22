@@ -7,3 +7,4 @@ from .queue import *
 from .verification import *
 from .clinical import *
 from .billing import *
+from .scheduling import *
