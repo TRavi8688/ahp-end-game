@@ -14,12 +14,25 @@ class BillItemBase(BaseModel):
 class BillItemCreate(BillItemBase):
     reference_id: Optional[UUID] = None
 
-class BillItem(BillItemBase):
+class BillItem(BaseModel):
     id: UUID
-    total_price: float
-    
-    class Config:
-        from_attributes = True
+    item_name: str = Field(alias="item_name")
+    item_category: str = Field(alias="item_category")
+    quantity: float
+    unit_price: float
+    subtotal: float
+    tax_percent: float
+
+    # Provide backward-compatible aliases for frontends expecting 'description' / 'total_price'
+    @property
+    def description(self) -> str:
+        return self.item_name
+
+    @property
+    def total_price(self) -> float:
+        return self.subtotal
+
+    model_config = {"from_attributes": True, "populate_by_name": True}
 
 class InvoiceBase(BaseModel):
     patient_id: UUID
@@ -59,9 +72,8 @@ class PaymentCreate(BaseModel):
 class PaymentResponse(BaseModel):
     id: UUID
     amount: float
-    method: PaymentMethod
+    method: PaymentMethod = Field(validation_alias="payment_method")
     created_at: datetime
-    
-    class Config:
-        from_attributes = True
+
+    model_config = {"from_attributes": True, "populate_by_name": True}
 

@@ -3,7 +3,7 @@ import { Alert, Modal, View, Text, ScrollView, TouchableOpacity, TextInput, Acti
 import { WS_BASE_URL } from '../api';
 import { useAuth } from './AuthContext';
 import { SecurityUtils } from '../utils/security';
-import ApiService from '../utils/ApiService';
+import { clinicalService } from '../services/clinicalService';
 
 const SocketContext = createContext();
 
@@ -35,7 +35,7 @@ export const SocketProvider = ({ children }) => {
         setShowConsentModal(true);
         setIsFetchingRecords(true);
         try {
-            const fetched = await ApiService.getRecords();
+            const fetched = await clinicalService.getRecords();
             setRecords(fetched || []);
             // Check all records by default for quick checkout
             setSelectedRecords((fetched || []).map(r => r.id));
@@ -68,7 +68,7 @@ export const SocketProvider = ({ children }) => {
         const checkPendingAccess = async () => {
             if (!isAuthenticated || showConsentModal) return;
             try {
-                const pending = await ApiService.getPendingAccess();
+                const pending = await clinicalService.getPendingAccess();
                 if (pending && pending.length > 0) {
                     console.log('[Socket Poller] Detected pending access request via poll. Triggering modal.');
                     const firstRequest = pending[0];
@@ -167,7 +167,7 @@ export const SocketProvider = ({ children }) => {
         setIsSubmitting(true);
         setErrorMessage('');
         try {
-            await ApiService.post(`/patient/approve-access/${consentData.access_id}`, {
+            await clinicalService.approveAccess(consentData.access_id, {
                 record_ids: selectedRecords,
                 password: password
             });
@@ -187,7 +187,7 @@ export const SocketProvider = ({ children }) => {
         setIsSubmitting(true);
         setErrorMessage('');
         try {
-            await ApiService.post(`/patient/revoke-access/${consentData.access_id}`);
+            await clinicalService.revokeAccess(consentData.access_id);
             console.log('[Socket] Access rejected successfully');
             Alert.alert('Access Declined', 'You have rejected this access request.');
             handleCloseModal();

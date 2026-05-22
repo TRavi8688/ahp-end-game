@@ -1,7 +1,7 @@
 import React from 'react';
 import { Drawer, List, ListItem, ListItemIcon, ListItemText, Typography, Box, Divider, Badge, Button } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { API_BASE_URL } from '../api';
+import { doctorService } from '../services/doctorService';
 
 // Icons
 import HomeIcon from '@mui/icons-material/Home';
@@ -31,21 +31,15 @@ export default function Sidebar({ onOpenScan }) {
 
     React.useEffect(() => {
         const fetchData = async () => {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
             try {
-                // Fetch Profile
-                const profileRes = await fetch(`${API_BASE_URL}/doctor/profile/me`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (profileRes.ok) setProfile(await profileRes.json());
-
-                // Fetch Stats
-                const statsRes = await fetch(`${API_BASE_URL}/doctor/stats`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (statsRes.ok) setStats(await statsRes.json());
+                // Fetch Profile and Stats concurrently
+                const [profileData, statsData] = await Promise.all([
+                    doctorService.getProfile(),
+                    doctorService.getStats()
+                ]);
+                
+                setProfile(profileData);
+                setStats(statsData);
             } catch (err) {
                 console.error("Sidebar fetch error:", err);
             }

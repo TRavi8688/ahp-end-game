@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from app.models.models import Invoice, BillItem, PaymentStatus, PatientVisit, Hospital, Payment, PaymentMethod
 from app.schemas.billing import InvoiceCreate, BillItemCreate, PaymentCreate
 
@@ -17,7 +18,8 @@ class BillingService:
         patient_id: uuid.UUID,
         visit_id: Optional[uuid.UUID],
         items_data: List[BillItemCreate],
-        notes: Optional[str] = None
+        notes: Optional[str] = None,
+        discount_amount: float = 0.0
     ) -> Invoice:
         """
         GENERATE CLINICAL INVOICE:
@@ -41,16 +43,15 @@ class BillingService:
             tax_amount += line_tax
             
             bill_items.append(BillItem(
-                description=item.description,
-                category=item.category,
+                item_name=item.description,
+                item_category=item.category,
                 quantity=item.quantity,
                 unit_price=item.unit_price,
                 tax_percent=item.tax_percent,
-                total_price=line_total + line_tax,
-                reference_id=item.reference_id
+                subtotal=line_total + line_tax,
             ))
 
-        payable_amount = total_amount + tax_amount
+        payable_amount = max(0.0, total_amount + tax_amount - discount_amount)
 
         # 3. Create Invoice (Uncommitted)
         invoice = Invoice(
@@ -61,6 +62,7 @@ class BillingService:
             status=PaymentStatus.ISSUED,
             total_amount=total_amount,
             tax_amount=tax_amount,
+            discount_amount=discount_amount,
             payable_amount=payable_amount,
             paid_amount=0.0,
             notes=notes,
@@ -87,8 +89,12 @@ class BillingService:
                     raise # Rollback transaction if stock is missing
 
         await db.commit()
-        await db.refresh(invoice)
-        
+
+        # Re-query with eager-loaded items to avoid MissingGreenlet during Pydantic serialization
+        stmt = select(Invoice).options(selectinload(Invoice.items)).where(Invoice.id == invoice.id)
+        result = await db.execute(stmt)
+        invoice = result.scalar_one()
+
         logger.info(f"INVOICE_GENERATED_WITH_STOCK_DEDUCTION: {invoice_number}")
         return invoice
 
@@ -97,7 +103,7 @@ class BillingService:
         db: AsyncSession,
         invoice_id: uuid.UUID,
         payment_data: PaymentCreate
-    ) -> Payment:
+    ) -> tuple[Payment, Invoice]:
         """
         RECORD FINANCIAL TRANSACTION:
         Updates invoice status based on payment amount.
@@ -109,14 +115,15 @@ class BillingService:
         if not invoice:
             raise ValueError("Invoice not found")
 
-        # 1. Create Transaction
+        # 1. Create Transaction — use actual model column names
         transaction = Payment(
             hospital_id=invoice.hospital_id,
+            patient_id=invoice.patient_id,
             invoice_id=invoice.id,
             amount=payment_data.amount,
-            method=payment_data.method,
-            transaction_ref=payment_data.transaction_ref,
-            status="success"
+            payment_method=payment_data.method,
+            provider_transaction_id=payment_data.transaction_ref,
+            status=PaymentStatus.PAID,
         )
 
         # 2. Update Invoice Paid Amount

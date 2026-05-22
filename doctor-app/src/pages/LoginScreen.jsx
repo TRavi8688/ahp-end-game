@@ -13,7 +13,7 @@ import KeyIcon from '@mui/icons-material/Key';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { API_BASE_URL } from '../api';
+import { authService } from '../services/authService';
 
 // ─── Forgot Password Flow ──────────────────────────────────────
 function ForgotPasswordScreen({ onBack }) {
@@ -42,13 +42,7 @@ function ForgotPasswordScreen({ onBack }) {
     const handleRequest = async () => {
         setIsLoading(true); setErrorMsg(''); setSuccessMsg('');
         try {
-            const res = await fetch(`${API_BASE_URL}/auth/forgot-password/request`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ identifier })
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || 'Failed to send reset code.');
+            const data = await authService.requestPasswordReset(identifier);
             setSuccessMsg('A 6-digit reset code has been sent to your registered email / phone.');
             setStep('verify');
         } catch (err) { setErrorMsg(err.message); }
@@ -58,17 +52,11 @@ function ForgotPasswordScreen({ onBack }) {
     const handleVerify = async () => {
         setIsLoading(true); setErrorMsg('');
         try {
-            const res = await fetch(`${API_BASE_URL}/auth/forgot-password/verify`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ identifier, otp })
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || 'Invalid or expired code.');
+            const data = await authService.verifyPasswordResetOTP(identifier, otp);
             // Backend returns a secure reset_token — store it
             setResetToken(data.reset_token);
             setStep('reset');
-        } catch (err) { setErrorMsg(err.message); }
+        } catch (err) { setErrorMsg(err.message || 'Invalid or expired code.'); }
         finally { setIsLoading(false); }
     };
 
@@ -81,16 +69,10 @@ function ForgotPasswordScreen({ onBack }) {
         }
         setIsLoading(true); setErrorMsg('');
         try {
-            // Backend expects reset_token + new_password (not identifier/otp)
-            const res = await fetch(`${API_BASE_URL}/auth/forgot-password/reset`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ reset_token: resetToken, new_password: newPassword })
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || 'Reset failed. Please try again.');
+            // Backend expects reset_token + new_password
+            await authService.resetPassword(resetToken, newPassword);
             setStep('done');
-        } catch (err) { setErrorMsg(err.message); }
+        } catch (err) { setErrorMsg(err.message || 'Reset failed. Please try again.'); }
         finally { setIsLoading(false); }
     };
 
@@ -193,16 +175,9 @@ export default function LoginScreen() {
         setErrorMsg('');
         setSuccessMsg('');
         try {
-            const response = await fetch(`${API_BASE_URL}/doctor/send-otp`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    identifier, 
-                    method: identifier.includes('@') ? 'email' : 'sms' 
-                })
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.detail || 'Failed to dispatch access token');
+            const method = identifier.includes('@') ? 'email' : 'sms';
+            const data = await authService.sendOTP(identifier, method);
+            
             setOtpSent(true);
             setSuccessMsg(`Encrypted token dispatched via ${otpChannel === 'sms' ? 'Secure SMS' : 'Pro Email'}.`);
         } catch (error) {
@@ -218,19 +193,8 @@ export default function LoginScreen() {
         setErrorMsg('');
 
         try {
-            const formData = new URLSearchParams();
-            formData.append('identifier', identifier);
-            formData.append('password_or_otp', passwordOrOtp);
-            formData.append('is_otp', loginMode === 'otp' ? 'true' : 'false');
-
-            const response = await fetch(`${API_BASE_URL}/doctor/token`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: formData.toString()
-            });
-
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.detail || 'Authentication failed.');
+            // Send OAuth2 form data
+            const data = await authService.login(identifier, passwordOrOtp);
 
             // Decode JWT to verify role
             try {

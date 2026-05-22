@@ -4,8 +4,9 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, I
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence, FadeInUp, FadeInDown } from 'react-native-reanimated';
-import ApiService from '../utils/ApiService';
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence, FadeInUp, FadeInDown, FadeInRight } from 'react-native-reanimated';
+import { patientService } from '../services/patientService';
+import { clinicalService } from '../services/clinicalService';
 import HapticUtils from '../utils/HapticUtils';
 import QRCode from 'react-native-qrcode-svg';
 import { useAuth } from '../contexts/AuthContext';
@@ -73,17 +74,17 @@ export default function HomeScreen({ navigation }) {
     const handleScanQR_Internal = async (qrData) => {
         setActionLoading(true);
         try {
-            const hospital = await ApiService.scanHospitalQR(qrData);
+            const hospital = await clinicalService.scanHospitalQR(qrData);
             HapticUtils.success();
             setScannedHospital(hospital);
             
             if (qrData.startsWith('PLAB-')) {
                 setPartnerType('lab');
-                const latest = await ApiService.getLatestLabOrder();
+                const latest = await clinicalService.getLatestLabOrder();
                 setLatestPartnerItem(latest);
             } else if (qrData.startsWith('PPHR-')) {
                 setPartnerType('pharmacy');
-                const latest = await ApiService.getLatestPrescription();
+                const latest = await clinicalService.getLatestPrescription();
                 setLatestPartnerItem(latest);
             } else {
                 setPartnerType('hospital');
@@ -109,14 +110,14 @@ export default function HomeScreen({ navigation }) {
         setShowVisitModal(true);
     };
 
-    const fetchData = async () => {
+    const fetchData = async (signal) => {
         if (!isAuthenticated) return;
         
         try {
             const [profileRes, summaryRes, accessRes] = await Promise.allSettled([
-                ApiService.getProfile(),
-                ApiService.getClinicalSummary(),
-                ApiService.getPendingAccess()
+                patientService.getProfile(signal),
+                clinicalService.getClinicalSummary(signal),
+                clinicalService.getPendingAccess(signal)
             ]);
 
             if (profileRes.status === 'fulfilled') setProfile(profileRes.value);
@@ -126,7 +127,9 @@ export default function HomeScreen({ navigation }) {
                 openConsentModal(accessRes.value[0]);
             }
         } catch (error) {
-            console.error('Error fetching dashboard data:', error);
+            if (error.name !== 'CanceledError') {
+                console.error('Error fetching dashboard data:', error);
+            }
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -134,9 +137,11 @@ export default function HomeScreen({ navigation }) {
     };
 
     useEffect(() => {
+        const abortController = new AbortController();
         if (isAuthenticated) {
-            fetchData();
+            fetchData(abortController.signal);
         }
+        return () => abortController.abort();
     }, [isAuthenticated]);
 
     useEffect(() => {
@@ -189,7 +194,7 @@ export default function HomeScreen({ navigation }) {
     const handleLogMedication = async (medId, medName) => {
         HapticUtils.light();
         try {
-            await ApiService.logMedication(medId);
+            await clinicalService.logMedication(medId);
             HapticUtils.success();
             Alert.alert("Success", `Logged intake for ${medName}`);
             fetchData(); // Refresh to update "taken_today" status
@@ -226,7 +231,7 @@ export default function HomeScreen({ navigation }) {
         if (!manualQR) return;
         setActionLoading(true);
         try {
-            const hospital = await ApiService.scanHospitalQR(manualQR);
+            const hospital = await clinicalService.scanHospitalQR(manualQR);
             setScannedHospital(hospital);
             setVisitStep(2);
         } catch (error) {
@@ -243,7 +248,7 @@ export default function HomeScreen({ navigation }) {
         }
         setActionLoading(true);
         try {
-            const result = await ApiService.createVisit(
+            const result = await clinicalService.createVisit(
                 scannedHospital.qr_data, 
                 visitReason, 
                 visitSymptoms,
@@ -266,9 +271,9 @@ export default function HomeScreen({ navigation }) {
         setActionLoading(true);
         try {
             if (partnerType === 'lab') {
-                await ApiService.submitPartnerLabRequest(latestPartnerItem.id, scannedHospital.id);
+                await clinicalService.submitPartnerLabRequest(latestPartnerItem.id, scannedHospital.id);
             } else if (partnerType === 'pharmacy') {
-                await ApiService.submitPartnerPharmacyRequest(latestPartnerItem.id, scannedHospital.id);
+                await clinicalService.submitPartnerPharmacyRequest(latestPartnerItem.id, scannedHospital.id);
             }
             HapticUtils.success();
             setVisitStep(3);

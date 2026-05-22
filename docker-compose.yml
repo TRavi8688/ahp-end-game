@@ -58,6 +58,9 @@ services:
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
       - ENVIRONMENT=production
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER}
     depends_on:
       db:
         condition: service_healthy
@@ -105,6 +108,9 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
       - ENVIRONMENT=production
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_FROM_NUMBER=${TWILIO_FROM_NUMBER}
     networks:
       - internal_net
 

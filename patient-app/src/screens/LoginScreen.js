@@ -7,11 +7,13 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { Theme } from '../theme';
 import { API_BASE_URL, GOOGLE_CLIENT_ID } from '../api';
+import { authService } from '../services/authService';
+import { patientService } from '../services/patientService';
 import { LinearGradient } from 'expo-linear-gradient';
+import axios from 'axios';
 
 const { width, height } = Dimensions.get('window');
 
@@ -67,10 +69,8 @@ export default function AuthScreen({ navigation }) {
                             setLoading(true);
                             try {
                                 // 1. Verify token with your FastAPI backend /auth/google endpoint
-                                const resp = await axios.post(`${API_BASE_URL}/auth/google`, { 
-                                    token: response.credential 
-                                });
-                                const { access_token } = resp.data;
+                                const data = await authService.googleLogin(response.credential);
+                                const { access_token } = data;
 
                                 // Decode user email from Google JWT payload safely
                                 let email = 'google.user@hospyn.com';
@@ -82,6 +82,12 @@ export default function AuthScreen({ navigation }) {
 
                                 // 2. Check patient profile status
                                 try {
+                                    // Make sure we pass the token to SecurityUtils or temporary state to make the API call work
+                                    // Note: In an ideal world, the apiClient handles this via SecurityUtils.
+                                    // For this manual step during login, we might temporarily inject it.
+                                    // But since we just want to verify if profile exists, authService can do it or we just use raw axios for this specific check if apiClient isn't hydrated yet.
+                                    // Wait, let's just mock the check or use a temporary apiClient request.
+                                    // For now, use the old axios approach for this specific one-off check just to be safe before login finishes
                                     const profileResp = await axios.get(`${API_BASE_URL}/patient/profile`, {
                                         headers: { 'Authorization': `Bearer ${access_token}` }
                                     });
@@ -149,17 +155,11 @@ export default function AuthScreen({ navigation }) {
         setLoading(true);
         try {
             const identifier = hospynId.trim();
-            const formData = new URLSearchParams();
-            formData.append('username', identifier);
-            formData.append('password', password);
+            const data = await authService.login(identifier, password);
 
-            const resp = await axios.post(`${API_BASE_URL}/auth/login`, formData.toString(), {
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
-            });
-
-            if (resp.data.access_token) {
+            if (data.access_token) {
                 await AsyncStorage.removeItem('mock_profile');
-                await login(resp.data.access_token, identifier);
+                await login(data.access_token, identifier);
             }
         } catch (e) {
             const errorMsg = e.response?.data?.message || e.response?.data?.detail || 'Invalid credentials.';
@@ -200,9 +200,7 @@ export default function AuthScreen({ navigation }) {
                 password: setupPassword ? setupPassword : null
             };
 
-            await axios.post(`${API_BASE_URL}/patient/setup-profile`, payload, {
-                headers: { 'Authorization': `Bearer ${tempAuthToken}` }
-            });
+            await authService.setupProfile(payload, tempAuthToken);
 
             // Auto-login after setup complete!
             await AsyncStorage.removeItem('mock_profile');
@@ -221,10 +219,8 @@ export default function AuthScreen({ navigation }) {
         if (!forgotIdentifier) return Alert.alert('Required', 'Please enter your registered Hospyn ID or Email.');
         setForgotLoading(true);
         try {
-            const resp = await axios.post(`${API_BASE_URL}/auth/forgot-password/request`, {
-                identifier: forgotIdentifier
-            });
-            Alert.alert('OTP Dispatched', `A 6-digit verification code has been sent to the linked email: ${resp.data.target}`);
+            const data = await authService.requestForgotPassword(forgotIdentifier);
+            Alert.alert('OTP Dispatched', `A 6-digit verification code has been sent to the linked email: ${data.target}`);
             setForgotStep(2);
         } catch (e) {
             const errorMsg = e.response?.data?.message || e.response?.data?.detail || 'No account matched this identifier.';
@@ -238,11 +234,8 @@ export default function AuthScreen({ navigation }) {
         if (!forgotOtp || forgotOtp.length !== 6) return Alert.alert('Required', 'Please enter a valid 6-digit OTP.');
         setForgotLoading(true);
         try {
-            const resp = await axios.post(`${API_BASE_URL}/auth/forgot-password/verify`, {
-                identifier: forgotIdentifier,
-                otp: forgotOtp
-            });
-            setForgotResetToken(resp.data.reset_token);
+            const data = await authService.verifyForgotPassword(forgotIdentifier, forgotOtp);
+            setForgotResetToken(data.reset_token);
             setForgotStep(3);
         } catch (e) {
             const errorMsg = e.response?.data?.message || e.response?.data?.detail || 'Invalid or expired OTP.';
@@ -265,10 +258,7 @@ export default function AuthScreen({ navigation }) {
 
         setForgotLoading(true);
         try {
-            await axios.post(`${API_BASE_URL}/auth/forgot-password/reset`, {
-                reset_token: forgotResetToken,
-                new_password: forgotNewPassword
-            });
+            await authService.resetPassword(forgotResetToken, forgotNewPassword);
             Alert.alert('Success', 'Your password has been reset successfully. You can now log in.');
             setForgotModalVisible(false);
             setForgotStep(1);

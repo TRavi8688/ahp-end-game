@@ -5,14 +5,7 @@ import { Platform } from 'react-native';
 
 const getBaseUrl = () => {
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
-        // In Expo / React Native, Platform.OS determines Android vs iOS/Web
-        try {
-            const { Platform } = require('react-native');
-            if (Platform.OS === 'android') {
-                return 'http://10.0.2.2:8000';
-            }
-        } catch (e) {}
-        return 'https://hospyn-495906-api-625745217419.us-central1.run.app';
+        return 'http://192.168.0.21:8000';
     }
     return 'https://hospyn-495906-api-625745217419.us-central1.run.app';
 };

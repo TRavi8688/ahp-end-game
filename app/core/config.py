@@ -189,7 +189,14 @@ class Settings(BaseSettings):
         else:
             self.JWT_PUBLIC_KEY = self.JWT_PUBLIC_KEY.replace("\\n", "\n").replace("\\r", "").replace('"', '').strip()
 
-        # 3. Production Safety Checks
+        # 3. Startup and Production Safety Checks
+        if not self.DATABASE_URL or self.DATABASE_URL.strip() == "":
+            raise ValueError("STARTUP_FAIL: DATABASE_URL is not configured.")
+        if not self.SECRET_KEY or self.SECRET_KEY.strip() == "":
+            raise ValueError("STARTUP_FAIL: SECRET_KEY is not configured.")
+        if not self.ENCRYPTION_KEY or self.ENCRYPTION_KEY.strip() == "":
+            raise ValueError("STARTUP_FAIL: ENCRYPTION_KEY is not configured.")
+
         if self.ENVIRONMENT == "production":
             # Force Debug off in production regardless of input
             self.DEBUG = False
@@ -202,6 +209,9 @@ class Settings(BaseSettings):
                 
                 if len(self.SECRET_KEY) < 32 or "placeholder" in self.SECRET_KEY:
                     raise ValueError("PRODUCTION_FAIL: SECRET_KEY is missing or insecure. Add HOSPYN_SECRET_KEY to GitHub Secrets.")
+                
+                if "placeholder-key-for-booting-only" in self.ENCRYPTION_KEY:
+                    raise ValueError("PRODUCTION_FAIL: ENCRYPTION_KEY cannot be the default placeholder in production.")
                 
                 if not self.JWT_PRIVATE_KEY or "BEGIN" not in self.JWT_PRIVATE_KEY:
                      raise ValueError("PRODUCTION_FAIL: Valid JWT_PRIVATE_KEY is required for Production. Add HOSPYN_PRIVATE_KEY to GitHub Secrets.")

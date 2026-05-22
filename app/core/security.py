@@ -141,9 +141,9 @@ def decode_token(token: str, token_type: str = "access") -> Optional[dict]:
                 pass
 
         # 2. Try HS256 with Secret Key (ALWAYS as fallback to keep platform alive)
-        # if settings.ENVIRONMENT == "production":
-        #     logger.error("HS256_TOKEN_REJECTED: HS256 is strictly prohibited in production.")
-        #     return None
+        if settings.ENVIRONMENT == "production":
+            logger.error("HS256_TOKEN_REJECTED: HS256 is strictly prohibited in production. Only RS256 is allowed.")
+            return None
 
         payload = jwt.decode(
             token,

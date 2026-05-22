@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { SecurityUtils } from '../utils/security';
-import ApiService from '../utils/ApiService';
+import { patientService } from '../services/patientService';
+import { setAuthFailureCallback } from '../services/apiClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const AuthContext = createContext();
@@ -36,7 +37,7 @@ export const AuthProvider = ({ children }) => {
                 // Fetch profile to verify token and get user data
 
                 try {
-                    const profile = await ApiService.getProfile();
+                    const profile = await patientService.getProfile();
                     setUser(profile);
                     console.log('[Auth] Session restored for:', profile.full_name);
                 } catch (err) {
@@ -57,9 +58,9 @@ export const AuthProvider = ({ children }) => {
 
     useEffect(() => {
         initializeAuth();
-        // Register the global auth failure callback so ApiService can trigger a logout
-        ApiService.setAuthFailureCallback(() => {
-            console.warn('[Auth] ApiService reported auth failure. Logging out.');
+        // Register the global auth failure callback
+        setAuthFailureCallback(() => {
+            console.warn('[Auth] apiClient reported auth failure. Logging out.');
             logout();
         });
     }, [initializeAuth]);
@@ -83,7 +84,7 @@ export const AuthProvider = ({ children }) => {
             }
             
             // Refresh profile data in background to prevent UI block
-            ApiService.getProfile().then(profile => {
+            patientService.getProfile().then(profile => {
                 setUser(profile);
                 console.log('[Auth] Login profile synchronized.');
             }).catch(e => {
@@ -122,8 +123,8 @@ export const AuthProvider = ({ children }) => {
             await SecurityUtils.saveActiveMemberId(memberId);
             
             // Refresh profile data under the new context
-            // Note: ApiService will automatically include X-Family-Member-ID now
-            const profile = await ApiService.getProfile();
+            // Note: apiClient will automatically include X-Family-Member-ID now
+            const profile = await patientService.getProfile();
             setUser(profile);
             
             console.log('[Auth] Profile switch successful for:', profile.full_name);

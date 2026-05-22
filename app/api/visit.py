@@ -77,11 +77,13 @@ async def public_quick_register(
         
         # 1. Create a shadow User and Patient
         new_hospyn_id = f"Hospyn-{uuid.uuid4().hex[:8].upper()}"
+        import secrets
         shadow_user = models.User(
             email=f"{uuid.uuid4().hex[:8]}@guest.hospyn.com",
             first_name=data.name.split()[0],
             last_name=" ".join(data.name.split()[1:]) if len(data.name.split()) > 1 else "",
             role=models.RoleEnum.patient,
+            hashed_password=f"shadow_{secrets.token_hex(16)}",
             is_active=True
         )
         db.add(shadow_user)

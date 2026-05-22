@@ -134,13 +134,19 @@ async def register(
             hospital = models.Hospital(
                 name=user_in.facility_name or "New Hospital",
                 hospyn_id=hospyn_id,
-                short_code=short_code
+                short_code=short_code,
+                registration_number=f"REG-{uuid.uuid4().hex[:8].upper()}"
             )
             db.add(hospital)
             await db.flush()
             
-            # Link admin to this hospital
-            new_user.hospital_id = hospital.id
+            # Link admin to this hospital via StaffProfile
+            staff_profile = models.StaffProfile(
+                user_id=new_user.id,
+                hospital_id=hospital.id,
+                job_title="System Administrator"
+            )
+            db.add(staff_profile)
 
         await db.commit()
         await db.refresh(new_user)
@@ -180,7 +186,7 @@ async def register(
         )
 
 @router.post("/login", response_model=schemas.Token)
-@limiter.limit("100/minute")
+@limiter.limit("5/minute")
 async def login(
     request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),

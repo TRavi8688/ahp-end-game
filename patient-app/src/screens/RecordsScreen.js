@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import Animated, { FadeInUp, FadeIn } from 'react-native-reanimated';
-import ApiService from '../utils/ApiService';
+import { clinicalService } from '../services/clinicalService';
 import { useSocket } from '../contexts/SocketContext';
 import { Theme, GlobalStyles, getTheme, subscribeToTheme } from '../theme';
 import HapticUtils from '../utils/HapticUtils';
@@ -27,33 +27,33 @@ export default function RecordsScreen({ navigation }) {
         });
     }, []);
 
-    const fetchRecords = async () => {
+    const fetchRecords = async (signal) => {
         try {
             // 1. Fetch raw documents
-            const data = await ApiService.getRecords();
+            const data = await clinicalService.getRecords(signal);
             const safeData = Array.isArray(data) ? data.filter(item => item !== null && item !== undefined) : 
                              (data?.data && Array.isArray(data.data) ? data.data.filter(item => item !== null && item !== undefined) : []);
             setRecords(safeData);
 
             // 2. Fetch visits
             try {
-                const visitsData = await ApiService.get('/visit/my-visits');
+                const visitsData = await clinicalService.getVisits(signal);
                 setVisits(Array.isArray(visitsData) ? visitsData : []);
             } catch (err) {
-                console.warn('Failed to fetch visits:', err);
+                if (err.name !== 'CanceledError') console.warn('Failed to fetch visits:', err);
                 setVisits([]);
             }
 
             // 3. Fetch prescriptions
             try {
-                const prescriptionsData = await ApiService.getPrescriptions();
+                const prescriptionsData = await clinicalService.getPrescriptions(signal);
                 setPrescriptions(Array.isArray(prescriptionsData) ? prescriptionsData : []);
             } catch (err) {
-                console.warn('Failed to fetch prescriptions:', err);
+                if (err.name !== 'CanceledError') console.warn('Failed to fetch prescriptions:', err);
                 setPrescriptions([]);
             }
         } catch (error) {
-            console.error('Fetch records error:', error);
+            if (error.name !== 'CanceledError') console.error('Fetch records error:', error);
             setRecords([]);
         } finally {
             setIsLoading(false);
@@ -63,7 +63,9 @@ export default function RecordsScreen({ navigation }) {
 
     useFocusEffect(
         useCallback(() => {
-            fetchRecords();
+            const abortController = new AbortController();
+            fetchRecords(abortController.signal);
+            return () => abortController.abort();
         }, [])
     );
 

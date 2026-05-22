@@ -12,6 +12,8 @@ from fastapi import FastAPI, Request, HTTPException, status, WebSocket, WebSocke
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
+from fastapi import Request, Response
+
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
@@ -80,6 +82,13 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+from app.core.limiter import limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi import _rate_limit_exceeded_handler
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # --- MIDDLEWARE ---
 # PROD_RULE: Only trust localhost/loopback or specific production ingress IPs
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=settings.TRUSTED_PROXIES)
@@ -136,8 +145,23 @@ async def https_redirect_middleware(request: Request, call_next):
             return RedirectResponse(url=url, status_code=301)
     return await call_next(request)
 
+async def request_size_limit_middleware(request: Request, call_next):
+    """Global request size limiter (Default: 10MB to protect against DoS attacks)."""
+    MAX_SIZE = 10 * 1024 * 1024 # 10MB limit
+    if request.headers.get("content-length"):
+        content_length = int(request.headers.get("content-length"))
+        if content_length > MAX_SIZE:
+            return JSONResponse(
+                status_code=413,
+                content={"success": False, "error": {"code": "PAYLOAD_TOO_LARGE", "message": "Request body exceeds 10MB limit."}}
+            )
+    return await call_next(request)
+
 # 2. MIDDLEWARE CHAIN (Order is Critical: Security first, then routing)
-# HTTPS redirect (highest priority - must be first)
+# Size Limiter (highest priority)
+app.middleware("http")(request_size_limit_middleware)
+
+# HTTPS redirect (second priority)
 app.middleware("http")(https_redirect_middleware)
 
 # Security headers (second priority)
@@ -145,8 +169,11 @@ app.middleware("http")(security_headers_middleware)
 
 # Idempotency Protection (Stateless Resilience)
 from app.core.middleware import IdempotencyMiddleware, TenantMiddleware
+from app.middleware.forensic_telemetry import ForensicTelemetryMiddleware
+
 app.add_middleware(IdempotencyMiddleware)
 app.add_middleware(TenantMiddleware)
+app.add_middleware(ForensicTelemetryMiddleware)
 
 # --- HARDENED CORS & ERROR RESILIENCE (SHIELD V7.0) ---
 
@@ -158,44 +185,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    errors = exc.errors()
-    sanitized_errors = []
-    for err in errors:
-        new_err = err.copy()
-        if "ctx" in new_err and isinstance(new_err["ctx"], dict):
-            new_ctx = {}
-            for k, v in new_err["ctx"].items():
-                if isinstance(v, Exception):
-                    new_ctx[k] = str(v)
-                else:
-                    new_ctx[k] = v
-            new_err["ctx"] = new_ctx
-        sanitized_errors.append(new_err)
-        
-    logger.warning(f"VALIDATION_ERROR: {sanitized_errors}")
-    return JSONResponse(status_code=422, content={"detail": "Validation Failed", "errors": sanitized_errors})
+# --- UNIFIED ERROR RESILIENCE & INTERCEPTION ---
+from app.middleware.error_handler import (
+    global_exception_handler,
+    db_exception_handler,
+    http_exception_handler,
+    validation_exception_handler
+)
+from sqlalchemy.exc import SQLAlchemyError
 
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
-
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    import traceback
-    tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
-    logger.error(f"GLOBAL_CRASH_TRACEBACK:\n{tb}")
-    
-    response_content = {"detail": "Internal Server Error"}
-    if settings.DEBUG:
-        response_content["error_message"] = str(exc)
-        response_content["traceback"] = tb
-        
-    return JSONResponse(
-        status_code=500,
-        content=response_content
-    )
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(SQLAlchemyError, db_exception_handler)
+app.add_exception_handler(Exception, global_exception_handler)
 
 
 # --- SAFE ROUTER INCLUSION (RESILIENCE MODE) ---
@@ -241,13 +243,60 @@ async def root():
 
 # --- HEALTH & SRE PROBES ---
 @app.get("/health", tags=["Infrastructure"])
-async def health_check():
+async def health_check(db: AsyncSession = Depends(deps.get_db)):
+    """
+    ENHANCED DEPLOYMENT HEALTHCHECK (Priority 3):
+    Verifies:
+    1. Base application readiness (e.g. boot errors)
+    2. Database connectivity
+    3. Optional Redis availability (if configured)
+    """
     boot_error = getattr(app.state, "boot_error", None)
     if boot_error:
-        return JSONResponse(status_code=503, content={"status": "degraded", "error": boot_error})
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "degraded",
+                "reason": "startup_failed",
+                "error": boot_error
+            }
+        )
+    
+    # 1. Verify database connectivity
+    db_healthy = False
+    db_error = None
+    try:
+        await db.execute(text("SELECT 1"))
+        db_healthy = True
+    except Exception as e:
+        db_error = str(e)
+        logger.error(f"HEALTH_CHECK_DB_FAILURE: {db_error}")
+
+    # 2. Verify Redis status (Optional)
+    from app.core.cache import cache
+    redis_healthy = False
+    if settings.USE_REDIS and settings.REDIS_URL:
+        redis_healthy = await cache.is_healthy()
+    else:
+        redis_healthy = None  # Not configured / disabled
+
+    # Status determination: database connectivity is critical
+    if not db_healthy:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "database": "offline",
+                "database_error": db_error,
+                "redis": "online" if redis_healthy else "offline" if redis_healthy is False else "disabled"
+            }
+        )
+
     return {
         "status": "healthy",
         "version": settings.VERSION,
+        "database": "online",
+        "redis": "online" if redis_healthy else "offline" if redis_healthy is False else "disabled",
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 

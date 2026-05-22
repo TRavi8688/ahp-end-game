@@ -9,6 +9,7 @@ from datetime import datetime, timezone, timedelta
 from app.core.database import get_db
 from app.core.config import settings
 from app.core.logging import logger
+from app.api import deps
 from app.models.models import Hospital, User, VerificationStatusEnum, HospitalBranch, BillingSubscription, ForensicVerificationLog
 from app.models.onboarding_request import StaffOnboardingRequest
 from app.schemas.onboarding import HospitalRegister, HospitalOnboardingStatus, StaffAdd, StaffDynamicOnboard, PaymentVerify
@@ -816,7 +817,8 @@ async def get_hospital_status(
 @router.post("/admin-approve-hospital/{hospital_id}")
 async def admin_approve_hospital(
     hospital_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_admin=Depends(deps.get_super_admin)
 ):
     """
     Super Admin Action (Backend direct DB mutation): Approve hospital operator, unlock Sovereign Console.

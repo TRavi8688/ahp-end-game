@@ -11,8 +11,8 @@ import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import FolderSharedIcon from '@mui/icons-material/FolderShared';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
-import { API_BASE_URL } from '../api';
-
+import { doctorService } from '../services/doctorService';
+import { clinicalService } from '../services/clinicalService';
 export default function HomeDashboard({ onOpenScan }) {
     const navigate = useNavigate();
     const [patients, setPatients] = React.useState([]);
@@ -26,36 +26,34 @@ export default function HomeDashboard({ onOpenScan }) {
     const [isLoading, setIsLoading] = React.useState(true);
 
     React.useEffect(() => {
+        const abortController = new AbortController();
+        
         const fetchData = async () => {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
             try {
-                // Fetch Patients
-                const patientsRes = await fetch(`${API_BASE_URL}/doctor/my-patients`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (patientsRes.ok) setPatients(await patientsRes.json());
+                // Parallel fetching via services
+                const [patientsData, profileData, statsData] = await Promise.all([
+                    clinicalService.getMyPatients(abortController.signal),
+                    doctorService.getProfile(),
+                    doctorService.getStats()
+                ]);
 
-                // Fetch Profile
-                const profileRes = await fetch(`${API_BASE_URL}/doctor/profile/me`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (profileRes.ok) setProfile(await profileRes.json());
-
-                // Fetch Stats
-                const statsRes = await fetch(`${API_BASE_URL}/doctor/stats`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (statsRes.ok) setStats(await statsRes.json());
-
+                setPatients(patientsData);
+                setProfile(profileData);
+                setStats(statsData);
             } catch (error) {
-                console.error("Dashboard fetch error:", error);
+                if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+                    console.error("Dashboard fetch error:", error);
+                }
             } finally {
                 setIsLoading(false);
             }
         };
+        
         fetchData();
+
+        return () => {
+            abortController.abort();
+        };
     }, []);
 
     // Derived Stats

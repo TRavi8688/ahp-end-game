@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Typography, Card, CardContent, Divider, Avatar, Chip, IconButton, InputBase, Button, List, ListItem, Tooltip, CircularProgress } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE_URL } from '../api';
+import { clinicalService } from '../services/clinicalService';
 
 // Icons
 import SearchIcon from '@mui/icons-material/Search';
@@ -24,49 +24,51 @@ export default function PatientList() {
 
     // Fetch Patient List
     React.useEffect(() => {
+        const abortController = new AbortController();
+
         const fetchPatients = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/doctor/my-patients`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    setPatients(data);
-                }
+                const data = await clinicalService.getMyPatients(abortController.signal);
+                setPatients(data);
             } catch (error) {
-                console.error("Failed to fetch patients", error);
+                if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+                    console.error("Failed to fetch patients", error);
+                }
             } finally {
                 setIsLoading(false);
             }
         };
         fetchPatients();
+
+        return () => {
+            abortController.abort();
+        };
     }, []);
 
     // Fetch Patient Detail when selected
     React.useEffect(() => {
         if (!selectedPatientId) return;
 
+        const abortController = new AbortController();
+
         const fetchDetail = async () => {
             setIsLoadingDetail(true);
             try {
-                const response = await fetch(`${API_BASE_URL}/doctor/patient/${selectedPatientId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    setSelectedPatientData(data);
-                }
+                const data = await clinicalService.getPatientDetails(selectedPatientId, abortController.signal);
+                setSelectedPatientData(data);
             } catch (error) {
-                console.error("Failed to fetch details", error);
+                if (error.name !== 'CanceledError' && error.name !== 'AbortError') {
+                    console.error("Failed to fetch details", error);
+                }
             } finally {
                 setIsLoadingDetail(false);
             }
         };
         fetchDetail();
+
+        return () => {
+            abortController.abort();
+        };
     }, [selectedPatientId]);
 
     // Filter logic

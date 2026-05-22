@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppBar, Toolbar, Typography, IconButton, Badge, Avatar, Box, InputBase, Menu, MenuItem, Divider } from '@mui/material';
 import { useLocation } from 'react-router-dom';
-import { API_BASE_URL } from '../api';
+import { doctorService } from '../services/doctorService';
 
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
@@ -17,13 +17,9 @@ export default function Topbar({ onLogout, onOpenScan }) {
 
     useEffect(() => {
         const fetchProfile = async () => {
-            const token = localStorage.getItem('token');
-            if (!token) return;
             try {
-                const res = await fetch(`${API_BASE_URL}/doctor/profile/me`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (res.ok) setProfile(await res.json());
+                const profileData = await doctorService.getProfile();
+                setProfile(profileData);
             } catch (err) {
                 console.error("Failed to fetch profile in Topbar", err);
             }

@@ -8,6 +8,16 @@ from app.models.models import ClinicalEvent
 from app.core.config import settings
 from app.core.logging import logger
 
+def to_uuid(val: Any) -> Optional[uuid.UUID]:
+    if not val:
+        return None
+    if isinstance(val, uuid.UUID):
+        return val
+    try:
+        return uuid.UUID(str(val))
+    except ValueError:
+        return None
+
 class EventService:
     """
     Enterprise Event Infrastructure for Hospyn 2.0.
@@ -27,9 +37,9 @@ class EventService:
     async def log_event(
         self,
         db: AsyncSession,
-        tenant_id: int,
-        patient_id: int,
-        actor_id: int,
+        tenant_id: Any,
+        patient_id: Any,
+        actor_id: Any,
         event_type: str,
         aggregate_type: str,
         aggregate_id: str,
@@ -40,7 +50,7 @@ class EventService:
         Appends a new immutable clinical event to the longitudinal stream.
         """
         try:
-            event_id = str(uuid.uuid4())
+            event_id = uuid.uuid4()
             meta = metadata_info or {}
             
             # Enrich metadata with system context if not provided
@@ -50,10 +60,10 @@ class EventService:
             signature = self._generate_signature(payload, meta)
             
             event = ClinicalEvent(
-                id=event_id,
-                tenant_id=tenant_id,
-                patient_id=patient_id,
-                actor_id=actor_id,
+                id=to_uuid(event_id),
+                tenant_id=to_uuid(tenant_id),
+                patient_id=to_uuid(patient_id),
+                actor_id=to_uuid(actor_id),
                 event_type=event_type,
                 aggregate_type=aggregate_type,
                 aggregate_id=aggregate_id,

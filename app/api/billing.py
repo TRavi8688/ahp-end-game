@@ -75,7 +75,8 @@ async def create_invoice(
         patient_id=obj_in.patient_id,
         visit_id=obj_in.visit_id,
         items_data=obj_in.items,
-        notes=obj_in.notes
+        notes=obj_in.notes,
+        discount_amount=getattr(obj_in, "discount_amount", 0.0)
     )
     return invoice
 
@@ -120,7 +121,7 @@ async def record_payment(
             hospital_id=hospital_id,
             details={
                 "amount": float(payment.amount),
-                "method": payment.method,
+                "method": payment.payment_method,
                 "invoice_number": invoice.invoice_number
             }
         )
