@@ -317,3 +317,115 @@ class PartnerLabRequest(Base, TenantScopedMixin, TimestampMixin):
     referring_hospital: Mapped["Hospital"] = relationship(foreign_keys=[referring_hospital_id])
     partner_hospital: Mapped["Hospital"] = relationship(foreign_keys=[partner_hospital_id])
 
+
+class FamilyMember(Base, TimestampMixin):
+    """
+    CARE CIRCLE: Managing blood-line coordination for dependents.
+    """
+    __tablename__ = "family_members"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    
+    full_name: Mapped[str] = mapped_column(String(255))
+    relation: Mapped[str] = mapped_column(String(50)) # Mother, Father, Spouse, Child, etc.
+    phone_number: Mapped[Optional[str]] = mapped_column(String(20))
+    
+    # Basic Health Profile for Member
+    blood_group: Mapped[Optional[str]] = mapped_column(String(10))
+    gender: Mapped[Optional[str]] = mapped_column(String(20))
+    date_of_birth: Mapped[Optional[str]] = mapped_column(String(50))
+    
+    # Cross-link if the family member has their own Hospyn ID
+    linked_hospyn_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    
+    patient: Mapped["Patient"] = relationship(back_populates="family_members")
+
+
+class BedStatus(str, enum.Enum):
+    AVAILABLE = "AVAILABLE"
+    TEMP_RESERVED = "TEMP_RESERVED"
+    OCCUPIED = "OCCUPIED"
+    MAINTENANCE = "MAINTENANCE"
+
+
+class AdmissionStatus(str, enum.Enum):
+    PENDING = "PENDING"
+    ADMITTED = "ADMITTED"
+    DISCHARGED = "DISCHARGED"
+
+
+class Bed(Base, TenantScopedMixin, VersionedMixin, AuditableMixin):
+    __tablename__ = "beds"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    department_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("departments.id"), nullable=True)
+    bed_number: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    status: Mapped[BedStatusEnum] = mapped_column(SQLEnum(BedStatusEnum), nullable=False, default=BedStatusEnum.available)
+
+    hospital: Mapped["Hospital"] = relationship(back_populates="beds")
+    department: Mapped[Optional["Department"]] = relationship(back_populates="beds")
+
+
+class Admission(Base, TenantScopedMixin, VersionedMixin, AuditableMixin):
+    __tablename__ = "admissions"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
+    queue_token_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("queue_tokens.id"), nullable=True)
+    bed_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("beds.id"), nullable=True)
+    status: Mapped[AdmissionStatus] = mapped_column(SQLEnum(AdmissionStatus), default=AdmissionStatus.ADMITTED)
+    
+    admitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    discharged_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    hospital: Mapped["Hospital"] = relationship(backref="admissions")
+    patient: Mapped["Patient"] = relationship(backref="admissions")
+    bed: Mapped[Optional["Bed"]] = relationship(backref="admissions")
+
+
+class SurgeryStatus(str, enum.Enum):
+    SCHEDULED = "SCHEDULED"
+    PRE_OP = "PRE_OP"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    POST_OP = "POST_OP"
+    CANCELLED = "CANCELLED"
+
+
+class OperationTheatre(Base, TenantScopedMixin, TimestampMixin):
+    __tablename__ = "operation_theatres"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    name: Mapped[str] = mapped_column(String(100)) # e.g. "OT-1", "Cardiac OT"
+    is_active: Mapped[bool] = mapped_column(default=True)
+    
+    surgeries: Mapped[List["Surgery"]] = relationship(back_populates="theatre")
+
+
+class Surgery(Base, TenantScopedMixin, TimestampMixin, VersionedMixin):
+    __tablename__ = "surgeries"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    hospital_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("hospitals.id"), index=True)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), index=True)
+    theatre_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("operation_theatres.id"), index=True)
+    lead_surgeon_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("doctors.id"), index=True)
+    
+    procedure_name: Mapped[str] = mapped_column(String(255))
+    scheduled_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    scheduled_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    actual_start: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    actual_end: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    
+    status: Mapped[SurgeryStatus] = mapped_column(SQLEnum(SurgeryStatus), default=SurgeryStatus.SCHEDULED)
+    notes: Mapped[Optional[str]] = mapped_column(TextEncryptedType)
+    
+    theatre: Mapped["OperationTheatre"] = relationship(back_populates="surgeries")
+    patient: Mapped["Patient"] = relationship(backref="surgeries")
+    surgeon: Mapped["Doctor"] = relationship(backref="performed_surgeries")
+
+    __mapper_args__ = {"version_id_col": VersionedMixin.version_id}
+

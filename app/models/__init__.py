@@ -9,3 +9,4 @@ from .clinical import *
 from .billing import *
 from .scheduling import *
 from .pharmacy import *
+from .system import *

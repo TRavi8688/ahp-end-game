@@ -267,3 +267,55 @@ class StaffProfile(Base):
     
     __mapper_args__ = {"version_id_col": version_id}
 
+
+class Doctor(Base):
+    __tablename__ = "doctors"
+    
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4, index=True)
+    version_id: Mapped[int] = mapped_column(default=1, nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
+    specialty: Mapped[Optional[str]] = mapped_column(String(100))
+    license_number: Mapped[str] = mapped_column(String(100), unique=True)
+    license_status: Mapped[LicenseStatusEnum] = mapped_column(SQLEnum(LicenseStatusEnum), default=LicenseStatusEnum.pending)
+    license_copy_url: Mapped[Optional[str]] = mapped_column(String(255))
+    verification_notes: Mapped[Optional[str]] = mapped_column(Text)
+    
+    user: Mapped["User"] = relationship(back_populates="doctor_profile")
+
+    @property
+    def hospital_id(self) -> Optional[uuid.UUID]:
+        if self.user and self.user.staff_profile:
+            return self.user.staff_profile.hospital_id
+        return None
+
+    __mapper_args__ = {"version_id_col": version_id}
+
+
+class DoctorVerificationSession(Base):
+    __tablename__ = "doctor_verification_sessions"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    session_id: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    full_name: Mapped[str] = mapped_column(String(255))
+    registration_number: Mapped[str] = mapped_column(String(100))
+    state_medical_council: Mapped[str] = mapped_column(String(255))
+    mobile_number: Mapped[str] = mapped_column(String(20))
+    status: Mapped[VerificationStatusEnum] = mapped_column(SQLEnum(VerificationStatusEnum), default=VerificationStatusEnum.pending)
+    aadhaar_url: Mapped[Optional[str]] = mapped_column(String(255))
+    selfie_url: Mapped[Optional[str]] = mapped_column(String(255))
+    face_match_score: Mapped[Optional[float]] = mapped_column(default=0.0)
+    otp: Mapped[Optional[str]] = mapped_column(String(10))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class OTPVerification(Base):
+    __tablename__ = "otp_verifications"
+    
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    identifier: Mapped[str] = mapped_column(String(255), index=True) # Phone or Email
+    otp: Mapped[str] = mapped_column(String(10))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    is_verified: Mapped[bool] = mapped_column(default=False)
+
