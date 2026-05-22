@@ -149,12 +149,12 @@ export default function AuthScreen({ navigation }) {
         setLoading(true);
         try {
             const identifier = hospynId.trim();
-            const formData = new FormData();
+            const formData = new URLSearchParams();
             formData.append('username', identifier);
             formData.append('password', password);
 
-            const resp = await axios.post(`${API_BASE_URL}/auth/login`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
+            const resp = await axios.post(`${API_BASE_URL}/auth/login`, formData.toString(), {
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
             });
 
             if (resp.data.access_token) {
