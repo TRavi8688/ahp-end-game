@@ -4,7 +4,7 @@ from app.core.database import get_db
 from app.schemas import schemas
 from app.services.patient_service import PatientService
 from app.api.deps import get_db_user
-from app.models.models import User
+from app.models.core import User
 
 router = APIRouter(prefix="/profile", tags=["Onboarding"])
 

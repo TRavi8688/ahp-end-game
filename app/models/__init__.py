@@ -1,6 +1,8 @@
-from app.models.models import (
-    Base, User, Hospital, Patient, Doctor, StaffProfile, 
-    MedicalRecord, Condition, Medication, Allergy, RecordShare, 
-    Message, RoleEnum, QueueToken, QueueTokenStatus, 
-    Bed, BedStatus, Admission, AdmissionStatus
-)
+from .core import *
+from .models import *
+from .admission import *
+from .onboarding import *
+from .onboarding_request import *
+from .queue import *
+from .verification import *
+from .clinical import *
