@@ -6,6 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List, Optional, Any
 from dotenv import load_dotenv
 
+# Force backend deploy trigger
 # Production-grade configuration loader
 load_dotenv()
 
