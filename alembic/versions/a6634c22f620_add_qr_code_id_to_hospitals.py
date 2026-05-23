@@ -54,9 +54,10 @@ def upgrade() -> None:
     with op.batch_alter_table('hospital_branches', schema=None) as batch_op:
         batch_op.drop_column('physical_address')
 
-    with op.batch_alter_table('hospitals', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('qr_code_id', sa.String(length=100), nullable=True))
-        batch_op.create_index(batch_op.f('ix_hospitals_qr_code_id'), ['qr_code_id'], unique=True)
+    # ALREADY EXISTS IN PROD DB VIA add_col.py BYPASS
+    # with op.batch_alter_table('hospitals', schema=None) as batch_op:
+    #     batch_op.add_column(sa.Column('qr_code_id', sa.String(length=100), nullable=True))
+    #     batch_op.create_index(batch_op.f('ix_hospitals_qr_code_id'), ['qr_code_id'], unique=True)
 
     with op.batch_alter_table('users', schema=None) as batch_op:
         batch_op.alter_column('is_temporary_password',
