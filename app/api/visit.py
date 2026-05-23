@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 import app.api.deps as deps
 from app.models import models
+from app.models.billing import Invoice, BillItem, Payment, PaymentStatus, PaymentMethod
 from app.schemas import schemas
 from app.core.audit import log_audit_action
 from app.core.logging import logger
@@ -222,3 +223,136 @@ async def get_my_visits(
         })
         
     return enriched_visits
+
+@router.get("/reception/appointments")
+async def get_appointments_for_reception(
+    db: AsyncSession = Depends(deps.get_db),
+    hospital_id: uuid.UUID = Depends(deps.get_hospital_id),
+    current_user: models.User = Depends(deps.get_current_user)
+):
+    """Lists all hospital appointments for the receptionist."""
+    role_val = current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role)
+    if role_val not in ["hospital_admin", "admin", "receptionist"]:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+        
+    from sqlalchemy.orm import joinedload
+    
+    # We load visits that act as appointments
+    stmt = (
+        select(models.PatientVisit)
+        .options(joinedload(models.PatientVisit.patient).joinedload(models.Patient.user))
+        .order_by(models.PatientVisit.check_in_time.desc())
+        .limit(100)
+    )
+    result = await db.execute(stmt)
+    visits = result.scalars().all()
+    
+    response_data = []
+    for v in visits:
+        pt = v.patient
+        patient_name = "Unknown"
+        if pt and pt.user:
+            patient_name = f"{pt.user.first_name} {pt.user.last_name}"
+            
+        response_data.append({
+            "id": v.id,
+            "patient_name": patient_name,
+            "hospyn_id": pt.hospyn_id if pt else "",
+            "visit_reason": v.visit_reason,
+            "symptoms": v.symptoms,
+            "department": v.department,
+            "doctor_name": v.doctor_name,
+            "status": v.status.value if hasattr(v.status, 'value') else v.status,
+            "queue_token": v.queue_token,
+            "time": v.check_in_time.isoformat() if v.check_in_time else None
+        })
+        
+    return response_data
+
+from pydantic import BaseModel
+class ReceptionCheckIn(BaseModel):
+    patient_id: uuid.UUID
+    visit_reason: str
+    symptoms: Optional[str] = None
+    department: Optional[str] = None
+    doctor_name: Optional[str] = None
+    op_fee: float = 0.0
+    payment_method: str = "CASH"
+    transaction_id: Optional[str] = None
+
+@router.post("/reception/check-in")
+async def reception_check_in(
+    data: ReceptionCheckIn,
+    db: AsyncSession = Depends(deps.get_db),
+    hospital_id: uuid.UUID = Depends(deps.get_hospital_id),
+    current_user: models.User = Depends(deps.get_current_user)
+):
+    """Checks in a patient and creates an OP Invoice with instant payment recording."""
+    role_val = current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role)
+    if role_val not in ["hospital_admin", "admin", "receptionist"]:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+        
+    # 1. Create Visit
+    new_visit = models.PatientVisit(
+        patient_id=data.patient_id,
+        hospital_id=hospital_id,
+        visit_reason=data.visit_reason,
+        symptoms=data.symptoms,
+        department=data.department,
+        doctor_name=data.doctor_name,
+        status=models.VisitStatusEnum.active,
+        queue_token=f"T-{uuid.uuid4().hex[:4].upper()}"
+    )
+    db.add(new_visit)
+    await db.flush()
+    
+    # 2. Create OP Invoice + instant payment record if fee collected
+    if data.op_fee > 0:
+        # Resolve payment method enum
+        pm_map = {
+            "CASH": PaymentMethod.CASH, "UPI": PaymentMethod.UPI,
+            "CARD": PaymentMethod.CARD, "NET_BANKING": PaymentMethod.NET_BANKING
+        }
+        pm_enum = pm_map.get(data.payment_method.upper(), PaymentMethod.CASH)
+        
+        inv = Invoice(
+            hospital_id=hospital_id,
+            patient_id=data.patient_id,
+            visit_id=new_visit.id,
+            invoice_number=f"INV-OP-{uuid.uuid4().hex[:6].upper()}",
+            total_amount=data.op_fee,
+            payable_amount=data.op_fee,
+            paid_amount=data.op_fee,
+            status=PaymentStatus.PAID
+        )
+        db.add(inv)
+        await db.flush()
+        
+        item = BillItem(
+            invoice_id=inv.id,
+            item_name="OPD Consultation Fee",
+            item_category="Consultation",
+            quantity=1,
+            unit_price=data.op_fee,
+            subtotal=data.op_fee
+        )
+        db.add(item)
+        
+        txn_id = data.transaction_id or f"TXN-{uuid.uuid4().hex[:8].upper()}"
+        payment = Payment(
+            invoice_id=inv.id,
+            patient_id=data.patient_id,
+            hospital_id=hospital_id,
+            amount=data.op_fee,
+            payment_method=pm_enum,
+            provider_transaction_id=txn_id,
+            status=PaymentStatus.PAID,
+            provider="PhonePe/UPI" if pm_enum == PaymentMethod.UPI else "CASH",
+            idempotency_key=f"OP-{new_visit.queue_token}-{txn_id[:10]}"
+        )
+        db.add(payment)
+        
+    await db.commit()
+    await db.refresh(new_visit)
+    return {"status": "success", "visit_id": str(new_visit.id), "queue_token": new_visit.queue_token}
+

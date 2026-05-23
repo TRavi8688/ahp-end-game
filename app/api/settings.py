@@ -4,7 +4,7 @@ from sqlalchemy import select
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.api.tenant import get_hospital_tenant_id
-from app.models.models import User, HospitalSettings
+from app.models.models import User, HospitalSettings, Hospital
 from app.schemas.hospital import HospitalSettingsResponse, HospitalSettingsUpdate
 import uuid
 

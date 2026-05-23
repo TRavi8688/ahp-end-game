@@ -596,6 +596,41 @@ async def delete_family_member(
     await db.commit()
     return {"status": "success", "message": f"Successfully removed {member.full_name} from your Care Circle."}
 
+@router.get("/reception/directory")
+async def get_patient_directory_for_reception(
+    db: AsyncSession = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user)
+):
+    """Fetches all registered patients for the receptionist."""
+    # Strict role check
+    role_val = current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role)
+    if role_val not in ["hospital_admin", "admin", "receptionist"]:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+        
+    from sqlalchemy.orm import joinedload
+    
+    result = await db.execute(
+        select(models.Patient)
+        .options(joinedload(models.Patient.user))
+        .order_by(models.Patient.created_at.desc())
+    )
+    patients = result.scalars().all()
+    
+    response_data = []
+    for p in patients:
+        response_data.append({
+            "id": p.id,
+            "hospyn_id": p.hospyn_id,
+            "first_name": p.user.first_name if p.user else "Unknown",
+            "last_name": p.user.last_name if p.user else "Unknown",
+            "phone_number": p.phone_number,
+            "blood_group": p.blood_group,
+            "gender": p.gender,
+            "date_of_birth": p.date_of_birth,
+            "created_at": p.created_at.isoformat() if p.created_at else None
+        })
+    return response_data
+
 @router.get("/clinical-summary")
 async def get_clinical_summary(
     current_patient: Any = Depends(deps.get_current_patient),
