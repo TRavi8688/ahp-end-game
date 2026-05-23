@@ -75,21 +75,7 @@ class Settings(BaseSettings):
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
     def assemble_origins(cls, v: Any) -> Any:
-        # Load from ENV or Secret Manager if available
-        val = os.getenv("HOSPYN_ALLOWED_ORIGINS", get_secret("ALLOWED_ORIGINS", default=""))
-        if val:
-            v = val
-
-        if isinstance(v, str):
-            clean_v = v.strip()
-            if clean_v.startswith("[") and clean_v.endswith("]"):
-                try:
-                    import json
-                    return json.loads(clean_v)
-                except Exception:
-                    v = clean_v[1:-1]
-            return [i.strip().replace('"', '').replace("'", "") for i in v.split(",") if i.strip()]
-        return v
+        return ["*"]
 
     # --- 6. EXTERNAL SERVICES ---
     TWILIO_ACCOUNT_SID: Optional[str] = None

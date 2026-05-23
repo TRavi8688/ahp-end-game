@@ -185,7 +185,7 @@ app.add_middleware(ForensicTelemetryMiddleware)
 if settings.ENVIRONMENT == "production":
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.ALLOWED_ORIGINS,
+        allow_origin_regex=".*",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -193,7 +193,7 @@ if settings.ENVIRONMENT == "production":
 else:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.ALLOWED_ORIGINS,  # STRICT DOMAIN ENFORCEMENT
+        allow_origin_regex=".*",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
