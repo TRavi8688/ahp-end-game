@@ -335,7 +335,7 @@ function App() {
           <Route path="/surgery" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'nurse']}><SurgeryDashboard /></ProtectedRoute>} />
           <Route path="/staff" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'hr']}><StaffDashboard /></ProtectedRoute>} />
           <Route path="/analytics" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'pharmacist']}><AnalyticsDashboard /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin']}><SettingsPage /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
           
           <Route path="/unauthorized" element={<Unauthorized />} />
           <Route path="/" element={<RoleBasedRedirect />} />

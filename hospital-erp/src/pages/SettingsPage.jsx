@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Building, Users, CreditCard, Bell, Lock, Save, Plus, Trash2 } from 'lucide-react';
+import { Shield, Building, Users, CreditCard, Bell, Lock, Save, Plus, Trash2, Camera, Key, Check } from 'lucide-react';
 
 const SettingsPage = () => {
   const [hospitalInfo, setHospitalInfo] = useState({
@@ -19,6 +19,18 @@ const SettingsPage = () => {
   const [otpStep, setOtpStep] = useState(1);
   const [phoneOtp, setPhoneOtp] = useState('');
   const [phoneLoading, setPhoneLoading] = useState(false);
+
+  // New states for Photo & Password
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
+  const [photoUrl, setPhotoUrl] = useState(null);
+
+  const handlePhotoUpload = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      const url = URL.createObjectURL(e.target.files[0]);
+      setPhotoUrl(url);
+    }
+  };
 
   return (
     <div className="p-12 bg-[#050810] min-h-screen text-white font-outfit">
@@ -54,6 +66,26 @@ const SettingsPage = () => {
               <Users className="text-indigo-500" /> Personal Profile
             </h2>
             
+            <div className="flex items-center gap-6 mb-8">
+              <div className="relative group cursor-pointer">
+                <div className="w-24 h-24 rounded-full bg-slate-800 border-2 border-indigo-500/50 flex items-center justify-center overflow-hidden">
+                  {photoUrl ? (
+                    <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <Users size={32} className="text-slate-500" />
+                  )}
+                </div>
+                <label className="absolute inset-0 flex items-center justify-center bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                  <Camera size={24} className="text-white" />
+                  <input type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                </label>
+              </div>
+              <div>
+                <h3 className="font-bold text-lg">{personalInfo.name}</h3>
+                <p className="text-slate-500 text-sm font-medium">Update your profile picture here.</p>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-8 mb-8">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 tracking-widest uppercase">Full Name</label>
@@ -90,10 +122,19 @@ const SettingsPage = () => {
               </div>
             </div>
 
-            <button className="bg-indigo-600 px-8 py-4 rounded-2xl font-black text-xs tracking-widest uppercase flex items-center gap-2 hover:bg-indigo-500 transition-all shadow-xl shadow-indigo-500/20">
-              <Save size={18} />
-              Save Profile
-            </button>
+            <div className="flex justify-between items-center mt-8">
+              <button className="bg-indigo-600 px-8 py-4 rounded-2xl font-black text-xs tracking-widest uppercase flex items-center gap-2 hover:bg-indigo-500 transition-all shadow-xl shadow-indigo-500/20">
+                <Save size={18} />
+                Save Profile
+              </button>
+              <button 
+                onClick={() => setIsPasswordModalOpen(true)}
+                className="text-slate-400 hover:text-white font-bold text-xs uppercase tracking-widest flex items-center gap-2 transition-colors"
+              >
+                <Key size={16} />
+                Change Password
+              </button>
+            </div>
           </div>
 
           <div className="glass-card p-10">
@@ -205,6 +246,60 @@ const SettingsPage = () => {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {isPasswordModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+              <Key className="text-indigo-500" /> Change Password
+            </h3>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 tracking-widest uppercase">Current Password</label>
+                <input 
+                  type="password" 
+                  value={passwords.current}
+                  onChange={e => setPasswords({...passwords, current: e.target.value})}
+                  className="w-full bg-black/40 border border-slate-700 p-4 rounded-2xl outline-none"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 tracking-widest uppercase">New Password</label>
+                <input 
+                  type="password" 
+                  value={passwords.new}
+                  onChange={e => setPasswords({...passwords, new: e.target.value})}
+                  className="w-full bg-black/40 border border-slate-700 p-4 rounded-2xl outline-none"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 tracking-widest uppercase">Confirm New Password</label>
+                <input 
+                  type="password" 
+                  value={passwords.confirm}
+                  onChange={e => setPasswords({...passwords, confirm: e.target.value})}
+                  className="w-full bg-black/40 border border-slate-700 p-4 rounded-2xl outline-none"
+                />
+              </div>
+              
+              <div className="flex justify-end gap-3 mt-8">
+                <button 
+                  onClick={() => setIsPasswordModalOpen(false)} 
+                  className="px-4 py-2 text-slate-400 hover:text-white font-bold"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={() => setIsPasswordModalOpen(false)} 
+                  className="bg-indigo-600 px-6 py-2 rounded-xl font-bold flex items-center gap-2"
+                >
+                  <Check size={18} /> Update
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
