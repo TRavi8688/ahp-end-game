@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Shield, Building, Users, CreditCard, Bell, Lock, Save, Plus, Trash2, Camera, Key, Check } from 'lucide-react';
+import apiClient from '../apiClient';
 
 const SettingsPage = () => {
   const [hospitalInfo, setHospitalInfo] = useState({
@@ -25,10 +26,73 @@ const SettingsPage = () => {
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
   const [photoUrl, setPhotoUrl] = useState(null);
 
-  const handlePhotoUpload = (e) => {
+  useEffect(() => {
+    // Load initial user data from local storage
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        setPersonalInfo({
+          name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email,
+          hospyn_id: user.hospyn_id || 'HSP-000-000',
+          phone: user.email || '' // We are using email column for phone/email in MVP
+        });
+        if (user.profile_photo_url) {
+          setPhotoUrl(user.profile_photo_url);
+        }
+      }
+    } catch (e) {}
+  }, []);
+
+  const handlePhotoUpload = async (e) => {
     if (e.target.files && e.target.files[0]) {
       const url = URL.createObjectURL(e.target.files[0]);
-      setPhotoUrl(url);
+      setPhotoUrl(url); // Optimistic UI update
+      
+      try {
+        const token = localStorage.getItem('token');
+        const res = await apiClient.post('/profile/photo', {}, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        // Update local storage
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          user.profile_photo_url = res.data.profile_photo_url;
+          localStorage.setItem('user', JSON.stringify(user));
+        }
+        alert('Profile photo updated securely!');
+      } catch (err) {
+        console.error(err);
+        alert('Failed to update photo.');
+      }
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const parts = personalInfo.name.trim().split(' ');
+      const first_name = parts[0];
+      const last_name = parts.slice(1).join(' ');
+      
+      await apiClient.put('/profile/profile', {
+        first_name,
+        last_name
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        user.first_name = first_name;
+        user.last_name = last_name;
+        localStorage.setItem('user', JSON.stringify(user));
+      }
+      alert('Profile updated securely!');
+    } catch (err) {
+      alert('Failed to update profile.');
     }
   };
 
@@ -123,7 +187,10 @@ const SettingsPage = () => {
             </div>
 
             <div className="flex justify-between items-center mt-8">
-              <button className="bg-indigo-600 px-8 py-4 rounded-2xl font-black text-xs tracking-widest uppercase flex items-center gap-2 hover:bg-indigo-500 transition-all shadow-xl shadow-indigo-500/20">
+              <button 
+                onClick={handleSaveProfile}
+                className="bg-indigo-600 px-8 py-4 rounded-2xl font-black text-xs tracking-widest uppercase flex items-center gap-2 hover:bg-indigo-500 transition-all shadow-xl shadow-indigo-500/20"
+              >
                 <Save size={18} />
                 Save Profile
               </button>
@@ -216,7 +283,22 @@ const SettingsPage = () => {
                 />
                 <div className="flex justify-end gap-3 mt-6">
                   <button onClick={() => setIsPhoneModalOpen(false)} className="px-4 py-2 text-slate-400 hover:text-white">Cancel</button>
-                  <button onClick={() => { setPhoneLoading(true); setTimeout(() => { setPhoneLoading(false); setOtpStep(2); }, 1000); }} disabled={!newPhone || phoneLoading} className="bg-indigo-600 px-6 py-2 rounded-xl font-bold">
+                  <button 
+                    onClick={async () => { 
+                      setPhoneLoading(true); 
+                      try {
+                        const token = localStorage.getItem('token');
+                        await apiClient.post('/profile/phone/request-otp', { phone_number: newPhone }, { headers: { Authorization: `Bearer ${token}` } });
+                        setOtpStep(2); 
+                      } catch (err) {
+                        alert('Failed to request OTP');
+                      } finally {
+                        setPhoneLoading(false);
+                      }
+                    }} 
+                    disabled={!newPhone || phoneLoading} 
+                    className="bg-indigo-600 px-6 py-2 rounded-xl font-bold"
+                  >
                     {phoneLoading ? 'Sending...' : 'Send OTP'}
                   </button>
                 </div>
@@ -233,14 +315,32 @@ const SettingsPage = () => {
                 />
                 <div className="flex justify-end gap-3 mt-6">
                   <button onClick={() => setIsPhoneModalOpen(false)} className="px-4 py-2 text-slate-400 hover:text-white">Cancel</button>
-                  <button onClick={() => { 
-                    setPhoneLoading(true); 
-                    setTimeout(() => { 
-                      setPhoneLoading(false); 
-                      setPersonalInfo({...personalInfo, phone: newPhone});
-                      setIsPhoneModalOpen(false); 
-                    }, 1000); 
-                  }} disabled={!phoneOtp || phoneLoading} className="bg-indigo-600 px-6 py-2 rounded-xl font-bold">
+                  <button 
+                    onClick={async () => { 
+                      setPhoneLoading(true); 
+                      try {
+                        const token = localStorage.getItem('token');
+                        await apiClient.post('/profile/phone/verify-otp', { phone_number: newPhone, otp: phoneOtp }, { headers: { Authorization: `Bearer ${token}` } });
+                        setPersonalInfo({...personalInfo, phone: newPhone});
+                        
+                        const userStr = localStorage.getItem('user');
+                        if (userStr) {
+                          const user = JSON.parse(userStr);
+                          user.email = newPhone; // Using email field as main contact ID
+                          localStorage.setItem('user', JSON.stringify(user));
+                        }
+                        
+                        alert('Phone number verified securely!');
+                        setIsPhoneModalOpen(false); 
+                      } catch (err) {
+                        alert('Invalid OTP');
+                      } finally {
+                        setPhoneLoading(false);
+                      }
+                    }} 
+                    disabled={!phoneOtp || phoneLoading} 
+                    className="bg-indigo-600 px-6 py-2 rounded-xl font-bold"
+                  >
                     {phoneLoading ? 'Verifying...' : 'Verify & Save'}
                   </button>
                 </div>
@@ -293,7 +393,25 @@ const SettingsPage = () => {
                   Cancel
                 </button>
                 <button 
-                  onClick={() => setIsPasswordModalOpen(false)} 
+                  onClick={async () => {
+                    if (passwords.new !== passwords.confirm) {
+                      alert('New passwords do not match');
+                      return;
+                    }
+                    try {
+                      const token = localStorage.getItem('token');
+                      await apiClient.put('/profile/password', {
+                        current_password: passwords.current,
+                        new_password: passwords.new
+                      }, { headers: { Authorization: `Bearer ${token}` } });
+                      
+                      alert('Password updated securely!');
+                      setIsPasswordModalOpen(false);
+                      setPasswords({ current: '', new: '', confirm: '' });
+                    } catch (err) {
+                      alert('Failed to update password: ' + (err.response?.data?.detail || err.message));
+                    }
+                  }} 
                   className="bg-indigo-600 px-6 py-2 rounded-xl font-bold flex items-center gap-2"
                 >
                   <Check size={18} /> Update
