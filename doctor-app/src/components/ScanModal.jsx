@@ -266,12 +266,21 @@ export default function ScanModal({ open, onClose }) {
                             Please ask the patient to click <strong>"Approve"</strong> on their Hospyn App notification.
                         </Typography>
 
-                        <Box sx={{ p: 2, bgcolor: '#f0fdfa', borderRadius: 2, border: '1px dashed #0d9488', display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Box sx={{ p: 2, bgcolor: '#f0fdfa', borderRadius: 2, border: '1px dashed #0d9488', display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
                             <CheckCircleIcon sx={{ color: '#0d9488' }} />
                             <Typography variant="caption" sx={{ color: '#0f766e', textAlign: 'left' }}>
                                 This screen will automatically refresh once the patient grants access.
                             </Typography>
                         </Box>
+
+                        <Button 
+                            variant="outlined" 
+                            color="error" 
+                            onClick={handleClose}
+                            sx={{ mt: 2 }}
+                        >
+                            Cancel Request
+                        </Button>
                     </Box>
                 )}
 

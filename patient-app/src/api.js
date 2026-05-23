@@ -7,7 +7,7 @@ const getBaseUrl = () => {
     if (typeof __DEV__ !== 'undefined' && __DEV__) {
         return 'http://192.168.0.21:8000';
     }
-    return 'https://hospyn-api-staging-625745217419.us-central1.run.app';
+    return 'https://hospyn-495906-api-625745217419.us-central1.run.app';
 };
 
 

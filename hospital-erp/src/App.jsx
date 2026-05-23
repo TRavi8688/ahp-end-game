@@ -322,10 +322,10 @@ function App() {
           } />
           
           <Route path="/reception" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'receptionist']}><ReceptionDashboard /></ProtectedRoute>} />
-          <Route path="/pharmacy" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'pharmacist']}><PharmacyDashboard /></ProtectedRoute>} />
-          <Route path="/billing" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'pharmacist', 'receptionist', 'biller', 'lab_technician']}><BillingDashboard /></ProtectedRoute>} />
+          <Route path="/pharmacy" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'pharmacy']}><PharmacyDashboard /></ProtectedRoute>} />
+          <Route path="/billing" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'pharmacy', 'receptionist', 'biller', 'lab']}><BillingDashboard /></ProtectedRoute>} />
           <Route path="/clinical" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'nurse', 'receptionist', 'biller']}><VisitDashboard /></ProtectedRoute>} />
-          <Route path="/lab" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'lab_technician']}><LabDashboard /></ProtectedRoute>} />
+          <Route path="/lab" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'lab']}><LabDashboard /></ProtectedRoute>} />
           <Route path="/ward" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'nurse']}><WardDashboard /></ProtectedRoute>} />
           <Route path="/surgery" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'nurse']}><SurgeryDashboard /></ProtectedRoute>} />
           <Route path="/staff" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'hr']}><StaffDashboard /></ProtectedRoute>} />

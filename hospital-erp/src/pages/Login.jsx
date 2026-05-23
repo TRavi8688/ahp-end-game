@@ -62,8 +62,8 @@ const Login = () => {
       let targetPath = '/clinical';
       const r = userInfo.role;
       if (r === 'nurse') targetPath = '/ward';
-      else if (r === 'pharmacist') targetPath = '/pharmacy';
-      else if (r === 'lab_technician') targetPath = '/lab';
+      else if (r === 'pharmacy') targetPath = '/pharmacy';
+      else if (r === 'lab') targetPath = '/lab';
       else if (r === 'receptionist' || r === 'biller') targetPath = '/billing';
       else if (r === 'hr') targetPath = '/staff';
       
