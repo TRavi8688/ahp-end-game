@@ -1,4 +1,4 @@
-from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey, JSON, Text, func, Enum as SQLEnum, UUID
+from sqlalchemy import String, Integer, Boolean, DateTime, ForeignKey, JSON, Text, func, Enum as SQLEnum, UUID, Float
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime, timezone, timedelta
@@ -49,6 +49,9 @@ class PatientVisit(Base, TenantScopedMixin, TimestampMixin):
     department: Mapped[Optional[str]] = mapped_column(String(100))
     doctor_name: Mapped[Optional[str]] = mapped_column(String(255))
     status: Mapped[VisitStatusEnum] = mapped_column(SQLEnum(VisitStatusEnum), default=VisitStatusEnum.active)
+    
+    op_fee: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    payment_method: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     
     queue_token: Mapped[Optional[str]] = mapped_column(String(50))
     check_in_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

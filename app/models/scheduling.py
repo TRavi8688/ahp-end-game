@@ -36,6 +36,8 @@ class QueueEntry(Base, TenantScopedMixin, TimestampMixin):
     token_number: Mapped[Optional[int]] = mapped_column()
     check_in_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    op_fee: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    payment_method: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     
     hospital: Mapped["Hospital"] = relationship(back_populates="queue_entries")
     department: Mapped["Department"] = relationship(back_populates="queue_entries")

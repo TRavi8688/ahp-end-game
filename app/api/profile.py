@@ -32,3 +32,81 @@ async def setup_patient_profile(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Profile setup failed: {str(e)}"
         )
+
+@router.put("/status", response_model=schemas.UserResponse)
+async def update_staff_status(
+    data: schemas.StaffStatusUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_db_user)
+):
+    current_user.current_status = data.status
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+
+@router.put("/profile", response_model=schemas.UserResponse)
+async def update_profile(
+    data: schemas.ProfileUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_db_user)
+):
+    if data.first_name is not None:
+        current_user.first_name = data.first_name
+    if data.last_name is not None:
+        current_user.last_name = data.last_name
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+
+@router.put("/password", response_model=schemas.UserResponse)
+async def update_password(
+    data: schemas.PasswordUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_db_user)
+):
+    from app.core.security import verify_password, get_password_hash
+    if not verify_password(data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Incorrect password")
+    current_user.hashed_password = get_password_hash(data.new_password)
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+
+@router.post("/photo", response_model=schemas.UserResponse)
+async def update_profile_photo(
+    # In a real system, this would accept an UploadFile and upload to S3.
+    # For now, we mock receiving a URL or base64 from a client service.
+    # We will simulate the URL update for the demo.
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_db_user)
+):
+    # Simulated S3 upload result
+    current_user.profile_photo_url = f"https://ui-avatars.com/api/?name={current_user.first_name}+{current_user.last_name}"
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+
+@router.post("/phone/request-otp", response_model=dict)
+async def request_phone_otp(
+    data: schemas.PhoneOTPRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_db_user)
+):
+    # Mock OTP generation
+    # In reality, send SMS via Twilio and store OTP in Redis
+    return {"message": "OTP sent to new phone number successfully"}
+
+@router.post("/phone/verify-otp", response_model=schemas.UserResponse)
+async def verify_phone_otp(
+    data: schemas.PhoneOTPVerify,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_db_user)
+):
+    # Mock OTP verification (always succeed if otp="123456")
+    if data.otp != "123456":
+        raise HTTPException(status_code=400, detail="Invalid OTP")
+    current_user.email = data.phone_number  # The system uses email column for phone/email
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+

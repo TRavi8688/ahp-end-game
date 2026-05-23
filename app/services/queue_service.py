@@ -78,7 +78,9 @@ async def create_token(db: AsyncSession, payload, user):
             visit_reason=getattr(payload, 'visit_reason', 'General Consultation'),
             symptoms=getattr(payload, 'symptoms', 'None reported'),
             queue_token=str(token.id),
-            status=VisitStatusEnum.active
+            status=VisitStatusEnum.active,
+            op_fee=getattr(payload, 'op_fee', None),
+            payment_method=getattr(payload, 'payment_method', None)
         )
         db.add(visit)
         await db.flush()

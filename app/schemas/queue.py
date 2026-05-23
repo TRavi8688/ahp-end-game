@@ -19,6 +19,8 @@ class QueueTokenCreate(BaseModel):
     is_follow_up: Optional[bool] = Field(False, description="True if this is a follow‑up visit")
     visit_reason: Optional[str] = Field("General Consultation", description="Reason for visit")
     symptoms: Optional[str] = Field(None, description="Patient symptoms")
+    op_fee: Optional[float] = Field(None, description="OPD Consultation Fee")
+    payment_method: Optional[str] = Field(None, description="CASH or UPI")
 
 class QueueTokenRead(BaseModel):
     id: uuid.UUID

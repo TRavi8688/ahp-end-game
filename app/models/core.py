@@ -144,6 +144,8 @@ class User(Base):
     token_version: Mapped[int] = mapped_column(Integer, default=1)
     forensic_audit_trail: Mapped[Optional[str]] = mapped_column(StringEncryptedType(255), nullable=True)
     last_login: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    current_status: Mapped[Optional[str]] = mapped_column(String(50), default="ACTIVE")
+    profile_photo_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     
     patient: Mapped["Patient"] = relationship(back_populates="user", uselist=False)

@@ -106,6 +106,26 @@ class UserResponse(UserBase):
     access_token: Optional[str] = None
     refresh_token: Optional[str] = None
     token_type: Optional[str] = None
+    current_status: Optional[str] = None
+    profile_photo_url: Optional[str] = None
+
+class StaffStatusUpdate(BaseModel):
+    status: str
+
+class ProfileUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+class PasswordUpdate(BaseModel):
+    current_password: str
+    new_password: str
+
+class PhoneOTPRequest(BaseModel):
+    phone_number: str
+
+class PhoneOTPVerify(BaseModel):
+    phone_number: str
+    otp: str
 
 # Patient Schemas
 class PatientBase(BaseModel):
