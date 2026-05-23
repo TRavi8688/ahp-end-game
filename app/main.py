@@ -136,6 +136,11 @@ async def security_headers_middleware(request: Request, call_next):
 async def https_redirect_middleware(request: Request, call_next):
     """Redirect HTTP to HTTPS in production."""
     if settings.ENVIRONMENT == "production":
+        # Cloud Run sets X-Forwarded-Proto to https, so we respect it to avoid infinite redirect loops.
+        forwarded_proto = request.headers.get("x-forwarded-proto")
+        if forwarded_proto == "https":
+            return await call_next(request)
+
         # Skip redirect for local tests and local development loopback hostnames
         if request.url.hostname in ("testserver", "localhost", "127.0.0.1", "10.0.2.2"):
             return await call_next(request)
