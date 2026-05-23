@@ -92,7 +92,7 @@ async def invite_staff(
 
 @router.get("/members")
 async def list_staff(
-    current_user: User = Depends(deps.RoleChecker([RoleEnum.hospital_admin, RoleEnum.admin, RoleEnum.doctor])),
+    current_user: User = Depends(deps.RoleChecker([RoleEnum.hospital_admin, RoleEnum.admin, RoleEnum.doctor, RoleEnum.receptionist, RoleEnum.nurse])),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Returns the list of all staff members in the hospital."""
