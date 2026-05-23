@@ -2,17 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { Shield, Building, Users, CreditCard, Bell, Lock, Save, Plus, Trash2, Camera, Key, Check } from 'lucide-react';
 import apiClient from '../apiClient';
 
-const SettingsPage = () => {
+  const [activeTab, setActiveTab] = useState('Organization Profile');
+  const [departments, setDepartments] = useState([]);
+
   const [hospitalInfo, setHospitalInfo] = useState({
-    name: 'Singapore Central Hospital',
-    reg_no: 'SGP-1092-X',
+    name: '',
+    reg_no: '',
     status: 'ACTIVE'
   });
 
   const [personalInfo, setPersonalInfo] = useState({
-    name: 'Admin User',
-    hospyn_id: 'HSP-SGP-001',
-    phone: '+65 9123 4567'
+    name: '',
+    hospyn_id: '',
+    phone: ''
   });
 
   const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
@@ -42,7 +44,70 @@ const SettingsPage = () => {
         }
       }
     } catch (e) {}
+
+    fetchMetadata();
+    fetchDepartments();
   }, []);
+
+  const fetchMetadata = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await apiClient.get('/hospital-settings/metadata', { headers: { Authorization: `Bearer ${token}` } });
+      setHospitalInfo({
+        name: res.data.name || '',
+        reg_no: res.data.registration_number || '',
+        status: res.data.status || 'ACTIVE'
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await apiClient.get('/hospital-settings/departments', { headers: { Authorization: `Bearer ${token}` } });
+      setDepartments(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSaveMetadata = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      await apiClient.put('/hospital-settings/metadata', {
+        name: hospitalInfo.name,
+        registration_number: hospitalInfo.reg_no
+      }, { headers: { Authorization: `Bearer ${token}` } });
+      alert('Hospital metadata updated successfully!');
+    } catch (err) {
+      alert('Failed to update hospital metadata.');
+    }
+  };
+
+  const handleAddDepartment = async () => {
+    const name = prompt("Enter new department name:");
+    if (!name) return;
+    try {
+      const token = localStorage.getItem('token');
+      await apiClient.post('/hospital-settings/departments', { name }, { headers: { Authorization: `Bearer ${token}` } });
+      fetchDepartments();
+    } catch (err) {
+      alert('Failed to add department. Are you an Admin?');
+    }
+  };
+
+  const handleDeleteDepartment = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this department?")) return;
+    try {
+      const token = localStorage.getItem('token');
+      await apiClient.delete(`/hospital-settings/departments/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      fetchDepartments();
+    } catch (err) {
+      alert('Failed to delete department. Staff might be assigned to it.');
+    }
+  };
 
   const handlePhotoUpload = async (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -108,14 +173,16 @@ const SettingsPage = () => {
         <div className="glass-card p-6 h-fit">
           <nav className="space-y-2">
             {[
-              { icon: Building, label: 'Organization Profile', active: true },
-              { icon: Users, label: 'Department Structure', active: false },
-              { icon: Shield, label: 'Security & Auth', active: false },
-              { icon: CreditCard, label: 'Subscription & Billing', active: false },
-              { icon: Bell, label: 'Notifications', active: false },
-              { icon: Lock, label: 'Privacy Settings', active: false },
+              { icon: Building, label: 'Organization Profile' },
+              { icon: Shield, label: 'Security & Auth' },
+              { icon: Bell, label: 'Notifications' },
+              { icon: Lock, label: 'Privacy Settings' },
             ].map((item, i) => (
-              <button key={i} className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${item.active ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:bg-white/5 hover:text-white'}`}>
+              <button 
+                key={i} 
+                onClick={() => setActiveTab(item.label)}
+                className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all ${activeTab === item.label ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:bg-white/5 hover:text-white'}`}
+              >
                 <item.icon size={20} />
                 <span className="font-bold text-sm tracking-wide">{item.label}</span>
               </button>
@@ -125,7 +192,9 @@ const SettingsPage = () => {
 
         {/* Main Settings Form */}
         <div className="lg:col-span-2 space-y-8">
-          <div className="glass-card p-10">
+          
+          {activeTab === 'Security & Auth' && (
+            <div className="glass-card p-10 animate-fade-in">
             <h2 className="text-2xl font-black mb-8 flex items-center gap-3">
               <Users className="text-indigo-500" /> Personal Profile
             </h2>
@@ -202,9 +271,11 @@ const SettingsPage = () => {
                 Change Password
               </button>
             </div>
-          </div>
+          )}
 
-          <div className="glass-card p-10">
+          {activeTab === 'Organization Profile' && (
+            <>
+          <div className="glass-card p-10 animate-fade-in">
             <h2 className="text-2xl font-black mb-8 flex items-center gap-3">
               <Building className="text-indigo-500" /> Organizational Metadata
             </h2>
@@ -237,33 +308,46 @@ const SettingsPage = () => {
               </div>
             </div>
 
-            <button className="bg-indigo-600 px-8 py-4 rounded-2xl font-black text-xs tracking-widest uppercase flex items-center gap-2 hover:bg-indigo-500 transition-all shadow-xl shadow-indigo-500/20">
+            <button 
+              onClick={handleSaveMetadata}
+              className="bg-indigo-600 px-8 py-4 rounded-2xl font-black text-xs tracking-widest uppercase flex items-center gap-2 hover:bg-indigo-500 transition-all shadow-xl shadow-indigo-500/20"
+            >
               <Save size={18} />
               Save Changes
             </button>
           </div>
 
-          <div className="glass-card p-10">
+          <div className="glass-card p-10 animate-fade-in">
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-2xl font-black flex items-center gap-3">
                 <Users className="text-indigo-500" /> Departments
               </h2>
-              <button className="p-2 bg-indigo-600 rounded-xl">
+              <button onClick={handleAddDepartment} className="p-2 bg-indigo-600 rounded-xl hover:bg-indigo-500 transition-colors">
                 <Plus size={20} />
               </button>
             </div>
 
             <div className="space-y-4">
-              {['Cardiology', 'Emergency', 'Pediatrics', 'Radiology'].map((dept, i) => (
-                <div key={i} className="flex justify-between items-center p-6 bg-white/[0.02] border border-white/5 rounded-3xl hover:border-indigo-500/30 transition-all group">
-                  <span className="font-bold tracking-wide">{dept}</span>
-                  <button className="text-slate-600 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100">
+              {departments.length === 0 && <p className="text-slate-500 italic">No departments configured.</p>}
+              {departments.map((dept) => (
+                <div key={dept.id} className="flex justify-between items-center p-6 bg-white/[0.02] border border-white/5 rounded-3xl hover:border-indigo-500/30 transition-all group">
+                  <span className="font-bold tracking-wide">{dept.name}</span>
+                  <button onClick={() => handleDeleteDepartment(dept.id)} className="text-slate-600 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100">
                     <Trash2 size={18} />
                   </button>
                 </div>
               ))}
             </div>
           </div>
+            </>
+          )}
+
+          {/* Placeholder for other tabs */}
+          {['Notifications', 'Privacy Settings'].includes(activeTab) && (
+            <div className="glass-card p-10 text-center text-slate-500 py-20 animate-fade-in">
+              <p className="font-bold">This module is currently under development.</p>
+            </div>
+          )}
         </div>
       </div>
 
