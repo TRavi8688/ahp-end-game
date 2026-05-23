@@ -288,10 +288,6 @@ export default function HomeScreen({ navigation }) {
         }
     };
 
-        } finally {
-            setActionLoading(false);
-        }
-    };
 
     const handleSaveGooglePassword = async () => {
         if (newLocalPassword.length < 6) {
