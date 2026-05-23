@@ -21,6 +21,8 @@ class QueueTokenCreate(BaseModel):
     symptoms: Optional[str] = Field(None, description="Patient symptoms")
     op_fee: Optional[float] = Field(None, description="OPD Consultation Fee")
     payment_method: Optional[str] = Field(None, description="CASH or UPI")
+    assigned_doctor_name: Optional[str] = Field(None, description="Triage to specific doctor")
+    assigned_department: Optional[str] = Field(None, description="Triage to specific department")
 
 class QueueTokenRead(BaseModel):
     id: uuid.UUID

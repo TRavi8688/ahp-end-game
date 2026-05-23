@@ -119,7 +119,30 @@ async def list_staff(
                 "first_name": p.user.first_name,
                 "last_name": p.user.last_name,
                 "role": p.user.role.value if p.user.role else None,
-                "is_active": p.user.is_active
+                "is_active": p.user.is_active,
+                "current_status": getattr(p.user, 'current_status', 'ACTIVE')
             } if p.user else None
         })
     return results
+
+@router.put("/{user_id}/status")
+async def admin_update_staff_status(
+    user_id: uuid.UUID,
+    data: dict,  # expects {"status": "ON_LEAVE"}
+    current_user: User = Depends(deps.RoleChecker([RoleEnum.hospital_admin, RoleEnum.admin])),
+    db: AsyncSession = Depends(deps.get_db)
+):
+    from sqlalchemy import select
+    
+    # Verify the target user exists and belongs to the same hospital
+    stmt = select(User).where(User.id == user_id)
+    target_user = (await db.execute(stmt)).scalars().first()
+    
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Staff member not found")
+        
+    target_user.current_status = data.get("status", "ACTIVE")
+    await db.commit()
+    await db.refresh(target_user)
+    
+    return {"message": "Status updated successfully", "status": target_user.current_status}

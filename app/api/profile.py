@@ -39,6 +39,15 @@ async def update_staff_status(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_db_user)
 ):
+    # Only admins can set ON_LEAVE or OFF_DUTY
+    if data.status in ["ON_LEAVE", "OFF_DUTY"]:
+        role_str = str(current_user.role.value) if hasattr(current_user.role, 'value') else str(current_user.role)
+        if role_str not in ["hospital_admin", "admin"]:
+            raise HTTPException(
+                status_code=403, 
+                detail="Only Hospital Administrators can set ON_LEAVE or OFF_DUTY statuses. Please contact HR."
+            )
+            
     current_user.current_status = data.status
     await db.commit()
     await db.refresh(current_user)

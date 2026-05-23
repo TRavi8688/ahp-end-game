@@ -170,8 +170,32 @@ const StaffDashboard = () => {
                       </td>
                       <td className="p-5">
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                          <span className="text-xs font-bold text-emerald-500">ACTIVE</span>
+                          <div className={`w-2 h-2 rounded-full ${
+                            (member.user?.current_status === 'ACTIVE' || !member.user?.current_status) ? 'bg-emerald-500' :
+                            (member.user?.current_status === 'ON_LEAVE' ? 'bg-rose-500' :
+                            (member.user?.current_status === 'OFF_DUTY' ? 'bg-slate-500' : 'bg-amber-500'))
+                          }`} />
+                          <select 
+                            value={member.user?.current_status || 'ACTIVE'}
+                            onChange={async (e) => {
+                              try {
+                                const token = localStorage.getItem('token');
+                                await apiClient.put(`/staff/${member.user.id}/status`, { status: e.target.value }, {
+                                  headers: { Authorization: `Bearer ${token}` }
+                                });
+                                fetchStaff();
+                              } catch (err) {
+                                alert('Failed to update status: ' + (err.response?.data?.detail || err.message));
+                              }
+                            }}
+                            className="bg-transparent border-none text-xs font-bold text-white outline-none cursor-pointer appearance-none uppercase tracking-widest"
+                          >
+                            <option value="ACTIVE" className="bg-[#0f172a]">ACTIVE</option>
+                            <option value="WITH_PATIENT" className="bg-[#0f172a]">WITH PATIENT</option>
+                            <option value="LUNCH_BREAK" className="bg-[#0f172a]">LUNCH BREAK</option>
+                            <option value="ON_LEAVE" className="bg-[#0f172a] text-rose-500">ON LEAVE</option>
+                            <option value="OFF_DUTY" className="bg-[#0f172a] text-slate-500">OFF DUTY</option>
+                          </select>
                         </div>
                       </td>
                     </tr>

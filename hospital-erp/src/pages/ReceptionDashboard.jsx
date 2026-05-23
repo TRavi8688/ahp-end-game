@@ -28,7 +28,8 @@ const ReceptionDashboard = () => {
     symptoms: '',
     is_emergency: false,
     op_fee: '',
-    payment_method: 'CASH'
+    payment_method: 'CASH',
+    assigned_doctor_name: ''
   });
   
   const [todayQueue, setTodayQueue] = useState([]);
@@ -44,16 +45,30 @@ const ReceptionDashboard = () => {
     { label: 'IN MEETING', color: 'text-rose-400', bg: 'bg-rose-500/20' }
   ];
 
-  // Dummy Doctor Matrix
-  const doctors = [
-    { name: 'Dr. Sarah Jenkins', dept: 'Cardiology', status: 'AVAILABLE' },
-    { name: 'Dr. Rajesh Kumar', dept: 'General', status: 'WITH PATIENT' },
-    { name: 'Dr. Emily Chen', dept: 'Pediatrics', status: 'ON BREAK' }
-  ];
+  const [doctorsList, setDoctorsList] = useState([]);
 
   useEffect(() => {
     fetchQueue();
+    fetchStaffDoctors();
   }, []);
+
+  const fetchStaffDoctors = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await apiClient.get('/staff/members', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      // Only keep doctors who are NOT on leave or off duty
+      const docs = res.data.filter(m => 
+        m.user?.role === 'doctor' && 
+        m.user?.current_status !== 'ON_LEAVE' && 
+        m.user?.current_status !== 'OFF_DUTY'
+      );
+      setDoctorsList(docs);
+    } catch (err) {
+      console.error("Failed to fetch doctors", err);
+    }
+  };
 
   const fetchQueue = async () => {
     try {
@@ -98,11 +113,12 @@ const ReceptionDashboard = () => {
         visit_reason: queueData.visit_reason,
         symptoms: queueData.symptoms,
         op_fee: queueData.op_fee,
-        payment_method: queueData.payment_method
+        payment_method: queueData.payment_method,
+        assigned_doctor_name: queueData.assigned_doctor_name || undefined
       });
       setOpCollection(prev => prev + (Number(queueData.op_fee) || 0));
       setShowQueueModal(false);
-      setQueueData({ visit_reason: '', symptoms: '', is_emergency: false, op_fee: '', payment_method: 'CASH' });
+      setQueueData({ visit_reason: '', symptoms: '', is_emergency: false, op_fee: '', payment_method: 'CASH', assigned_doctor_name: '' });
       setSelectedPatient(null);
       setSearchTerm('');
       setSearchResults([]);
@@ -265,17 +281,20 @@ const ReceptionDashboard = () => {
                 <Stethoscope size={16} /> Doctor Status Grid
               </h2>
               <div className="space-y-2">
-                {doctors.map(doc => (
-                  <div key={doc.name} className="flex justify-between items-center bg-black/20 p-3 rounded-lg border border-white/5">
+                {doctorsList.map(doc => (
+                  <div key={doc.id} className="flex justify-between items-center bg-black/20 p-3 rounded-lg border border-white/5">
                     <div>
-                      <p className="text-white text-sm font-bold">{doc.name}</p>
-                      <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">{doc.dept}</p>
+                      <p className="text-white text-sm font-bold">Dr. {doc.user?.first_name} {doc.user?.last_name}</p>
+                      <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">{doc.department?.name || 'General'}</p>
                     </div>
-                    <span className={`text-[9px] font-black tracking-widest uppercase px-2 py-1 rounded-md ${doc.status === 'AVAILABLE' ? 'bg-emerald-500/20 text-emerald-400' : doc.status === 'WITH PATIENT' ? 'bg-indigo-500/20 text-indigo-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                      {doc.status}
+                    <span className={`text-[9px] font-black tracking-widest uppercase px-2 py-1 rounded-md ${(!doc.user?.current_status || doc.user?.current_status === 'ACTIVE') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-indigo-500/20 text-indigo-400'}`}>
+                      {doc.user?.current_status || 'ACTIVE'}
                     </span>
                   </div>
                 ))}
+                {doctorsList.length === 0 && (
+                  <p className="text-xs text-slate-500 italic">No doctors available or fetched.</p>
+                )}
               </div>
             </div>
 
@@ -358,6 +377,24 @@ const ReceptionDashboard = () => {
                 value={queueData.symptoms} 
                 onChange={e => setQueueData({...queueData, symptoms: e.target.value})} 
               />
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-slate-500 text-[10px] font-black uppercase mb-2 flex items-center gap-2">
+                <Stethoscope size={14}/> Assign To Doctor (Triage)
+              </label>
+              <select 
+                className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-white outline-none focus:border-indigo-500 appearance-none"
+                value={queueData.assigned_doctor_name}
+                onChange={e => setQueueData({...queueData, assigned_doctor_name: e.target.value})}
+              >
+                <option value="">Unassigned (General Queue)</option>
+                {doctorsList.map(doc => (
+                  <option key={doc.id} value={`Dr. ${doc.user?.first_name} ${doc.user?.last_name || ''}`}>
+                    Dr. {doc.user?.first_name} {doc.user?.last_name || ''} - {doc.department?.name || 'General'}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="mb-8 border-t border-white/10 pt-6">
