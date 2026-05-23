@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Building, Users, CreditCard, Bell, Lock, Save, Plus, Trash2, Camera, Key, Check } from 'lucide-react';
 import apiClient from '../apiClient';
-
+const SettingsPage = () => {
   const [activeTab, setActiveTab] = useState('Organization Profile');
   const [departments, setDepartments] = useState([]);
 
@@ -271,6 +271,7 @@ import apiClient from '../apiClient';
                 Change Password
               </button>
             </div>
+          </div>
           )}
 
           {activeTab === 'Organization Profile' && (
