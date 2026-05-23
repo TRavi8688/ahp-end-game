@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Users, UserPlus, Search, ClipboardList, Activity,
-  Clock, ArrowRight, CheckCircle2, ChevronDown, IndianRupee, QrCode, LogOut, Settings, Stethoscope, AlertCircle
+  Clock, ArrowRight, CheckCircle2, ChevronDown, IndianRupee, QrCode, LogOut, Settings, Stethoscope, AlertCircle, Home, Calendar, FileText, LayoutDashboard
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import apiClient from '../apiClient';
@@ -129,9 +129,58 @@ const ReceptionDashboard = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#020617] font-outfit">
-      <main className="flex-1 ml-64 p-10">
-        <header className="flex justify-between items-center mb-10">
+    <div className="flex min-h-screen bg-[#020617] text-white font-inter overflow-hidden">
+      
+      {/* ENTERPRISE SIDEBAR */}
+      <aside className="w-[280px] border-r border-white/5 bg-[#0f172a]/40 backdrop-blur-3xl flex flex-col hidden lg:flex relative z-10">
+        <div className="p-8">
+          <h1 className="text-3xl font-black tracking-tighter text-white">HOSPYN<span className="text-indigo-500">.</span></h1>
+          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mt-1">Enterprise OS</p>
+        </div>
+
+        <nav className="flex-1 px-4 space-y-2 mt-4">
+          <div className="text-[10px] font-black uppercase tracking-widest text-slate-600 px-4 mb-4">Main Menu</div>
+          
+          <button className="w-full flex items-center gap-4 px-4 py-3 bg-indigo-600/10 text-indigo-400 rounded-2xl border border-indigo-500/20 font-bold transition-all">
+            <LayoutDashboard size={20} />
+            Reception Desk
+          </button>
+          
+          {[
+            { icon: Users, label: 'Patient Directory' },
+            { icon: Calendar, label: 'Appointments' },
+            { icon: Stethoscope, label: 'Doctor Roster' },
+            { icon: FileText, label: 'Reports & Billing' },
+          ].map((item, idx) => (
+            <button key={idx} className="w-full flex items-center gap-4 px-4 py-3 text-slate-500 hover:text-white hover:bg-white/5 rounded-2xl font-bold transition-all group">
+              <item.icon size={20} className="group-hover:text-indigo-400 transition-colors" />
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        <div className="p-6">
+          <Link to="/settings" className="w-full flex items-center gap-4 px-4 py-3 text-slate-500 hover:text-white hover:bg-white/5 rounded-2xl font-bold transition-all group">
+            <Settings size={20} className="group-hover:text-indigo-400 transition-colors" />
+            System Settings
+          </Link>
+          <div className="mt-4 pt-4 border-t border-white/5 flex items-center gap-3 px-4">
+            <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-black text-xs">
+              RC
+            </div>
+            <div>
+              <p className="text-xs font-bold text-white">Receptionist</p>
+              <p className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">Active Shift</p>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <main className="flex-1 overflow-y-auto custom-scrollbar relative">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-indigo-600/10 blur-[120px] pointer-events-none rounded-full" />
+        
+        <div className="max-w-[1400px] mx-auto p-8 lg:p-12 relative z-10">
+          <header className="flex justify-between items-end mb-12 border-b border-white/5 pb-8">
           <div>
             <h1 className="text-5xl font-black text-white tracking-tighter mb-2">Reception Desk</h1>
             <p className="text-slate-400 font-medium text-lg">Patient Intake & Queue Dispatch Engine.</p>
@@ -177,12 +226,6 @@ const ReceptionDashboard = () => {
               )}
             </div>
 
-            <Link 
-              to="/settings"
-              className="flex items-center gap-2 bg-slate-800 px-6 py-4 rounded-2xl text-xs font-black text-white hover:bg-slate-700 transition-all tracking-widest uppercase border border-slate-700"
-            >
-              <Settings size={18} /> Settings
-            </Link>
             <button 
               className="flex items-center gap-2 bg-indigo-600 px-8 py-4 rounded-2xl text-xs font-black text-white hover:bg-indigo-700 shadow-2xl shadow-indigo-500/30 transition-all tracking-widest uppercase"
               onClick={() => setShowRegisterModal(true)}
@@ -192,7 +235,7 @@ const ReceptionDashboard = () => {
           </div>
         </header>
 
-        <div className="grid grid-cols-[1fr,400px] gap-8">
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr,450px] gap-8">
           
           {/* LEFT: Patient Search & Dispatch */}
           <div className="glass-card p-8 min-h-[500px]">
@@ -329,6 +372,7 @@ const ReceptionDashboard = () => {
 
           </div>
         </div>
+      </div>
       </main>
 
       {/* MODALS */}
@@ -483,7 +527,11 @@ const ReceptionDashboard = () => {
       )}
       
       <style>{`
-        .glass-card { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.05); border-radius: 32px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+        .glass-card { background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.03); border-radius: 32px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
       `}</style>
     </div>
   );
