@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom'
 import Login from './pages/Login'
-import SetupServices from './pages/SetupServices'
+import Login from './pages/Login'
 import PharmacyDashboard from './pages/PharmacyDashboard'
 import BillingDashboard from './pages/BillingDashboard'
 import VisitDashboard from './pages/VisitDashboard'
@@ -94,10 +94,6 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     );
   }
 
-  // If hospital has no settings, send them to the Setup Services wizard
-  // (unless they are already on the setup-services page)
-  const isSetupPage = window.location.pathname === '/setup-services';
-  
   const userStr = localStorage.getItem('user');
   let role = '';
   try {
@@ -110,10 +106,6 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
       localStorage.removeItem('user');
       alert("Doctors must use Hospyn Doctor Pro App.");
       return <Navigate to="/login" replace />;
-  }
-
-  if (!hasSettings && !isSetupPage && (role === 'hospital_admin' || role === 'admin')) {
-    return <Navigate to="/setup-services" replace />;
   }
 
   if (allowedRoles && role && !allowedRoles.includes(role)) {

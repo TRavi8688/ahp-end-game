@@ -1124,10 +1124,8 @@ export default function App() {
                   { id: 'staff', label: 'Staff Provisioner (IAM)', icon: Users },
                   { id: 'ehr', label: 'EHR Passports', icon: Database },
                   { id: 'lab', label: 'LOINC Laboratory', icon: Activity },
-                  { id: 'pharmacy', label: 'Pharmacy Inventory', icon: ShoppingBag },
                   { id: 'opd', label: 'OPD & Bed Scheduler', icon: Server },
-                  { id: 'ai-governance', label: 'AI Safety Governance', icon: Brain },
-                  { id: 'settings', label: 'System Settings', icon: Key }
+                  { id: 'ai-governance', label: 'AI Safety Governance', icon: Brain }
                 ].map((item) => (
                   <button
                     key={item.id}
@@ -1681,41 +1679,7 @@ export default function App() {
             )}
           </div>
         )}
-            {consoleTab === 'branch-manager' && (
-              <div className="space-y-8">
-                <div>
-                  <h2 className="text-3xl font-extrabold text-slate-950 font-outfit tracking-tight">Branch Manager</h2>
-                  <p className="text-xs text-slate-500 mt-1">Sovereign analytics and clinical throughput branch-by-branch.</p>
-                </div>
-
-                <div className="grid md:grid-cols-3 gap-6">
-                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                    <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Delhi Branch Vitals</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs"><span className="text-slate-400">Active Patients:</span> <span className="font-bold text-slate-900">42</span></div>
-                      <div className="flex justify-between text-xs"><span className="text-slate-400">Doctors on Duty:</span> <span className="font-bold text-slate-900">8</span></div>
-                      <div className="flex justify-between text-xs"><span className="text-slate-400">Avg Wait Time:</span> <span className="font-bold text-emerald-600">8 mins</span></div>
-                    </div>
-                  </div>
-                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                    <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Mumbai Branch Vitals</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs"><span className="text-slate-400">Active Patients:</span> <span className="font-bold text-slate-900">19</span></div>
-                      <div className="flex justify-between text-xs"><span className="text-slate-400">Doctors on Duty:</span> <span className="font-bold text-slate-900">4</span></div>
-                      <div className="flex justify-between text-xs"><span className="text-slate-400">Avg Wait Time:</span> <span className="font-bold text-emerald-600">11 mins</span></div>
-                    </div>
-                  </div>
-                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                    <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Bangalore Branch Vitals</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs"><span className="text-slate-400">Active Patients:</span> <span className="font-bold text-slate-900">8</span></div>
-                      <div className="flex justify-between text-xs"><span className="text-slate-400">Doctors on Duty:</span> <span className="font-bold text-slate-900">2</span></div>
-                      <div className="flex justify-between text-xs"><span className="text-slate-400">Avg Wait Time:</span> <span className="font-bold text-emerald-600">4 mins</span></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+            
 
             {consoleTab === 'staff' && (
               <div className="space-y-8">
@@ -2052,267 +2016,17 @@ export default function App() {
               </div>
             )}
 
-            {consoleTab === 'ehr' && (
-              <div className="space-y-8">
-                <div>
-                  <h2 className="text-3xl font-extrabold text-slate-950 font-outfit tracking-tight">EHR Patient Passports</h2>
-                  <p className="text-xs text-slate-500 mt-1">Longitudinal health history audit and Chitti AI double summaries.</p>
-                </div>
+            
 
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                  <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Active Clinical Consent Profiles</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-100 text-slate-400">
-                          <th className="py-3 font-bold">Patient Name</th>
-                          <th className="py-3 font-bold">Linked Health ID</th>
-                          <th className="py-3 font-bold">Dynamic Consent</th>
-                          <th className="py-3 font-bold">Vitals State</th>
-                          <th className="py-3 font-bold">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-50 font-medium">
-                        <tr className="hover:bg-slate-50">
-                          <td className="py-3.5 text-slate-950">Aarav Mehta</td>
-                          <td className="py-3.5 font-mono text-slate-500">HP-9021-AA8</td>
-                          <td className="py-3.5"><span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 font-bold uppercase text-[9px]">GRANTED</span></td>
-                          <td className="py-3.5 text-slate-900">BP: 120/80, Pulse: 72</td>
-                          <td className="py-3.5"><button className="text-blue-600 font-bold hover:underline">View AI Summary</button></td>
-                        </tr>
-                        <tr className="hover:bg-slate-50">
-                          <td className="py-3.5 text-slate-950">Priya Nair</td>
-                          <td className="py-3.5 font-mono text-slate-500">HP-8833-P88</td>
-                          <td className="py-3.5"><span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 font-bold uppercase text-[9px]">GRANTED</span></td>
-                          <td className="py-3.5 text-slate-900">BP: 135/88, Pulse: 85</td>
-                          <td className="py-3.5"><button className="text-blue-600 font-bold hover:underline">View AI Summary</button></td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
+            
 
-            {consoleTab === 'lab' && (
-              <div className="space-y-8">
-                <div>
-                  <h2 className="text-3xl font-extrabold text-slate-950 font-outfit tracking-tight">LOINC Laboratory</h2>
-                  <p className="text-xs text-slate-500 mt-1">Diagnostic order queues with LOINC mappings and reference range auditing.</p>
-                </div>
+            
 
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                  <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Active Diagnostic Test Queue</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-100 text-slate-400">
-                          <th className="py-3 font-bold">Order ID</th>
-                          <th className="py-3 font-bold">Test Name</th>
-                          <th className="py-3 font-bold">LOINC Code</th>
-                          <th className="py-3 font-bold">Measured Value</th>
-                          <th className="py-3 font-bold">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-50 font-medium">
-                        <tr className="hover:bg-slate-50">
-                          <td className="py-3.5 text-slate-950">ORD-9021</td>
-                          <td className="py-3.5">Hemoglobin A1c</td>
-                          <td className="py-3.5 font-mono text-slate-500">4548-4</td>
-                          <td className="py-3.5 text-amber-600 font-bold">7.2% (Abnormal)</td>
-                          <td className="py-3.5"><span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 font-bold uppercase text-[9px]">COMPLETED</span></td>
-                        </tr>
-                        <tr className="hover:bg-slate-50">
-                          <td className="py-3.5 text-slate-950">ORD-8822</td>
-                          <td className="py-3.5">Serum Creatinine</td>
-                          <td className="py-3.5 font-mono text-slate-500">2160-0</td>
-                          <td className="py-3.5 text-slate-900">0.9 mg/dL (Normal)</td>
-                          <td className="py-3.5"><span className="px-2 py-0.5 rounded bg-blue-50 text-primary font-bold uppercase text-[9px]">PROCESSING</span></td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
+            
 
-            {consoleTab === 'pharmacy' && (
-              <div className="space-y-8">
-                <div>
-                  <h2 className="text-3xl font-extrabold text-slate-950 font-outfit tracking-tight">Pharmacy Stock & Dispenser</h2>
-                  <p className="text-xs text-slate-500 mt-1">Medicine batch registries, threshold warnings, and direct medicine dispenser.</p>
-                </div>
+            
 
-                <div className="grid md:grid-cols-3 gap-8">
-                  {/* Stock Grid */}
-                  <div className="col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                    <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Active Medicine Batch Levels</h3>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs border-collapse">
-                        <thead>
-                          <tr className="border-b border-slate-100 text-slate-400">
-                            <th className="py-3 font-bold">Medicine</th>
-                            <th className="py-3 font-bold">Batch</th>
-                            <th className="py-3 font-bold">Quantity</th>
-                            <th className="py-3 font-bold">Stock Warning</th>
-                            <th className="py-3 font-bold">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50 font-medium">
-                          {(dashboardData.pharmacy || []).map((item, i) => (
-                            <tr key={i} className="hover:bg-slate-50">
-                              <td className="py-3.5 text-slate-950">{item.name}</td>
-                              <td className="py-3.5 font-mono text-slate-500">{item.batch}</td>
-                              <td className="py-3.5 font-bold text-slate-900">{item.quantity} units</td>
-                              <td className="py-3.5">
-                                {item.quantity <= item.threshold ? (
-                                  <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-600 font-bold uppercase text-[9px] flex gap-1 items-center max-w-fit"><AlertTriangle size={10}/> LOW STOCK</span>
-                                ) : (
-                                  <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 font-bold uppercase text-[9px] flex gap-1 items-center max-w-fit"><CheckCircle size={10}/> ADEQUATE</span>
-                                )}
-                              </td>
-                              <td className="py-3.5">
-                                <button disabled={item.quantity === 0} className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[9px] uppercase tracking-wider rounded-lg transition-colors disabled:opacity-50">
-                                  Virtual Dispense
-                                </button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* QR Dispenser simulator */}
-                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between">
-                    <div className="space-y-4">
-                      <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Prescription QR Scanner</h3>
-                      <p className="text-xs text-slate-500 leading-relaxed">
-                        Scan incoming dynamic prescription QR codes from patient apps. The grid automatically marks items as dispensed and decrements pharmacy ledger states.
-                      </p>
-                      <div className="w-40 h-40 border border-slate-200 rounded-xl bg-slate-50 mx-auto flex items-center justify-center relative overflow-hidden">
-                        <div className="w-32 h-32 border-2 border-primary/40 rounded bg-slate-200/50 flex items-center justify-center font-mono text-[8px] text-slate-400">
-                          [ VIRTUAL QR CAMERA VIEW ]
-                        </div>
-                      </div>
-                    </div>
-                    <button onClick={()=>{
-                      handleDispenseMedicine('Atorvastatin 10mg');
-                      alert("QR_SCAN_SUCCESS: Dispensed Atorvastatin 10mg from Batch AT-8822.");
-                    }} className="w-full py-3 bg-primary text-white font-bold text-xs uppercase tracking-widest rounded-lg hover:bg-blue-700 mt-4 transition-colors">
-                      Simulate Patient QR Scan
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {consoleTab === 'opd' && (
-              <div className="space-y-8">
-                <div>
-                  <h2 className="text-3xl font-extrabold text-slate-950 font-outfit tracking-tight">OPD & Bed Scheduler</h2>
-                  <p className="text-xs text-slate-500 mt-1">Real-time ICU ward planner and priority scoring emergency token overrides.</p>
-                </div>
-
-                <div className="grid md:grid-cols-3 gap-8">
-                  {/* Bed Grid MAP */}
-                  <div className="col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                    <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">ICU & Bed Allocation Matrix</h3>
-                    <div className="grid grid-cols-4 gap-4">
-                      {(dashboardData?.beds || []).map((bed) => (
-                        <div key={bed.id} className="p-4 border border-slate-200 bg-slate-50 rounded-xl space-y-2 text-center">
-                          <span className="font-bold text-slate-950 text-xs block">{bed.bed_number || bed.id}</span>
-                          <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-bold uppercase ${bed.status === 'occupied' ? 'bg-amber-100 text-amber-800' : bed.status === 'maintenance' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                            {bed.status}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Priority Token Overrider */}
-                  <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4 flex flex-col justify-between">
-                    <div className="space-y-4">
-                      <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Emergency Queue Override</h3>
-                      <p className="text-xs text-slate-500 leading-relaxed">
-                        Chitti AI structures patient scores out-of-band. Admins can bypass recommendations for immediate surgical trauma admissions.
-                      </p>
-                      <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl flex gap-3 items-center">
-                        <ShieldAlert className="text-rose-600" size={20}/>
-                        <div>
-                          <p className="text-xs font-bold text-rose-950">ICU Capacity Alert</p>
-                          <p className="text-[9px] text-rose-700">ICU Beds at 85% occupancy rate threshold limit.</p>
-                        </div>
-                      </div>
-                    </div>
-                    <button onClick={()=>alert("QUEUE_OVERRIDE_CONFIRMED: Token #08 shifted to immediate priority.")} className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-widest rounded-lg transition-colors mt-4">
-                      Override Patient Token
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {consoleTab === 'ai-governance' && (
-              <div className="space-y-8">
-                <div>
-                  <h2 className="text-3xl font-extrabold text-slate-950 font-outfit tracking-tight">AI Safety Governance</h2>
-                  <p className="text-xs text-slate-500 mt-1">Auditing clinical override registries and safety parameters.</p>
-                </div>
-
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-                  <h3 className="font-bold text-slate-950 text-sm border-b border-slate-100 pb-2">Clinician Override Registry</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="border-b border-slate-100 text-slate-400">
-                          <th className="py-3 font-bold">Override ID</th>
-                          <th className="py-3 font-bold">Doctor Name</th>
-                          <th className="py-3 font-bold">AI Diagnosis Suggestion</th>
-                          <th className="py-3 font-bold">Doctor Correction Value</th>
-                          <th className="py-3 font-bold">Audit Ledger Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-50 font-medium">
-                        <tr className="hover:bg-slate-50">
-                          <td className="py-3.5 text-slate-950">OR-9021</td>
-                          <td className="py-3.5">Dr. Vivek Sharma</td>
-                          <td className="py-3.5">Prescribe Metformin 1000mg</td>
-                          <td className="py-3.5 text-rose-600 font-bold">Metformin 500mg + lifestyle checks</td>
-                          <td className="py-3.5"><span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 font-bold uppercase text-[9px]">SIGNED & MUTATED</span></td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {consoleTab === 'settings' && (
-              <div className="space-y-8">
-                <div>
-                  <h2 className="text-3xl font-extrabold text-slate-950 font-outfit tracking-tight">System Settings & API Keys</h2>
-                  <p className="text-xs text-slate-500 mt-1">Configure secure integrations for Twilio, SMTP, and Razorpay endpoints.</p>
-                </div>
-
-                <div className="bg-white border border-slate-200 rounded-[24px] p-8 shadow-sm max-w-2xl space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Twilio Account SID</label>
-                      <input className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" type="password" value="••••••••••••••••••••••••••••" readOnly/>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Razorpay API Key</label>
-                      <input className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs outline-none focus:border-primary" type="password" value="••••••••••••••••••••••••••••" readOnly/>
-                    </div>
-                  </div>
-
-                  <button onClick={()=>alert("SETTINGS_SYNC_SUCCESS: Encrypted system settings dispatched to FastAPI ledger.")} className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs uppercase tracking-widest rounded-lg transition-colors">
-                    Save Key Mappings
-                  </button>
-                </div>
-              </div>
-            )}
+            
           </div>
         </div>
       )}
