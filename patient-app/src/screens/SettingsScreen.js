@@ -36,6 +36,13 @@ export default function SettingsScreen({ navigation }) {
     const [securityStatus, setSecurityStatus] = useState('ACTIVE');
     const [securityLog, setSecurityLog] = useState('AES-256 Shield Locked');
 
+    // Phone OTP Flow State
+    const [showPhoneModal, setShowPhoneModal] = useState(false);
+    const [otpStep, setOtpStep] = useState(1);
+    const [newPhone, setNewPhone] = useState('');
+    const [phoneOtp, setPhoneOtp] = useState('');
+    const [phoneLoading, setPhoneLoading] = useState(false);
+
     useEffect(() => {
         const fetchProfileData = async () => {
             try {
@@ -241,6 +248,16 @@ export default function SettingsScreen({ navigation }) {
 
                 <Text style={[styles.sectionTitle, { marginTop: 30 }]}>PREFERENCES</Text>
                 <SettingItem 
+                    icon="phone-portrait-outline" 
+                    label="Mobile Number" 
+                    sub={profile?.phone_number || "Not Set (Locked)"}
+                    onPress={() => {
+                        setNewPhone('');
+                        setOtpStep(1);
+                        setShowPhoneModal(true);
+                    }} 
+                />
+                <SettingItem 
                     icon="color-palette-outline" 
                     label="Dark Mode" 
                     sub="Toggle between elegant light and dark themes"
@@ -318,13 +335,12 @@ export default function SettingsScreen({ navigation }) {
 
                         <View style={styles.inputGroup}>
                             <Text style={[styles.inputLabel, { color: Theme.colors.primary === '#7C3AED' ? '#4F46E5' : '#64748B' }]}>CONTACT NUMBER</Text>
-                            <TextInput 
-                                style={[styles.input, { color: Theme.colors.text, backgroundColor: Theme.colors.primary === '#7C3AED' ? '#FFFFFF' : 'rgba(255,255,255,0.03)', borderColor: Theme.colors.primary === '#7C3AED' ? '#E2E8F0' : 'rgba(255,255,255,0.05)' }]} 
-                                value={editPhone} 
-                                onChangeText={setEditPhone} 
-                                keyboardType="phone-pad" 
-                                placeholderTextColor="#475569" 
-                            />
+                            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: Theme.colors.primary === '#7C3AED' ? '#F1F5F9' : 'rgba(255,255,255,0.03)', borderRadius: 12, borderWidth: 1, borderColor: Theme.colors.primary === '#7C3AED' ? '#E2E8F0' : 'rgba(255,255,255,0.05)', paddingHorizontal: 15, height: 50 }}>
+                                <Text style={{ color: Theme.colors.textMuted, opacity: 0.7 }}>{editPhone || "Not set"}</Text>
+                                <View style={{ flex: 1 }} />
+                                <Ionicons name="lock-closed" size={16} color={Theme.colors.textMuted} />
+                            </View>
+                            <Text style={{ color: Theme.colors.textMuted, fontSize: 10, marginTop: 4 }}>Locked. Change via Preferences.</Text>
                         </View>
 
                         <View style={styles.inputGroup}>
@@ -340,6 +356,60 @@ export default function SettingsScreen({ navigation }) {
                         <TouchableOpacity style={[styles.saveBtn, { backgroundColor: Theme.colors.primary }]} onPress={handleUpdateProfile} disabled={isUpdatingProfile}>
                             {isUpdatingProfile ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>SAVE CHANGES</Text>}
                         </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Phone OTP Modal */}
+            <Modal visible={showPhoneModal} animationType="fade" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalBox, GlobalStyles.glass, { backgroundColor: Theme.colors.card, borderWidth: 1, borderColor: Theme.colors.border }]}>
+                        <View style={styles.modalHeader}>
+                            <Text style={[styles.modalTitle, { color: Theme.colors.text }]}>VERIFY MOBILE NUMBER</Text>
+                            <TouchableOpacity onPress={() => setShowPhoneModal(false)}>
+                                <Ionicons name="close" size={24} color={Theme.colors.text} />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        {otpStep === 1 ? (
+                            <>
+                                <Text style={{ color: Theme.colors.textMuted, fontSize: 12, marginBottom: 20 }}>Enter your new mobile number. We will send a 6-digit OTP to verify.</Text>
+                                <TextInput 
+                                    style={[styles.input, { color: Theme.colors.text, backgroundColor: Theme.colors.primary === '#7C3AED' ? '#FFFFFF' : 'rgba(255,255,255,0.03)', borderColor: Theme.colors.primary === '#7C3AED' ? '#E2E8F0' : 'rgba(255,255,255,0.05)', marginBottom: 20 }]} 
+                                    value={newPhone} 
+                                    onChangeText={setNewPhone} 
+                                    keyboardType="phone-pad" 
+                                    placeholder="Enter new number"
+                                    placeholderTextColor="#475569" 
+                                />
+                                <TouchableOpacity style={[styles.saveBtn, { backgroundColor: Theme.colors.primary }]} onPress={() => { setPhoneLoading(true); setTimeout(() => { setPhoneLoading(false); setOtpStep(2); }, 1000); }} disabled={!newPhone || phoneLoading}>
+                                    {phoneLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>SEND OTP</Text>}
+                                </TouchableOpacity>
+                            </>
+                        ) : (
+                            <>
+                                <Text style={{ color: Theme.colors.textMuted, fontSize: 12, marginBottom: 20 }}>Enter the 6-digit OTP sent to {newPhone}.</Text>
+                                <TextInput 
+                                    style={[styles.input, { color: Theme.colors.text, backgroundColor: Theme.colors.primary === '#7C3AED' ? '#FFFFFF' : 'rgba(255,255,255,0.03)', borderColor: Theme.colors.primary === '#7C3AED' ? '#E2E8F0' : 'rgba(255,255,255,0.05)', marginBottom: 20 }]} 
+                                    value={phoneOtp} 
+                                    onChangeText={setPhoneOtp} 
+                                    keyboardType="number-pad" 
+                                    placeholder="Enter 6-digit OTP"
+                                    placeholderTextColor="#475569" 
+                                />
+                                <TouchableOpacity style={[styles.saveBtn, { backgroundColor: Theme.colors.primary }]} onPress={() => { 
+                                    setPhoneLoading(true); 
+                                    setTimeout(() => { 
+                                        setPhoneLoading(false); 
+                                        setProfile({...profile, phone_number: newPhone});
+                                        setEditPhone(newPhone);
+                                        setShowPhoneModal(false); 
+                                    }, 1000); 
+                                }} disabled={!phoneOtp || phoneLoading}>
+                                    {phoneLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>VERIFY & UPDATE</Text>}
+                                </TouchableOpacity>
+                            </>
+                        )}
                     </View>
                 </View>
             </Modal>

@@ -5,9 +5,20 @@ const SettingsPage = () => {
   const [hospitalInfo, setHospitalInfo] = useState({
     name: 'Singapore Central Hospital',
     reg_no: 'SGP-1092-X',
-    hospyn_id: 'HSP-SGP-001',
     status: 'ACTIVE'
   });
+
+  const [personalInfo, setPersonalInfo] = useState({
+    name: 'Admin User',
+    hospyn_id: 'HSP-SGP-001',
+    phone: '+65 9123 4567'
+  });
+
+  const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
+  const [newPhone, setNewPhone] = useState('');
+  const [otpStep, setOtpStep] = useState(1);
+  const [phoneOtp, setPhoneOtp] = useState('');
+  const [phoneLoading, setPhoneLoading] = useState(false);
 
   return (
     <div className="p-12 bg-[#050810] min-h-screen text-white font-outfit">
@@ -40,6 +51,53 @@ const SettingsPage = () => {
         <div className="lg:col-span-2 space-y-8">
           <div className="glass-card p-10">
             <h2 className="text-2xl font-black mb-8 flex items-center gap-3">
+              <Users className="text-indigo-500" /> Personal Profile
+            </h2>
+            
+            <div className="grid grid-cols-2 gap-8 mb-8">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 tracking-widest uppercase">Full Name</label>
+                <input 
+                  type="text" 
+                  value={personalInfo.name}
+                  onChange={(e) => setPersonalInfo({...personalInfo, name: e.target.value})}
+                  className="w-full bg-black/40 border border-white/5 p-4 rounded-2xl focus:border-indigo-500 outline-none transition-all font-bold" 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 tracking-widest uppercase">Sovereign Hospyn ID</label>
+                <div className="w-full bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-2xl font-mono font-bold text-indigo-400">
+                  {personalInfo.hospyn_id}
+                </div>
+                <p className="text-[10px] text-slate-500">Locked permanently.</p>
+              </div>
+              <div className="space-y-2 col-span-2 md:col-span-1">
+                <label className="text-[10px] font-black text-slate-500 tracking-widest uppercase">Mobile Number</label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={personalInfo.phone}
+                    disabled
+                    className="flex-1 bg-black/40 border border-white/5 p-4 rounded-2xl outline-none transition-all font-bold opacity-70" 
+                  />
+                  <button 
+                    onClick={() => { setOtpStep(1); setNewPhone(''); setIsPhoneModalOpen(true); }}
+                    className="bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 px-6 rounded-2xl font-bold hover:bg-indigo-600/40 transition-colors"
+                  >
+                    Change
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button className="bg-indigo-600 px-8 py-4 rounded-2xl font-black text-xs tracking-widest uppercase flex items-center gap-2 hover:bg-indigo-500 transition-all shadow-xl shadow-indigo-500/20">
+              <Save size={18} />
+              Save Profile
+            </button>
+          </div>
+
+          <div className="glass-card p-10">
+            <h2 className="text-2xl font-black mb-8 flex items-center gap-3">
               <Building className="text-indigo-500" /> Organizational Metadata
             </h2>
             
@@ -49,6 +107,7 @@ const SettingsPage = () => {
                 <input 
                   type="text" 
                   value={hospitalInfo.name}
+                  onChange={(e) => setHospitalInfo({...hospitalInfo, name: e.target.value})}
                   className="w-full bg-black/40 border border-white/5 p-4 rounded-2xl focus:border-indigo-500 outline-none transition-all font-bold" 
                 />
               </div>
@@ -57,14 +116,9 @@ const SettingsPage = () => {
                 <input 
                   type="text" 
                   value={hospitalInfo.reg_no}
+                  onChange={(e) => setHospitalInfo({...hospitalInfo, reg_no: e.target.value})}
                   className="w-full bg-black/40 border border-white/5 p-4 rounded-2xl focus:border-indigo-500 outline-none transition-all font-bold" 
                 />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 tracking-widest uppercase">Sovereign Hospyn ID</label>
-                <div className="w-full bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-2xl font-mono font-bold text-indigo-400">
-                  {hospitalInfo.hospyn_id}
-                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 tracking-widest uppercase">Node Status</label>
@@ -104,6 +158,56 @@ const SettingsPage = () => {
           </div>
         </div>
       </div>
+
+      {isPhoneModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8 max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Update Mobile Number</h3>
+            {otpStep === 1 ? (
+              <div className="space-y-4">
+                <p className="text-sm text-slate-400">Enter your new mobile number to receive a verification OTP.</p>
+                <input 
+                  type="text" 
+                  placeholder="New mobile number" 
+                  value={newPhone} 
+                  onChange={(e) => setNewPhone(e.target.value)}
+                  className="w-full bg-black/40 border border-slate-700 p-4 rounded-2xl outline-none"
+                />
+                <div className="flex justify-end gap-3 mt-6">
+                  <button onClick={() => setIsPhoneModalOpen(false)} className="px-4 py-2 text-slate-400 hover:text-white">Cancel</button>
+                  <button onClick={() => { setPhoneLoading(true); setTimeout(() => { setPhoneLoading(false); setOtpStep(2); }, 1000); }} disabled={!newPhone || phoneLoading} className="bg-indigo-600 px-6 py-2 rounded-xl font-bold">
+                    {phoneLoading ? 'Sending...' : 'Send OTP'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-slate-400">Enter the 6-digit OTP sent to {newPhone}.</p>
+                <input 
+                  type="text" 
+                  placeholder="6-digit OTP" 
+                  value={phoneOtp} 
+                  onChange={(e) => setPhoneOtp(e.target.value)}
+                  className="w-full bg-black/40 border border-slate-700 p-4 rounded-2xl outline-none"
+                />
+                <div className="flex justify-end gap-3 mt-6">
+                  <button onClick={() => setIsPhoneModalOpen(false)} className="px-4 py-2 text-slate-400 hover:text-white">Cancel</button>
+                  <button onClick={() => { 
+                    setPhoneLoading(true); 
+                    setTimeout(() => { 
+                      setPhoneLoading(false); 
+                      setPersonalInfo({...personalInfo, phone: newPhone});
+                      setIsPhoneModalOpen(false); 
+                    }, 1000); 
+                  }} disabled={!phoneOtp || phoneLoading} className="bg-indigo-600 px-6 py-2 rounded-xl font-bold">
+                    {phoneLoading ? 'Verifying...' : 'Verify & Save'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

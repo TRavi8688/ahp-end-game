@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom'
 import Login from './pages/Login'
-import Register from './pages/Register'
 import SetupServices from './pages/SetupServices'
 import PharmacyDashboard from './pages/PharmacyDashboard'
 import BillingDashboard from './pages/BillingDashboard'
@@ -122,6 +121,27 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   }
 
   return children;
+};
+
+const RoleBasedRedirect = () => {
+  const userStr = localStorage.getItem('user');
+  let role = '';
+  try {
+     if (userStr) role = JSON.parse(userStr).role;
+  } catch (e) {}
+
+  switch (role) {
+    case 'receptionist': return <Navigate to="/reception" replace />;
+    case 'pharmacy': return <Navigate to="/pharmacy" replace />;
+    case 'nurse': return <Navigate to="/ward" replace />;
+    case 'lab': return <Navigate to="/lab" replace />;
+    case 'hr': return <Navigate to="/staff" replace />;
+    case 'hospital_admin':
+    case 'admin':
+        return <Navigate to="/analytics" replace />;
+    default:
+        return <Navigate to="/login" replace />;
+  }
 };
 
 const SetPasswordModal = () => {
@@ -312,7 +332,6 @@ function App() {
         <SetPasswordModal />
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
           <Route path="/accept-invite" element={<AcceptInvite />} />
           
           <Route path="/setup-services" element={
@@ -333,7 +352,7 @@ function App() {
           <Route path="/settings" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin']}><SettingsPage /></ProtectedRoute>} />
           
           <Route path="/unauthorized" element={<Unauthorized />} />
-          <Route path="/" element={<Navigate to="/clinical" replace />} />
+          <Route path="/" element={<RoleBasedRedirect />} />
         </Routes>
       </div>
     </Router>

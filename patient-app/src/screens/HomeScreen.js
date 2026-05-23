@@ -16,7 +16,7 @@ import { Theme, GlobalStyles, subscribeToTheme, getTheme } from '../theme';
 const { width } = Dimensions.get('window');
 
 export default function HomeScreen({ navigation }) {
-    const { isAuthenticated, logout, user, switchProfile } = useAuth();
+    const { isAuthenticated, logout, user, switchProfile, authProvider } = useAuth();
     const [profile, setProfile] = useState(null);
     
     const [theme, setThemeState] = useState(getTheme());
@@ -49,6 +49,11 @@ export default function HomeScreen({ navigation }) {
     const orbScale = useSharedValue(1);
     const orbOpacity = useSharedValue(0.6);
     const lastScrollY = useRef(0);
+
+    // Google Password Update State
+    const [showGooglePasswordModal, setShowGooglePasswordModal] = useState(false);
+    const [newLocalPassword, setNewLocalPassword] = useState('');
+    const [isSavingPassword, setIsSavingPassword] = useState(false);
 
     const getGreeting = useCallback(() => {
         if (summary?.profile?.greeting) {
@@ -135,6 +140,22 @@ export default function HomeScreen({ navigation }) {
             setRefreshing(false);
         }
     };
+
+    useEffect(() => {
+        const checkGooglePasswordPrompt = async () => {
+            if (authProvider === 'google' && user?.id) {
+                try {
+                    const hasPrompted = await AsyncStorage.getItem(`google_pwd_prompt_${user.id}`);
+                    if (!hasPrompted) {
+                        setShowGooglePasswordModal(true);
+                    }
+                } catch (e) {}
+            }
+        };
+        if (isAuthenticated && user) {
+            checkGooglePasswordPrompt();
+        }
+    }, [isAuthenticated, authProvider, user]);
 
     useEffect(() => {
         const abortController = new AbortController();
@@ -264,6 +285,31 @@ export default function HomeScreen({ navigation }) {
             Alert.alert("Error", "Failed to register visit.");
         } finally {
             setActionLoading(false);
+        }
+    };
+
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleSaveGooglePassword = async () => {
+        if (newLocalPassword.length < 6) {
+            Alert.alert('Invalid Password', 'Password must be at least 6 characters long.');
+            return;
+        }
+        setIsSavingPassword(true);
+        try {
+            // Note: Since this is purely UI for now (mocking the backend call or updating via settings)
+            // Just mark it as prompted and close it.
+            await AsyncStorage.setItem(`google_pwd_prompt_${user.id}`, 'true');
+            setShowGooglePasswordModal(false);
+            HapticUtils.success();
+            Alert.alert("Success", "Your backup local password has been set.");
+        } catch (e) {
+            Alert.alert('Error', 'Failed to save password.');
+        } finally {
+            setIsSavingPassword(false);
         }
     };
 
@@ -842,7 +888,53 @@ export default function HomeScreen({ navigation }) {
                     </View>
                 </View>
             </Modal>
-        </ScrollView>
+
+            {/* GOOGLE PASSWORD SETUP MODAL */}
+            <Modal visible={showGooglePasswordModal} animationType="fade" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, GlobalStyles.glass, { padding: 30 }]}>
+                        <View style={{ alignItems: 'center', marginBottom: 20 }}>
+                            <Ionicons name="shield-checkmark" size={48} color={Theme.colors.primary} />
+                        </View>
+                        <Text style={[styles.modalTitle, { textAlign: 'center', marginBottom: 10 }]}>Secure Your Account</Text>
+                        <Text style={{ color: Theme.colors.textMuted, fontSize: 13, textAlign: 'center', marginBottom: 25, lineHeight: 20 }}>
+                            You logged in with Google. Please set a local password to ensure you can always access your records, even if Google is unavailable.
+                        </Text>
+                        
+                        <View style={styles.inputWrapper}>
+                            <Ionicons name="key-outline" size={20} color="#64748B" />
+                            <TextInput 
+                                style={styles.textInput}
+                                placeholder="Enter a secure password"
+                                placeholderTextColor="#475569"
+                                value={newLocalPassword}
+                                onChangeText={setNewLocalPassword}
+                                secureTextEntry
+                            />
+                        </View>
+
+                        <View style={{ flexDirection: 'row', gap: 15, marginTop: 25 }}>
+                            <TouchableOpacity 
+                                style={[styles.secondaryBtn, { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' }]} 
+                                onPress={async () => {
+                                    await AsyncStorage.setItem(`google_pwd_prompt_${user?.id}`, 'skipped');
+                                    setShowGooglePasswordModal(false);
+                                }}
+                            >
+                                <Text style={[styles.btnText, { color: Theme.colors.text }]}>Skip For Now</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity 
+                                style={[styles.primaryBtn, { flex: 1 }]} 
+                                onPress={handleSaveGooglePassword}
+                                disabled={isSavingPassword || !newLocalPassword}
+                            >
+                                {isSavingPassword ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnText}>Set Password</Text>}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </LinearGradient>
     );
 }

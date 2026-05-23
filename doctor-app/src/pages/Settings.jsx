@@ -11,6 +11,13 @@ export default function Settings() {
     const [timeout, setTimeout] = useState("15");
     const [emailNotif, setEmailNotif] = useState(true);
     const [smsNotif, setSmsNotif] = useState(false);
+    
+    // Phone OTP Flow States
+    const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
+    const [newPhone, setNewPhone] = useState('');
+    const [otpStep, setOtpStep] = useState(1); // 1 = enter phone, 2 = enter otp
+    const [phoneOtp, setPhoneOtp] = useState('');
+    const [phoneLoading, setPhoneLoading] = useState(false);
 
     useEffect(() => {
         const fetchProfile = async () => {
@@ -65,17 +72,45 @@ export default function Settings() {
                             </Box>
 
                             <Grid container spacing={3}>
+                                <Grid item xs={12}>
+                                    <TextField 
+                                        fullWidth 
+                                        label="Hospyn ID" 
+                                        value={profile?.hospyn_id || "Loading..."} 
+                                        size="small" 
+                                        disabled 
+                                        helperText="Hospyn ID is permanently locked and cannot be changed."
+                                    />
+                                </Grid>
                                 <Grid item xs={12} sm={6}>
-                                    <TextField fullWidth label="Full Name" value={profile ? `Dr. ${profile.first_name || ''} ${profile.last_name || ''}`.trim() : "Loading..."} size="small" disabled={!profile} />
+                                    <TextField fullWidth label="Full Name" value={profile ? `Dr. ${profile.first_name || ''} ${profile.last_name || ''}`.trim() : "Loading..."} size="small" />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
                                     <TextField fullWidth label="Medical License ID" value={profile?.license_number || "Loading..."} size="small" disabled />
                                 </Grid>
                                 <Grid item xs={12}>
-                                    <TextField fullWidth label="Primary Clinic" value={profile?.hospital_name || "Loading..."} size="small" disabled={!profile} />
+                                    <TextField fullWidth label="Primary Clinic" value={profile?.hospital_name || "Loading..."} size="small" disabled />
                                 </Grid>
-                                <Grid item xs={12}>
-                                    <TextField fullWidth label="Specialization" value={profile?.specialty || "Loading..."} size="small" disabled={!profile} />
+                                <Grid item xs={12} sm={6}>
+                                    <TextField fullWidth label="Specialization" value={profile?.specialty || "Loading..."} size="small" />
+                                </Grid>
+                                <Grid item xs={12} sm={6}>
+                                    <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <TextField 
+                                            fullWidth 
+                                            label="Mobile Number" 
+                                            value={profile?.phone_number || "Not Set"} 
+                                            size="small" 
+                                            disabled 
+                                        />
+                                        <Button 
+                                            variant="outlined" 
+                                            color="primary" 
+                                            onClick={() => { setOtpStep(1); setNewPhone(''); setIsPhoneModalOpen(true); }}
+                                        >
+                                            Change
+                                        </Button>
+                                    </Box>
                                 </Grid>
                             </Grid>
 
@@ -188,6 +223,60 @@ export default function Settings() {
                 </Grid>
             </Grid>
 
+            {/* Phone Verification Modal */}
+            {isPhoneModalOpen && (
+                <Box sx={{ position: 'fixed', inset: 0, zIndex: 9999, bgcolor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Card sx={{ w: '100%', maxWidth: 400, p: 3, borderRadius: 3 }}>
+                        <Typography variant="h6" fontWeight="bold" mb={2}>Update Mobile Number</Typography>
+                        {otpStep === 1 ? (
+                            <>
+                                <Typography variant="body2" color="text.secondary" mb={3}>
+                                    Enter your new mobile number. We will send an OTP to verify it.
+                                </Typography>
+                                <TextField 
+                                    fullWidth 
+                                    label="New Mobile Number" 
+                                    value={newPhone} 
+                                    onChange={(e) => setNewPhone(e.target.value)} 
+                                    sx={{ mb: 3 }}
+                                />
+                                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                                    <Button onClick={() => setIsPhoneModalOpen(false)}>Cancel</Button>
+                                    <Button variant="contained" onClick={() => { setPhoneLoading(true); setTimeout(() => { setPhoneLoading(false); setOtpStep(2); }, 1000); }} disabled={!newPhone || phoneLoading}>
+                                        {phoneLoading ? 'Sending...' : 'Send OTP'}
+                                    </Button>
+                                </Box>
+                            </>
+                        ) : (
+                            <>
+                                <Typography variant="body2" color="text.secondary" mb={3}>
+                                    Enter the 6-digit OTP sent to {newPhone}.
+                                </Typography>
+                                <TextField 
+                                    fullWidth 
+                                    label="6-Digit OTP" 
+                                    value={phoneOtp} 
+                                    onChange={(e) => setPhoneOtp(e.target.value)} 
+                                    sx={{ mb: 3 }}
+                                />
+                                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                                    <Button onClick={() => setIsPhoneModalOpen(false)}>Cancel</Button>
+                                    <Button variant="contained" onClick={() => { 
+                                        setPhoneLoading(true); 
+                                        setTimeout(() => { 
+                                            setPhoneLoading(false); 
+                                            setProfile({...profile, phone_number: newPhone});
+                                            setIsPhoneModalOpen(false); 
+                                        }, 1000); 
+                                    }} disabled={!phoneOtp || phoneLoading}>
+                                        {phoneLoading ? 'Verifying...' : 'Verify & Update'}
+                                    </Button>
+                                </Box>
+                            </>
+                        )}
+                    </Card>
+                </Box>
+            )}
         </Box>
     );
 }

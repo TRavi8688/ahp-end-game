@@ -19,9 +19,7 @@ import AccessHistory from './pages/AccessHistory';
 import Alerts from './pages/Alerts';
 import Settings from './pages/Settings';
 import Schedule from './pages/Schedule';
-import Prescriptions from './pages/Prescriptions';
 import Analytics from './pages/Analytics';
-import PharmacyQueue from './pages/PharmacyQueue';
 
 const theme = createTheme({
     palette: {
@@ -164,11 +162,9 @@ function App() {
                                 <Route path="/patient/:id/*" element={<PatientDetailView />} />
                                 <Route path="/patients" element={<PatientList />} />
                                 <Route path="/schedule" element={<Schedule />} />
-                                <Route path="/prescriptions" element={<Prescriptions />} />
                                 <Route path="/history" element={<AccessHistory />} />
                                 <Route path="/analytics" element={<Analytics />} />
                                 <Route path="/alerts" element={<Alerts />} />
-                                <Route path="/pharmacy-queue" element={<PharmacyQueue />} />
                                 <Route path="/settings" element={<Settings />} />
                                 <Route path="*" element={<Navigate to="/" replace />} />
                             </Routes>
