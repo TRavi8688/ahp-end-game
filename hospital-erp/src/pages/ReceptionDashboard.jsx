@@ -240,6 +240,20 @@ const ReceptionDashboard = () => {
                 </button>
               </div>
             )}
+
+            {searchTerm.length === 0 && (
+              <div className="mt-16 flex flex-col items-center justify-center opacity-40 hover:opacity-100 transition-opacity duration-500">
+                <div className="w-24 h-24 bg-indigo-500/10 rounded-full flex items-center justify-center mb-6">
+                  <Users size={40} className="text-indigo-400" />
+                </div>
+                <h3 className="text-white font-black text-lg uppercase tracking-widest mb-2">Ready for Intake</h3>
+                <p className="text-slate-400 text-center text-sm max-w-md leading-relaxed">
+                  Enter a patient's Name, Phone Number, or Hospyn ID in the search bar above to begin the triage and dispatch process. 
+                  <br/><br/>
+                  If this is their first visit, click the <span className="text-indigo-400 font-bold">New Registration</span> button.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* RIGHT: Live Waiting Room */}
