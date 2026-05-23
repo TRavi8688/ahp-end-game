@@ -325,12 +325,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/accept-invite" element={<AcceptInvite />} />
           
-          <Route path="/setup-services" element={
-            <ProtectedRoute allowedRoles={['hospital_admin', 'admin']}>
-              <SetupServices />
-            </ProtectedRoute>
-          } />
-          
+
           <Route path="/reception" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'receptionist']}><ReceptionDashboard /></ProtectedRoute>} />
           <Route path="/pharmacy" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'pharmacy']}><PharmacyDashboard /></ProtectedRoute>} />
           <Route path="/billing" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'pharmacy', 'receptionist', 'biller', 'lab']}><BillingDashboard /></ProtectedRoute>} />
