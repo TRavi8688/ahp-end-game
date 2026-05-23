@@ -145,7 +145,14 @@ export default function RecordsScreen({ navigation }) {
             <Animated.View entering={FadeInUp.delay(index * 100)}>
                 <TouchableOpacity 
                     style={[styles.recordCard, GlobalStyles.glass]} 
-                    onPress={() => openRecord(item)}
+                    onPress={() => {
+                        if (item.type === 'prescription' && item.medications) {
+                            HapticUtils.selection();
+                            navigation.navigate('PrescriptionDetail', { prescription: item });
+                        } else {
+                            openRecord(item);
+                        }
+                    }}
                     activeOpacity={0.7}
                 >
                     <View style={[styles.recordIconBox, { backgroundColor: analyzing ? 'rgba(124, 58, 237, 0.08)' : 'rgba(34, 211, 238, 0.05)' }]}>

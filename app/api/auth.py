@@ -380,8 +380,13 @@ async def send_otp(
 
     logger.info(f"OTP_REQUEST_RECEIVED: Identifier={req.identifier}, Method={req.method}, IP={request.client.host}")
     
-    # 1. OTP Generation
-    otp = "".join([str(secrets.randbelow(10)) for _ in range(6)])
+    # --- HARDCODED DEMO BYPASS ---
+    if req.identifier == "8688533605" or req.identifier == "+918688533605":
+        otp = "123456"
+        logger.info("Using hardcoded OTP 123456 for demo number 8688533605")
+    else:
+        # 1. Standard OTP Generation
+        otp = "".join([str(secrets.randbelow(10)) for _ in range(6)])
     
     # 2. Persistence (Database Primary)
 
@@ -406,7 +411,9 @@ async def send_otp(
 
     # 3. Delivery
     try:
-        if req.method == "sms":
+        if req.identifier == "8688533605" or req.identifier == "+918688533605":
+            logger.info("Bypassing Twilio dispatch for demo number.")
+        elif req.method == "sms":
             logger.info(f"SMS_DISPATCH_INITIATED: To={req.identifier}")
             success = await send_sms_otp(req.identifier, otp)
             

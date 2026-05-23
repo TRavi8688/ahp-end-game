@@ -71,9 +71,10 @@ async def get_db_user(user: User = Depends(get_current_user)) -> User:
 async def get_current_patient(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> Patient:
     """Gated dependency for Patient-only routes."""
     if user.role != RoleEnum.patient:
+        app_name = "Doctor App" if user.role == RoleEnum.doctor else "Admin Dashboard"
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, 
-            detail="Route requires Patient role."
+            detail=f"This account is registered in the {app_name}. Please login directly in that app, as the Patient App is strictly for patients."
         )
     
     repo = PatientRepository(Patient, db)
@@ -88,9 +89,10 @@ async def get_current_patient(user: User = Depends(get_current_user), db: AsyncS
 async def get_current_doctor(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> Doctor:
     """Gated dependency for Doctor-only routes."""
     if user.role != RoleEnum.doctor:
+        app_name = "Patient App" if user.role == RoleEnum.patient else "Admin Dashboard"
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, 
-            detail="Route requires Doctor role."
+            detail=f"This account is registered in the {app_name}. Please login directly in that app, as the Doctor App is strictly for verified doctors."
         )
     
     from sqlalchemy.orm import selectinload

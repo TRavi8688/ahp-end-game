@@ -4,6 +4,7 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 
 from app.models.queue import QueueToken, QueueTokenStatus
+from app.models.clinical import PatientVisit, VisitStatusEnum
 from app.core.outbox import add_event_to_outbox  # assuming you already have this helper
 
 
@@ -69,6 +70,18 @@ async def create_token(db: AsyncSession, payload, user):
         )
         db.add(token)
         await db.flush()  # make token.id available for the outbox event
+
+        # 3.5 Create Patient Visit Record
+        visit = PatientVisit(
+            patient_id=payload.patient_id,
+            hospital_id=user.hospital_id,
+            visit_reason=getattr(payload, 'visit_reason', 'General Consultation'),
+            symptoms=getattr(payload, 'symptoms', 'None reported'),
+            queue_token=str(token.id),
+            status=VisitStatusEnum.active
+        )
+        db.add(visit)
+        await db.flush()
 
         # 4️⃣ Outbox event (same transaction)
         event = {

@@ -34,7 +34,7 @@ def setup_logging():
         logging.getLogger(name).propagate = True
 
     # 2. Configure Loguru
-    is_prod = os.getenv("ENVIRONMENT") == "production"
+    is_prod = os.getenv("ENVIRONMENT") in ["production", "staging"]
     
     # Clear existing handlers
     logger.remove()

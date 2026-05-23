@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   CreditCard, Activity, FlaskConical, Package, 
-  BarChart3, Settings, LogOut, Zap, Bed, Scissors, Users
+  BarChart3, Settings, LogOut, Zap, Bed, Scissors, Users, TestTube2
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -55,6 +55,18 @@ const Sidebar = () => {
     navigate('/login');
   };
 
+  const userStr = localStorage.getItem('user');
+  let role = '';
+  try {
+     if (userStr) role = JSON.parse(userStr).role;
+  } catch (e) {}
+
+  const isOwner = role === 'hospital_admin' || role === 'admin' || role === 'hr';
+  const isPharmacist = role === 'pharmacist';
+  const isNurse = role === 'nurse';
+  const isReceptionist = role === 'receptionist' || role === 'biller';
+  const isLabTech = role === 'lab_technician';
+
   return (
     <aside className="w-80 glass-card rounded-none border-y-0 border-l-0 p-8 flex flex-col fixed h-full z-30 shadow-2xl shadow-black">
       <div className="flex items-center gap-4 mb-14 px-2">
@@ -68,15 +80,17 @@ const Sidebar = () => {
       </div>
 
       <nav className="flex-1 space-y-3">
-        <NavItem icon={Activity} label="Consultations" path="/clinical" />
-        {settings.enable_inpatient_beds && <NavItem icon={Bed} label="Ward & IPD" path="/ward" />}
-        {settings.enable_inpatient_beds && <NavItem icon={Scissors} label="OT Control" path="/surgery" />}
-        {settings.enable_labs && <NavItem icon={FlaskConical} label="Laboratory" path="/lab" />}
-        {settings.enable_pharmacy && <NavItem icon={Package} label="Pharmacy" path="/pharmacy" />}
-        {settings.enable_billing && <NavItem icon={CreditCard} label="Billing" path="/billing" />}
-        <NavItem icon={Users} label="Staff Directory" path="/staff" />
-        <NavItem icon={BarChart3} label="Intelligence" path="/analytics" />
-        <NavItem icon={Settings} label="Settings" path="/settings" />
+        {(isOwner || isReceptionist) && <NavItem icon={Users} label="Reception" path="/reception" />}
+        {(isOwner || isReceptionist || isNurse) && <NavItem icon={Activity} label="Consultations" path="/clinical" />}
+        {(isOwner || isNurse) && settings.enable_inpatient_beds && <NavItem icon={Bed} label="Ward & IPD" path="/ward" />}
+        {(isOwner || isNurse) && settings.enable_inpatient_beds && <NavItem icon={Scissors} label="OT Control" path="/surgery" />}
+        {(isOwner || isLabTech) && settings.enable_labs && <NavItem icon={FlaskConical} label="Laboratory" path="/lab" />}
+        {(isOwner || isLabTech) && settings.enable_labs && <NavItem icon={TestTube2} label="Lab Tests Master" path="/lab-tests" />}
+        {(isOwner || isPharmacist) && settings.enable_pharmacy && <NavItem icon={Package} label="Pharmacy" path="/pharmacy" />}
+        {(isOwner || isPharmacist || isReceptionist || isLabTech) && settings.enable_billing && <NavItem icon={CreditCard} label="Billing" path="/billing" />}
+        {isOwner && <NavItem icon={Users} label="Staff Directory" path="/staff" />}
+        {(isOwner || isPharmacist) && <NavItem icon={BarChart3} label="Intelligence" path="/analytics" />}
+        {isOwner && <NavItem icon={Settings} label="Settings" path="/settings" />}
       </nav>
 
       <div className="pt-8 border-t border-white/5 mt-auto">

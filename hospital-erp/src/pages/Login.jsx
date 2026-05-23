@@ -12,7 +12,7 @@ import {
   ArrowLeft,
   KeyRound
 } from 'lucide-react';
-import axios from 'axios';
+import apiClient from '../apiClient';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1';
 
@@ -34,7 +34,7 @@ const Login = () => {
       formData.append('username', identifier);
       formData.append('password', password);
 
-      const response = await axios.post(`${API_BASE_URL}/auth/login`, formData, {
+      const response = await apiClient.post(`/auth/login`, formData, {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
 
@@ -58,8 +58,16 @@ const Login = () => {
       localStorage.setItem('user', JSON.stringify(userInfo));
       localStorage.setItem('isAuthenticated', 'true');
 
-      // Redirect to the clinical command center
-      window.location.href = '/clinical';
+      // Redirect to the appropriate dashboard based on role
+      let targetPath = '/clinical';
+      const r = userInfo.role;
+      if (r === 'nurse') targetPath = '/ward';
+      else if (r === 'pharmacist') targetPath = '/pharmacy';
+      else if (r === 'lab_technician') targetPath = '/lab';
+      else if (r === 'receptionist' || r === 'biller') targetPath = '/billing';
+      else if (r === 'hr') targetPath = '/staff';
+      
+      window.location.href = targetPath;
     } catch (err) {
       setError(err.response?.data?.detail || 'Authentication failed. Please check your credentials.');
     } finally {
@@ -83,7 +91,7 @@ const Login = () => {
   const handleFpRequest = async () => {
     setFpLoading(true); setFpError(''); setFpSuccess('');
     try {
-      const res = await axios.post(`${API_BASE_URL}/auth/forgot-password/request`, { identifier: fpId });
+      const res = await apiClient.post(`/auth/forgot-password/request`, { identifier: fpId });
       setFpSuccess('Reset code sent to your registered email / phone.');
       setFpStep('verify');
     } catch (err) { setFpError(err.response?.data?.detail || 'Failed to send reset code.'); }
@@ -93,7 +101,7 @@ const Login = () => {
   const handleFpVerify = async () => {
     setFpLoading(true); setFpError('');
     try {
-      const res = await axios.post(`${API_BASE_URL}/auth/forgot-password/verify`, { identifier: fpId, otp: fpOtp });
+      const res = await apiClient.post(`/auth/forgot-password/verify`, { identifier: fpId, otp: fpOtp });
       // Backend returns a signed reset_token — store it securely
       setFpResetToken(res.data.reset_token);
       setFpStep('reset');
@@ -107,7 +115,7 @@ const Login = () => {
     setFpLoading(true); setFpError('');
     try {
       // Backend requires reset_token (from verify step) + new_password
-      await axios.post(`${API_BASE_URL}/auth/forgot-password/reset`, { reset_token: fpResetToken, new_password: fpNewPw });
+      await apiClient.post(`/auth/forgot-password/reset`, { reset_token: fpResetToken, new_password: fpNewPw });
       setFpStep('done');
     } catch (err) { setFpError(err.response?.data?.detail || 'Reset failed. Please try again.'); }
     finally { setFpLoading(false); }

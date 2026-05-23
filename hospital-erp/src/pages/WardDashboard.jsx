@@ -6,7 +6,7 @@ import {
   AlertCircle, MapPin, Zap
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient from '../apiClient';
 import { API_BASE_URL } from '../api';
 import Sidebar from '../components/Sidebar';
 
@@ -21,13 +21,20 @@ const WardDashboard = () => {
     availableBeds: 0,
     occupancyRate: "0%"
   });
+  
+  // New Admission State
+  const [showAdmissionModal, setShowAdmissionModal] = useState(false);
+  const [newAdmission, setNewAdmission] = useState({
+    patient_id: '',
+    bed_id: ''
+  });
 
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('token');
       const [admResp, bedResp] = await Promise.all([
-        axios.get(`${API_BASE_URL}/clinical/admissions`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_BASE_URL}/clinical/beds`, { headers: { Authorization: `Bearer ${token}` } })
+        apiClient.get(`/admissions`),
+        apiClient.get(`/admissions/beds`)
       ]);
 
       setAdmissions(admResp.data);
@@ -71,6 +78,20 @@ const WardDashboard = () => {
     </div>
   );
 
+  const handleAdmit = async () => {
+    if (!newAdmission.patient_id || !newAdmission.bed_id) return alert('Fill required fields');
+    try {
+      await apiClient.post('/admissions', {
+        patient_id: newAdmission.patient_id,
+        bed_id: newAdmission.bed_id
+      });
+      setShowAdmissionModal(false);
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to admit patient');
+    }
+  };
+
 
   return (
     <div className="flex min-h-screen bg-[#020617] font-outfit">
@@ -91,7 +112,10 @@ const WardDashboard = () => {
             <h1 className="text-5xl font-black text-white tracking-tighter mb-2">Ward Control Center</h1>
             <p className="text-slate-400 font-medium text-lg">Real-time bed availability and patient admission flow.</p>
           </div>
-          <button className="flex items-center gap-2 bg-indigo-600 px-8 py-4 rounded-2xl text-xs font-black text-white hover:bg-indigo-700 shadow-2xl shadow-indigo-500/30 transition-all tracking-widest uppercase mb-2">
+          <button 
+            className="flex items-center gap-2 bg-indigo-600 px-8 py-4 rounded-2xl text-xs font-black text-white hover:bg-indigo-700 shadow-2xl shadow-indigo-500/30 transition-all tracking-widest uppercase mb-2"
+            onClick={() => setShowAdmissionModal(true)}
+          >
             <Plus size={18} /> New Admission
           </button>
         </header>
@@ -145,7 +169,21 @@ const WardDashboard = () => {
                       </span>
                     </td>
                     <td className="px-10 py-7 text-right">
-                       <button className="bg-rose-600/10 text-rose-500 px-6 py-3 rounded-2xl text-[10px] font-black tracking-widest uppercase hover:bg-rose-600 hover:text-white transition-all">Discharge</button>
+                       <button 
+                         className="bg-rose-600/10 text-rose-500 px-6 py-3 rounded-2xl text-[10px] font-black tracking-widest uppercase hover:bg-rose-600 hover:text-white transition-all"
+                         onClick={async () => {
+                           if (window.confirm('Confirm discharge?')) {
+                             try {
+                               await apiClient.post(`/admissions/${adm.id}/discharge`);
+                               fetchData();
+                             } catch (err) {
+                               alert('Discharge failed');
+                             }
+                           }
+                         }}
+                       >
+                         Discharge
+                       </button>
                     </td>
                   </tr>
                 ))}
@@ -180,6 +218,55 @@ const WardDashboard = () => {
           </div>
         </div>
       </main>
+
+      {/* NEW ADMISSION MODAL */}
+      {showAdmissionModal && (
+        <div className="fixed inset-0 bg-black/80 flex justify-center items-center z-[1000] p-10">
+          <div className="bg-[#0f172a] rounded-[32px] border border-white/10 p-10 w-[500px]">
+            <h2 className="text-2xl font-black text-white mb-8">Admit Patient to Ward</h2>
+            
+            <div className="mb-6">
+              <label className="block text-slate-500 text-[10px] font-black uppercase mb-3 tracking-widest">Patient UUID</label>
+              <input 
+                type="text" 
+                className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-indigo-500"
+                placeholder="Enter Patient ID..."
+                value={newAdmission.patient_id}
+                onChange={(e) => setNewAdmission({...newAdmission, patient_id: e.target.value})}
+              />
+            </div>
+
+            <div className="mb-10">
+              <label className="block text-slate-500 text-[10px] font-black uppercase mb-3 tracking-widest">Select Available Bed</label>
+              <select 
+                className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-white text-sm outline-none focus:border-indigo-500"
+                value={newAdmission.bed_id}
+                onChange={(e) => setNewAdmission({...newAdmission, bed_id: e.target.value})}
+              >
+                <option value="">-- Choose Bed --</option>
+                {beds.filter(b => b.status === 'AVAILABLE').map(b => (
+                  <option key={b.id} value={b.id}>Bed: {b.bed_number}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex justify-end gap-4">
+              <button 
+                className="px-6 py-3 rounded-xl font-bold text-slate-500 hover:text-white"
+                onClick={() => setShowAdmissionModal(false)}
+              >
+                CANCEL
+              </button>
+              <button 
+                className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-600/20"
+                onClick={handleAdmit}
+              >
+                ADMIT PATIENT
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

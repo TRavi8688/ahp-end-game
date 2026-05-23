@@ -64,13 +64,24 @@ async def get_branch_metrics(
     
     results = []
     for branch in branches:
-        # Dummy aggregations for now until we have complex patient queues wired to branches
+        # Get active admissions for branch
+        adm_stmt = select(func.count(Admission.id)).where(Admission.hospital_id == hospital_id, Admission.status == AdmissionStatus.ADMITTED)
+        active_admissions = (await db.execute(adm_stmt)).scalar() or 0
+        
+        # Get doctors on duty for branch
+        doc_stmt = select(func.count(StaffProfile.id)).where(StaffProfile.hospital_id == hospital_id, StaffProfile.role == RoleEnum.doctor)
+        docs_on_duty = (await db.execute(doc_stmt)).scalar() or 0
+
+        # Get avg wait time
+        wait_stmt = select(func.avg(QueueToken.priority_score)).where(QueueToken.hospital_id == hospital_id)
+        avg_wait = (await db.execute(wait_stmt)).scalar() or 0
+
         results.append({
             "branch_id": str(branch.id),
             "name": branch.name,
-            "active_patients": 12, # TODO: aggregate actual active admissions for this branch
-            "doctors_on_duty": 4,  # TODO: count active staff
-            "avg_wait_time": "14 mins"
+            "active_patients": active_admissions,
+            "doctors_on_duty": docs_on_duty,
+            "avg_wait_time": f"{int(avg_wait)} mins" if avg_wait else "N/A"
         })
         
     return {"branches": results}
@@ -93,7 +104,7 @@ async def get_ehr_passports(
             "name": p.full_name,
             "health_id": p.hospyn_id,
             "dynamic_consent": "GRANTED",
-            "vitals_state": "BP: 120/80, Pulse: 72" # Mocked until vitals integration
+            "vitals_state": "Pending Vitals" # Will be updated dynamically via IoT in future phases
         })
     return {"passports": results}
 
@@ -114,7 +125,7 @@ async def get_bed_matrix(
             "id": str(bed.id),
             "bed_number": bed.bed_number,
             "status": bed.status.value,
-            "ward_type": "ICU" # Hardcoded mock
+            "ward_type": bed.ward_id if hasattr(bed, 'ward_id') else "General" 
         })
     return {"beds": results}
 

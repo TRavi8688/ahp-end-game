@@ -12,7 +12,7 @@ import {
   CheckCircle2, 
   AlertCircle
 } from 'lucide-react';
-import axios from 'axios';
+import apiClient from '../apiClient';
 import { API_BASE_URL } from '../api';
 import { useNavigate } from 'react-router-dom';
 
@@ -39,7 +39,7 @@ const SetupServices = () => {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/hospital-settings/`, {
+        const res = await apiClient.get(`/hospital-settings/`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -89,7 +89,7 @@ const SetupServices = () => {
     setError('');
 
     try {
-      const res = await axios.post(`${API_BASE_URL}/hospital-settings/`, modules, {
+      const res = await apiClient.post(`/hospital-settings/`, modules, {
         headers: { Authorization: `Bearer ${token}` }
       });
       

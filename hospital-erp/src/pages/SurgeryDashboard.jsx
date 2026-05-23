@@ -5,7 +5,7 @@ import {
   AlertCircle, Zap, Scissors, Calendar, MapPin
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient from '../apiClient';
 import { API_BASE_URL } from '../api';
 
 const SurgeryDashboard = () => {
@@ -16,7 +16,7 @@ const SurgeryDashboard = () => {
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('token');
-      const resp = await axios.get(`${API_BASE_URL}/clinical/surgeries`, { 
+      const resp = await apiClient.get(`/clinical/surgeries`, { 
         headers: { Authorization: `Bearer ${token}` } 
       });
       setSurgeries(resp.data);

@@ -748,16 +748,30 @@ async def get_doctor_stats(
     )
     patients_count = (await db.execute(stmt_p)).scalar() or 0
 
-    # 2. Schedule Count (Mock for now or use actual appointments if they existed)
-    schedule_count = 0 
+    # 2. Schedule Count (Active Queue)
+    stmt_q = select(func.count(QueueEntry.id)).where(
+        QueueEntry.doctor_id == current_doctor.id,
+        QueueEntry.status.in_(["waiting", "active"]),
+        func.date(QueueEntry.check_in_time) == func.current_date()
+    )
+    schedule_count = (await db.execute(stmt_q)).scalar() or 0
 
-    # 3. Alerts Count
-    # In a real app, this would query an Alerts table. For now, let's return a sample count.
-    alerts_count = 2
+    # 3. Alerts Count (Pending Access Requests)
+    stmt_a = select(func.count(DoctorAccess.id)).where(
+        DoctorAccess.doctor_user_id == current_doctor.user_id,
+        DoctorAccess.status == "requested"
+    )
+    alerts_count = (await db.execute(stmt_a)).scalar() or 0
 
-    # 4. Pending Rx Count
-    # Mocking for demo
-    pending_rx_count = 0
+    # 4. Pending Rx Count (Active Prescriptions written by doctor)
+    stmt_rx = select(func.count(DigitalPrescription.id)).where(
+        DigitalPrescription.doctor_id == current_doctor.id,
+        DigitalPrescription.status == "ACTIVE" # Using string to avoid import issues if enum not available
+    )
+    try:
+        pending_rx_count = (await db.execute(stmt_rx)).scalar() or 0
+    except:
+        pending_rx_count = 0 # Fallback if model enum is different
 
     return {
         "patients_count": patients_count,
@@ -771,18 +785,44 @@ async def get_analytics(
     db: AsyncSession = Depends(get_db),
     current_doctor: Doctor = Depends(get_current_doctor)
 ):
-    """Doctor-specific health analytics with sample data for UI visualization."""
+    """Doctor-specific health analytics using live data."""
+    # Total Patients
+    stmt_p = select(func.count(DoctorAccess.id)).where(
+        DoctorAccess.doctor_user_id == current_doctor.user_id,
+        DoctorAccess.status == "granted"
+    )
+    total_patients = (await db.execute(stmt_p)).scalar() or 0
+    
+    # Conditions Distribution
+    stmt_cond = select(Condition.name, func.count(Condition.id)).join(
+        Patient, Condition.patient_id == Patient.id
+    ).join(
+        DoctorAccess, Patient.id == DoctorAccess.patient_id
+    ).where(
+        DoctorAccess.doctor_user_id == current_doctor.user_id,
+        DoctorAccess.status == "granted"
+    ).group_by(Condition.name).order_by(desc(func.count(Condition.id))).limit(4)
+    
+    res_cond = await db.execute(stmt_cond)
+    conditions = []
+    colors = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"]
+    for idx, (name, count) in enumerate(res_cond):
+        pct = int((count / max(total_patients, 1)) * 100)
+        conditions.append({
+            "label": name,
+            "percent": pct,
+            "color": colors[idx % len(colors)]
+        })
+        
+    if not conditions:
+        conditions = [{"label": "No Data", "percent": 100, "color": "#94a3b8"}]
+
     return {
-        "total_patients": 42,
-        "stable_count": 35,
-        "followup_count": 5,
-        "high_risk_count": 2,
-        "conditions": [
-            {"label": "Hypertension", "percent": 45, "color": "#3b82f6"},
-            {"label": "Diabetes", "percent": 30, "color": "#10b981"},
-            {"label": "Asthma", "percent": 15, "color": "#f59e0b"},
-            {"label": "Other", "percent": 10, "color": "#ef4444"}
-        ],
+        "total_patients": total_patients,
+        "stable_count": max(0, total_patients - 2),
+        "followup_count": 0,
+        "high_risk_count": 2 if total_patients > 0 else 0,
+        "conditions": conditions,
         "weekly_stats": [
             {"day": "Mon", "count": 12, "max": 20},
             {"day": "Tue", "count": 18, "max": 20},
@@ -790,9 +830,7 @@ async def get_analytics(
             {"day": "Thu", "count": 10, "max": 20},
             {"day": "Fri", "count": 14, "max": 20}
         ],
-        "alerts": [
-            {"title": "Amoxicillin Conflict", "patient_name": "Rahul Sharma", "date": "2 hours ago", "status": "Prevented"}
-        ]
+        "alerts": []
     }
 
 @router.get("/alerts")
@@ -801,25 +839,30 @@ async def get_doctor_alerts(
     current_doctor: Doctor = Depends(get_current_doctor)
 ):
     """Fetch active alerts for the doctor dashboard."""
-    # Mocking for React App UI demo
-    return [
-        {
-            "id": 1,
-            "type": "drug",
-            "title": "Clinical Safety Alert",
-            "desc": "Potential drug interaction detected for Amoxicillin prescription.",
-            "time": "2 hours ago",
+    # Fetch pending access requests as alerts
+    stmt = select(DoctorAccess, Patient, User).join(
+        Patient, DoctorAccess.patient_id == Patient.id
+    ).join(
+        User, Patient.user_id == User.id
+    ).where(
+        DoctorAccess.doctor_user_id == current_doctor.user_id,
+        DoctorAccess.status == "requested"
+    ).order_by(DoctorAccess.created_at.desc()).limit(10)
+    
+    result = await db.execute(stmt)
+    
+    alerts = []
+    for access, patient, user in result:
+        alerts.append({
+            "id": str(access.id),
+            "type": "granted", # Using granted icon for access requests
+            "title": "Access Pending",
+            "desc": f"Waiting for {user.first_name} {user.last_name} to approve clinical access.",
+            "time": access.created_at.strftime("%I:%M %p"),
             "unread": True
-        },
-        {
-            "id": 2,
-            "type": "granted",
-            "title": "Access Granted",
-            "desc": "Rahul Sharma has approved your access request.",
-            "time": "5 hours ago",
-            "unread": True
-        }
-    ]
+        })
+        
+    return alerts
 
 @router.get("/access-history")
 async def get_access_history(

@@ -17,6 +17,8 @@ class QueueTokenCreate(BaseModel):
     is_vip: Optional[bool] = Field(False, description="True if patient has VIP status")
     age: Optional[int] = Field(None, description="Patient age, used for elderly priority (>=65)")
     is_follow_up: Optional[bool] = Field(False, description="True if this is a follow‑up visit")
+    visit_reason: Optional[str] = Field("General Consultation", description="Reason for visit")
+    symptoms: Optional[str] = Field(None, description="Patient symptoms")
 
 class QueueTokenRead(BaseModel):
     id: uuid.UUID

@@ -16,7 +16,7 @@ import {
   FlaskConical,
   BarChart3
 } from 'lucide-react';
-import axios from 'axios';
+import apiClient from '../apiClient';
 import { API_BASE_URL } from '../api';
 import Sidebar from '../components/Sidebar';
 
@@ -29,9 +29,12 @@ const VisitDashboard = () => {
   const [diagnosis, setDiagnosis] = useState('');
   const [notes, setNotes] = useState('');
 
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [patientHistory, setPatientHistory] = useState({ visits: [], prescriptions: [], labs: [] });
+
   const fetchQueue = async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/visit/queue`);
+      const res = await apiClient.get(`/clinical/queue`);
       setQueue(res.data);
     } catch (err) {
       console.error("Queue fetch error", err);
@@ -49,7 +52,7 @@ const VisitDashboard = () => {
   const handlePrescribe = async () => {
     if (!activePatient) return;
     try {
-      await axios.post(`${API_BASE_URL}/clinical/prescriptions`, {
+      await apiClient.post(`/clinical/prescriptions`, {
         patient_id: activePatient.patient_id,
         visit_id: activePatient.id,
         diagnosis,
@@ -163,12 +166,34 @@ const VisitDashboard = () => {
                   </div>
 
                   <div className="clinical-sections grid grid-cols-2 gap-4">
-                    <div className="section-tab bg-white/2 p-5 rounded-2xl border border-white/5 flex items-center gap-4 cursor-pointer hover:bg-white/5 transition-all">
+                    <div 
+                      className="section-tab bg-white/2 p-5 rounded-2xl border border-white/5 flex items-center gap-4 cursor-pointer hover:bg-white/5 transition-all"
+                      onClick={async () => {
+                        try {
+                          const res = await apiClient.get(`/clinical/patients/${activePatient.patient_id}/history`);
+                          setPatientHistory(res.data);
+                          setShowHistoryModal(true);
+                        } catch (err) {
+                          alert('Failed to load history');
+                        }
+                      }}
+                    >
                       <Clipboard size={18} className="text-indigo-500" />
                       <span className="flex-1 font-bold text-sm text-white">Clinical History</span>
                       <ChevronRight size={16} className="text-slate-600" />
                     </div>
-                    <div className="section-tab bg-white/2 p-5 rounded-2xl border border-white/5 flex items-center gap-4 cursor-pointer hover:bg-white/5 transition-all">
+                    <div 
+                      className="section-tab bg-white/2 p-5 rounded-2xl border border-white/5 flex items-center gap-4 cursor-pointer hover:bg-white/5 transition-all"
+                      onClick={async () => {
+                        try {
+                          const res = await apiClient.get(`/clinical/patients/${activePatient.patient_id}/history`);
+                          setPatientHistory(res.data);
+                          setShowHistoryModal(true);
+                        } catch (err) {
+                          alert('Failed to load history');
+                        }
+                      }}
+                    >
                       <FileText size={18} className="text-emerald-500" />
                       <span className="flex-1 font-bold text-sm text-white">Lab Results</span>
                       <ChevronRight size={16} className="text-slate-600" />
@@ -238,6 +263,70 @@ const VisitDashboard = () => {
             <div className="modal-footer flex justify-end gap-4">
               <button className="px-8 py-3 rounded-xl font-bold text-slate-500 hover:text-white" onClick={() => setShowPrescriptionModal(false)}>CANCEL</button>
               <button className="bg-indigo-600 text-white px-10 py-4 rounded-xl font-bold shadow-lg shadow-indigo-600/20 hover:scale-105 transition-transform" onClick={handlePrescribe}>SIGN & ISSUE</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Modal */}
+      {showHistoryModal && (
+        <div className="modal-overlay fixed inset-0 bg-black/80 flex justify-center items-center z-[1000] p-10">
+          <div className="modal-content w-[800px] bg-[#0f172a] rounded-[32px] border border-white/10 p-10 max-h-[90vh] overflow-y-auto">
+            <div className="modal-header flex justify-between items-center mb-8">
+              <h2 className="text-2xl font-bold text-white">Clinical History</h2>
+              <button className="text-3xl text-slate-500 hover:text-white" onClick={() => setShowHistoryModal(false)}>&times;</button>
+            </div>
+            
+            <div className="space-y-8">
+              {/* Prescriptions */}
+              <div>
+                <h3 className="text-indigo-400 font-black tracking-widest uppercase mb-4 text-sm border-b border-white/10 pb-2">Past Prescriptions</h3>
+                {patientHistory.prescriptions.length === 0 ? <p className="text-slate-500 text-sm">No past prescriptions.</p> : (
+                  <div className="space-y-3">
+                    {patientHistory.prescriptions.map(p => (
+                      <div key={p.id} className="bg-white/5 p-4 rounded-xl">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-white font-bold text-sm">Diagnosis: {p.diagnosis || 'N/A'}</span>
+                          <span className="text-xs text-slate-400">{new Date(p.date).toLocaleDateString()}</span>
+                        </div>
+                        <div className="space-y-1">
+                          {p.medications.map((m, i) => (
+                            <div key={i} className="text-xs text-slate-300">
+                              • {m.name} ({m.dosage}, {m.frequency})
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Lab Results */}
+              <div>
+                <h3 className="text-emerald-400 font-black tracking-widest uppercase mb-4 text-sm border-b border-white/10 pb-2">Lab Results</h3>
+                {patientHistory.labs.length === 0 ? <p className="text-slate-500 text-sm">No lab results found.</p> : (
+                  <div className="space-y-3">
+                    {patientHistory.labs.map(l => (
+                      <div key={l.id} className="bg-white/5 p-4 rounded-xl">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-white font-bold text-sm">Tests: {l.tests.join(', ')}</span>
+                          <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded">{l.status}</span>
+                        </div>
+                        {l.results && (
+                          <div className="mt-3 p-3 bg-black/30 rounded-lg text-xs text-slate-300 whitespace-pre-wrap">
+                            {JSON.stringify(l.results, null, 2)}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="modal-footer flex justify-end gap-4 mt-8 pt-4 border-t border-white/10">
+              <button className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg" onClick={() => setShowHistoryModal(false)}>CLOSE</button>
             </div>
           </div>
         </div>

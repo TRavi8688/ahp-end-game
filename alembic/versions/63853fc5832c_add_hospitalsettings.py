@@ -38,13 +38,12 @@ def upgrade() -> None:
         batch_op.create_index(batch_op.f('ix_hospital_settings_hospital_id'), ['hospital_id'], unique=True)
 
     with op.batch_alter_table('forensic_verification_logs', schema=None) as batch_op:
-        batch_op.alter_column('pan_otp_verified',
-               existing_type=sa.BOOLEAN(),
-               nullable=False,
-               existing_server_default=sa.text('false'))
+        batch_op.add_column(sa.Column('pan_otp_code', sa.String(length=10), nullable=True))
+        batch_op.add_column(sa.Column('pan_otp_verified', sa.Boolean(), server_default=sa.text('false'), nullable=False))
+        batch_op.add_column(sa.Column('pan_card_photo_url', sa.String(length=512), nullable=True))
 
-    with op.batch_alter_table('hospital_branches', schema=None) as batch_op:
-        batch_op.drop_column('physical_address')
+    # with op.batch_alter_table('hospital_branches', schema=None) as batch_op:
+    #     batch_op.drop_column('physical_address')
 
     # ### end Alembic commands ###
 

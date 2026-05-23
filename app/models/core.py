@@ -176,6 +176,7 @@ class Hospital(Base):
     name: Mapped[str] = mapped_column(String(255), index=True)
     registration_number: Mapped[str] = mapped_column(String(100), unique=True, index=True)
     subscription_status: Mapped[str] = mapped_column(String(50), default="active")
+    qr_code_id: Mapped[Optional[str]] = mapped_column(String(100), unique=True, index=True, nullable=True)
     
     # --- New Onboarding Flow Fields ---
     verification_status: Mapped[VerificationStatusEnum] = mapped_column(SQLEnum(VerificationStatusEnum), default=VerificationStatusEnum.pending)

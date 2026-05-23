@@ -7,9 +7,7 @@ import {
   BarChart3, Receipt, Activity, FlaskConical, Package
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
-import axios from 'axios';
-import { API_BASE_URL } from '../api';
+import apiClient from '../apiClient';
 import Sidebar from '../components/Sidebar';
 
 const BillingDashboard = () => {
@@ -30,11 +28,10 @@ const BillingDashboard = () => {
   // REAL-TIME DATA SYNC
   const fetchData = async () => {
     try {
-      const token = localStorage.getItem('token');
       const [invResp, payResp, pendResp] = await Promise.all([
-        axios.get(`${API_BASE_URL}/billing/invoices`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_BASE_URL}/billing/payments`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_BASE_URL}/billing/pending-visits`, { headers: { Authorization: `Bearer ${token}` } })
+        apiClient.get('/billing/invoices'),
+        apiClient.get('/billing/payments'),
+        apiClient.get('/billing/pending-visits')
       ]);
 
       setInvoices(invResp.data);
@@ -175,12 +172,29 @@ const BillingDashboard = () => {
                       </span>
                     </td>
                     <td className="px-10 py-7 text-right">
-                      <button 
-                        onClick={() => window.open(`${API_BASE_URL}/billing/invoices/${inv.id}/pdf?token=${localStorage.getItem('token')}`, '_blank')}
-                        className="text-slate-500 hover:text-indigo-400 transition-colors p-2 hover:bg-white/5 rounded-xl"
-                      >
-                        <FileText size={20} />
-                      </button>
+                      <div className="flex justify-end gap-2">
+                        {inv.status === 'PENDING' && (
+                          <button 
+                            onClick={async () => {
+                              try {
+                                await apiClient.post(`/billing/invoices/${inv.id}/pay-cash`);
+                                fetchData();
+                              } catch (e) {
+                                alert("Failed to record cash payment.");
+                              }
+                            }}
+                            className="bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-colors px-3 py-1 rounded-xl text-[10px] font-black tracking-widest uppercase"
+                          >
+                            Pay Cash
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => window.open(`http://localhost:8000/api/v1/billing/invoices/${inv.id}/pdf?token=${localStorage.getItem('token')}`, '_blank')}
+                          className="text-slate-500 hover:text-indigo-400 transition-colors p-2 hover:bg-white/5 rounded-xl"
+                        >
+                          <FileText size={20} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -305,14 +319,11 @@ const CreateInvoiceModal = ({ onClose, onCreated, defaultPatientId = '', default
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
-      const token = localStorage.getItem('token');
-      await axios.post(`${API_BASE_URL}/billing/invoices`, {
+      await apiClient.post('/billing/invoices', {
         patient_id: patientId,
-        visit_id: visitId,
+        visit_id: visitId || null,
         items,
         discount_amount: parseFloat(discount)
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       });
       onCreated();
       onClose();

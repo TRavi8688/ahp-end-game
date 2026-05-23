@@ -21,7 +21,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell, PieChart, Pie
 } from 'recharts';
-import axios from 'axios';
+import apiClient from '../apiClient';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1';
@@ -38,9 +38,9 @@ const AnalyticsDashboard = () => {
       const headers = { Authorization: `Bearer ${token}` };
       
       const [thrRes, riskRes, revRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/analytics/throughput`, { headers }),
-        axios.get(`${API_BASE_URL}/analytics/risk-stratification`, { headers }),
-        axios.get(`${API_BASE_URL}/analytics/revenue`, { headers })
+        apiClient.get(`/analytics/throughput`, { headers }),
+        apiClient.get(`/analytics/risk-stratification`, { headers }),
+        apiClient.get(`/analytics/revenue`, { headers })
       ]);
       
       setThroughput(thrRes.data);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import SetupServices from './pages/SetupServices'
@@ -7,18 +7,36 @@ import PharmacyDashboard from './pages/PharmacyDashboard'
 import BillingDashboard from './pages/BillingDashboard'
 import VisitDashboard from './pages/VisitDashboard'
 import LabDashboard from './pages/LabDashboard'
+import LabTestMaster from './pages/LabTestMaster'
 import AnalyticsDashboard from './pages/AnalyticsDashboard'
 import SettingsPage from './pages/SettingsPage'
 import WardDashboard from './pages/WardDashboard'
 import SurgeryDashboard from './pages/SurgeryDashboard'
 import StaffDashboard from './pages/StaffDashboard'
+import ReceptionDashboard from './pages/ReceptionDashboard'
 import AcceptInvite from './pages/AcceptInvite'
-import axios from 'axios'
-import { API_BASE_URL } from './api'
+import apiClient from './apiClient'
 import './App.css'
 
+// Unauthorized Component for Role Blocking
+const Unauthorized = () => (
+  <div className="min-h-screen bg-[#020617] flex flex-col items-center justify-center text-white p-6 text-center">
+    <div className="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center mb-6">
+      <span className="text-4xl">🛑</span>
+    </div>
+    <h1 className="text-3xl font-black mb-2 tracking-tighter">UNAUTHORIZED ACCESS</h1>
+    <p className="text-slate-400 mb-8 max-w-md">
+      Your current role credentials do not permit access to this operational module.
+      Please contact the Hospital Administrator if you require elevated privileges.
+    </p>
+    <Link to="/" className="bg-indigo-600 hover:bg-indigo-500 px-6 py-3 rounded-xl font-bold tracking-widest text-xs uppercase transition-all">
+      Return to Dashboard
+    </Link>
+  </div>
+);
+
 // Security Gate: Ensures only authenticated hospital staff can access clinical data and checks setup status
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, allowedRoles }) => {
   const isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
   const token = localStorage.getItem('token');
   const [checkingSettings, setCheckingSettings] = useState(true);
@@ -46,9 +64,7 @@ const ProtectedRoute = ({ children }) => {
       }
 
       try {
-        const res = await axios.get(`${API_BASE_URL}/hospital-settings/`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await apiClient.get('/hospital-settings/');
         // If settings have been saved (id exists)
         if (res.data && res.data.id) {
           localStorage.setItem('hospitalSettings', JSON.stringify(res.data));
@@ -82,8 +98,27 @@ const ProtectedRoute = ({ children }) => {
   // If hospital has no settings, send them to the Setup Services wizard
   // (unless they are already on the setup-services page)
   const isSetupPage = window.location.pathname === '/setup-services';
-  if (!hasSettings && !isSetupPage) {
+  
+  const userStr = localStorage.getItem('user');
+  let role = '';
+  try {
+     if (userStr) role = JSON.parse(userStr).role;
+  } catch (e) {}
+
+  if (role === 'doctor') {
+      localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      alert("Doctors must use Hospyn Doctor Pro App.");
+      return <Navigate to="/login" replace />;
+  }
+
+  if (!hasSettings && !isSetupPage && (role === 'hospital_admin' || role === 'admin')) {
     return <Navigate to="/setup-services" replace />;
+  }
+
+  if (allowedRoles && role && !allowedRoles.includes(role)) {
+      return <Unauthorized />;
   }
 
   return children;
@@ -149,11 +184,9 @@ const SetPasswordModal = () => {
 
     setLoading(true);
     try {
-      const res = await axios.post(`${API_BASE_URL}/auth/change-password`, {
+      const res = await apiClient.post('/auth/change-password', {
         current_password: currentPassword,
         new_password: newPassword
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       });
 
       if (res.data && res.data.success) {
@@ -283,21 +316,23 @@ function App() {
           <Route path="/accept-invite" element={<AcceptInvite />} />
           
           <Route path="/setup-services" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['hospital_admin', 'admin']}>
               <SetupServices />
             </ProtectedRoute>
           } />
           
-          <Route path="/pharmacy" element={<ProtectedRoute><PharmacyDashboard /></ProtectedRoute>} />
-          <Route path="/billing" element={<ProtectedRoute><BillingDashboard /></ProtectedRoute>} />
-          <Route path="/clinical" element={<ProtectedRoute><VisitDashboard /></ProtectedRoute>} />
-          <Route path="/lab" element={<ProtectedRoute><LabDashboard /></ProtectedRoute>} />
-          <Route path="/ward" element={<ProtectedRoute><WardDashboard /></ProtectedRoute>} />
-          <Route path="/surgery" element={<ProtectedRoute><SurgeryDashboard /></ProtectedRoute>} />
-          <Route path="/staff" element={<ProtectedRoute><StaffDashboard /></ProtectedRoute>} />
-          <Route path="/analytics" element={<ProtectedRoute><AnalyticsDashboard /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+          <Route path="/reception" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'receptionist']}><ReceptionDashboard /></ProtectedRoute>} />
+          <Route path="/pharmacy" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'pharmacist']}><PharmacyDashboard /></ProtectedRoute>} />
+          <Route path="/billing" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'pharmacist', 'receptionist', 'biller', 'lab_technician']}><BillingDashboard /></ProtectedRoute>} />
+          <Route path="/clinical" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'nurse', 'receptionist', 'biller']}><VisitDashboard /></ProtectedRoute>} />
+          <Route path="/lab" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'lab_technician']}><LabDashboard /></ProtectedRoute>} />
+          <Route path="/ward" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'nurse']}><WardDashboard /></ProtectedRoute>} />
+          <Route path="/surgery" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'nurse']}><SurgeryDashboard /></ProtectedRoute>} />
+          <Route path="/staff" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'hr']}><StaffDashboard /></ProtectedRoute>} />
+          <Route path="/analytics" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin', 'pharmacist']}><AnalyticsDashboard /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute allowedRoles={['hospital_admin', 'admin']}><SettingsPage /></ProtectedRoute>} />
           
+          <Route path="/unauthorized" element={<Unauthorized />} />
           <Route path="/" element={<Navigate to="/clinical" replace />} />
         </Routes>
       </div>

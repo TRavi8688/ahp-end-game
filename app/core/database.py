@@ -137,7 +137,23 @@ async def get_read_db() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 async def set_tenant_context(session: AsyncSession, tenant_id: str):
-    """Sets the PostgreSQL RLS context for the current session."""
-    if not tenant_id: return
+    """Sets the PostgreSQL RLS context for the current session safely."""
+    if not tenant_id:
+        return
     from sqlalchemy import text
-    await session.execute(text(f"SET app.current_tenant = '{tenant_id}'"))
+    
+    # Check dialect to avoid executing PostgreSQL commands on SQLite (used in testing)
+    dialect_name = session.bind.dialect.name if session.bind else None
+    
+    if dialect_name == "postgresql":
+        # Parameterized set_config is safe against SQL injection
+        await session.execute(
+            text("SELECT set_config('app.current_tenant', :tenant_id, true)"),
+            {"tenant_id": str(tenant_id)}
+        )
+    else:
+        # Graceful SQLite fallback for local test environment
+        try:
+            await session.execute(text(f"SET app.current_tenant = '{tenant_id}'"))
+        except Exception:
+            pass

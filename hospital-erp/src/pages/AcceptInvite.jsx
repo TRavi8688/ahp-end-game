@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import apiClient from '../apiClient';
 import { ShieldCheck, User, Lock, Activity } from 'lucide-react';
 import { API_BASE_URL } from '../api';
 
@@ -43,7 +43,7 @@ const AcceptInvite = () => {
     setErrorMsg('');
 
     try {
-      const res = await axios.post(`${API_BASE_URL}/auth/activate-onboarding`, {
+      const res = await apiClient.post(`/auth/activate-onboarding`, {
         token: token,
         password: formData.password,
         first_name: formData.firstName,

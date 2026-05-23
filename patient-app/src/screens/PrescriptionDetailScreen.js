@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Modal, TextInput, ActivityIndicator, Alert, Platform } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Theme, GlobalStyles } from '../theme';
@@ -16,9 +16,20 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
         try {
             const medList = prescription.medications.map(m => `- ${m.name} (${m.dosage})`).join('\n');
             const message = `Digital Prescription from Hospyn\n\nDiagnosis: ${prescription.diagnosis}\nDate: ${new Date(prescription.created_at).toLocaleDateString()}\n\nMedications:\n${medList}\n\nRef: ${prescription.id}`;
-            await Share.share({ message });
+            
+            if (Platform.OS === 'web' && (!navigator.share || !navigator.canShare)) {
+                if (navigator.clipboard) {
+                    await navigator.clipboard.writeText(message);
+                    Alert.alert('Success', 'Prescription details copied to clipboard!');
+                } else {
+                    Alert.alert('Error', 'Clipboard access not available.');
+                }
+            } else {
+                await Share.share({ message });
+            }
         } catch (error) {
-            console.error(error);
+            console.error('[Share Error]:', error);
+            Alert.alert('Sharing Failed', 'Could not share or copy prescription details.');
         }
     };
 

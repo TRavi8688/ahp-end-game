@@ -68,11 +68,11 @@ def create_access_token(
         except Exception as e:
             logger.error(f"JWT_ENCODE_RS256_FAILURE: {str(e)}")
             if settings.ENVIRONMENT == "production":
-                logger.warning("JWT_SIGNING_FAILURE_RS256: Falling back to HS256 for system resilience.")
+                raise ValueError("JWT_SIGNING_FAILURE_RS256: Failed to encode JWT using RS256 in production environment.") from e
 
-    # 2. Fallback to HS256 securely using SECRET_KEY
+    # 2. Fallback to HS256 securely using SECRET_KEY (strictly prohibited in production)
     if settings.ENVIRONMENT == "production":
-        logger.warning("PRODUCTION_AUTH_VIOLATION_RESILIENT: RS256 keys missing. Falling back to HS256 using SECRET_KEY to prevent system outage.")
+        raise ValueError("PRODUCTION_AUTH_VIOLATION: RS256 keys missing or invalid in production environment.")
         
     logger.warning("JWT_ENCODE_FALLBACK: Using HS256 for development/resilience.")
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM_HS256)
@@ -100,9 +100,13 @@ def create_refresh_token(
     if settings.JWT_PRIVATE_KEY and "-----BEGIN" in settings.JWT_PRIVATE_KEY:
         try:
             return jwt.encode(payload, settings.JWT_PRIVATE_KEY, algorithm=ALGORITHM_RS256)
-        except Exception:
-            pass
+        except Exception as e:
+            if settings.ENVIRONMENT == "production":
+                raise ValueError("JWT_SIGNING_FAILURE_RS256: Failed to encode refresh token using RS256 in production.") from e
             
+    if settings.ENVIRONMENT == "production":
+        raise ValueError("PRODUCTION_AUTH_VIOLATION: RS256 keys missing or invalid in production environment.")
+
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM_HS256)
 
 

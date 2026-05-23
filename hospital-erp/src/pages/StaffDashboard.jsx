@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, UserPlus, Search, ShieldCheck, Mail, Briefcase, ChevronRight, Activity, Building, X
 } from 'lucide-react';
-import axios from 'axios';
+import apiClient from '../apiClient';
 import { API_BASE_URL } from '../api';
 import Sidebar from '../components/Sidebar';
 
@@ -17,7 +17,7 @@ const StaffDashboard = () => {
   const fetchStaff = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_BASE_URL}/staff/members`, {
+      const res = await apiClient.get(`/staff/members`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStaffList(res.data);
@@ -47,7 +47,7 @@ const StaffDashboard = () => {
         payload.department_id = inviteData.department_id;
       }
       
-      const res = await axios.post(`${API_BASE_URL}/staff/invites`, payload, {
+      const res = await apiClient.post(`/staff/invites`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       

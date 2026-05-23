@@ -8,8 +8,7 @@ import {
   FlaskConical, ClipboardList, ShieldAlert
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { API_BASE_URL } from '../api';
+import apiClient from '../apiClient';
 import Sidebar from '../components/Sidebar';
 
 import { 
@@ -34,21 +33,22 @@ const PharmacyDashboard = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDispenseModalOpen, setIsDispenseModalOpen] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
+  const [activeTab, setActiveTab] = useState('inventory'); // 'inventory' | 'history'
+  const [historyData, setHistoryData] = useState([]);
 
   const fetchData = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}` };
-      
-      const [statsRes, invRes, presRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/pharmacy/stats`, { headers }),
-        axios.get(`${API_BASE_URL}/pharmacy/inventory`, { headers }),
-        axios.get(`${API_BASE_URL}/clinical/prescriptions`, { headers })
+      const [statsRes, invRes, presRes, histRes] = await Promise.all([
+        apiClient.get('/pharmacy/stats'),
+        apiClient.get('/pharmacy/inventory'),
+        apiClient.get('/clinical/prescriptions'),
+        apiClient.get('/pharmacy/history')
       ]);
       
       setStats(statsRes.data);
       setInventory(invRes.data);
       setPrescriptions(presRes.data.filter(p => p.status === 'pending'));
+      setHistoryData(histRes.data);
     } catch (error) {
       console.error("DATA_FETCH_FAILURE:", error);
     } finally {
@@ -59,6 +59,34 @@ const PharmacyDashboard = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const exportToCSV = () => {
+    if (historyData.length === 0) return alert('No history data to export.');
+    const headers = ['Date', 'Patient Name', 'Hospyn ID', 'Diagnosis', 'Medications'];
+    const csvRows = [];
+    csvRows.push(headers.join(','));
+    
+    for (const row of historyData) {
+      const meds = row.medications.map(m => `${m.name} (${m.dosage})`).join('; ');
+      const values = [
+        new Date(row.date).toLocaleString().replace(/,/g, ''),
+        `"${row.patient_name}"`,
+        row.hospyn_id,
+        `"${row.diagnosis || ''}"`,
+        `"${meds}"`
+      ];
+      csvRows.push(values.join(','));
+    }
+    
+    const csvContent = "data:text/csv;charset=utf-8," + csvRows.join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Pharmacy_History_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const StatCard = ({ title, value, icon: Icon, colorClass, trend, delay }) => (
     <div className="glass-card p-6 animate-fade-in group hover:border-indigo-500/50 transition-all duration-500" style={{ animationDelay: `${delay}ms` }}>
@@ -231,7 +259,20 @@ const PharmacyDashboard = () => {
               <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
                 <ClipboardList className="text-indigo-500" size={20} />
               </div>
-              <h2 className="text-2xl font-black text-white tracking-tight">Active Stock Ledger</h2>
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setActiveTab('inventory')}
+                  className={`text-2xl font-black tracking-tight transition-colors ${activeTab === 'inventory' ? 'text-white' : 'text-slate-600 hover:text-slate-400'}`}
+                >
+                  Active Stock Ledger
+                </button>
+                <button 
+                  onClick={() => setActiveTab('history')}
+                  className={`text-2xl font-black tracking-tight transition-colors ${activeTab === 'history' ? 'text-white' : 'text-slate-600 hover:text-slate-400'}`}
+                >
+                  Dispensation History
+                </button>
+              </div>
             </div>
             <div className="flex gap-4">
               <div className="relative group">
@@ -245,86 +286,130 @@ const PharmacyDashboard = () => {
               <button className="p-4 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 text-white transition-all">
                 <Filter size={20} />
               </button>
+              {activeTab === 'history' && (
+                <button onClick={exportToCSV} className="flex items-center gap-2 p-4 bg-emerald-600/20 text-emerald-400 border border-emerald-500/20 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all font-bold text-sm tracking-widest uppercase">
+                  <Download size={18} /> Export CSV
+                </button>
+              )}
             </div>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-white/[0.02] text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">
-                <tr>
-                  <th className="px-10 py-6">Clinical Identifier</th>
-                  <th className="px-10 py-6">Batch Tracking</th>
-                  <th className="px-10 py-6">Stock Level</th>
-                  <th className="px-10 py-6">Health Index</th>
-                  <th className="px-10 py-6 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {inventory.length === 0 && (
+            {activeTab === 'inventory' ? (
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-white/[0.02] text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">
                     <tr>
-                        <td colSpan="5" className="px-10 py-20 text-center text-slate-600 text-xs font-black uppercase tracking-widest">
-                            No active stock found in dispensary
-                        </td>
+                      <th className="px-10 py-6">Clinical Identifier</th>
+                      <th className="px-10 py-6">Batch Tracking</th>
+                      <th className="px-10 py-6">Stock Level</th>
+                      <th className="px-10 py-6">Health Index</th>
+                      <th className="px-10 py-6 text-right">Actions</th>
                     </tr>
-                )}
-                {inventory.map((item) => {
-                  const isLow = item.stock_quantity <= item.reorder_level;
-                  const expiryDate = new Date(item.expiry_date);
-                  const isExpiring = expiryDate <= new Date(new Date().setDate(new Date().getDate() + 30));
-                  
-                  return (
-                    <tr key={item.id} className="hover:bg-white/[0.02] transition-colors group">
-                      <td className="px-10 py-7">
-                        <div className="flex items-center gap-4">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
-                            isExpiring ? 'bg-rose-500/20 text-rose-500' : 'bg-slate-800 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'
-                          }`}>
-                            <FlaskConical size={18} />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-white font-bold text-lg leading-none">{item.item_name}</span>
-                            <span className="text-slate-500 text-[10px] font-black uppercase mt-2 tracking-widest">
-                                {item.generic_name || 'N/A'} • Exp: {expiryDate.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })}
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {inventory.length === 0 && (
+                        <tr>
+                            <td colSpan="5" className="px-10 py-20 text-center text-slate-600 text-xs font-black uppercase tracking-widest">
+                                No active stock found in dispensary
+                            </td>
+                        </tr>
+                    )}
+                    {inventory.map((item) => {
+                      const isLow = item.stock_quantity <= item.reorder_level;
+                      const expiryDate = new Date(item.expiry_date);
+                      const isExpiring = expiryDate <= new Date(new Date().setDate(new Date().getDate() + 30));
+                      
+                      return (
+                        <tr key={item.id} className="hover:bg-white/[0.02] transition-colors group">
+                          <td className="px-10 py-7">
+                            <div className="flex items-center gap-4">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                                isExpiring ? 'bg-rose-500/20 text-rose-500' : 'bg-slate-800 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'
+                              }`}>
+                                <FlaskConical size={18} />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-white font-bold text-lg leading-none">{item.item_name}</span>
+                                <span className="text-slate-500 text-[10px] font-black uppercase mt-2 tracking-widest">
+                                    {item.generic_name || 'N/A'} • Exp: {expiryDate.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' })}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-10 py-7">
+                            <span className="px-4 py-1.5 bg-indigo-500/5 border border-indigo-500/20 rounded-lg text-indigo-400 font-mono text-xs font-black tracking-widest">
+                              {item.batch_number}
                             </span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-10 py-7">
-                        <span className="px-4 py-1.5 bg-indigo-500/5 border border-indigo-500/20 rounded-lg text-indigo-400 font-mono text-xs font-black tracking-widest">
-                          {item.batch_number}
-                        </span>
-                      </td>
-                      <td className="px-10 py-7">
-                        <div className="flex items-center gap-2">
-                          <span className={`font-black text-lg ${isLow ? 'text-amber-500' : 'text-white'}`}>{item.stock_quantity}</span>
-                          <span className="text-slate-600 text-xs font-bold uppercase tracking-widest">Units</span>
-                        </div>
-                      </td>
-                      <td className="px-10 py-7">
-                        <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border ${
-                          !isLow && !isExpiring ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 
-                          isLow ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 
-                          'bg-rose-500/10 text-rose-500 border-rose-500/20'
-                        }`}>
-                          <div className={`w-1.5 h-1.5 rounded-full ${
-                            !isLow && !isExpiring ? 'bg-emerald-500' : 
-                            isLow ? 'bg-amber-500' : 'bg-rose-500'
-                          }`} />
-                          <span className="text-[10px] font-black uppercase tracking-widest">
-                            {!isLow && !isExpiring ? 'Healthy' : isLow ? 'Low Stock' : 'Near Expiry'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-10 py-7 text-right">
-                        <button className="text-slate-500 hover:text-white transition-colors">
-                          <ChevronRight size={24} />
-                        </button>
-                      </td>
+                          </td>
+                          <td className="px-10 py-7">
+                            <div className="flex items-center gap-2">
+                              <span className={`font-black text-lg ${isLow ? 'text-amber-500' : 'text-white'}`}>{item.stock_quantity}</span>
+                              <span className="text-slate-600 text-xs font-bold uppercase tracking-widest">Units</span>
+                            </div>
+                          </td>
+                          <td className="px-10 py-7">
+                            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl border ${
+                              !isLow && !isExpiring ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 
+                              isLow ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 
+                              'bg-rose-500/10 text-rose-500 border-rose-500/20'
+                            }`}>
+                              <div className={`w-1.5 h-1.5 rounded-full ${
+                                !isLow && !isExpiring ? 'bg-emerald-500' : 
+                                isLow ? 'bg-amber-500' : 'bg-rose-500'
+                              }`} />
+                              <span className="text-[10px] font-black uppercase tracking-widest">
+                                {!isLow && !isExpiring ? 'Healthy' : isLow ? 'Low Stock' : 'Near Expiry'}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-10 py-7 text-right">
+                            <button className="text-slate-500 hover:text-white transition-colors">
+                              <ChevronRight size={24} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+            ) : (
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-white/[0.02] text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">
+                    <tr>
+                      <th className="px-10 py-6">Date</th>
+                      <th className="px-10 py-6">Patient</th>
+                      <th className="px-10 py-6">Diagnosis</th>
+                      <th className="px-10 py-6">Dispensed Meds</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {historyData.length === 0 && (
+                        <tr>
+                            <td colSpan="4" className="px-10 py-20 text-center text-slate-600 text-xs font-black uppercase tracking-widest">
+                                No history found.
+                            </td>
+                        </tr>
+                    )}
+                    {historyData.map((row) => (
+                      <tr key={row.id} className="hover:bg-white/[0.02] transition-colors group text-sm font-medium">
+                        <td className="px-10 py-6 text-slate-400">{new Date(row.date).toLocaleString()}</td>
+                        <td className="px-10 py-6">
+                            <div className="text-white font-bold">{row.patient_name}</div>
+                            <div className="text-[10px] text-slate-500 font-mono mt-1">{row.hospyn_id}</div>
+                        </td>
+                        <td className="px-10 py-6 text-slate-300">{row.diagnosis || '-'}</td>
+                        <td className="px-10 py-6">
+                            <div className="space-y-1">
+                                {row.medications.map((m, i) => (
+                                    <div key={i} className="text-xs text-indigo-300">• {m.name} ({m.dosage})</div>
+                                ))}
+                            </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+            )}
           </div>
         </div>
       </main>
@@ -342,10 +427,7 @@ const AddStockModal = ({ onClose, onCreated }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(`${API_BASE_URL}/pharmacy/inventory`, formData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await apiClient.post('/pharmacy/inventory', formData);
       onCreated();
       onClose();
     } catch (err) { alert("Failed to add stock."); }
@@ -383,20 +465,20 @@ const DispenseModal = ({ inventory, onClose, onDispensed, initialPatientId, init
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}` };
-      
-      // 1. Dispense inventory
-      await axios.post(`${API_BASE_URL}/pharmacy/dispense`, {
+      // 1. Checkout inventory (Creates pending invoice, does NOT deduct stock)
+      const res = await apiClient.post('/pharmacy/checkout', {
         patient_id: patientId,
-        items: [{ inventory_item_id: selectedItem, transaction_type: 'SALE', quantity: qty }]
-      }, { headers });
+        prescription_id: prescriptionId || null,
+        items: [{ inventory_item_id: selectedItem, quantity: qty }]
+      });
 
       // 2. Fulfill prescription if it was initiated from the queue
+      // (Actually, the prescription should stay pending until payment? We'll fulfill it here for now to clear the queue)
       if (prescriptionId) {
-        await axios.post(`${API_BASE_URL}/clinical/prescriptions/${prescriptionId}/fulfill`, {}, { headers });
+        await apiClient.post(`/clinical/prescriptions/${prescriptionId}/fulfill`, {});
       }
 
+      alert(res.data.message || "Invoice generated successfully! Awaiting patient payment.");
       onDispensed();
       onClose();
     } catch (err) { 

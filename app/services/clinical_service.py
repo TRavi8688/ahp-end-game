@@ -285,6 +285,54 @@ class ClinicalService(BaseService):
         db.add(order)
         await db.flush()
         
+        # --- AUTOMATED BILLING GENERATION ---
+        from app.models.billing import Invoice, BillItem, PaymentStatus
+        from app.models.clinical import LabTestMaster
+        from sqlalchemy import select, func
+        
+        # Generate an Invoice
+        import random, string
+        invoice_number = f"INV-LAB-{''.join(random.choices(string.ascii_uppercase + string.digits, k=6))}"
+        
+        invoice = Invoice(
+            invoice_number=invoice_number,
+            patient_id=patient_id,
+            hospital_id=hospital_id,
+            status=PaymentStatus.PENDING,
+            due_date=datetime.now(),
+            notes=f"Auto-generated for Lab Order {str(order.id)[:8]}"
+        )
+        db.add(invoice)
+        await db.flush()
+        
+        total_amount = 0.0
+        
+        # Find prices for the tests requested
+        for test_name in tests:
+            stmt = select(LabTestMaster).where(
+                LabTestMaster.hospital_id == hospital_id,
+                func.lower(LabTestMaster.test_name) == test_name.lower()
+            )
+            res = await db.execute(stmt)
+            test_master = res.scalar_one_or_none()
+            
+            price = float(test_master.base_price) if test_master else 0.0
+            
+            bill_item = BillItem(
+                invoice_id=invoice.id,
+                item_name=test_name,
+                item_category="Laboratory",
+                quantity=1.0,
+                unit_price=price,
+                subtotal=price
+            )
+            db.add(bill_item)
+            total_amount += price
+            
+        invoice.total_amount = total_amount
+        invoice.payable_amount = total_amount
+        # --- END BILLING GENERATION ---
+        
         # Log Immutable Event
         await event_service.log_event(
             db=db,

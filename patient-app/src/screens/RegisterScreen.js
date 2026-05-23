@@ -52,11 +52,19 @@ export default function RegisterScreen({ navigation }) {
             const checkResp = await axios.get(`${API_BASE_URL}/auth/check-user?identifier=${phone}`);
             if (checkResp.data.exists) {
                 setLoading(false);
-                return Alert.alert(
-                    'Already Registered',
-                    'This phone number is already linked to an account. Please login instead.',
-                    [{ text: 'Go to Login', onPress: () => navigation.navigate('Login') }, { text: 'Change Number', style: 'cancel' }]
-                );
+                if (Platform.OS === 'web') {
+                    const proceed = window.confirm("This phone number is already registered. Click OK to go to Login, or Cancel to use a different number.");
+                    if (proceed) {
+                        navigation.navigate('Login');
+                    }
+                } else {
+                    Alert.alert(
+                        'Already Registered',
+                        'This phone number is already linked to an account. Please login instead.',
+                        [{ text: 'Go to Login', onPress: () => navigation.navigate('Login') }, { text: 'Change Number', style: 'cancel' }]
+                    );
+                }
+                return;
             }
 
             // Register the user first so they exist in the DB for OTP verification

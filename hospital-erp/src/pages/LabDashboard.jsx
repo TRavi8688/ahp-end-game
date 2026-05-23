@@ -13,11 +13,14 @@ import {
   User,
   Barcode,
   Save,
-  ChevronRight
+  ChevronRight,
+  FileText,
+  Download,
+  Receipt
 } from 'lucide-react';
+import apiClient from '../apiClient';
 import { API_BASE_URL } from '../api';
 import Sidebar from '../components/Sidebar';
-import axios from 'axios';
 
 const LabDashboard = () => {
   const [orders, setOrders] = useState([]);
@@ -29,14 +32,17 @@ const LabDashboard = () => {
   const [results, setResults] = useState([]);
   const [reportFileUrl, setReportFileUrl] = useState('');
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [activeTab, setActiveTab] = useState('queue'); // 'queue' | 'history'
+  const [historyData, setHistoryData] = useState([]);
 
   const fetchQueue = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_BASE_URL}/lab/queue`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setOrders(res.data);
+      const [queueRes, histRes] = await Promise.all([
+        apiClient.get('/lab/queue'),
+        apiClient.get('/lab/history')
+      ]);
+      setOrders(queueRes.data);
+      setHistoryData(histRes.data);
     } catch (err) {
       console.error("Queue fetch error", err);
     } finally {
@@ -53,10 +59,7 @@ const LabDashboard = () => {
   const handleCollect = async () => {
     if (!activeOrder || !sampleId) return;
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(`${API_BASE_URL}/lab/orders/${activeOrder.id}/collect?sample_id=${sampleId}`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await apiClient.post(`/lab/orders/${activeOrder.id}/collect?sample_id=${sampleId}`, {});
       alert("Sample registered successfully!");
       setShowCollectModal(false);
       setSampleId('');
@@ -69,12 +72,9 @@ const LabDashboard = () => {
   const handleResultSubmit = async () => {
     if (!activeOrder) return;
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(`${API_BASE_URL}/lab/orders/${activeOrder.id}/results`, {
+      await apiClient.post(`/lab/orders/${activeOrder.id}/results`, {
         results: results,
         file_url: reportFileUrl
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       });
       alert("Results finalized and patient notified!");
       setShowResultModal(false);
@@ -84,6 +84,36 @@ const LabDashboard = () => {
     } catch (err) {
       alert("Failed to submit results");
     }
+  };
+
+  const exportToCSV = () => {
+    if (historyData.length === 0) return alert('No history data to export.');
+    const headers = ['Date', 'Patient Name', 'Hospyn ID', 'Tests', 'Results'];
+    const csvRows = [];
+    csvRows.push(headers.join(','));
+    
+    for (const row of historyData) {
+      const tests = row.tests ? row.tests.map(t => t.test_name || t).join('; ') : '';
+      const resultsText = row.results_data ? JSON.stringify(row.results_data).replace(/"/g, '""') : '';
+      
+      const values = [
+        new Date(row.date).toLocaleString().replace(/,/g, ''),
+        `"${row.patient_name}"`,
+        row.hospyn_id,
+        `"${tests}"`,
+        `"${resultsText}"`
+      ];
+      csvRows.push(values.join(','));
+    }
+    
+    const csvContent = "data:text/csv;charset=utf-8," + csvRows.join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Lab_History_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const initResultForm = (order) => {
@@ -111,12 +141,33 @@ const LabDashboard = () => {
           <div className="header-icon lab">
             <FlaskConical size={24} color="#10B981" />
           </div>
-          <div>
-            <h1>Pathology Command</h1>
-            <p>Diagnostic Lifecycle & Sample Tracking</p>
+          <div className="flex gap-4 items-center">
+            <div>
+                <h1>Pathology Command</h1>
+                <p>Diagnostic Lifecycle & Sample Tracking</p>
+            </div>
+            <div className="ml-8 flex gap-2">
+                <button 
+                  onClick={() => setActiveTab('queue')}
+                  className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === 'queue' ? 'bg-emerald-600 text-white' : 'bg-white/5 text-slate-400 hover:text-white'}`}
+                >
+                  Active Queue
+                </button>
+                <button 
+                  onClick={() => setActiveTab('history')}
+                  className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${activeTab === 'history' ? 'bg-emerald-600 text-white' : 'bg-white/5 text-slate-400 hover:text-white'}`}
+                >
+                  Completed History
+                </button>
+            </div>
           </div>
         </div>
           <div className="header-right">
+            {activeTab === 'history' && (
+              <button onClick={exportToCSV} className="mr-4 px-4 py-2 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/20 font-bold text-sm tracking-widest uppercase flex items-center gap-2 hover:bg-indigo-600 hover:text-white transition-all">
+                <Download size={16} /> Export CSV
+              </button>
+            )}
             <div className="stats-pill bg-emerald-500/10 text-emerald-500 px-4 py-2 rounded-full border border-emerald-500/20 flex items-center gap-2 font-bold text-sm">
               <Activity size={16} />
               <span>{orders.length} Active Orders</span>
@@ -125,6 +176,8 @@ const LabDashboard = () => {
         </div>
 
       <div className="dashboard-grid">
+        {activeTab === 'queue' ? (
+          <>
         {/* Left: Lab Queue */}
         <div className="queue-sidebar glass-card">
           <div className="sidebar-header">
@@ -225,6 +278,41 @@ const LabDashboard = () => {
                     </div>
                   </div>
                 )}
+                
+                {/* --- BILLING / INVOICE SECTION --- */}
+                {activeOrder.invoice_id && (
+                  <div className="mt-8 bg-slate-900/50 border border-indigo-500/20 rounded-2xl p-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                          <Receipt size={20} />
+                        </div>
+                        <div>
+                          <h4 className="text-white font-bold text-sm">Financial Bill</h4>
+                          <p className="text-slate-400 text-xs">Linked Invoice #{activeOrder.invoice_id.substring(0,8)}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xl font-black text-emerald-400">₹{activeOrder.payable_amount}</div>
+                        <div className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md inline-block mt-1 ${activeOrder.payment_status === 'PAID' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                          {activeOrder.payment_status}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="border-t border-white/5 pt-4 flex justify-end">
+                      <a 
+                        href={`${API_BASE_URL}/api/v1/billing/invoices/${activeOrder.invoice_id}/pdf`} 
+                        target="_blank" 
+                        rel="noreferrer"
+                        className="px-4 py-2 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all"
+                      >
+                        <Download size={14} />
+                        Print Official Receipt
+                      </a>
+                    </div>
+                  </div>
+                )}
+                {/* --- END BILLING SECTION --- */}
               </div>
             </div>
           ) : (
@@ -237,6 +325,53 @@ const LabDashboard = () => {
             </div>
           )}
         </div>
+          </>
+        ) : (
+          <div className="col-span-12 w-full glass-card overflow-x-auto p-0">
+             <table className="w-full text-left border-collapse">
+                <thead className="bg-white/[0.02] text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] border-b border-white/5">
+                <tr>
+                    <th className="px-10 py-6">Date Completed</th>
+                    <th className="px-10 py-6">Patient Identifier</th>
+                    <th className="px-10 py-6">Tests Preformed</th>
+                    <th className="px-10 py-6">Results Summary</th>
+                </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                {historyData.length === 0 && (
+                    <tr>
+                        <td colSpan="4" className="px-10 py-20 text-center text-slate-600 text-xs font-black uppercase tracking-widest">
+                            No historical lab records found.
+                        </td>
+                    </tr>
+                )}
+                {historyData.map((row) => (
+                    <tr key={row.id} className="hover:bg-white/[0.02] transition-colors group">
+                    <td className="px-10 py-6 text-sm text-slate-400 font-medium">{new Date(row.date).toLocaleString()}</td>
+                    <td className="px-10 py-6">
+                        <div className="text-white font-bold text-sm">{row.patient_name}</div>
+                        <div className="text-[10px] text-slate-500 font-mono mt-1">{row.hospyn_id}</div>
+                    </td>
+                    <td className="px-10 py-6">
+                        <div className="flex flex-wrap gap-2">
+                            {row.tests && row.tests.map((t, i) => (
+                                <span key={i} className="px-2 py-1 bg-white/5 rounded text-[10px] font-bold text-emerald-400">{t.test_name || t}</span>
+                            ))}
+                        </div>
+                    </td>
+                    <td className="px-10 py-6">
+                        {row.results_data ? (
+                           <div className="text-xs text-slate-400 max-w-md truncate">
+                               {JSON.stringify(row.results_data).substring(0, 50)}...
+                           </div>
+                        ) : <span className="text-xs text-slate-600 italic">No structural data</span>}
+                    </td>
+                    </tr>
+                ))}
+                </tbody>
+             </table>
+          </div>
+        )}
       </div>
       </main>
 
@@ -376,12 +511,10 @@ const LabDashboard = () => {
                         if (!file) return;
                         setUploadingFile(true);
                         try {
-                          const token = localStorage.getItem('token');
                           const formData = new FormData();
                           formData.append('file', file);
-                          const res = await axios.post(`${API_BASE_URL}/lab/upload-report`, formData, {
+                          const res = await apiClient.post('/lab/upload-report', formData, {
                             headers: { 
-                              Authorization: `Bearer ${token}`,
                               'Content-Type': 'multipart/form-data'
                             }
                           });

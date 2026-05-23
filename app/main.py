@@ -177,13 +177,22 @@ app.add_middleware(ForensicTelemetryMiddleware)
 
 # --- HARDENED CORS & ERROR RESILIENCE (SHIELD V7.0) ---
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origin_regex=".*",  # Dynamic origin matching for universal CORS compatibility
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+if settings.ENVIRONMENT == "production":
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.ALLOWED_ORIGINS,  # STRICT DOMAIN ENFORCEMENT
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # --- UNIFIED ERROR RESILIENCE & INTERCEPTION ---
 from app.middleware.error_handler import (
