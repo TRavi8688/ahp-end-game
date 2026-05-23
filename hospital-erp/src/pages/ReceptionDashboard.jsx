@@ -177,6 +177,12 @@ const ReceptionDashboard = () => {
               )}
             </div>
 
+            <Link 
+              to="/settings"
+              className="flex items-center gap-2 bg-slate-800 px-6 py-4 rounded-2xl text-xs font-black text-white hover:bg-slate-700 transition-all tracking-widest uppercase border border-slate-700"
+            >
+              <Settings size={18} /> Settings
+            </Link>
             <button 
               className="flex items-center gap-2 bg-indigo-600 px-8 py-4 rounded-2xl text-xs font-black text-white hover:bg-indigo-700 shadow-2xl shadow-indigo-500/30 transition-all tracking-widest uppercase"
               onClick={() => setShowRegisterModal(true)}
