@@ -37,6 +37,7 @@ jobs:
               - 'requirements.txt'
               - 'Dockerfile'
               - 'alembic.ini'
+              - 'alembic/**'
               - 'migrations/**'
             patient:
               - 'patient-app/**'
