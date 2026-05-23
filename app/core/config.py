@@ -234,6 +234,5 @@ def get_settings() -> Settings:
 
 settings = get_settings()
 from functools import lru_cache
- 
- #   t r i g g e r  
- 
+
+# trigger
