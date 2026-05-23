@@ -253,9 +253,12 @@ const ReceptionDashboard = () => {
             
             <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
               {todayQueue.length === 0 ? (
-                <div className="text-center py-10 opacity-30">
-                  <Activity size={32} className="text-white mx-auto mb-2" />
-                  <p className="text-sm font-bold tracking-widest uppercase text-white">Queue Empty</p>
+                <div className="flex flex-col items-center justify-center py-12 px-4 bg-black/20 border border-white/5 rounded-2xl border-dashed">
+                  <div className="w-16 h-16 bg-indigo-500/10 rounded-full flex items-center justify-center mb-4">
+                    <Activity size={28} className="text-indigo-400" />
+                  </div>
+                  <h3 className="text-white font-black text-sm uppercase tracking-widest mb-1">Queue is Clear</h3>
+                  <p className="text-slate-500 text-xs text-center font-medium">No patients are currently waiting. Use the "New Registration" button to onboard arrivals.</p>
                 </div>
               ) : (
                 todayQueue.map((q, idx) => {
@@ -299,7 +302,13 @@ const ReceptionDashboard = () => {
                   </div>
                 ))}
                 {doctorsList.length === 0 && (
-                  <p className="text-xs text-slate-500 italic">No doctors available or fetched.</p>
+                  <div className="flex flex-col items-center justify-center py-8 px-4 bg-black/20 border border-white/5 rounded-2xl border-dashed mt-2">
+                    <div className="w-12 h-12 bg-rose-500/10 rounded-full flex items-center justify-center mb-3">
+                      <Stethoscope size={20} className="text-rose-400" />
+                    </div>
+                    <h3 className="text-white font-bold text-xs uppercase tracking-widest mb-1">No Doctors Online</h3>
+                    <p className="text-slate-500 text-[10px] text-center max-w-[200px]">The hospital roster is empty. HR needs to onboard doctors to dispatch patients.</p>
+                  </div>
                 )}
               </div>
             </div>
