@@ -189,7 +189,7 @@ const BillingDashboard = () => {
                           </button>
                         )}
                         <button 
-                          onClick={() => window.open(`http://localhost:8000/api/v1/billing/invoices/${inv.id}/pdf?token=${localStorage.getItem('token')}`, '_blank')}
+                          onClick={() => window.open(`https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1/billing/invoices/${inv.id}/pdf?token=${localStorage.getItem('token')}`, '_blank')}
                           className="text-slate-500 hover:text-indigo-400 transition-colors p-2 hover:bg-white/5 rounded-xl"
                         >
                           <FileText size={20} />
