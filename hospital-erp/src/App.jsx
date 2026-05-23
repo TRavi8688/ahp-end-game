@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom'
 import Login from './pages/Login'
-import Login from './pages/Login'
 import PharmacyDashboard from './pages/PharmacyDashboard'
 import BillingDashboard from './pages/BillingDashboard'
 import VisitDashboard from './pages/VisitDashboard'
