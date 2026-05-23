@@ -11,7 +11,7 @@ router = APIRouter()
 
 @router.get("/invoices")
 async def get_hospital_invoices(
-    current_user: User = Depends(deps.RoleChecker([RoleEnum.hospital_admin, RoleEnum.admin, RoleEnum.reception, RoleEnum.pharmacy])),
+    current_user: User = Depends(deps.RoleChecker([RoleEnum.hospital_admin, RoleEnum.admin, RoleEnum.receptionist, RoleEnum.pharmacy])),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Returns invoices for the global hospital revenue dashboard."""
@@ -29,7 +29,7 @@ async def get_hospital_invoices(
 
 @router.get("/payments")
 async def get_hospital_payments(
-    current_user: User = Depends(deps.RoleChecker([RoleEnum.hospital_admin, RoleEnum.admin, RoleEnum.reception, RoleEnum.pharmacy])),
+    current_user: User = Depends(deps.RoleChecker([RoleEnum.hospital_admin, RoleEnum.admin, RoleEnum.receptionist, RoleEnum.pharmacy])),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Returns payments for the global hospital revenue dashboard."""
@@ -46,7 +46,7 @@ async def get_hospital_payments(
 
 @router.get("/pending-visits")
 async def get_pending_visits(
-    current_user: User = Depends(deps.RoleChecker([RoleEnum.hospital_admin, RoleEnum.admin, RoleEnum.reception])),
+    current_user: User = Depends(deps.RoleChecker([RoleEnum.hospital_admin, RoleEnum.admin, RoleEnum.receptionist])),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Returns visits that haven't been fully billed yet."""
@@ -89,7 +89,7 @@ class InvoiceCreate(BaseModel):
 @router.post("/invoices")
 async def create_invoice(
     req: InvoiceCreate,
-    current_user: User = Depends(deps.RoleChecker([RoleEnum.hospital_admin, RoleEnum.admin, RoleEnum.reception])),
+    current_user: User = Depends(deps.RoleChecker([RoleEnum.hospital_admin, RoleEnum.admin, RoleEnum.receptionist])),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """Manually generates a clinical invoice."""
@@ -379,7 +379,7 @@ async def payment_success_webhook(
 @router.post("/invoices/{invoice_id}/pay-cash")
 async def pay_invoice_cash(
     invoice_id: str,
-    current_user: User = Depends(deps.RoleChecker([RoleEnum.hospital_admin, RoleEnum.admin, RoleEnum.reception, RoleEnum.pharmacy])),
+    current_user: User = Depends(deps.RoleChecker([RoleEnum.hospital_admin, RoleEnum.admin, RoleEnum.receptionist, RoleEnum.pharmacy])),
     db: AsyncSession = Depends(deps.get_db)
 ):
     """
