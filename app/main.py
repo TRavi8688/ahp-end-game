@@ -223,11 +223,14 @@ def safe_include(router, name, prefix=settings.API_V1_STR, tags=None):
         logger.error(f"ROUTER_LOAD_FAILURE: {name} | Error: {e}")
 
 # Import everything inside a safe block
+global_import_error_msg = None
 try:
     from app.api import auth, patient, profile, doctor, admin, privacy, auth_onboarding, staff, governance, visit, billing, pharmacy, clinical, lab, ward, surgery, settings as hospital_settings
     from app.api.v1.endpoints import onboarding, owner_analytics
     from app.api.v1.router import api_router as enterprise_v1_router
-
+    
+    # NEW WORKER API
+    from app.api.workers import router as worker_router
     safe_include(owner_analytics.router, "Owner Analytics", prefix=f"{settings.API_V1_STR}/owner", tags=["Owner Analytics"])
     safe_include(auth.router, "Authentication", tags=["Authentication"])
     safe_include(patient.router, "Patient", tags=["Patient"])
@@ -248,7 +251,12 @@ try:
     safe_include(surgery.router, "Surgery Management", prefix=settings.API_V1_STR + "/surgery", tags=["Surgery Management"])
     safe_include(onboarding.router, "Premium Onboarding", prefix=settings.API_V1_STR + "/onboarding", tags=["Premium Onboarding"])
     safe_include(hospital_settings.router, "Hospital Settings", prefix=settings.API_V1_STR + "/hospital-settings", tags=["Hospital Settings"])
+    safe_include(worker_router, "Worker API", prefix=settings.API_V1_STR + "/workers", tags=["Workers"])
+
 except Exception as global_e:
+    global_import_error_msg = str(global_e)
+    import traceback
+    global_import_error_msg += "\n" + traceback.format_exc()
     logger.critical(f"GLOBAL_IMPORT_FAILURE: The system is running in DEGRADED MODE. Error: {global_e}")
 
 @app.get("/", tags=["Infrastructure"])
@@ -258,6 +266,9 @@ async def root():
 # --- HEALTH & SRE PROBES ---
 @app.get("/health", tags=["Infrastructure"])
 async def health_check(db: AsyncSession = Depends(deps.get_db)):
+    if global_import_error_msg:
+        return {"status": "degraded", "error": global_import_error_msg}
+    
     """
     ENHANCED DEPLOYMENT HEALTHCHECK (Priority 3):
     Verifies:
