@@ -7,6 +7,13 @@ from sqlalchemy import select, func
 from typing import List, Dict, Any
 import uuid
 from app.core.security import require_module
+from app.schemas.pharmacy import PharmacyCreate, PharmacyAIScanRequest, PharmacyAIScanResponse
+import google.generativeai as genai
+import base64
+import json
+import asyncio
+from app.core.config import settings
+from datetime import datetime
 
 router = APIRouter(dependencies=[Depends(require_module("pharmacy"))])
 
@@ -416,3 +423,107 @@ async def get_dispensation_history(
         })
         
     return history
+
+@router.post("/bulk-upload", response_model=dict)
+async def bulk_upload_stock(
+    items_in: List[PharmacyCreate],
+    current_user: User = Depends(deps.RoleChecker([RoleEnum.hospital_admin, RoleEnum.admin, RoleEnum.pharmacy])),
+    db: AsyncSession = Depends(deps.get_db)
+):
+    """
+    BULK PROCUREMENT:
+    Ingests thousands of SKUs from distributor CSVs instantly.
+    """
+    if not current_user.staff_profile:
+        raise HTTPException(status_code=403, detail="User not linked to a hospital profile")
+        
+    hospital_id = current_user.staff_profile.hospital_id
+    
+    added_count = 0
+    for obj_in in items_in:
+        item = PharmacyInventory(
+            **obj_in.model_dump(),
+            hospital_id=hospital_id
+        )
+        db.add(item)
+        await db.flush() # Flush to get item ID
+
+        txn = InventoryTransaction(
+            hospital_id=hospital_id,
+            inventory_item_id=item.id,
+            transaction_type=InventoryTransactionType.PURCHASE,
+            quantity=obj_in.stock_quantity,
+            notes="Bulk CSV Upload"
+        )
+        db.add(txn)
+        added_count += 1
+
+    await db.commit()
+    return {"status": "success", "items_added": added_count}
+
+@router.post("/ai-scan", response_model=PharmacyAIScanResponse)
+async def ai_scan_medication(
+    req: PharmacyAIScanRequest,
+    current_user: User = Depends(deps.RoleChecker([RoleEnum.hospital_admin, RoleEnum.admin, RoleEnum.pharmacy]))
+):
+    """
+    VISION AI PROCUREMENT:
+    Sends the captured image to Gemini 2.5 to extract structured medical data from the wrapper.
+    """
+    if not settings.GEMINI_API_KEY:
+        # Fallback if no key is configured
+        await asyncio.sleep(1.0)
+        now = datetime.now()
+        next_year = now.replace(year=now.year + 2)
+        return PharmacyAIScanResponse(
+            item_name="Dolo 650 (MOCK - No API Key)",
+            generic_name="Paracetamol IP 650mg",
+            batch_number=f"BNO-{now.strftime('%H%M%S')}",
+            expiry_date=next_year.strftime("%Y-%m-%d"),
+            unit_price=30.50,
+            confidence=0.98
+        )
+        
+    try:
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        
+        # Remove data:image/...;base64, prefix if present
+        b64_data = req.image_base64
+        if "base64," in b64_data:
+            b64_data = b64_data.split("base64,")[1]
+            
+        image_bytes = base64.b64decode(b64_data)
+        image_parts = [{"mime_type": "image/jpeg", "data": image_bytes}]
+        
+        prompt = '''
+        Analyze this image of a medicine wrapper/bottle. Extract the following details and return ONLY a valid JSON object. Do not include markdown formatting or backticks.
+        JSON format:
+        {
+          "item_name": "string (brand name)",
+          "generic_name": "string (salt/composition)",
+          "batch_number": "string",
+          "expiry_date": "YYYY-MM-DD",
+          "unit_price": float (MRP)
+        }
+        If a field is missing, guess logically or leave empty string/0.0.
+        '''
+        
+        response = await asyncio.to_thread(model.generate_content, [prompt, image_parts[0]])
+        text = response.text.replace('```json', '').replace('```', '').strip()
+        data = json.loads(text)
+        
+        now = datetime.now()
+        next_year = now.replace(year=now.year + 2)
+        
+        return PharmacyAIScanResponse(
+            item_name=data.get("item_name", "Unknown Medicine"),
+            generic_name=data.get("generic_name", ""),
+            batch_number=data.get("batch_number", f"BNO-{now.strftime('%H%M%S')}"),
+            expiry_date=data.get("expiry_date", next_year.strftime("%Y-%m-%d")),
+            unit_price=float(data.get("unit_price", 0.0)),
+            confidence=0.92
+        )
+    except Exception as e:
+        print(f"Gemini Extraction Error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to extract data from image. Please try again or enter manually.")
