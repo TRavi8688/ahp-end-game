@@ -8,9 +8,6 @@ from typing import List, Dict, Any
 import uuid
 from app.core.security import require_module
 from app.schemas.pharmacy import PharmacyCreate, PharmacyAIScanRequest, PharmacyAIScanResponse
-import google.generativeai as genai
-import base64
-import json
 import asyncio
 from app.core.config import settings
 from datetime import datetime
@@ -470,6 +467,10 @@ async def ai_scan_medication(
     VISION AI PROCUREMENT:
     Sends the captured image to Gemini 2.5 to extract structured medical data from the wrapper.
     """
+    import google.generativeai as genai
+    import base64
+    import json
+
     if not settings.GEMINI_API_KEY:
         # Fallback if no key is configured
         await asyncio.sleep(1.0)
