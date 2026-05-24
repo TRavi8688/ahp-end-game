@@ -505,7 +505,7 @@ async def get_patient_profile(
         user_first = user.first_name if user else ""
         user_last = user.last_name if user else ""
         
-        full_name = "Patient"
+        full_name = "Member"
         if user_first or user_last:
             full_name = f"{user_first} {user_last}".strip()
 
@@ -1006,8 +1006,9 @@ async def chat_with_chitti(
             from datetime import datetime
             for s3_url in image_s3_urls:
                 is_pdf = s3_url.lower().endswith(".pdf")
+                from app.models import RecordTypeEnum
                 rec_name = f"Chitti Report Scan ({datetime.now().strftime('%d %b %Y')})" if is_pdf else f"Chitti Vision Scan ({datetime.now().strftime('%d %b %Y')})"
-                rec_type = "Chitti PDF Scan" if is_pdf else "Chitti Scan"
+                rec_type = RecordTypeEnum.document if is_pdf else RecordTypeEnum.scan
                 
                 new_record = models.MedicalRecord(
                     patient_id=patient.id,

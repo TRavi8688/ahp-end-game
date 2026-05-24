@@ -411,13 +411,13 @@ class AsyncAIService:
         # 2. Define Providers (Priority Ranked)
         if imgs:
             providers = [
-                ("groq", self._call_groq, "llama-3.2-11b-vision-preview"),
-                ("gemini", self._call_gemini, "gemini-2.5-flash")
+                ("gemini", self._call_gemini, "gemini-2.5-flash"),
+                ("groq", self._call_groq, "llama-3.2-11b-vision-preview")
             ]
         else:
             providers = [
-                ("groq", self._call_groq, "llama-3.3-70b-versatile"),
-                ("gemini", self._call_gemini, "gemini-2.5-flash")
+                ("gemini", self._call_gemini, "gemini-2.5-flash"),
+                ("groq", self._call_groq, "llama-3.3-70b-versatile")
             ]
  
         # --- ADAPTIVE RACING LOGIC ---
@@ -835,7 +835,7 @@ class AsyncAIService:
         if not image_bytes and db:
             try:
                 from sqlalchemy import select
-                from app.models import models
+                from app.models import models, RecordTypeEnum
                 from datetime import datetime, timedelta
                 
                 target_user_id = uuid.UUID(str(user_id))
@@ -849,7 +849,7 @@ class AsyncAIService:
                         select(models.MedicalRecord)
                         .where(
                             models.MedicalRecord.patient_id == patient.id,
-                            models.MedicalRecord.type == "Chitti Scan",
+                            models.MedicalRecord.type == RecordTypeEnum.scan,
                             models.MedicalRecord.created_at >= time_threshold
                         )
                         .order_by(models.MedicalRecord.created_at.desc())

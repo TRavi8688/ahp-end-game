@@ -152,7 +152,7 @@ export default function OnboardingScreen({ navigation }) {
             const registerResp = await axios.post(`${API_BASE_URL}/auth/register`, {
                 phone_number: formData.phone,
                 password: formData.password,
-                first_name: formData.firstName || 'Patient',
+                first_name: formData.firstName || 'Member',
                 last_name: formData.lastName || '',
                 role: 'patient',
                 date_of_birth: formData.dob,
@@ -291,30 +291,38 @@ export default function OnboardingScreen({ navigation }) {
 
             <View style={styles.row}>
                 <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.label}>FIRST NAME</Text>
-                    <View style={styles.inputWrapper}>
+                    <Text style={styles.label}>FIRST NAME *</Text>
+                    <View style={[styles.inputWrapper, errors.firstName && { borderColor: '#ef4444' }]}>
                         <Ionicons name="person-outline" size={20} color="#94A3B8" style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
                             placeholder="John"
                             placeholderTextColor="#475569"
                             value={formData.firstName}
-                            onChangeText={(v) => setFormData({...formData, firstName: v})}
+                            onChangeText={(v) => {
+                                setErrors(prev => ({...prev, firstName: null}));
+                                setFormData({...formData, firstName: v});
+                            }}
                         />
                     </View>
+                    {errors.firstName && <Text style={styles.errorText}>{errors.firstName}</Text>}
                 </View>
                 <View style={[styles.inputGroup, { flex: 1 }]}>
-                    <Text style={styles.label}>LAST NAME</Text>
-                    <View style={styles.inputWrapper}>
+                    <Text style={styles.label}>LAST NAME *</Text>
+                    <View style={[styles.inputWrapper, errors.lastName && { borderColor: '#ef4444' }]}>
                         <Ionicons name="person-outline" size={20} color="#94A3B8" style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
                             placeholder="Doe"
                             placeholderTextColor="#475569"
                             value={formData.lastName}
-                            onChangeText={(v) => setFormData({...formData, lastName: v})}
+                            onChangeText={(v) => {
+                                setErrors(prev => ({...prev, lastName: null}));
+                                setFormData({...formData, lastName: v});
+                            }}
                         />
                     </View>
+                    {errors.lastName && <Text style={styles.errorText}>{errors.lastName}</Text>}
                 </View>
             </View>
 
@@ -419,6 +427,15 @@ export default function OnboardingScreen({ navigation }) {
                     if (formData.consent) {
                         let hasError = false;
                         let newErrors = {};
+
+                        if (!formData.firstName || !formData.firstName.trim()) {
+                            newErrors.firstName = 'First name is required';
+                            hasError = true;
+                        }
+                        if (!formData.lastName || !formData.lastName.trim()) {
+                            newErrors.lastName = 'Last name is required';
+                            hasError = true;
+                        }
 
                         if (!validateDOB(formData.dob)) {
                             newErrors.dob = 'Please enter a valid date (YYYY-MM-DD)';
@@ -537,6 +554,17 @@ export default function OnboardingScreen({ navigation }) {
                         <Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginLeft: 10 }} />
                     </LinearGradient>
                 </TouchableOpacity>
+
+                <TouchableOpacity 
+                    style={styles.skipLink}
+                    onPress={() => {
+                        HapticUtils.light();
+                        setFormData({...formData, bloodGroup: 'Unknown'});
+                        setStep(3);
+                    }}
+                 >
+                    <Text style={styles.skipLinkText}>Skip this step</Text>
+                 </TouchableOpacity>
             </View>
         );
     };

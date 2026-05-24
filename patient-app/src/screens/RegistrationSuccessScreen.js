@@ -9,7 +9,7 @@ import HapticUtils from '../utils/HapticUtils';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function RegistrationSuccessScreen({ navigation, route }) {
-    const { hospyn_id, fullName } = route.params || { hospyn_id: 'Hospyn-IN-XXXX-XXXX-XX', fullName: 'Patient' };
+    const { hospyn_id, fullName } = route.params || { hospyn_id: 'Hospyn-IN-XXXX-XXXX-XX', fullName: 'Member' };
     const { setIsAuthenticated } = useAuth();
 
     const copyToClipboard = async () => {

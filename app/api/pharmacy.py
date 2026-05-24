@@ -93,7 +93,7 @@ async def get_network_orders(
     
     orders = []
     for req in requests:
-        first_name = req.patient.user.first_name if req.patient.user else "Patient"
+        first_name = req.patient.user.first_name if req.patient.user else "Member"
         last_name = req.patient.user.last_name if req.patient.user else ""
         orders.append({
             "id": str(req.id),

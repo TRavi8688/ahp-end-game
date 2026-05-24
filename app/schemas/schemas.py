@@ -415,7 +415,7 @@ class HospitalQRScan(BaseModel):
 
 class PatientProfileResponse(BaseModel):
     id: uuid.UUID
-    full_name: Optional[str] = "Patient"
+    full_name: Optional[str] = "Member"
     email: Optional[str] = None
     phone_number: Optional[str] = None
     hospyn_id: str
