@@ -197,7 +197,7 @@ export default function PharmacyDashboard() {
       <Sidebar />
 
       {/* Pharmacy Sub-Sidebar */}
-      <div className="w-64 bg-[#050b14] border-r border-white/5 flex flex-col z-10 relative hidden md:flex">
+      <div className="w-64 ml-80 bg-[#050b14] border-r border-white/5 flex flex-col z-10 relative hidden md:flex">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-8 h-8 rounded-xl bg-indigo-500 flex items-center justify-center">
