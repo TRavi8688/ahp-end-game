@@ -10,7 +10,11 @@ from app.api import deps
 from app.models.models import PharmacyInventory, InventoryTransaction, InventoryTransactionType, Invoice, BillItem, PaymentStatus, Patient, PartnerPharmacyRequest, DigitalPrescription, User
 from app.schemas.pharmacy import Pharmacy as PharmacySchema, PharmacyCreate, InventoryTransaction as TransactionSchema, DispenseRequest, PharmacyAIScanRequest, PharmacyAIScanResponse
 import asyncio
+import base64
 from sqlalchemy.orm import selectinload
+from app.core.config import settings
+import google.generativeai as genai
+import json
 
 from app.core.security import require_module
 
@@ -185,28 +189,65 @@ async def ai_scan_medication(
 ):
     """
     VISION AI PROCUREMENT:
-    Simulates sending the captured image to an AI Vision API (e.g. Google Cloud Vision or Gemini 1.5)
-    to extract structured medical data from the wrapper.
+    Sends the captured image to Gemini 1.5 to extract structured medical data from the wrapper.
     """
-    # In a real production system, you would decode the req.image_base64
-    # and send it to an AI Vision endpoint here.
-    
-    # Simulating API latency
-    await asyncio.sleep(1.5)
-    
-    # Simulating the AI's OCR extraction result for demonstration
-    # (Pre-trained on a Dolo 650 blister pack)
-    now = datetime.now()
-    next_year = now.replace(year=now.year + 2)
-    
-    return PharmacyAIScanResponse(
-        item_name="Dolo 650",
-        generic_name="Paracetamol IP 650mg",
-        batch_number=f"BNO-{now.strftime('%H%M%S')}",
-        expiry_date=next_year.strftime("%Y-%m-%d"),
-        unit_price=30.50,
-        confidence=0.98
-    )
+    if not settings.GEMINI_API_KEY:
+        # Fallback if no key is configured
+        await asyncio.sleep(1.0)
+        now = datetime.now()
+        next_year = now.replace(year=now.year + 2)
+        return PharmacyAIScanResponse(
+            item_name="Dolo 650 (MOCK - No API Key)",
+            generic_name="Paracetamol IP 650mg",
+            batch_number=f"BNO-{now.strftime('%H%M%S')}",
+            expiry_date=next_year.strftime("%Y-%m-%d"),
+            unit_price=30.50,
+            confidence=0.98
+        )
+        
+    try:
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # Remove data:image/...;base64, prefix if present
+        b64_data = req.image_base64
+        if "base64," in b64_data:
+            b64_data = b64_data.split("base64,")[1]
+            
+        image_bytes = base64.b64decode(b64_data)
+        image_parts = [{"mime_type": "image/jpeg", "data": image_bytes}]
+        
+        prompt = '''
+        Analyze this image of a medicine wrapper/bottle. Extract the following details and return ONLY a valid JSON object. Do not include markdown formatting or backticks.
+        JSON format:
+        {
+          "item_name": "string (brand name)",
+          "generic_name": "string (salt/composition)",
+          "batch_number": "string",
+          "expiry_date": "YYYY-MM-DD",
+          "unit_price": float (MRP)
+        }
+        If a field is missing, guess logically or leave empty string/0.0.
+        '''
+        
+        response = await asyncio.to_thread(model.generate_content, [prompt, image_parts[0]])
+        text = response.text.replace('```json', '').replace('```', '').strip()
+        data = json.loads(text)
+        
+        now = datetime.now()
+        next_year = now.replace(year=now.year + 2)
+        
+        return PharmacyAIScanResponse(
+            item_name=data.get("item_name", "Unknown Medicine"),
+            generic_name=data.get("generic_name", ""),
+            batch_number=data.get("batch_number", f"BNO-{now.strftime('%H%M%S')}"),
+            expiry_date=data.get("expiry_date", next_year.strftime("%Y-%m-%d")),
+            unit_price=float(data.get("unit_price", 0.0)),
+            confidence=0.92
+        )
+    except Exception as e:
+        print(f"Gemini Extraction Error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to extract data from image. Please try again or enter manually.")
 
 @router.post("/dispense")
 async def dispense_medication(

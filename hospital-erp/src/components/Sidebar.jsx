@@ -62,10 +62,10 @@ const Sidebar = () => {
   } catch (e) {}
 
   const isOwner = role === 'hospital_admin' || role === 'admin' || role === 'hr';
-  const isPharmacist = role === 'pharmacist';
+  const isPharmacist = role === 'pharmacy';
   const isNurse = role === 'nurse';
   const isReceptionist = role === 'receptionist' || role === 'biller';
-  const isLabTech = role === 'lab_technician';
+  const isLabTech = role === 'lab';
 
   return (
     <aside className="w-80 glass-card rounded-none border-y-0 border-l-0 p-8 flex flex-col fixed h-full z-30 shadow-2xl shadow-black">
@@ -81,15 +81,15 @@ const Sidebar = () => {
 
       <nav className="flex-1 space-y-3">
         {(isOwner || isReceptionist) && <NavItem icon={Users} label="Reception" path="/reception" />}
-        {(isOwner || isReceptionist || isNurse) && <NavItem icon={Activity} label="Consultations" path="/clinical" />}
+        {(isOwner || isNurse) && <NavItem icon={Activity} label="Consultations" path="/clinical" />}
         {(isOwner || isNurse) && settings.enable_inpatient_beds && <NavItem icon={Bed} label="Ward & IPD" path="/ward" />}
         {(isOwner || isNurse) && settings.enable_inpatient_beds && <NavItem icon={Scissors} label="OT Control" path="/surgery" />}
         {(isOwner || isLabTech) && settings.enable_labs && <NavItem icon={FlaskConical} label="Laboratory" path="/lab" />}
         {(isOwner || isLabTech) && settings.enable_labs && <NavItem icon={TestTube2} label="Lab Tests Master" path="/lab-tests" />}
         {(isOwner || isPharmacist) && settings.enable_pharmacy && <NavItem icon={Package} label="Pharmacy" path="/pharmacy" />}
-        {(isOwner || isPharmacist || isReceptionist || isLabTech) && settings.enable_billing && <NavItem icon={CreditCard} label="Billing" path="/billing" />}
+        {(isOwner || isReceptionist) && settings.enable_billing && <NavItem icon={CreditCard} label="Billing" path="/billing" />}
         {isOwner && <NavItem icon={Users} label="Staff Directory" path="/staff" />}
-        {(isOwner || isPharmacist) && <NavItem icon={BarChart3} label="Intelligence" path="/analytics" />}
+        {isOwner && <NavItem icon={BarChart3} label="Intelligence" path="/analytics" />}
         {isOwner && <NavItem icon={Settings} label="Settings" path="/settings" />}
       </nav>
 

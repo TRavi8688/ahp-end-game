@@ -56,8 +56,6 @@ class PatientService:
         
         if search_term:
             stmt = stmt.where(
-                (User.first_name.ilike(f"%{search_term}%")) | 
-                (User.last_name.ilike(f"%{search_term}%")) | 
                 (Patient.phone_number.ilike(f"%{search_term}%")) |
                 (Patient.hospyn_id.ilike(f"%{search_term}%"))
             )
