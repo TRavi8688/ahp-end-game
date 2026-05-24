@@ -183,10 +183,25 @@ app.add_middleware(ForensicTelemetryMiddleware)
 # --- HARDENED CORS & ERROR RESILIENCE (SHIELD V7.0) ---
 
 if settings.ENVIRONMENT == "production":
-    # STRICT PRODUCTION CORS CONFIGURATION
+    # STRICT PRODUCTION CORS CONFIGURATION - Auto-healing mode
+    production_origins = list(settings.ALLOWED_ORIGINS)
+    core_domains = [
+        "https://hospyn-patient-app.web.app",
+        "https://hospyn-patient-app.firebaseapp.com",
+        "https://hospyn-doctor-pro.web.app",
+        "https://hospyn-doctor-pro.firebaseapp.com",
+        "https://hospyn-erp-portal.web.app",
+        "https://hospyn-erp-portal.firebaseapp.com",
+        "https://hospyn-gateway.web.app",
+        "https://hospyn-gateway.firebaseapp.com",
+    ]
+    for domain in core_domains:
+        if domain not in production_origins:
+            production_origins.append(domain)
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[origin for origin in settings.ALLOWED_ORIGINS if origin != "*"],
+        allow_origins=[origin for origin in production_origins if origin != "*"],
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
         allow_headers=[
