@@ -13,7 +13,6 @@ import asyncio
 import base64
 from sqlalchemy.orm import selectinload
 from app.core.config import settings
-import google.generativeai as genai
 import json
 
 from app.core.security import require_module
@@ -206,6 +205,7 @@ async def ai_scan_medication(
         )
         
     try:
+        import google.generativeai as genai
         genai.configure(api_key=settings.GEMINI_API_KEY)
         model = genai.GenerativeModel('gemini-2.5-flash')
         
