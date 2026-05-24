@@ -1,76 +1,81 @@
 import React, { useState, useEffect } from 'react';
-import apiClient from '../services/apiClient';
-import { Users, FileText, ClipboardList, Activity } from 'lucide-react';
+import { Users, FileText, QrCode, ScanLine } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 export default function Dashboard() {
-  const [stats, setStats] = useState({ referrals: 0, pending: 0, completed: 0 });
+  const [stats, setStats] = useState({ revenue: 0, pending: 0, completed: 0 });
+  const [partnerId, setPartnerId] = useState('PARTNER-8688-XX'); // Mock for now
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mocking an initial load until actual backend routes for partners are established
     setTimeout(() => {
-      setStats({ referrals: 12, pending: 5, completed: 7 });
+      setStats({ revenue: 12500, pending: 5, completed: 32 });
       setLoading(false);
     }, 800);
   }, []);
 
-  const StatCard = ({ title, value, icon: Icon, colorClass }) => (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-5">
-      <div className={`p-4 rounded-xl ${colorClass}`}>
-        <Icon className="w-7 h-7" />
-      </div>
-      <div>
-        <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-        <h3 className="text-3xl font-bold text-gray-900">{value}</h3>
-      </div>
+  const StatCard = ({ title, value, prefix = "", colorClass }) => (
+    <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex-1">
+      <p className="text-xs font-medium text-gray-500 mb-1">{title}</p>
+      <h3 className={`text-2xl font-bold ${colorClass}`}>
+        {prefix}{value}
+      </h3>
     </div>
   );
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Partner Overview</h1>
-        <p className="text-gray-500 mt-1">Manage incoming referrals and diagnostic workflows.</p>
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Welcome back,</h1>
+        <p className="text-sm text-gray-500">CityCare Pharmacy</p>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-32">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <StatCard 
-            title="Total Referrals" 
-            value={stats.referrals} 
-            icon={Users} 
-            colorClass="bg-blue-50 text-blue-600" 
-          />
-          <StatCard 
-            title="Pending Action" 
-            value={stats.pending} 
-            icon={ClipboardList} 
-            colorClass="bg-amber-50 text-amber-600" 
-          />
-          <StatCard 
-            title="Completed" 
-            value={stats.completed} 
-            icon={FileText} 
-            colorClass="bg-green-50 text-green-600" 
-          />
+        <div className="flex gap-4 mb-8 overflow-x-auto pb-2 snap-x">
+          <div className="snap-start min-w-[140px]">
+            <StatCard title="Today's Revenue" value={stats.revenue.toLocaleString()} prefix="₹" colorClass="text-green-600" />
+          </div>
+          <div className="snap-start min-w-[140px]">
+            <StatCard title="Pending Orders" value={stats.pending} colorClass="text-amber-600" />
+          </div>
+          <div className="snap-start min-w-[140px]">
+            <StatCard title="Total Dispensed" value={stats.completed} colorClass="text-primary-600" />
+          </div>
         </div>
       )}
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-          <h3 className="text-lg font-bold text-gray-900">Recent Referrals</h3>
-          <button className="text-sm font-semibold text-primary-600 hover:text-primary-700 transition-colors">
-            View All
-          </button>
-        </div>
-        <div className="p-12 text-center">
-          <Activity className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-          <h4 className="text-lg font-medium text-gray-900 mb-1">No Active Referrals</h4>
-          <p className="text-gray-500">When hospitals send patients to your facility, they will appear here.</p>
+      {/* QR Code Section */}
+      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden relative isolate">
+        <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-primary-50 opacity-50 -z-10"></div>
+        
+        <div className="p-8 flex flex-col items-center text-center">
+          <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center mb-4">
+            <ScanLine className="w-6 h-6 text-primary-600" />
+          </div>
+          
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Receive Prescriptions</h2>
+          <p className="text-sm text-gray-500 max-w-xs mb-8">
+            Ask patients to scan this QR code using their Hospyn app to securely beam their prescription to your screen.
+          </p>
+
+          <div className="bg-white p-4 rounded-2xl shadow-sm border-2 border-gray-100 mb-4 inline-block">
+            <QRCodeSVG 
+              value={`hospyn://partner/${partnerId}`} 
+              size={200}
+              level="H"
+              includeMargin={false}
+              fgColor="#111827"
+            />
+          </div>
+
+          <div className="bg-gray-50 px-4 py-2 rounded-lg border border-gray-200 mt-2">
+            <p className="text-xs text-gray-500 uppercase font-semibold tracking-wider mb-1">Your Hospyn ID</p>
+            <p className="text-lg font-mono font-bold text-gray-900 tracking-widest">{partnerId}</p>
+          </div>
         </div>
       </div>
     </div>
