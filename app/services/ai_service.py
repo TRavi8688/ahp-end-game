@@ -168,7 +168,27 @@ class AsyncAIService:
         for img in imgs:
             parts.append({"inline_data": {"mime_type": mime_type, "data": base64.b64encode(img).decode('utf-8')}})
         
-        payload = {"contents": [{"parts": parts}]}
+        payload = {
+            "contents": [{"parts": parts}],
+            "safetySettings": [
+                {
+                    "category": "HARM_CATEGORY_HARASSMENT",
+                    "threshold": "BLOCK_NONE"
+                },
+                {
+                    "category": "HARM_CATEGORY_HATE_SPEECH",
+                    "threshold": "BLOCK_NONE"
+                },
+                {
+                    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                    "threshold": "BLOCK_NONE"
+                },
+                {
+                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                    "threshold": "BLOCK_NONE"
+                }
+            ]
+        }
         if force_json:
             payload["generationConfig"] = {"response_mime_type": "application/json"}
 
