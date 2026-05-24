@@ -22,7 +22,7 @@ module.exports = async function (env, argv) {
   // Explicitly inject EXPO_PUBLIC_ variables into the bundle
   config.plugins.push(
     new webpack.DefinePlugin({
-      'process.env.EXPO_PUBLIC_API_BASE_URL': JSON.stringify(process.env.EXPO_PUBLIC_API_BASE_URL || "https://hospyn-gateway.web.app/api/v1"),
+      'process.env.EXPO_PUBLIC_API_BASE_URL': JSON.stringify(process.env.EXPO_PUBLIC_API_BASE_URL || "https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1"),
       'process.env.EXPO_PUBLIC_ENVIRONMENT': JSON.stringify(process.env.EXPO_PUBLIC_ENVIRONMENT || "production"),
     })
   );

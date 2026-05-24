@@ -222,11 +222,10 @@ jobs:
 
       - name: Build Patient App
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'patient' || (github.event_name == 'push' && needs.check-changes.outputs.patient == 'true')
-        env:
-          EXPO_PUBLIC_API_BASE_URL: "https://hospyn-gateway.web.app/api/v1"
-          EXPO_PUBLIC_ENVIRONMENT: "production"
         run: |
           cd patient-app
+          echo "EXPO_PUBLIC_API_BASE_URL=https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1" > .env
+          echo "EXPO_PUBLIC_ENVIRONMENT=production" >> .env
           npm install --legacy-peer-deps
           npm run build
 
