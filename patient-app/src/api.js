@@ -15,9 +15,8 @@ const getBaseUrl = () => {
         return 'http://192.168.0.21:8000/api/v1'; 
     }
     
-    // Failsafe: If production bundle lacks env var, throw an error to prevent silent failure.
-    // In React Native, throwing an error will be caught by Sentry/ErrorBoundary instead of routing data blindly.
-    throw new Error('FATAL: EXPO_PUBLIC_API_BASE_URL is not defined in the production environment.');
+    // Failsafe: If production bundle lacks env var (e.g., standard Metro web build), fallback to production API
+    return 'https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1';
 };
 
 export const API_BASE_URL = getBaseUrl();

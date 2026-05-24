@@ -201,18 +201,10 @@ if settings.ENVIRONMENT == "production":
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[origin for origin in production_origins if origin != "*"],
+        allow_origins=core_domains, # Use explicit domains to allow credentials
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-        allow_headers=[
-            "Authorization", 
-            "Content-Type", 
-            "Accept", 
-            "Origin", 
-            "X-Requested-With", 
-            "tenant-id", 
-            "hospital-id"
-        ],
+        allow_methods=["*"],
+        allow_headers=["*"],
         expose_headers=["Content-Length", "X-JSON-Error"],
     )
 else:

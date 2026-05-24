@@ -186,6 +186,8 @@ class AsyncAIService:
         except Exception as e:
             await self.circuits[provider]._on_failure(e)
             logger.error(f"Gemini API call failed: {e}")
+            if hasattr(e, 'response'):
+                logger.error(f"Gemini Response Body: {e.response.text}")
             return "ERROR"
 
     async def _call_anthropic(self, model: str, prompt: str, image_bytes: bytes = None, mime_type: str = "image/jpeg", force_json: bool = False, image_bytes_list: Optional[List[bytes]] = None) -> str:

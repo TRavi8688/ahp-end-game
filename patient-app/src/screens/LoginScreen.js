@@ -31,10 +31,12 @@ export default function AuthScreen({ navigation }) {
 
     // Frictionless Setup Profile States
     const [setupModalVisible, setSetupModalVisible] = useState(false);
+    const [setupFirstName, setSetupFirstName] = useState('');
+    const [setupLastName, setSetupLastName] = useState('');
     const [setupPhone, setSetupPhone] = useState('');
     const [setupDob, setSetupDob] = useState('');
     const [setupGender, setSetupGender] = useState('Male');
-    const [setupBloodGroup, setSetupBloodGroup] = useState('O+');
+    const [setupBloodGroup, setSetupBloodGroup] = useState('Unknown'); // Changed default to 'Unknown' per Skip option request
     const [setupPassword, setSetupPassword] = useState('');
     const [setupLoading, setSetupLoading] = useState(false);
     const [tempAuthToken, setTempAuthToken] = useState('');
@@ -102,7 +104,7 @@ export default function AuthScreen({ navigation }) {
                                     } else if (profileErr.response?.status === 403) {
                                         Alert.alert(
                                             'Access Denied', 
-                                            'This Google account is registered as a Doctor/Staff. The Patient App is strictly for patients. Please use a different email to create a Patient account.'
+                                            'This Google account is registered as a Doctor/Staff. This application is strictly for personal health accounts. Please use a different email to create a member account.'
                                         );
                                         throw new Error("Handled403");
                                     } else {
@@ -230,9 +232,14 @@ export default function AuthScreen({ navigation }) {
 
     // Submit Frictionless Profile Setup
     const handleSetupSubmit = async () => {
-        // Auto-fill placeholders as default values for seamless developer flow if left empty
-        const cleanPhone = (setupPhone || '9876543210').trim();
-        const cleanDob = (setupDob || '1995-08-25').trim();
+        const cleanFirstName = setupFirstName.trim();
+        const cleanLastName = setupLastName.trim();
+        const cleanPhone = setupPhone.trim();
+        const cleanDob = setupDob.trim();
+
+        if (!cleanFirstName || !cleanLastName) {
+            return Alert.alert('Name Required', 'Please enter your first and last name to complete setup.');
+        }
 
         // Phone validation
         if (!/^\d{10}$/.test(cleanPhone)) {
@@ -247,6 +254,8 @@ export default function AuthScreen({ navigation }) {
         setSetupLoading(true);
         try {
             const payload = {
+                first_name: cleanFirstName,
+                last_name: cleanLastName,
                 phone_number: cleanPhone,
                 date_of_birth: cleanDob,
                 gender: setupGender,
@@ -505,6 +514,35 @@ export default function AuthScreen({ navigation }) {
                                 </View>
 
                                 <View style={styles.setupForm}>
+                                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                                        <View style={[styles.inputGroup, { flex: 1 }]}>
+                                            <Text style={styles.label}>FIRST NAME *</Text>
+                                            <View style={styles.inputWrapper}>
+                                                <Ionicons name="person-outline" size={18} color="#94A3B8" style={styles.inputIcon} />
+                                                <TextInput
+                                                    style={styles.input}
+                                                    placeholder="John"
+                                                    placeholderTextColor="#475569"
+                                                    value={setupFirstName}
+                                                    onChangeText={setSetupFirstName}
+                                                />
+                                            </View>
+                                        </View>
+                                        <View style={[styles.inputGroup, { flex: 1 }]}>
+                                            <Text style={styles.label}>LAST NAME *</Text>
+                                            <View style={styles.inputWrapper}>
+                                                <Ionicons name="person-outline" size={18} color="#94A3B8" style={styles.inputIcon} />
+                                                <TextInput
+                                                    style={styles.input}
+                                                    placeholder="Doe"
+                                                    placeholderTextColor="#475569"
+                                                    value={setupLastName}
+                                                    onChangeText={setSetupLastName}
+                                                />
+                                            </View>
+                                        </View>
+                                    </View>
+
                                     <View style={styles.inputGroup}>
                                         <Text style={styles.label}>MOBILE NUMBER (NO OTP REQUIRED)</Text>
                                         <View style={styles.inputWrapper}>
@@ -553,7 +591,7 @@ export default function AuthScreen({ navigation }) {
                                     <View style={styles.inputGroup}>
                                         <Text style={styles.label}>BLOOD GROUP</Text>
                                         <View style={styles.pillContainerScroll}>
-                                            {['A+', 'B+', 'AB+', 'O+', 'A-', 'B-', 'AB-', 'O-'].map((bg) => (
+                                            {['A+', 'B+', 'AB+', 'O+', 'A-', 'B-', 'AB-', 'O-', 'Unknown'].map((bg) => (
                                                 <TouchableOpacity
                                                     key={bg}
                                                     style={[styles.smallPill, setupBloodGroup === bg && styles.pillBtnActive]}
