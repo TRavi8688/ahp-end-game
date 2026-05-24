@@ -207,7 +207,7 @@ async def ai_scan_medication(
         
     try:
         genai.configure(api_key=settings.GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         
         # Remove data:image/...;base64, prefix if present
         b64_data = req.image_base64
