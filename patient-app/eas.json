@@ -14,11 +14,7 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
-      "ios": {
-        "entitlements": {
-          "aps-environment": "development"
-        }
-      },
+      "ios": {},
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://hospyn-gateway-staging.web.app/api/v1",
         "EXPO_PUBLIC_ENVIRONMENT": "staging"
@@ -30,11 +26,7 @@
       "android": {
         "buildType": "app-bundle"
       },
-      "ios": {
-        "entitlements": {
-          "aps-environment": "production"
-        }
-      },
+      "ios": {},
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://hospyn-gateway.web.app/api/v1",
         "EXPO_PUBLIC_ENVIRONMENT": "production"
