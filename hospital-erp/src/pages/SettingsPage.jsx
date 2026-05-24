@@ -11,6 +11,21 @@ const SettingsPage = () => {
     status: 'ACTIVE'
   });
 
+  const [settings, setSettings] = useState({
+    sms_notifications_enabled: true,
+    email_notifications_enabled: true,
+    whatsapp_notifications_enabled: false,
+    require_patient_consent: true,
+    data_sharing_enabled: false,
+    enable_pharmacy: true,
+    enable_labs: true,
+    enable_inpatient_beds: true,
+    enable_hr: true,
+    enable_billing: true,
+    max_beds_configured: 0,
+    has_multiple_branches: false
+  });
+
   const [personalInfo, setPersonalInfo] = useState({
     name: '',
     hospyn_id: '',
@@ -47,7 +62,18 @@ const SettingsPage = () => {
 
     fetchMetadata();
     fetchDepartments();
+    fetchSettings();
   }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await apiClient.get('/hospital-settings/', { headers: { Authorization: `Bearer ${token}` } });
+      setSettings(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchMetadata = async () => {
     try {
@@ -83,6 +109,16 @@ const SettingsPage = () => {
       alert('Hospital metadata updated successfully!');
     } catch (err) {
       alert('Failed to update hospital metadata.');
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      await apiClient.post('/hospital-settings/', settings, { headers: { Authorization: `Bearer ${token}` } });
+      alert('Settings updated successfully!');
+    } catch (err) {
+      alert('Failed to update settings. Are you an Admin?');
     }
   };
 
@@ -343,10 +379,68 @@ const SettingsPage = () => {
             </>
           )}
 
-          {/* Placeholder for other tabs */}
-          {['Notifications', 'Privacy Settings'].includes(activeTab) && (
-            <div className="glass-card p-10 text-center text-slate-500 py-20 animate-fade-in">
-              <p className="font-bold">This module is currently under development.</p>
+          {activeTab === 'Notifications' && (
+            <div className="glass-card p-10 animate-fade-in">
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="text-2xl font-black flex items-center gap-3">
+                  <Bell className="text-indigo-500" /> Notifications & Alerts
+                </h2>
+                <button onClick={handleSaveSettings} className="bg-indigo-600 px-6 py-3 rounded-2xl font-black text-[10px] tracking-widest uppercase hover:bg-indigo-500 transition-all flex items-center gap-2">
+                  <Save size={16} /> Save Settings
+                </button>
+              </div>
+              <div className="space-y-6">
+                {[
+                  { id: 'sms_notifications_enabled', label: 'SMS Notifications', desc: 'Send appointment and lab updates via SMS to patients.' },
+                  { id: 'email_notifications_enabled', label: 'Email Notifications', desc: 'Send detailed reports and billing receipts via Email.' },
+                  { id: 'whatsapp_notifications_enabled', label: 'WhatsApp Alerts', desc: 'Enable Hospyn WhatsApp bot for instant updates.' },
+                ].map((toggle) => (
+                  <div key={toggle.id} className="flex justify-between items-center p-6 bg-white/[0.02] border border-white/5 rounded-3xl hover:border-indigo-500/30 transition-all">
+                    <div>
+                      <h3 className="font-bold text-white mb-1">{toggle.label}</h3>
+                      <p className="text-sm text-slate-500">{toggle.desc}</p>
+                    </div>
+                    <button 
+                      onClick={() => setSettings({...settings, [toggle.id]: !settings[toggle.id]})}
+                      className={`w-14 h-8 rounded-full p-1 transition-colors ${settings[toggle.id] ? 'bg-indigo-500' : 'bg-slate-700'}`}
+                    >
+                      <div className={`w-6 h-6 bg-white rounded-full transition-transform ${settings[toggle.id] ? 'translate-x-6' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'Privacy Settings' && (
+            <div className="glass-card p-10 animate-fade-in">
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="text-2xl font-black flex items-center gap-3">
+                  <Lock className="text-rose-500" /> Privacy & Data Control
+                </h2>
+                <button onClick={handleSaveSettings} className="bg-rose-600 px-6 py-3 rounded-2xl font-black text-[10px] tracking-widest uppercase hover:bg-rose-500 transition-all flex items-center gap-2">
+                  <Save size={16} /> Save Settings
+                </button>
+              </div>
+              <div className="space-y-6">
+                {[
+                  { id: 'require_patient_consent', label: 'Require Patient Consent for Records', desc: 'Doctors must request one-time access to view external historical medical records of patients.' },
+                  { id: 'data_sharing_enabled', label: 'Global Data Sharing (HIE)', desc: 'Allow anonymized health data sharing with the National Health Information Exchange.' },
+                ].map((toggle) => (
+                  <div key={toggle.id} className="flex justify-between items-center p-6 bg-white/[0.02] border border-white/5 rounded-3xl hover:border-rose-500/30 transition-all">
+                    <div>
+                      <h3 className="font-bold text-white mb-1">{toggle.label}</h3>
+                      <p className="text-sm text-slate-500">{toggle.desc}</p>
+                    </div>
+                    <button 
+                      onClick={() => setSettings({...settings, [toggle.id]: !settings[toggle.id]})}
+                      className={`w-14 h-8 rounded-full p-1 transition-colors ${settings[toggle.id] ? 'bg-rose-500' : 'bg-slate-700'}`}
+                    >
+                      <div className={`w-6 h-6 bg-white rounded-full transition-transform ${settings[toggle.id] ? 'translate-x-6' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

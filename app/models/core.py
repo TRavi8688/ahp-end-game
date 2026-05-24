@@ -232,6 +232,13 @@ class HospitalSettings(Base):
     # Quotas & Limits
     max_beds_configured: Mapped[int] = mapped_column(default=0)
     has_multiple_branches: Mapped[bool] = mapped_column(default=False)
+
+    # Notifications & Privacy
+    sms_notifications_enabled: Mapped[bool] = mapped_column(default=True)
+    email_notifications_enabled: Mapped[bool] = mapped_column(default=True)
+    whatsapp_notifications_enabled: Mapped[bool] = mapped_column(default=False)
+    require_patient_consent: Mapped[bool] = mapped_column(default=True)
+    data_sharing_enabled: Mapped[bool] = mapped_column(default=False)
     
     hospital: Mapped["Hospital"] = relationship(back_populates="settings")
 

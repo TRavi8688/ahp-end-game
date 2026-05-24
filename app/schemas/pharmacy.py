@@ -79,3 +79,14 @@ class PartnerPharmacyRequestResponse(BaseModel):
     # Optional nested details could be added here
     
     model_config = ConfigDict(from_attributes=True)
+
+class PharmacyAIScanRequest(BaseModel):
+    image_base64: str
+
+class PharmacyAIScanResponse(BaseModel):
+    item_name: str
+    generic_name: str
+    batch_number: str
+    expiry_date: str # YYYY-MM-DD
+    unit_price: float
+    confidence: float

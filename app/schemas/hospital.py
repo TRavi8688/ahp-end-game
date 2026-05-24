@@ -57,6 +57,12 @@ class HospitalSettingsBase(BaseModel):
     enable_billing: bool = True
     max_beds_configured: int = 0
     has_multiple_branches: bool = False
+    
+    sms_notifications_enabled: bool = True
+    email_notifications_enabled: bool = True
+    whatsapp_notifications_enabled: bool = False
+    require_patient_consent: bool = True
+    data_sharing_enabled: bool = False
 
 class HospitalSettingsUpdate(HospitalSettingsBase):
     pass

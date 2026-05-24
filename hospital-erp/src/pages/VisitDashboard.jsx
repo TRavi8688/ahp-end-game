@@ -25,7 +25,9 @@ const VisitDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [activePatient, setActivePatient] = useState(null);
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
+  const [showLabModal, setShowLabModal] = useState(false);
   const [meds, setMeds] = useState([{ name: '', dosage: '', frequency: '', duration: '', instructions: '' }]);
+  const [labTests, setLabTests] = useState(['']);
   const [diagnosis, setDiagnosis] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -64,6 +66,22 @@ const VisitDashboard = () => {
       resetPrescriptionForm();
     } catch (err) {
       alert("Failed to issue prescription");
+    }
+  };
+
+  const handleOrderLabs = async () => {
+    if (!activePatient) return;
+    try {
+      await apiClient.post(`/lab/orders`, {
+        patient_id: activePatient.patient_id,
+        visit_id: activePatient.id,
+        tests: labTests.filter(t => t.trim() !== '')
+      });
+      alert("Lab Tests Ordered Successfully!");
+      setShowLabModal(false);
+      setLabTests(['']);
+    } catch (err) {
+      alert("Failed to order lab tests");
     }
   };
 
@@ -147,10 +165,16 @@ const VisitDashboard = () => {
                       <span className="text-slate-500 text-xs font-bold tracking-widest">HOSPYN-{activePatient.patient_id?.substring(0,6).toUpperCase()}</span>
                     </div>
                   </div>
-                  <button className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/20 hover:scale-105 transition-transform" onClick={() => setShowPrescriptionModal(true)}>
-                    <Pill size={18} />
-                    <span>PRESCRIBE</span>
-                  </button>
+                  <div className="flex gap-3">
+                    <button className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/20 hover:scale-105 transition-transform" onClick={() => setShowLabModal(true)}>
+                      <FlaskConical size={18} />
+                      <span>ORDER LABS</span>
+                    </button>
+                    <button className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/20 hover:scale-105 transition-transform" onClick={() => setShowPrescriptionModal(true)}>
+                      <Pill size={18} />
+                      <span>PRESCRIBE</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="consult-body p-8 flex-1">
@@ -263,6 +287,44 @@ const VisitDashboard = () => {
             <div className="modal-footer flex justify-end gap-4">
               <button className="px-8 py-3 rounded-xl font-bold text-slate-500 hover:text-white" onClick={() => setShowPrescriptionModal(false)}>CANCEL</button>
               <button className="bg-indigo-600 text-white px-10 py-4 rounded-xl font-bold shadow-lg shadow-indigo-600/20 hover:scale-105 transition-transform" onClick={handlePrescribe}>SIGN & ISSUE</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lab Order Modal */}
+      {showLabModal && (
+        <div className="modal-overlay fixed inset-0 bg-black/80 flex justify-center items-center z-[1000] p-10">
+          <div className="modal-content w-[600px] bg-[#0f172a] rounded-[32px] border border-white/10 p-10 max-h-full overflow-y-auto">
+            <div className="modal-header flex justify-between items-center mb-8">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                <FlaskConical className="text-emerald-500" /> Order Diagnostics
+              </h2>
+              <button className="text-3xl text-slate-500 hover:text-white" onClick={() => setShowLabModal(false)}>&times;</button>
+            </div>
+            
+            <div className="prescription-form">
+              <div className="medication-list mb-8">
+                <label className="block text-slate-500 text-[10px] font-black uppercase mb-3 tracking-widest">Diagnostic Tests Required</label>
+                {labTests.map((test, index) => (
+                  <div key={index} className="flex gap-3 mb-3">
+                    <input 
+                      className="flex-1 bg-black/30 border border-emerald-500/20 rounded-lg p-3 text-white text-sm outline-none focus:border-emerald-500 transition-colors" 
+                      placeholder="e.g. Complete Blood Count (CBC)" 
+                      value={test} 
+                      onChange={(e) => { const n = [...labTests]; n[index] = e.target.value; setLabTests(n); }} 
+                    />
+                  </div>
+                ))}
+                <button className="text-emerald-500 font-bold flex items-center gap-2 text-sm mt-4 hover:text-emerald-400" onClick={() => setLabTests([...labTests, ''])}>
+                  <Plus size={16} /> Add Another Test
+                </button>
+              </div>
+            </div>
+
+            <div className="modal-footer flex justify-end gap-4 border-t border-white/5 pt-6 mt-8">
+              <button className="px-8 py-3 rounded-xl font-bold text-slate-500 hover:text-white" onClick={() => setShowLabModal(false)}>CANCEL</button>
+              <button className="bg-emerald-600 text-white px-10 py-4 rounded-xl font-bold shadow-lg shadow-emerald-600/20 hover:scale-105 transition-transform" onClick={handleOrderLabs}>SUBMIT TO LAB</button>
             </div>
           </div>
         </div>

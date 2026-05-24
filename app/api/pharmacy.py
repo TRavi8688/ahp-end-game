@@ -7,8 +7,10 @@ from datetime import datetime
 
 from app.core.database import get_db
 from app.api import deps
-from app.models.models import PharmacyInventory, InventoryTransaction, InventoryTransactionType, Invoice, BillItem, PaymentStatus, Patient
-from app.schemas.pharmacy import Pharmacy as PharmacySchema, PharmacyCreate, InventoryTransaction as TransactionSchema, DispenseRequest
+from app.models.models import PharmacyInventory, InventoryTransaction, InventoryTransactionType, Invoice, BillItem, PaymentStatus, Patient, PartnerPharmacyRequest, DigitalPrescription, User
+from app.schemas.pharmacy import Pharmacy as PharmacySchema, PharmacyCreate, InventoryTransaction as TransactionSchema, DispenseRequest, PharmacyAIScanRequest, PharmacyAIScanResponse
+import asyncio
+from sqlalchemy.orm import selectinload
 
 from app.core.security import require_module
 
@@ -66,6 +68,41 @@ async def get_pharmacy_stats(
         "todaySales": f"₹{today_rev:,.0f}"
     }
 
+@router.get("/network-orders")
+async def get_network_orders(
+    db: AsyncSession = Depends(get_db),
+    hospital_id: uuid.UUID = Depends(deps.get_hospital_id)
+):
+    """
+    UNIVERSAL PRESCRIPTION NETWORK:
+    Fetches external prescriptions shared by patients to this pharmacy via QR scan.
+    """
+    stmt = select(PartnerPharmacyRequest).where(
+        PartnerPharmacyRequest.partner_pharmacy_id == hospital_id,
+        PartnerPharmacyRequest.status == "pending"
+    ).options(
+        selectinload(PartnerPharmacyRequest.prescription),
+        selectinload(PartnerPharmacyRequest.patient).selectinload(Patient.user)
+    ).order_by(PartnerPharmacyRequest.created_at.desc())
+    
+    result = await db.execute(stmt)
+    requests = result.scalars().all()
+    
+    orders = []
+    for req in requests:
+        first_name = req.patient.user.first_name if req.patient.user else "Patient"
+        last_name = req.patient.user.last_name if req.patient.user else ""
+        orders.append({
+            "id": str(req.id),
+            "prescription_id": str(req.prescription_id),
+            "patient_name": f"{first_name} {last_name}".strip(),
+            "patient_phone": req.patient.phone_number or "N/A",
+            "diagnosis": req.prescription.diagnosis,
+            "medications": req.prescription.medications,
+            "shared_at": req.created_at.isoformat() if req.created_at else None
+        })
+    return orders
+
 @router.get("/inventory", response_model=List[PharmacySchema])
 async def get_pharmacy_inventory(
     db: AsyncSession = Depends(get_db),
@@ -108,6 +145,68 @@ async def add_stock(
     db.add(txn)
     await db.commit()
     return item
+
+@router.post("/bulk-upload", response_model=dict)
+async def bulk_upload_stock(
+    items_in: List[PharmacyCreate],
+    db: AsyncSession = Depends(get_db),
+    hospital_id: uuid.UUID = Depends(deps.get_hospital_id)
+):
+    """
+    BULK PROCUREMENT:
+    Ingests thousands of SKUs from distributor CSVs instantly.
+    """
+    added_count = 0
+    for obj_in in items_in:
+        item = PharmacyInventory(
+            **obj_in.model_dump(),
+            hospital_id=hospital_id
+        )
+        db.add(item)
+        await db.flush() # Flush to get item ID
+
+        txn = InventoryTransaction(
+            hospital_id=hospital_id,
+            inventory_item_id=item.id,
+            transaction_type=InventoryTransactionType.PURCHASE,
+            quantity=obj_in.stock_quantity,
+            notes="Bulk CSV Upload"
+        )
+        db.add(txn)
+        added_count += 1
+
+    await db.commit()
+    return {"status": "success", "items_added": added_count}
+
+@router.post("/ai-scan", response_model=PharmacyAIScanResponse)
+async def ai_scan_medication(
+    req: PharmacyAIScanRequest,
+    hospital_id: uuid.UUID = Depends(deps.get_hospital_id)
+):
+    """
+    VISION AI PROCUREMENT:
+    Simulates sending the captured image to an AI Vision API (e.g. Google Cloud Vision or Gemini 1.5)
+    to extract structured medical data from the wrapper.
+    """
+    # In a real production system, you would decode the req.image_base64
+    # and send it to an AI Vision endpoint here.
+    
+    # Simulating API latency
+    await asyncio.sleep(1.5)
+    
+    # Simulating the AI's OCR extraction result for demonstration
+    # (Pre-trained on a Dolo 650 blister pack)
+    now = datetime.now()
+    next_year = now.replace(year=now.year + 2)
+    
+    return PharmacyAIScanResponse(
+        item_name="Dolo 650",
+        generic_name="Paracetamol IP 650mg",
+        batch_number=f"BNO-{now.strftime('%H%M%S')}",
+        expiry_date=next_year.strftime("%Y-%m-%d"),
+        unit_price=30.50,
+        confidence=0.98
+    )
 
 @router.post("/dispense")
 async def dispense_medication(

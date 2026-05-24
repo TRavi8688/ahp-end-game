@@ -54,6 +54,12 @@ async def update_hospital_settings(
     settings.max_beds_configured = data.max_beds_configured
     settings.has_multiple_branches = data.has_multiple_branches
     
+    settings.sms_notifications_enabled = data.sms_notifications_enabled
+    settings.email_notifications_enabled = data.email_notifications_enabled
+    settings.whatsapp_notifications_enabled = data.whatsapp_notifications_enabled
+    settings.require_patient_consent = data.require_patient_consent
+    settings.data_sharing_enabled = data.data_sharing_enabled
+    
     await db.commit()
     await db.refresh(settings)
     
