@@ -222,7 +222,7 @@ jobs:
     needs: [build-ios, build-android]
     if: |
       always() &&
-      github.event.inputs.submit == 'true' &&
+      (inputs.submit == true || github.event.inputs.submit == 'true') &&
       (needs.build-ios.result == 'success' || needs.build-ios.result == 'skipped') &&
       (needs.build-android.result == 'success' || needs.build-android.result == 'skipped')
     environment: production   # Requires manual approval in GitHub Environments
