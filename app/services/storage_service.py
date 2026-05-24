@@ -32,8 +32,6 @@ class StorageService:
         self.provider = settings.CLOUD_PROVIDER.lower()
         
         if self.provider == "gcp":
-            if not gcs_storage:
-                raise ImportError("GCP storage library 'google-cloud-storage' not installed.")
             self.bucket_name = settings.GCS_BUCKET_NAME
             
             # HIGH-LEVEL RESILIENCE SINGLETON PATTERN
@@ -45,7 +43,7 @@ class StorageService:
                     os.getenv("GOOGLE_APPLICATION_CREDENTIALS") is not None or
                     os.getenv("GCP_CREDENTIALS_JSON") is not None
                 )
-                if is_in_gcp:
+                if is_in_gcp and gcs_storage:
                     StorageService._gcs_client_cache = gcs_storage.Client(project=settings.GCP_PROJECT_ID)
                 else:
                     logger.info("STORAGE_SERVICE: Auto-fallback to offline local mock storage client (0ms lag).")

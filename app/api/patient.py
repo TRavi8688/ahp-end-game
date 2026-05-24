@@ -938,6 +938,7 @@ async def chat_with_chitti(
                         image_s3_urls.append(s3_url)
                     except Exception as upload_err:
                         logger.error(f"AUTO_SAVE_PDF_UPLOAD_FAILURE: {upload_err}")
+                        image_s3_urls.append("local://upload-failed-due-to-storage-config.pdf")
             else:
                 image_bytes_list.append(f_bytes)
                 msg_content += f" (Image attached: {f.filename})"
@@ -958,6 +959,7 @@ async def chat_with_chitti(
                         image_s3_urls.append(s3_url)
                     except Exception as upload_err:
                         logger.error(f"AUTO_SAVE_IMAGE_UPLOAD_FAILURE: {upload_err}")
+                        image_s3_urls.append("local://upload-failed-due-to-storage-config.jpg")
         except Exception as e:
             logger.error(f"Error processing attachment {f.filename}: {e}")
 
