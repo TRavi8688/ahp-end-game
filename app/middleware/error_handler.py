@@ -6,6 +6,17 @@ from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from app.core.logging import logger
 
+def add_cors_headers(request: Request, response: JSONResponse) -> JSONResponse:
+    origin = request.headers.get("origin")
+    if origin:
+        from app.core.config import settings
+        if settings.ENVIRONMENT != "production" or origin in settings.ALLOWED_ORIGINS:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+            response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type, Accept, Origin, X-Requested-With, tenant-id, hospital-id"
+    return response
+
 async def db_exception_handler(request: Request, exc: SQLAlchemyError):
     """
     DATABASE EXCEPTION HANDLER:
@@ -28,7 +39,7 @@ async def db_exception_handler(request: Request, exc: SQLAlchemyError):
         error_code = "DB_CONNECTION_FAILURE"
         message = "Clinical database is temporarily unreachable."
 
-    return JSONResponse(
+    return add_cors_headers(request, JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
             "success": False,
@@ -40,7 +51,7 @@ async def db_exception_handler(request: Request, exc: SQLAlchemyError):
             "path": request.url.path,
             "detail": message
         }
-    )
+    ))
 
 async def http_exception_handler(request: Request, exc: HTTPException):
     """
@@ -69,7 +80,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         message = exc.detail.get("message", str(exc.detail))
         details = exc.detail
 
-    return JSONResponse(
+    return add_cors_headers(request, JSONResponse(
         status_code=exc.status_code,
         content={
             "success": False,
@@ -82,7 +93,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             "path": request.url.path,
             "detail": message
         }
-    )
+    ))
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     """
@@ -108,7 +119,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
     logger.warning(f"VALIDATION_ERROR: {sanitized_errors} | trace_id={trace_id}")
 
-    return JSONResponse(
+    return add_cors_headers(request, JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
             "success": False,
@@ -121,7 +132,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             "path": request.url.path,
             "detail": sanitized_errors
         }
-    )
+    ))
 
 async def global_exception_handler(request: Request, exc: Exception):
     """
@@ -156,7 +167,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     except Exception as inc_e:
         logger.error(f"INCIDENT_DECLARATION_FAILED: {inc_e}")
 
-    return JSONResponse(
+    return add_cors_headers(request, JSONResponse(
         status_code=status_code,
         content={
             "success": False,
@@ -168,4 +179,4 @@ async def global_exception_handler(request: Request, exc: Exception):
             "path": request.url.path,
             "detail": message
         }
-    )
+    ))

@@ -248,8 +248,6 @@ try:
     from app.api.v1.endpoints import onboarding, owner_analytics
     from app.api.v1.router import api_router as enterprise_v1_router
     
-    # NEW WORKER API
-    from app.api.workers import router as worker_router
     safe_include(owner_analytics.router, "Owner Analytics", prefix=f"{settings.API_V1_STR}/owner", tags=["Owner Analytics"])
     safe_include(auth.router, "Authentication", tags=["Authentication"])
     safe_include(patient.router, "Patient", tags=["Patient"])
@@ -270,7 +268,6 @@ try:
     safe_include(surgery.router, "Surgery Management", prefix=settings.API_V1_STR + "/surgery", tags=["Surgery Management"])
     safe_include(onboarding.router, "Premium Onboarding", prefix=settings.API_V1_STR + "/onboarding", tags=["Premium Onboarding"])
     safe_include(hospital_settings.router, "Hospital Settings", prefix=settings.API_V1_STR + "/hospital-settings", tags=["Hospital Settings"])
-    safe_include(worker_router, "Worker API", prefix=settings.API_V1_STR + "/workers", tags=["Workers"])
 
 except Exception as global_e:
     global_import_error_msg = str(global_e)
