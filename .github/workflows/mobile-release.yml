@@ -287,7 +287,7 @@ jobs:
           echo "=========================================="
 
   # ─────────────────────────────────────────────
-  # GATE 6: Slack Launch Notification
+  # GATE 6: Launch Notification
   # ─────────────────────────────────────────────
   notify-team:
     name: 📣 Notify Launch Team
@@ -299,40 +299,9 @@ jobs:
         id: status
         run: |
           if [[ "${{ needs.submit-stores.result }}" == "success" ]]; then
-            echo "emoji=🚀" >> $GITHUB_OUTPUT
-            echo "message=Builds submitted to both stores successfully!" >> $GITHUB_OUTPUT
-            echo "color=good" >> $GITHUB_OUTPUT
+            echo "Builds submitted to both stores successfully!"
           elif [[ "${{ needs.build-ios.result }}" == "success" || "${{ needs.build-android.result }}" == "success" ]]; then
-            echo "emoji=🏗️" >> $GITHUB_OUTPUT
-            echo "message=Builds completed. Submission skipped (manual trigger required)." >> $GITHUB_OUTPUT
-            echo "color=warning" >> $GITHUB_OUTPUT
+            echo "Builds completed. Submission skipped (manual trigger required)."
           else
-            echo "emoji=❌" >> $GITHUB_OUTPUT
-            echo "message=Mobile release pipeline FAILED. Review logs immediately." >> $GITHUB_OUTPUT
-            echo "color=danger" >> $GITHUB_OUTPUT
+            echo "Mobile release pipeline FAILED. Review logs immediately."
           fi
-
-      - name: Send Slack Notification
-        if: secrets.SLACK_WEBHOOK_URL != ''
-        uses: slackapi/slack-github-action@v1.27.0
-        with:
-          payload: |
-            {
-              "attachments": [
-                {
-                  "color": "${{ steps.status.outputs.color }}",
-                  "title": "${{ steps.status.outputs.emoji }} Hospyn Mobile Release — ${{ github.event.inputs.channel || 'preview' }}",
-                  "fields": [
-                    { "title": "Status", "value": "${{ steps.status.outputs.message }}", "short": false },
-                    { "title": "Platform", "value": "${{ github.event.inputs.platform || 'all' }}", "short": true },
-                    { "title": "Triggered by", "value": "${{ github.actor }}", "short": true },
-                    { "title": "Commit", "value": "${{ github.sha }}", "short": false }
-                  ],
-                  "footer": "Hospyn Launch Operations",
-                  "ts": "${{ github.run_id }}"
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
