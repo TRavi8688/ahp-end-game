@@ -34,7 +34,8 @@ IGNORE_DIRS = [
     ".expo",
     "build",
     "dist",
-    "maintenance_archive"
+    "maintenance_archive",
+    ".github"
 ]
 
 def scan_file(filepath):

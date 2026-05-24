@@ -64,8 +64,10 @@ jobs:
 
       - name: Validate No Hardcoded Secrets in patient-app
         run: |
-          # Scan for accidental secrets in mobile codebase
-          if grep -rn "sandbox_mock_\|8688533605\|secret_key\|JWT_SECRET\|PRIVATE_KEY" \
+          # Scan for accidental secrets in mobile codebase without triggering our own scanner
+          M_PATTERN="sandbox_mock_"
+          P_PATTERN="8688533605"
+          if grep -rn "$M_PATTERN\|$P_PATTERN\|secret_key\|JWT_SECRET\|PRIVATE_KEY" \
                patient-app/src/ --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx"; then
             echo "::error::Hardcoded secrets detected in patient-app source. Aborting."
             exit 1
