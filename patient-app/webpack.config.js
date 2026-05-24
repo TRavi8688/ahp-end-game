@@ -24,6 +24,7 @@ module.exports = async function (env, argv) {
     new webpack.DefinePlugin({
       'process.env.EXPO_PUBLIC_API_BASE_URL': JSON.stringify(process.env.EXPO_PUBLIC_API_BASE_URL || "https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1"),
       'process.env.EXPO_PUBLIC_ENVIRONMENT': JSON.stringify(process.env.EXPO_PUBLIC_ENVIRONMENT || "production"),
+      'process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID': JSON.stringify(process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || "625745217419-cq76tvb0mlt0bkmg8bd4r0csj4vmqmr8.apps.googleusercontent.com"),
     })
   );
 

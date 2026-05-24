@@ -226,6 +226,7 @@ jobs:
           cd patient-app
           echo "EXPO_PUBLIC_API_BASE_URL=https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1" > .env
           echo "EXPO_PUBLIC_ENVIRONMENT=production" >> .env
+          echo "EXPO_PUBLIC_GOOGLE_CLIENT_ID=625745217419-cq76tvb0mlt0bkmg8bd4r0csj4vmqmr8.apps.googleusercontent.com" >> .env
           npm install --legacy-peer-deps
           npm run build
 

@@ -17,7 +17,8 @@
       "ios": {},
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1",
-        "EXPO_PUBLIC_ENVIRONMENT": "staging"
+        "EXPO_PUBLIC_ENVIRONMENT": "staging",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "625745217419-cq76tvb0mlt0bkmg8bd4r0csj4vmqmr8.apps.googleusercontent.com"
       }
     },
     "production": {
@@ -29,7 +30,8 @@
       "ios": {},
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1",
-        "EXPO_PUBLIC_ENVIRONMENT": "production"
+        "EXPO_PUBLIC_ENVIRONMENT": "production",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "625745217419-cq76tvb0mlt0bkmg8bd4r0csj4vmqmr8.apps.googleusercontent.com"
       }
     }
   },

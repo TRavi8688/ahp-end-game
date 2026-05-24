@@ -273,7 +273,51 @@ async def google_login(
         assert not req.token.startswith("sandbox_mock_"), "Production block: Mock authentication logic is forbidden."
         
         try:
-            idinfo = id_token.verify_oauth2_token(req.token, requests.Request(), settings.GOOGLE_CLIENT_ID)
+            # Resilient JWK-based verification to bypass cryptography EC key deserialization bug
+            try:
+                import urllib.request
+                import json
+                from jose import jwt as jose_jwt, jwk as jose_jwk
+                
+                # 1. Parse key ID (kid) from token header
+                unverified_header = jose_jwt.get_unverified_header(req.token)
+                kid = unverified_header.get("kid")
+                if not kid:
+                    raise ValueError("Missing 'kid' in token header.")
+                
+                # 2. Fetch Google public JWKs
+                certs_req = urllib.request.Request("https://www.googleapis.com/oauth2/v3/certs")
+                certs_req.add_header("User-Agent", "Hospyn-Backend")
+                with urllib.request.urlopen(certs_req, timeout=5) as certs_resp:
+                    jwks = json.loads(certs_resp.read().decode("utf-8"))
+                
+                # 3. Find matching JWK
+                target_jwk = None
+                for key in jwks.get("keys", []):
+                    if key.get("kid") == kid:
+                        target_jwk = key
+                        break
+                
+                if not target_jwk:
+                    raise ValueError(f"No matching public key found for kid: {kid}")
+                
+                # 4. Construct RSA key and verify signature, audience, and expiration
+                pub_key = jose_jwk.construct(target_jwk)
+                idinfo = jose_jwt.decode(
+                    req.token,
+                    pub_key,
+                    algorithms=["RS256"],
+                    audience=settings.GOOGLE_CLIENT_ID,
+                    options={"verify_iss": False}
+                )
+                
+                # Assert issuer
+                assert idinfo.get("iss") in ("https://accounts.google.com", "accounts.google.com"), "Invalid token issuer"
+                logger.info("GOOGLE_OAUTH_VERIFICATION_SUCCESS: Resilient manual JWK verification succeeded.")
+                
+            except Exception as jwk_err:
+                logger.warning(f"GOOGLE_OAUTH_JWK_VERIFICATION_FALLBACK: {jwk_err}. Falling back to standard library.")
+                idinfo = id_token.verify_oauth2_token(req.token, requests.Request(), settings.GOOGLE_CLIENT_ID)
         except Exception as oauth_err:
             logger.error(f"GOOGLE_OAUTH_VERIFICATION_FAILURE: {oauth_err}")
             throw_auth_exception("Invalid Google token signature or expired credentials.")
