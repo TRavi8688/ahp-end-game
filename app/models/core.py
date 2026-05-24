@@ -145,6 +145,10 @@ class User(Base):
     forensic_audit_trail: Mapped[Optional[str]] = mapped_column(StringEncryptedType(255), nullable=True)
     last_login: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     current_status: Mapped[Optional[str]] = mapped_column(String(50), default="ACTIVE")
+    # --- Soft Delete Architecture ---
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    scheduled_purge_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    
     profile_photo_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     

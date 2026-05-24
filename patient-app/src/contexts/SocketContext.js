@@ -111,10 +111,11 @@ export const SocketProvider = ({ children }) => {
         console.log(`[Socket] Connecting to bridge... (Attempt ${retryCount + 1})`);
 
         try {
-            const ws = new WebSocket(`${WS_BASE_URL}/ws/${latestToken}`);
+            const ws = new WebSocket(`${WS_BASE_URL}/ws`);
 
             ws.onopen = () => {
-                console.log('[Socket] Hospyn WebSocket Connected ✅');
+                console.log('[Socket] Hospyn WebSocket Connected ✅. Performing handshake...');
+                ws.send(JSON.stringify({ type: 'auth', token: latestToken }));
                 setSocket(ws);
                 setRetryCount(0);
             };

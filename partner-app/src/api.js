@@ -1,4 +1,4 @@
-// Central API configuration for Hospital ERP
+// Central API configuration for Partner App
 const getBackendUrl = () => {
     try {
         if (import.meta.env && import.meta.env.VITE_API_BASE_URL) {
@@ -17,4 +17,4 @@ const getBackendUrl = () => {
 const BACKEND_URL = getBackendUrl();
 export const API_BASE_URL = `${BACKEND_URL}/api/v1`;
 
-console.log(`[ERP Config] API Base URL: ${API_BASE_URL}`);
+console.log(`[Partner Config] API Base URL: ${API_BASE_URL}`);

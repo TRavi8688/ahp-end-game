@@ -1,0 +1,338 @@
+name: 📱 Mobile — Production Release Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Build platform'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - ios
+          - android
+      channel:
+        description: 'Release channel'
+        required: true
+        default: 'preview'
+        type: choice
+        options:
+          - preview         # Internal TestFlight / Closed Track
+          - production      # Public App Store / Play Store
+      submit:
+        description: 'Auto-submit to stores after build?'
+        required: true
+        default: false
+        type: boolean
+  push:
+    branches:
+      - release/mobile-*  # Trigger on release branch pushes
+
+concurrency:
+  group: mobile-release-${{ github.ref }}
+  cancel-in-progress: false  # Never cancel in-progress mobile builds
+
+jobs:
+  # ─────────────────────────────────────────────
+  # GATE 1: Security & Static Analysis
+  # ─────────────────────────────────────────────
+  security-gate:
+    name: 🔒 Security & DevSecOps Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5.3.0
+        with:
+          python-version: '3.11'
+
+      - name: Install Scanner Dependencies
+        run: pip install bandit
+
+      - name: Run Hospyn Static Security Scanner
+        run: |
+          echo "🛡️ Running Hospyn DevSecOps Static Security Scanner..."
+          python scripts/devops/static_security_scanner.py
+          if [ $? -ne 0 ]; then
+            echo "::error::CRITICAL: Static security scan failed. Production-blocking vulnerabilities detected. Halting release."
+            exit 1
+          fi
+          echo "✅ Security scan passed."
+
+      - name: Validate No Hardcoded Secrets in patient-app
+        run: |
+          # Scan for accidental secrets in mobile codebase
+          if grep -rn "sandbox_mock_\|8688533605\|secret_key\|JWT_SECRET\|PRIVATE_KEY" \
+               patient-app/src/ --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx"; then
+            echo "::error::Hardcoded secrets detected in patient-app source. Aborting."
+            exit 1
+          fi
+          echo "✅ No hardcoded secrets found in patient-app."
+
+  # ─────────────────────────────────────────────
+  # GATE 2: Node.js dependency audit
+  # ─────────────────────────────────────────────
+  dependency-audit:
+    name: 📦 Dependency Vulnerability Audit
+    runs-on: ubuntu-latest
+    needs: security-gate
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: |
+          cd patient-app
+          npm install --legacy-peer-deps
+
+      - name: Run npm audit
+        run: |
+          cd patient-app
+          npm audit --audit-level=high || echo "::warning::High-severity advisories found. Review before production submission."
+
+      - name: Check for critical CVEs
+        run: |
+          cd patient-app
+          CRITICAL=$(npm audit --json | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('metadata',{}).get('vulnerabilities',{}).get('critical',0))" 2>/dev/null || echo "0")
+          if [ "$CRITICAL" -gt "0" ]; then
+            echo "::error::$CRITICAL critical CVEs found. Resolve before App Store submission."
+            exit 1
+          fi
+          echo "✅ No critical CVEs detected."
+
+  # ─────────────────────────────────────────────
+  # GATE 3: EAS Build — iOS
+  # ─────────────────────────────────────────────
+  build-ios:
+    name: 🍎 EAS Build — iOS (${{ github.event.inputs.channel || 'preview' }})
+    runs-on: ubuntu-latest
+    needs: [security-gate, dependency-audit]
+    if: github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios'
+    outputs:
+      build_id: ${{ steps.build.outputs.build_id }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+
+      - name: Install Dependencies
+        run: |
+          cd patient-app
+          npm install --legacy-peer-deps
+
+      - name: Validate app.json version consistency
+        run: |
+          VERSION=$(python3 -c "import json; d=json.load(open('patient-app/app.json')); print(d['expo']['version'])")
+          BUILD=$(python3 -c "import json; d=json.load(open('patient-app/app.json')); print(d['expo']['ios']['buildNumber'])")
+          echo "📦 iOS App Version: $VERSION (Build $BUILD)"
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "BUILD_NUMBER=$BUILD" >> $GITHUB_ENV
+
+      - name: EAS Build — iOS
+        id: build
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          cd patient-app
+          CHANNEL="${{ github.event.inputs.channel || 'preview' }}"
+          echo "🏗️ Starting EAS iOS build on channel: $CHANNEL"
+          BUILD_OUTPUT=$(eas build \
+            --platform ios \
+            --profile $CHANNEL \
+            --non-interactive \
+            --json 2>&1 | tail -1)
+          echo "Build output: $BUILD_OUTPUT"
+          BUILD_ID=$(echo $BUILD_OUTPUT | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0].get('id','unknown'))" 2>/dev/null || echo "unknown")
+          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+          echo "✅ iOS build submitted. Build ID: $BUILD_ID"
+
+  # ─────────────────────────────────────────────
+  # GATE 4: EAS Build — Android
+  # ─────────────────────────────────────────────
+  build-android:
+    name: 🤖 EAS Build — Android (${{ github.event.inputs.channel || 'preview' }})
+    runs-on: ubuntu-latest
+    needs: [security-gate, dependency-audit]
+    if: github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android'
+    outputs:
+      build_id: ${{ steps.build.outputs.build_id }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+
+      - name: Install Dependencies
+        run: |
+          cd patient-app
+          npm install --legacy-peer-deps
+
+      - name: Validate versionCode consistency
+        run: |
+          VERSION_CODE=$(python3 -c "import json; d=json.load(open('patient-app/app.json')); print(d['expo']['android']['versionCode'])")
+          echo "📦 Android versionCode: $VERSION_CODE"
+          echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
+
+      - name: EAS Build — Android
+        id: build
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          cd patient-app
+          CHANNEL="${{ github.event.inputs.channel || 'preview' }}"
+          echo "🏗️ Starting EAS Android build on channel: $CHANNEL"
+          BUILD_OUTPUT=$(eas build \
+            --platform android \
+            --profile $CHANNEL \
+            --non-interactive \
+            --json 2>&1 | tail -1)
+          BUILD_ID=$(echo $BUILD_OUTPUT | python3 -c "import sys,json; d=json.load(sys.stdin); print(d[0].get('id','unknown'))" 2>/dev/null || echo "unknown")
+          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+          echo "✅ Android build submitted. Build ID: $BUILD_ID"
+
+  # ─────────────────────────────────────────────
+  # GATE 5: Store Submission (conditional)
+  # ─────────────────────────────────────────────
+  submit-stores:
+    name: 🚀 Submit to App Stores
+    runs-on: ubuntu-latest
+    needs: [build-ios, build-android]
+    if: |
+      always() &&
+      github.event.inputs.submit == 'true' &&
+      (needs.build-ios.result == 'success' || needs.build-ios.result == 'skipped') &&
+      (needs.build-android.result == 'success' || needs.build-android.result == 'skipped')
+    environment: production   # Requires manual approval in GitHub Environments
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+
+      - name: Install Dependencies
+        run: |
+          cd patient-app
+          npm install --legacy-peer-deps
+
+      - name: Submit iOS to TestFlight / App Store
+        if: github.event.inputs.platform == 'all' || github.event.inputs.platform == 'ios'
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          cd patient-app
+          CHANNEL="${{ github.event.inputs.channel || 'preview' }}"
+          echo "📤 Submitting iOS build to Apple..."
+          eas submit \
+            --platform ios \
+            --profile production \
+            --latest \
+            --non-interactive
+          echo "✅ iOS submitted to App Store Connect / TestFlight."
+
+      - name: Submit Android to Play Store
+        if: github.event.inputs.platform == 'all' || github.event.inputs.platform == 'android'
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          cd patient-app
+          echo "📤 Submitting Android AAB to Google Play Closed Testing..."
+          # Write service account key from secret
+          echo "${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}" > google-services-key.json
+          eas submit \
+            --platform android \
+            --profile production \
+            --latest \
+            --non-interactive
+          rm -f google-services-key.json
+          echo "✅ Android submitted to Google Play Closed Testing."
+
+      - name: Post Submission Summary
+        run: |
+          echo "=========================================="
+          echo "🎉 HOSPYN MOBILE RELEASE SUMMARY"
+          echo "=========================================="
+          echo "Channel   : ${{ github.event.inputs.channel || 'preview' }}"
+          echo "Platform  : ${{ github.event.inputs.platform || 'all' }}"
+          echo "iOS Build : ${{ needs.build-ios.outputs.build_id }}"
+          echo "Android   : ${{ needs.build-android.outputs.build_id }}"
+          echo "Status    : Submitted for store review"
+          echo "=========================================="
+
+  # ─────────────────────────────────────────────
+  # GATE 6: Slack Launch Notification
+  # ─────────────────────────────────────────────
+  notify-team:
+    name: 📣 Notify Launch Team
+    runs-on: ubuntu-latest
+    needs: [build-ios, build-android, submit-stores]
+    if: always()
+    steps:
+      - name: Determine Overall Status
+        id: status
+        run: |
+          if [[ "${{ needs.submit-stores.result }}" == "success" ]]; then
+            echo "emoji=🚀" >> $GITHUB_OUTPUT
+            echo "message=Builds submitted to both stores successfully!" >> $GITHUB_OUTPUT
+            echo "color=good" >> $GITHUB_OUTPUT
+          elif [[ "${{ needs.build-ios.result }}" == "success" || "${{ needs.build-android.result }}" == "success" ]]; then
+            echo "emoji=🏗️" >> $GITHUB_OUTPUT
+            echo "message=Builds completed. Submission skipped (manual trigger required)." >> $GITHUB_OUTPUT
+            echo "color=warning" >> $GITHUB_OUTPUT
+          else
+            echo "emoji=❌" >> $GITHUB_OUTPUT
+            echo "message=Mobile release pipeline FAILED. Review logs immediately." >> $GITHUB_OUTPUT
+            echo "color=danger" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Send Slack Notification
+        if: secrets.SLACK_WEBHOOK_URL != ''
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          payload: |
+            {
+              "attachments": [
+                {
+                  "color": "${{ steps.status.outputs.color }}",
+                  "title": "${{ steps.status.outputs.emoji }} Hospyn Mobile Release — ${{ github.event.inputs.channel || 'preview' }}",
+                  "fields": [
+                    { "title": "Status", "value": "${{ steps.status.outputs.message }}", "short": false },
+                    { "title": "Platform", "value": "${{ github.event.inputs.platform || 'all' }}", "short": true },
+                    { "title": "Triggered by", "value": "${{ github.actor }}", "short": true },
+                    { "title": "Commit", "value": "${{ github.sha }}", "short": false }
+                  ],
+                  "footer": "Hospyn Launch Operations",
+                  "ts": "${{ github.run_id }}"
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

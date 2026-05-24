@@ -1,7 +1,11 @@
 import axios from 'axios';
 import { SecurityUtils } from './security';
 import { API_BASE_URL } from '../api';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// SECURITY HARDENING: Removed AsyncStorage for clinical data caching.
+// Storing sensitive medical records in unencrypted local storage is a critical security vulnerability.
+// We now use an ephemeral in-memory session cache that dies when the app closes.
+const SessionMemoryCache = new Map();
 
 /**
  * Hospyn 2.0 Enterprise API Service (Patient App)
@@ -91,18 +95,13 @@ class ApiService {
     async getProfile() {
         try {
             const response = await this.client.get('/patient/profile');
-            // Cache the successful profile fetch
-            await AsyncStorage.setItem('@hospyn_profile_cache', JSON.stringify(response.data));
+            SessionMemoryCache.set('@hospyn_profile_cache', response.data);
             return response.data;
         } catch (e) {
-            console.warn('[API] Network failure, attempting to load offline profile...');
-            const cachedStr = await AsyncStorage.getItem('@hospyn_profile_cache');
-            if (cachedStr) {
-                try {
-                    return JSON.parse(cachedStr);
-                } catch (parseErr) {
-                    console.error('Cache corrupted:', parseErr);
-                }
+            console.warn('[API] Network failure, attempting to load session profile...');
+            const cachedData = SessionMemoryCache.get('@hospyn_profile_cache');
+            if (cachedData) {
+                return cachedData;
             }
             throw e; // If no cache exists, throw the actual error to be handled by the UI
         }
@@ -114,12 +113,17 @@ class ApiService {
             // Synchronize local sovereign cache with fresh backend state
             const current = await this.getProfile();
             const updated = { ...current, ...data };
-            await AsyncStorage.setItem('@hospyn_profile_cache', JSON.stringify(updated));
+            SessionMemoryCache.set('@hospyn_profile_cache', updated);
             return response.data;
         } catch (e) {
             console.error('[API] Profile update failed. Integrity check required.');
             throw e;
         }
+    }
+
+    async deleteAccount() {
+        const response = await this.client.delete('/patient/delete-account');
+        return response.data;
     }
 
     async exportProfileData() {
@@ -136,12 +140,12 @@ class ApiService {
     async getClinicalSummary() {
         try {
             const response = await this.client.get('/patient/clinical-summary');
-            await AsyncStorage.setItem('@cache_clinical_summary', JSON.stringify(response.data));
+            SessionMemoryCache.set('@cache_clinical_summary', response.data);
             return response.data;
         } catch (e) {
-            console.warn('[API] Failed to fetch clinical summary. Loading offline cache...');
-            const cachedStr = await AsyncStorage.getItem('@cache_clinical_summary');
-            if (cachedStr) return JSON.parse(cachedStr);
+            console.warn('[API] Failed to fetch clinical summary. Loading session cache...');
+            const cachedData = SessionMemoryCache.get('@cache_clinical_summary');
+            if (cachedData) return cachedData;
             throw e;
         }
     }
@@ -149,12 +153,12 @@ class ApiService {
     async getTimeline() {
         try {
             const response = await this.client.get('/clinical/timeline');
-            await AsyncStorage.setItem('@cache_timeline', JSON.stringify(response.data));
+            SessionMemoryCache.set('@cache_timeline', response.data);
             return response.data;
         } catch (e) {
             console.warn('[API] Timeline offline mode...');
-            const cachedStr = await AsyncStorage.getItem('@cache_timeline');
-            if (cachedStr) return JSON.parse(cachedStr);
+            const cachedData = SessionMemoryCache.get('@cache_timeline');
+            if (cachedData) return cachedData;
             throw e;
         }
     }
@@ -162,12 +166,12 @@ class ApiService {
     async getRecords() {
         try {
             const response = await this.client.get('/patient/records');
-            await AsyncStorage.setItem('@cache_records', JSON.stringify(response.data));
+            SessionMemoryCache.set('@cache_records', response.data);
             return response.data;
         } catch (e) {
             console.warn('[API] Records offline mode...');
-            const cachedStr = await AsyncStorage.getItem('@cache_records');
-            if (cachedStr) return JSON.parse(cachedStr);
+            const cachedData = SessionMemoryCache.get('@cache_records');
+            if (cachedData) return cachedData;
             throw e;
         }
     }

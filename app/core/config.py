@@ -75,7 +75,11 @@ class Settings(BaseSettings):
     @field_validator("ALLOWED_ORIGINS", mode="before")
     @classmethod
     def assemble_origins(cls, v: Any) -> Any:
-        return ["*"]
+        if isinstance(v, str):
+            return [i.strip() for i in v.split(",") if i.strip()]
+        elif isinstance(v, list):
+            return v
+        return v
 
     # --- 6. EXTERNAL SERVICES ---
     TWILIO_ACCOUNT_SID: Optional[str] = None

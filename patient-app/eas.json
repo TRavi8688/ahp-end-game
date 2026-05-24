@@ -1,41 +1,57 @@
 {
   "cli": {
-    "version": ">= 7.0.0",
-    "appVersionSource": "remote"
+    "version": ">= 9.0.0"
   },
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "channel": "development",
+      "ios": {
+        "simulator": true
+      }
     },
     "preview": {
       "distribution": "internal",
-      "env": {
-        "npm_config_legacy_peer_deps": "true",
-        "NODE_VERSION": "20.18.0",
-        "SENTRY_SKIP_AUTO_RELEASE": "true"
+      "channel": "preview",
+      "ios": {
+        "entitlements": {
+          "aps-environment": "development"
+        }
       },
-      "android": {
-        "buildType": "apk"
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://hospyn-gateway-staging.web.app/api/v1",
+        "EXPO_PUBLIC_ENVIRONMENT": "staging"
       }
     },
     "production": {
       "channel": "production",
-      "env": {
-        "EAS_BUILD_NO_EXPO_GO_WARNING": "true",
-        "npm_config_legacy_peer_deps": "true",
-        "SENTRY_SKIP_AUTO_RELEASE": "true"
-      },
-      "autoIncrement": true,
+      "distribution": "store",
       "android": {
         "buildType": "app-bundle"
       },
       "ios": {
-        "image": "latest"
+        "entitlements": {
+          "aps-environment": "production"
+        }
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://hospyn-gateway.web.app/api/v1",
+        "EXPO_PUBLIC_ENVIRONMENT": "production"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "appleId": "hospyn-admin@hospyn.com",
+        "ascAppId": "1649069643",
+        "appleTeamId": "HOSPYN8688"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-services-key.json",
+        "track": "closed"
+      }
+    }
   }
 }

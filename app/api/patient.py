@@ -805,6 +805,46 @@ async def update_patient_profile(
     
     return {"status": "success", "message": "Profile updated successfully"}
 
+@router.delete("/delete-account")
+async def delete_patient_account(
+    current_patient: Any = Depends(deps.get_current_patient),
+    db: AsyncSession = Depends(deps.get_db)
+):
+    """
+    ENTERPRISE SOFT-DELETE (Apple App Store Guideline 5.1.1v)
+    Initiates a soft-delete and schedules a hard purge to comply with HIPAA/GDPR grace periods.
+    Immediately revokes all active JWT sessions and blocks future logins.
+    """
+    result = await db.execute(select(models.User).where(models.User.id == current_patient.user_id))
+    user = result.scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="Account not found.")
+        
+    from datetime import datetime, timezone, timedelta
+    
+    # 1. Soft Delete & Schedule Purge
+    user.deleted_at = datetime.now(timezone.utc)
+    user.scheduled_purge_at = datetime.now(timezone.utc) + timedelta(days=30)
+    user.current_status = "DELETED"
+    
+    # 2. Token Revocation (Invalidates all existing JWTs immediately)
+    user.token_version += 1
+    
+    # 3. Anonymization placeholder (could anonymize email/phone here if strictly required)
+    # user.email = f"deleted_{user.id}@hospyn.local"
+    
+    await log_audit_action(
+        db, 
+        user_id=user.id, 
+        action="ACCOUNT_DELETION_INITIATED", 
+        resource_type="USER", 
+        details={"scheduled_purge_at": user.scheduled_purge_at.isoformat()}
+    )
+    
+    await db.commit()
+    return {"status": "success", "message": "Account scheduled for deletion. All sessions revoked."}
+
 @router.get("/dashboard")
 async def get_dashboard(
     hospital_id: Optional[uuid.UUID] = None,

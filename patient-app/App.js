@@ -11,12 +11,21 @@ try {
   if (Platform.OS !== 'web') {
     Sentry = require('@sentry/react-native');
     Updates = require('expo-updates');
-    // Initialize Sentry for production monitoring
-    Sentry.init({
-      dsn: process.env.EXPO_PUBLIC_SENTRY_DSN || "https://placeholder@sentry.io/hospyn-mobile",
-      debug: __DEV__,
-      enableAutoSessionTracking: true,
-    });
+    
+    // STRICT PRODUCTION SENTRY CONFIGURATION
+    const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
+    if (!__DEV__ && !sentryDsn) {
+        console.warn('CRITICAL SECURITY WARNING: EXPO_PUBLIC_SENTRY_DSN is missing in production. Crash reports will not be captured.');
+    }
+
+    if (sentryDsn) {
+        Sentry.init({
+            dsn: sentryDsn,
+            debug: __DEV__,
+            enableAutoSessionTracking: true,
+            environment: __DEV__ ? 'development' : 'production',
+        });
+    }
   }
 } catch (e) {
   console.log("Native module load skipped", e);

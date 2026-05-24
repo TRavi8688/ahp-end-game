@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import { useAuth } from '../contexts/AuthContext';
 import { Theme } from '../theme';
 import { API_BASE_URL, GOOGLE_CLIENT_ID } from '../api';
@@ -169,6 +170,59 @@ export default function AuthScreen({ navigation }) {
         }
     };
 
+    // Native Apple Login Handler
+    const handleAppleLogin = async () => {
+        try {
+            const credential = await AppleAuthentication.signInAsync({
+                requestedScopes: [
+                    AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                    AppleAuthentication.AppleAuthenticationScope.EMAIL,
+                ],
+            });
+            
+            setLoading(true);
+            try {
+                // Pass identity token to backend to verify and mint Hospyn token
+                const data = await authService.appleLogin(credential.identityToken);
+                const { access_token } = data;
+                
+                // Fallback email since Apple only sends it once
+                const email = credential.email || 'apple.user@hospyn.com';
+                
+                try {
+                    const profileResp = await axios.get(`${API_BASE_URL}/patient/profile`, {
+                        headers: { 'Authorization': `Bearer ${access_token}` }
+                    });
+                    await AsyncStorage.removeItem('mock_profile');
+                    await login(access_token, email, null, 'apple');
+                } catch (profileErr) {
+                    if (profileErr.response?.status === 404) {
+                        setTempAuthToken(access_token);
+                        setTempEmail(email);
+                        setSetupModalVisible(true);
+                    } else if (profileErr.response?.status === 403) {
+                        Alert.alert('Access Denied', 'This Apple account is registered as a Doctor/Staff.');
+                    } else {
+                        throw profileErr;
+                    }
+                }
+            } catch (e) {
+                const errorMsg = e.response?.data?.message || e.response?.data?.detail || 'Apple Auth verification failed on server.';
+                Alert.alert('Apple Authentication Error', errorMsg);
+            } finally {
+                setLoading(false);
+            }
+
+        } catch (e) {
+            if (e.code === 'ERR_REQUEST_CANCELED') {
+                // User canceled
+            } else {
+                Alert.alert("Apple Auth Error", "Failed to sign in with Apple.");
+            }
+        }
+    };
+
+
     
 
     // Callback used by the simulated/developer accounts
@@ -295,10 +349,21 @@ export default function AuthScreen({ navigation }) {
                                 <View id="real-google-btn-container" />
                             </View>
                         ) : (
-                            <TouchableOpacity style={styles.googleBtn} onPress={() => Alert.alert('Google Sign-In', 'Native Google Auth is currently being configured.')}>
-                                <Ionicons name="logo-google" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
-                                <Text style={styles.googleBtnText}>Continue with Google</Text>
-                            </TouchableOpacity>
+                            <View style={{ gap: 12 }}>
+                                {Platform.OS === 'ios' && (
+                                    <AppleAuthentication.AppleAuthenticationButton
+                                        buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                                        buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+                                        cornerRadius={20}
+                                        style={{ height: 50, width: '100%' }}
+                                        onPress={handleAppleLogin}
+                                    />
+                                )}
+                                <TouchableOpacity style={styles.googleBtn} onPress={() => Alert.alert('Google Sign-In', 'Native Google Auth requires separate native configuration. Use Web or Apple Auth for now.')}>
+                                    <Ionicons name="logo-google" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
+                                    <Text style={styles.googleBtnText}>Continue with Google</Text>
+                                </TouchableOpacity>
+                            </View>
                         )}
 
                         <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate('Onboarding')}>
@@ -311,7 +376,12 @@ export default function AuthScreen({ navigation }) {
                             <Ionicons name="shield-checkmark" size={16} color="#10b981" />
                             <Text style={styles.trustText}>Military-Grade Encryption</Text>
                         </View>
-                        <Text style={styles.privacyLink}>By continuing, you agree to our Privacy Policy</Text>
+                        <TouchableOpacity onPress={() => {
+                            const { Linking } = require('react-native');
+                            Linking.openURL('https://hospyn.com/privacy');
+                        }}>
+                            <Text style={[styles.privacyLink, { textDecorationLine: 'underline' }]}>By continuing, you agree to our Privacy Policy</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
 
@@ -391,13 +461,22 @@ export default function AuthScreen({ navigation }) {
                                     <View id="real-google-btn-container" />
                                 </View>
                             ) : (
-                                <TouchableOpacity style={styles.googleBtn} onPress={() => Alert.alert('Google Sign-In', 'Native Google Auth is currently being configured.')}>
-                                    <Ionicons name="logo-google" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
-                                    <Text style={styles.googleBtnText}>Continue with Google</Text>
-                                </TouchableOpacity>
+                                <View style={{ gap: 12 }}>
+                                    {Platform.OS === 'ios' && (
+                                        <AppleAuthentication.AppleAuthenticationButton
+                                            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                                            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+                                            cornerRadius={18}
+                                            style={{ height: 50, width: '100%' }}
+                                            onPress={handleAppleLogin}
+                                        />
+                                    )}
+                                    <TouchableOpacity style={[styles.googleBtn, { height: 50, borderRadius: 18 }]} onPress={() => Alert.alert('Google Sign-In', 'Native Google Auth requires separate native configuration.')}>
+                                        <Ionicons name="logo-google" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
+                                        <Text style={styles.googleBtnText}>Continue with Google</Text>
+                                    </TouchableOpacity>
+                                </View>
                             )}
-
-
 
                             <Text style={styles.encryptedNotice}>
                                 <Ionicons name="lock-closed" size={12} color="#94A3B8" /> End-to-end encrypted session

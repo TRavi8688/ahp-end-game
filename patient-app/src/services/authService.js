@@ -19,6 +19,12 @@ export const authService = {
         return response.data;
     },
 
+    appleLogin: async (identityToken) => {
+        // Sends the Apple JWT identityToken to the backend to verify and mint an access_token
+        const response = await axios.post(`${API_BASE_URL}/auth/apple`, { token: identityToken });
+        return response.data;
+    },
+
     setupProfile: async (payload, tempToken) => {
         // setupProfile requires idempotency and proper auth headers handling, but we have a temp token.
         // It's safer to use raw axios to avoid apiClient overriding anything or failing.

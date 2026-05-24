@@ -85,6 +85,31 @@ export default function SettingsScreen({ navigation }) {
         }
     };
 
+    const handleAccountDeletion = async () => {
+        HapticUtils.notificationAsync(HapticUtils.NotificationFeedbackType.Warning);
+        const msg = 'WARNING: You are about to initiate the permanent deletion of your medical records and account. This action will revoke all session access and schedule your data for secure purging. Do you wish to proceed?';
+        
+        const executeDeletion = async () => {
+            try {
+                await ApiService.deleteAccount();
+                HapticUtils.notificationAsync(HapticUtils.NotificationFeedbackType.Success);
+                await logout();
+            } catch (e) {
+                Alert.alert("Deletion Failed", e.response?.data?.detail || "Could not delete account. Contact support.");
+            }
+        };
+
+        if (Platform.OS === 'web') {
+            const confirmed = window.confirm(msg);
+            if (confirmed) await executeDeletion();
+        } else {
+            Alert.alert('DELETE ACCOUNT', msg, [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Delete My Account', style: 'destructive', onPress: executeDeletion }
+            ]);
+        }
+    };
+
     const handleUpdateProfile = async () => {
         if (!editName) {
             if (Platform.OS === 'web') {
@@ -294,6 +319,16 @@ export default function SettingsScreen({ navigation }) {
                     }} 
                 />
                 <SettingItem 
+                    icon="shield-checkmark-outline" 
+                    label="Privacy Policy" 
+                    sub="Read how we protect your data"
+                    onPress={() => {
+                        HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Light);
+                        const { Linking } = require('react-native');
+                        Linking.openURL('https://hospyn.com/privacy');
+                    }} 
+                />
+                <SettingItem 
                     icon="information-circle-outline" 
                     label="About Hospyn 4.0" 
                     onPress={() => {
@@ -307,6 +342,11 @@ export default function SettingsScreen({ navigation }) {
                 <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
                     <Ionicons name="log-out-outline" size={20} color="#EF4444" />
                     <Text style={styles.logoutText}>TERMINATE SESSION</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={[styles.logoutBtn, { marginTop: 15, backgroundColor: 'transparent', borderColor: 'transparent' }]} onPress={handleAccountDeletion}>
+                    <Ionicons name="trash-outline" size={16} color="#64748B" />
+                    <Text style={[styles.logoutText, { color: '#64748B', fontSize: 11 }]}>DELETE ACCOUNT</Text>
                 </TouchableOpacity>
 
                 <Text style={styles.versionText}>SECURED BY HOSPYN QUANTUM SHIELD</Text>

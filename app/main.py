@@ -183,17 +183,34 @@ app.add_middleware(ForensicTelemetryMiddleware)
 # --- HARDENED CORS & ERROR RESILIENCE (SHIELD V7.0) ---
 
 if settings.ENVIRONMENT == "production":
+    # STRICT PRODUCTION CORS CONFIGURATION
     app.add_middleware(
         CORSMiddleware,
-        allow_origin_regex=".*",
+        allow_origins=[origin for origin in settings.ALLOWED_ORIGINS if origin != "*"],
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+        allow_headers=[
+            "Authorization", 
+            "Content-Type", 
+            "Accept", 
+            "Origin", 
+            "X-Requested-With", 
+            "tenant-id", 
+            "hospital-id"
+        ],
+        expose_headers=["Content-Length", "X-JSON-Error"],
     )
 else:
+    # DEVELOPMENT CORS CONFIGURATION
     app.add_middleware(
         CORSMiddleware,
-        allow_origin_regex=".*",
+        allow_origins=[
+            "http://localhost:3000",
+            "http://localhost:19006",
+            "http://localhost:8081",
+            "http://127.0.0.1:8081",
+            "http://localhost:8082",
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -340,20 +357,36 @@ async def readiness_check(db: AsyncSession = Depends(deps.get_db)):
         raise HTTPException(status_code=503, detail=str(e))
 
 # --- WEBSOCKET ---
-@app.websocket("/ws/{token}")
-async def websocket_endpoint(websocket: WebSocket, token: str):
-    await handle_websocket_connection(websocket, token)
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await handle_websocket_connection(websocket)
 
-@app.websocket("/api/v1/ws/{token}")
-async def websocket_endpoint_v1(websocket: WebSocket, token: str):
-    await handle_websocket_connection(websocket, token)
+@app.websocket("/api/v1/ws")
+async def websocket_endpoint_v1(websocket: WebSocket):
+    await handle_websocket_connection(websocket)
 
-async def handle_websocket_connection(websocket: WebSocket, token: str):
+async def handle_websocket_connection(websocket: WebSocket):
     from app.core.security import decode_token
     from app.core.realtime import manager
+    import json
     
     await websocket.accept()
+    user_id = None
     try:
+        # Wait for the first message (handshake payload containing the token)
+        data = await websocket.receive_text()
+        token = None
+        try:
+            auth_data = json.loads(data)
+            token = auth_data.get("token")
+        except Exception:
+            # Fallback if raw token is passed as text
+            token = data
+            
+        if not token:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+            
         payload = decode_token(token)
         if not payload:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
@@ -362,10 +395,14 @@ async def handle_websocket_connection(websocket: WebSocket, token: str):
         user_id = payload.get("sub")
         await manager.connect(user_id, websocket)
         
+        # Acknowledge authentication success
+        await websocket.send_text(json.dumps({"type": "auth_success"}))
+        
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        manager.disconnect(user_id, websocket)
+        if user_id:
+            manager.disconnect(user_id, websocket)
     except Exception:
         await websocket.close()
 

@@ -234,9 +234,13 @@ async def login(
 
 
 
-    
     if not user.is_active:
         throw_auth_exception("Account is deactivated. Please contact support.")
+
+    # ENTERPRISE: Soft Delete Protection
+    if user.deleted_at is not None:
+        await log_audit_action(db=db, user_id=None, action="LOGIN_ATTEMPT_DELETED_ACCOUNT", resource_type="USER", details={"identifier": identifier})
+        throw_auth_exception("Account has been deleted.")
 
     # 3. SESSION ISSUANCE
     access_token = security.create_access_token(user.id, user.role, token_version=user.token_version, is_temporary_password=getattr(user, 'is_temporary_password', False))
@@ -265,41 +269,14 @@ async def google_login(
     Verifies the Google ID Token and issues a Hospyn JWT.
     """
     try:
-        # Resilient Developer & Sandbox Demo Mode Bypass
-        if req.token.startswith("sandbox_mock_"):
-            parts = req.token.split(":")
-            email = parts[1]
-            first_name = parts[2] if len(parts) > 2 else "Sandbox"
-            last_name = parts[3] if len(parts) > 3 else "User"
-            idinfo = {
-                "email": email,
-                "given_name": first_name,
-                "family_name": last_name
-            }
-        else:
-            try:
-                # Verify the ID token
-                idinfo = id_token.verify_oauth2_token(req.token, requests.Request(), settings.GOOGLE_CLIENT_ID)
-            except Exception as oauth_err:
-                logger.warning(f"Google OAuth verification failed: {oauth_err}. Trying unverified decode...")
-                try:
-                    from jose import jwt as jose_jwt
-                    idinfo = jose_jwt.get_unverified_claims(req.token)
-                    if not idinfo or not idinfo.get("email"):
-                        raise ValueError("No email claim present in unverified token")
-                    idinfo["email"] = idinfo.get("email")
-                    idinfo["given_name"] = idinfo.get("given_name", idinfo.get("name", "Google"))
-                    idinfo["family_name"] = idinfo.get("family_name", "")
-                except Exception as dec_err:
-                    logger.warning(f"Unverified decode failed: {dec_err}. Checking sandbox mode...")
-                    # Dev sandbox mode auto-active when GCP keys are default/missing
-                    if not settings.GCP_PROJECT_ID or "your_" in settings.GCP_PROJECT_ID.lower() or "hospyn" in req.token:
-                        email = "sandbox.patient@hospyn.com" if "sandbox" in req.token else "google.user@hospyn.com"
-                        first_name = "Google"
-                        last_name = "User"
-                        idinfo = {"email": email, "given_name": first_name, "family_name": last_name}
-                    else:
-                        raise oauth_err
+        # STRICT GOOGLE OAUTH VERIFICATION (PRODUCTION HARDENED)
+        assert not req.token.startswith("sandbox_mock_"), "Production block: Mock authentication logic is forbidden."
+        
+        try:
+            idinfo = id_token.verify_oauth2_token(req.token, requests.Request(), settings.GOOGLE_CLIENT_ID)
+        except Exception as oauth_err:
+            logger.error(f"GOOGLE_OAUTH_VERIFICATION_FAILURE: {oauth_err}")
+            throw_auth_exception("Invalid Google token signature or expired credentials.")
 
         # ID token is valid. Get the user's Google ID and email.
         email = idinfo['email']
@@ -343,6 +320,10 @@ async def google_login(
             await db.commit()
             await db.refresh(user)
             logger.info(f"GOOGLE_REGISTRATION_SUCCESS: Email={email}")
+            
+        # ENTERPRISE: Soft Delete Protection
+        if getattr(user, 'deleted_at', None) is not None:
+            throw_auth_exception("Account has been deleted.")
         
         # Issue tokens
         access_token = security.create_access_token(user.id, user.role, token_version=user.token_version, is_temporary_password=getattr(user, 'is_temporary_password', False))
@@ -365,6 +346,110 @@ async def google_login(
         # Invalid token
         throw_auth_exception("Invalid Google Token")
 
+@router.post("/apple", response_model=schemas.Token)
+@limiter.limit("5/minute")
+async def apple_login(
+    req: schemas.GoogleLoginRequest, # Reusing the {token: str} schema
+    db: AsyncSession = Depends(deps.get_db)
+):
+    """
+    APPLE SIGN-IN:
+    Verifies the Apple Identity Token and issues a Hospyn JWT.
+    Required for App Store Compliance.
+    """
+    try:
+        from jose import jwt as jose_jwt
+        import requests as req_sync
+        
+        # 1. Fetch Apple's public keys
+        apple_keys_url = "https://appleid.apple.com/auth/keys"
+        jwks = req_sync.get(apple_keys_url).json()
+        
+        # 2. Decode the header to find the kid
+        unverified_header = jose_jwt.get_unverified_header(req.token)
+        rsa_key = {}
+        for key in jwks["keys"]:
+            if key["kid"] == unverified_header["kid"]:
+                rsa_key = {
+                    "kty": key["kty"],
+                    "kid": key["kid"],
+                    "use": key["use"],
+                    "n": key["n"],
+                    "e": key["e"]
+                }
+                break
+                
+        if not rsa_key:
+            raise ValueError("Invalid Apple Key")
+            
+        # 3. Verify the token against Apple's keys
+        payload = jose_jwt.decode(
+            req.token,
+            rsa_key,
+            algorithms=["RS256"],
+            audience=settings.APPLE_CLIENT_ID if hasattr(settings, 'APPLE_CLIENT_ID') else ["host.exp.exponent", "com.hospyn.patientapp"],
+            issuer="https://appleid.apple.com"
+        )
+        
+        email = payload.get("email")
+        if not email:
+            # If no email, fallback to a pseudo email based on Apple sub
+            email = f"{payload.get('sub')}@apple.user.hospyn.com"
+            
+        # Check if user exists
+        stmt = select(models.User).where(models.User.email == email)
+        result = await db.execute(stmt)
+        user = result.scalars().first()
+
+        if not user:
+            # Auto-register Apple user
+            user = models.User(
+                email=email,
+                hashed_password=security.get_password_hash(secrets.token_urlsafe(32)),
+                first_name="Apple",
+                last_name="User",
+                role=models.RoleEnum.patient,
+                is_active=True
+            )
+            db.add(user)
+            await db.flush()
+            
+            # --- Auto-Setup Patient Profile ---
+            import uuid
+            hospyn_id = f"Hospyn-{uuid.uuid4().hex[:8].upper()}"
+            skeleton_patient = models.Patient(
+                user_id=user.id,
+                hospyn_id=hospyn_id,
+                phone_number="555" + str(secrets.randbelow(10000000)).zfill(7),
+                language_code="en",
+            )
+            db.add(skeleton_patient)
+            user.hospyn_id = hospyn_id
+
+            await db.commit()
+            await db.refresh(user)
+            logger.info(f"APPLE_REGISTRATION_SUCCESS: Email={email}")
+            
+        # ENTERPRISE: Soft Delete Protection
+        if getattr(user, 'deleted_at', None) is not None:
+            throw_auth_exception("Account has been deleted.")
+        
+        # Issue tokens
+        access_token = security.create_access_token(user.id, user.role, token_version=user.token_version)
+        refresh_token = security.create_refresh_token(user.id, user.role, token_version=user.token_version)
+        
+        await log_audit_action(db=db, user_id=user.id, action="APPLE_LOGIN_SUCCESS", resource_type="USER")
+        
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer"
+        }
+
+    except Exception as e:
+        logger.warning(f"Apple Auth verification failed: {e}")
+        throw_auth_exception("Invalid Apple Token")
+
 # --- MASTER BYPASS AND DEMO LOGIC REMOVED PER ARCHITECTURAL DIRECTIVE ---
 
 @router.post("/send-otp", status_code=status.HTTP_200_OK)
@@ -380,13 +465,8 @@ async def send_otp(
 
     logger.info(f"OTP_REQUEST_RECEIVED: Identifier={req.identifier}, Method={req.method}, IP={request.client.host}")
     
-    # --- HARDCODED DEMO BYPASS ---
-    if req.identifier == "8688533605" or req.identifier == "+918688533605":
-        otp = "123456"
-        logger.info("Using hardcoded OTP 123456 for demo number 8688533605")
-    else:
-        # 1. Standard OTP Generation
-        otp = "".join([str(secrets.randbelow(10)) for _ in range(6)])
+    # 1. Standard Cryptographic OTP Generation (Strict Twilio Enforcement)
+    otp = "".join([str(secrets.randbelow(10)) for _ in range(6)])
     
     # 2. Persistence (Database Primary)
 
@@ -411,9 +491,7 @@ async def send_otp(
 
     # 3. Delivery
     try:
-        if req.identifier == "8688533605" or req.identifier == "+918688533605":
-            logger.info("Bypassing Twilio dispatch for demo number.")
-        elif req.method == "sms":
+        if req.method == "sms":
             logger.info(f"SMS_DISPATCH_INITIATED: To={req.identifier}")
             success = await send_sms_otp(req.identifier, otp)
             
@@ -530,6 +608,10 @@ async def verify_otp(
         if not user:
             logger.info(f"OTP_VERIFY_SUCCESS_PENDING_REG: {req.identifier}")
             return {"success": True, "user_exists": False, "message": "Identity verified. Please complete your profile."}
+
+        # ENTERPRISE: Soft Delete Protection
+        if getattr(user, 'deleted_at', None) is not None:
+            throw_auth_exception("Account has been deleted.")
 
         # 4. Success Flow
         user.is_active = True

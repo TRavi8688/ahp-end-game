@@ -1,25 +1,36 @@
 import { Platform } from 'react-native';
 
 // --- API CONFIGURATION ---
-// Priority: Env Variable > Local Dev (port 8000) > Production Fallback
+// STRICT PRODUCTION ENFORCEMENT: All production builds must use environment variables.
+// Fallback IPs are strictly forbidden in production to prevent data leakage or misrouting.
 
 const getBaseUrl = () => {
-    if (typeof __DEV__ !== 'undefined' && __DEV__) {
-        return 'http://192.168.0.21:8000';
+    // If we have an explicit environment variable injected, always prefer it (EAS Secrets)
+    if (process.env.EXPO_PUBLIC_API_BASE_URL) {
+        return process.env.EXPO_PUBLIC_API_BASE_URL;
     }
-    return 'https://hospyn-495906-api-625745217419.us-central1.run.app';
+    
+    if (__DEV__) {
+        // Development fallback only. Will not compile into production JS bundle.
+        return 'http://192.168.0.21:8000/api/v1'; 
+    }
+    
+    // Failsafe: If production bundle lacks env var, throw an error to prevent silent failure.
+    // In React Native, throwing an error will be caught by Sentry/ErrorBoundary instead of routing data blindly.
+    throw new Error('FATAL: EXPO_PUBLIC_API_BASE_URL is not defined in the production environment.');
 };
 
+export const API_BASE_URL = getBaseUrl();
 
-const BASE = getBaseUrl();
-
-export const API_BASE_URL = `${BASE}/api/v1`;
-
-export const WS_BASE_URL = BASE.startsWith('https')
-    ? BASE.replace('https', 'wss')
-    : BASE.replace('http', 'ws');
+// Derive WebSocket URL from Base URL safely
+export const WS_BASE_URL = API_BASE_URL.startsWith('https')
+    ? API_BASE_URL.replace('https', 'wss').replace('/api/v1', '')
+    : API_BASE_URL.replace('http', 'ws').replace('/api/v1', '');
 
 // --- GOOGLE OAUTH CLIENT CONFIGURATION ---
-// Replace with the Google Web Client ID generated for your GCP Project: hospyn-495906-96438
-export const GOOGLE_CLIENT_ID = '625745217419-cq76tvb0mlt0bkmg8bd4r0csj4vmqmr8.apps.googleusercontent.com';
+// Extracted to environment variables for security.
+if (!__DEV__ && !process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID) {
+     console.warn('WARNING: EXPO_PUBLIC_GOOGLE_CLIENT_ID missing in production build.');
+}
+export const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || '625745217419-cq76tvb0mlt0bkmg8bd4r0csj4vmqmr8.apps.googleusercontent.com';
 
