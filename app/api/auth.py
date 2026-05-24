@@ -349,6 +349,7 @@ async def google_login(
 @router.post("/apple", response_model=schemas.Token)
 @limiter.limit("5/minute")
 async def apple_login(
+    request: Request,
     req: schemas.GoogleLoginRequest, # Reusing the {token: str} schema
     db: AsyncSession = Depends(deps.get_db)
 ):

@@ -58,14 +58,15 @@ function Layout({ children, onLogout }) {
 }
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('partner_token'));
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    setAuthFailureCallback(() => {
-      setIsAuthenticated(false);
-      navigate('/login');
-    });
+    // Disabled to bypass login
+    // setAuthFailureCallback(() => {
+    //   setIsAuthenticated(false);
+    //   navigate('/login');
+    // });
   }, [navigate]);
 
   const handleLogout = () => {
@@ -81,7 +82,7 @@ function App() {
       />
       <Route 
         path="/dashboard" 
-        element={isAuthenticated ? <Layout onLogout={handleLogout}><Dashboard /></Layout> : <Navigate to="/login" />} 
+        element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />} 
       />
       <Route 
         path="/orders" 

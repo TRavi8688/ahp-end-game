@@ -417,7 +417,6 @@ class AsyncAIService:
         else:
             providers = [
                 ("groq", self._call_groq, "llama-3.3-70b-versatile"),
-                ("anthropic", self._call_anthropic, "claude-3-5-sonnet-20240620"),
                 ("gemini", self._call_gemini, "gemini-2.5-flash")
             ]
  
