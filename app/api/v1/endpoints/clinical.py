@@ -53,7 +53,8 @@ async def create_prescription(
                 final_patient_id = uuid.UUID(prescription_in.patient_id)
             except ValueError:
                 # It's a Hospyn ID (e.g. "Hospyn-D0AAB75D"), resolve it to UUID
-                stmt_p = sa_select(Patient).where(Patient.hospyn_id == prescription_in.patient_id)
+                from sqlalchemy import func
+                stmt_p = sa_select(Patient).where(func.lower(Patient.hospyn_id) == func.lower(prescription_in.patient_id))
                 patient_res = await db.execute(stmt_p)
                 patient_obj = patient_res.scalars().first()
                 if patient_obj:
@@ -62,6 +63,8 @@ async def create_prescription(
                     raise HTTPException(status_code=404, detail="Patient not found in system")
         else:
             raise ValueError("Empty patient_id")
+    except HTTPException as he:
+        raise he
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Invalid patient_id format. Must be UUID or Hospyn ID. Got: {prescription_in.patient_id}")
 
@@ -300,7 +303,8 @@ async def get_patient_history(
     try:
         final_patient_id = uuid.UUID(patient_id)
     except ValueError:
-        stmt_p = sa_select(Patient).where(Patient.hospyn_id == patient_id)
+        from sqlalchemy import func
+        stmt_p = sa_select(Patient).where(func.lower(Patient.hospyn_id) == func.lower(patient_id))
         patient_res = await db.execute(stmt_p)
         patient_obj = patient_res.scalars().first()
         if not patient_obj:
