@@ -1233,11 +1233,13 @@ async def approve_access(
             )
             res_existing = await db.execute(stmt_existing)
             if not res_existing.scalar_one_or_none():
+                import secrets
                 share = models.RecordShare(
                     patient_id=current_patient.id,
                     record_id=record_id,
                     doctor_query=access_req.doctor_name,
-                    doctor_user_id=access_req.doctor_user_id
+                    doctor_user_id=access_req.doctor_user_id,
+                    share_token=secrets.token_urlsafe(32)
                 )
                 db.add(share)
             
