@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Modal, Image, Alert, ScrollView, Linking, Platform, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Modal, Image, Alert, ScrollView, Linking, Platform, RefreshControl, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
@@ -19,6 +19,9 @@ export default function RecordsScreen({ navigation }) {
     const [refreshing, setRefreshing] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState(null);
     const [showDetail, setShowDetail] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deletePassword, setDeletePassword] = useState('');
+    const [isDeleting, setIsDeleting] = useState(false);
     const [theme, setThemeState] = useState(getTheme());
 
     useEffect(() => {
@@ -58,6 +61,26 @@ export default function RecordsScreen({ navigation }) {
         } finally {
             setIsLoading(false);
             setRefreshing(false);
+        }
+    };
+
+    const handleDeleteRecord = async () => {
+        if (!deletePassword) {
+            Alert.alert("Error", "Please enter your password.");
+            return;
+        }
+        setIsDeleting(true);
+        try {
+            await clinicalService.deleteRecord(selectedRecord.id, deletePassword);
+            Alert.alert("Success", "Record securely deleted.");
+            setShowDeleteModal(false);
+            setShowDetail(false);
+            setDeletePassword('');
+            fetchRecords(); // Refresh the list
+        } catch (error) {
+            Alert.alert("Error", error.response?.data?.detail || "Failed to delete record.");
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -521,6 +544,12 @@ export default function RecordsScreen({ navigation }) {
                                                 <Text style={styles.fullViewText}>SHARE</Text>
                                             </TouchableOpacity>
                                         )}
+                                        <TouchableOpacity 
+                                            style={[styles.fullViewBtn, { backgroundColor: '#ef4444', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }]} 
+                                            onPress={() => setShowDeleteModal(true)}
+                                        >
+                                            <Text style={styles.fullViewText}>DELETE</Text>
+                                        </TouchableOpacity>
                                     </View>
                                 </View>
                             )}
@@ -564,6 +593,58 @@ export default function RecordsScreen({ navigation }) {
                                 )}
                             </View>
                         </ScrollView>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Password Confirmation Delete Modal */}
+            <Modal visible={showDeleteModal} animationType="fade" transparent={true}>
+                <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' }]}>
+                    <View style={[{ width: '90%', maxWidth: 400, backgroundColor: Theme.colors.background, borderRadius: 16, padding: 24, paddingTop: 32 }]}>
+                        <TouchableOpacity style={{ position: 'absolute', top: 16, right: 16 }} onPress={() => setShowDeleteModal(false)}>
+                            <Ionicons name="close" size={24} color={Theme.colors.textMuted} />
+                        </TouchableOpacity>
+                        
+                        <View style={{ alignItems: 'center', marginBottom: 20 }}>
+                            <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: 'rgba(239, 68, 68, 0.1)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 }}>
+                                <Ionicons name="warning" size={32} color="#ef4444" />
+                            </View>
+                            <Text style={{ fontSize: 20, fontWeight: '700', color: Theme.colors.text, textAlign: 'center', marginBottom: 8 }}>Secure Deletion</Text>
+                            <Text style={{ fontSize: 14, color: Theme.colors.textMuted, textAlign: 'center', lineHeight: 20 }}>
+                                You are about to permanently delete this clinical record from your vault. To confirm your identity, please enter your login password.
+                            </Text>
+                        </View>
+                        
+                        <View style={{ backgroundColor: Theme.colors.primary === '#7C3AED' ? '#F1F5F9' : 'rgba(0,0,0,0.2)', padding: 12, borderRadius: 8, marginBottom: 20 }}>
+                            <Text style={{ fontSize: 12, fontWeight: '700', color: Theme.colors.text, marginBottom: 4 }}>RECORD DETIALS</Text>
+                            <Text style={{ fontSize: 14, color: Theme.colors.textMuted }} numberOfLines={2}>{selectedRecord?.ai_summary || selectedRecord?.hospital_name}</Text>
+                        </View>
+
+                        <TextInput
+                            style={{ backgroundColor: Theme.colors.primary === '#7C3AED' ? '#fff' : 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: Theme.colors.border, borderRadius: 8, padding: 16, color: Theme.colors.text, fontSize: 16, marginBottom: 24 }}
+                            placeholder="Enter your password"
+                            placeholderTextColor={Theme.colors.textMuted}
+                            secureTextEntry
+                            value={deletePassword}
+                            onChangeText={setDeletePassword}
+                        />
+
+                        <View style={{ flexDirection: 'row', gap: 12 }}>
+                            <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 8, backgroundColor: Theme.colors.primary === '#7C3AED' ? '#e2e8f0' : 'rgba(255,255,255,0.1)', alignItems: 'center' }} onPress={() => setShowDeleteModal(false)}>
+                                <Text style={{ fontWeight: '700', color: Theme.colors.text }}>CANCEL</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity 
+                                style={{ flex: 1, paddingVertical: 14, borderRadius: 8, backgroundColor: '#ef4444', alignItems: 'center', opacity: isDeleting ? 0.7 : 1 }} 
+                                onPress={handleDeleteRecord}
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? (
+                                    <ActivityIndicator size="small" color="#fff" />
+                                ) : (
+                                    <Text style={{ fontWeight: '700', color: '#fff' }}>DELETE</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
             </Modal>

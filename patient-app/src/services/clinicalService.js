@@ -45,6 +45,10 @@ export const clinicalService = {
             throw e;
         }
     },
+    deleteRecord: async (recordId, password) => {
+        const response = await apiClient.post(`/patient/records/${recordId}/delete`, { password });
+        return response.data;
+    },
 
     uploadReport: async (formData) => {
         // Native fetch for large blobs avoiding Axios serialization bugs

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Tabs, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Button, Fade } from '@mui/material';
+import { Box, Typography, Tabs, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Button, Fade, Select, MenuItem, FormControl } from '@mui/material';
 import { API_BASE_URL } from '../api';
 
 const glassStyle = {
@@ -11,6 +11,7 @@ const glassStyle = {
 
 export default function AccessHistory() {
     const [tabIndex, setTabIndex] = useState(0);
+    const [dateFilter, setDateFilter] = useState('all');
     const [records, setRecords] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -40,9 +41,33 @@ export default function AccessHistory() {
     };
 
     const getFilteredRecords = () => {
-        if (tabIndex === 0) return records;
-        const types = ['all', 'lab', 'rx', 'discharge', 'imaging'];
-        return records.filter(r => r.typeRaw === types[tabIndex]);
+        let filtered = records;
+        if (tabIndex !== 0) {
+            const types = ['all', 'lab', 'rx', 'discharge', 'imaging'];
+            filtered = filtered.filter(r => r.typeRaw === types[tabIndex]);
+        }
+        
+        if (dateFilter !== 'all') {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            
+            filtered = filtered.filter(r => {
+                const rowDate = new Date(r.date);
+                if (dateFilter === 'today') {
+                    return rowDate >= today;
+                } else if (dateFilter === '7days') {
+                    const sevenDaysAgo = new Date(today);
+                    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                    return rowDate >= sevenDaysAgo;
+                } else if (dateFilter === '30days') {
+                    const thirtyDaysAgo = new Date(today);
+                    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                    return rowDate >= thirtyDaysAgo;
+                }
+                return true;
+            });
+        }
+        return filtered;
     };
 
     const getTypeColor = (type) => {
@@ -77,7 +102,7 @@ export default function AccessHistory() {
                 </Box>
 
                 {/* Filter Tab Strip */}
-                <Box sx={{ borderBottom: 1, borderColor: 'rgba(255, 255, 255, 0.08)', mb: 4 }}>
+                <Box sx={{ borderBottom: 1, borderColor: 'rgba(255, 255, 255, 0.08)', mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
                     <Tabs 
                         value={tabIndex} 
                         onChange={handleTabChange} 
@@ -99,6 +124,25 @@ export default function AccessHistory() {
                         <Tab label="Discharge" />
                         <Tab label="Imaging" />
                     </Tabs>
+
+                    <FormControl size="small" sx={{ minWidth: 150, mb: { xs: 1, sm: 0 } }}>
+                        <Select
+                            value={dateFilter}
+                            onChange={(e) => setDateFilter(e.target.value)}
+                            sx={{
+                                color: 'rgba(255,255,255,0.8)',
+                                '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.2)' },
+                                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(255,255,255,0.4)' },
+                                '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#14B8A6' },
+                                '& .MuiSvgIcon-root': { color: 'rgba(255,255,255,0.5)' }
+                            }}
+                        >
+                            <MenuItem value="all">All Time</MenuItem>
+                            <MenuItem value="today">Today</MenuItem>
+                            <MenuItem value="7days">Last 7 Days</MenuItem>
+                            <MenuItem value="30days">Last 30 Days</MenuItem>
+                        </Select>
+                    </FormControl>
                 </Box>
 
                 {/* Records Table */}

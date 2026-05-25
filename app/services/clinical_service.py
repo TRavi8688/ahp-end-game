@@ -12,7 +12,9 @@ from app.models.models import (
     LabOrderStatusEnum,
     OutboxEvent,
     AuditLog,
-    ClinicalEvent
+    ClinicalEvent,
+    Medication,
+    AddedByEnum
 )
 from app.core.audit import log_audit_action
 from app.services.base import BaseService
@@ -69,6 +71,20 @@ class ClinicalService(BaseService):
         )
         db.add(prescription)
         await db.flush() # Get ID
+        
+        # Auto-Store Prescribed Medications in Patient profile
+        for med in medications:
+            new_med = Medication(
+                patient_id=patient_id,
+                generic_name=med.get("name", "Unknown Medication"),
+                dosage=med.get("dosage", ""),
+                frequency=med.get("frequency", ""),
+                active=True,
+                added_by=AddedByEnum.doctor,
+                confirmed_by_patient=True
+            )
+            db.add(new_med)
+        await db.flush()
         
         # 4. Log Immutable Clinical Event
         await event_service.log_event(

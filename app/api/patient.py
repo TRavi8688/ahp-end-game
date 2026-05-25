@@ -1,5 +1,6 @@
 import os
 import uuid
+from pydantic import BaseModel
 from typing import List, Optional, Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Request, Form
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -251,7 +252,8 @@ async def get_my_records(
     result = await db.execute(
         select(models.MedicalRecord).where(
             models.MedicalRecord.patient_id == current_patient.id,
-            models.MedicalRecord.family_member_id == active_member_id
+            models.MedicalRecord.family_member_id == active_member_id,
+            models.MedicalRecord.hidden_by_patient == False
         )
     )
     await log_audit_action(
@@ -270,6 +272,46 @@ async def get_my_records(
         except Exception:
             record.secure_url = None
     return records
+
+class DeleteRecordRequest(BaseModel):
+    password: str
+
+@router.post("/records/{record_id}/delete")
+async def delete_patient_record(
+    record_id: uuid.UUID,
+    req: DeleteRecordRequest,
+    current_user: Any = Depends(deps.get_current_user),
+    current_patient: Any = Depends(deps.get_current_patient),
+    db: AsyncSession = Depends(deps.get_db)
+):
+    """Soft delete a medical record by verifying the patient's password."""
+    from app.core.security import verify_password
+    if not verify_password(req.password, current_user.hashed_password):
+        raise HTTPException(status_code=403, detail="Invalid password.")
+        
+    stmt = select(models.MedicalRecord).where(
+        models.MedicalRecord.id == record_id,
+        models.MedicalRecord.patient_id == current_patient.id
+    )
+    result = await db.execute(stmt)
+    record = result.scalars().first()
+    
+    if not record:
+        raise HTTPException(status_code=404, detail="Record not found.")
+        
+    record.hidden_by_patient = True
+    await db.commit()
+    
+    await log_audit_action(
+        db,
+        user_id=current_user.id,
+        action="DELETE_PHI",
+        resource_type="MEDICAL_RECORD",
+        resource_id=record.id,
+        patient_id=current_patient.id
+    )
+    
+    return {"status": "success", "message": "Record deleted successfully"}
 
 @router.get("/timeline")
 async def get_patient_clinical_timeline(
@@ -1002,8 +1044,21 @@ async def chat_with_chitti(
             "Please try sending your message again, or let me know how you are feeling so I can assist you! 🩺❤️"
         )
     
+    # Check for AI diagnostic scan failures
+    # Avoid saving invalid records if the AI is offline, under load, or failing
+    is_failed_scan = False
+    invalid_indicators = [
+        "synchronizing my clinical memory network",
+        "system offline",
+        "high load",
+        "try again later",
+        "an error occurred"
+    ]
+    if any(indicator in ai_text.lower() for indicator in invalid_indicators):
+        is_failed_scan = True
+
     # Auto-save the vision/PDF scan records to their wallet/vault
-    if patient and image_s3_urls:
+    if patient and image_s3_urls and not is_failed_scan:
         try:
             from datetime import datetime
             for s3_url in image_s3_urls:

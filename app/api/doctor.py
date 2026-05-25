@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -161,6 +162,19 @@ async def lookup_patient(
     )
     result = await db.execute(stmt)
     existing_access = result.scalars().first()
+
+    # Enforce 15-Minute Strict Examination Window
+    if existing_access and existing_access.granted_at:
+        now_utc = datetime.now(timezone.utc)
+        granted_utc = existing_access.granted_at
+        if granted_utc.tzinfo is None:
+            granted_utc = granted_utc.replace(tzinfo=timezone.utc)
+            
+        if now_utc - granted_utc > timedelta(minutes=15):
+            existing_access.status = "revoked"
+            existing_access.revoked_at = now_utc
+            await db.commit()
+            existing_access = None
 
     await log_audit_action(
         db=db,
@@ -664,8 +678,21 @@ async def get_patient_records(
     )
     access = (await db.execute(stmt_a)).scalars().first()
     
+    # Enforce 15-Minute Strict Examination Window
+    if access and access.granted_at:
+        now_utc = datetime.now(timezone.utc)
+        granted_utc = access.granted_at
+        if granted_utc.tzinfo is None:
+            granted_utc = granted_utc.replace(tzinfo=timezone.utc)
+            
+        if now_utc - granted_utc > timedelta(minutes=15):
+            access.status = "revoked"
+            access.revoked_at = now_utc
+            await db.commit()
+            access = None
+
     if not access:
-        raise HTTPException(status_code=403, detail="Clinical access not granted for this patient.")
+        raise HTTPException(status_code=403, detail="Clinical access not granted or expired for this patient.")
         
     # 2. Fetch Records (support granular sharing via RecordShare)
     from app.models.models import RecordShare
@@ -801,7 +828,7 @@ async def get_analytics(
     ).where(
         DoctorAccess.doctor_user_id == current_doctor.user_id,
         DoctorAccess.status == "granted"
-    ).group_by(Condition.name).order_by(desc(func.count(Condition.id))).limit(4)
+    ).group_by(Condition.name).order_by(func.count(Condition.id).desc()).limit(4)
     
     res_cond = await db.execute(stmt_cond)
     conditions = []
