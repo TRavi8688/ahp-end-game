@@ -24,10 +24,21 @@ async def create_prescription(
     Signs and issues a digital prescription for a patient.
     Triggers automated notifications to the patient and pharmacy.
     """
+    # 0. Load Doctor profile by user_id
+    from app.models.models import Doctor
+    stmt_doc = select(Doctor).where(Doctor.user_id == current_user.id)
+    res_doc = await db.execute(stmt_doc)
+    doctor = res_doc.scalars().first()
+    if not doctor:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Doctor profile not found. Please contact admin."
+        )
+
     # 1. Prepare clinical payload for cryptographic sealing
     clinical_data = {
         "patient_id": str(req.patient_id),
-        "doctor_id": str(current_user.id),
+        "doctor_id": str(doctor.id),
         "diagnosis": req.diagnosis,
         "medications": [m.model_dump() for m in req.medications],
         "visit_id": str(req.visit_id) if req.visit_id else None
@@ -39,7 +50,7 @@ async def create_prescription(
 
     prescription = DigitalPrescription(
         hospital_id=hospital_id,
-        doctor_id=current_user.id,
+        doctor_id=doctor.id,
         patient_id=req.patient_id,
         visit_id=req.visit_id,
         diagnosis=req.diagnosis,
