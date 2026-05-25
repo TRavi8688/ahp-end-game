@@ -20,6 +20,7 @@ import Alerts from './pages/Alerts';
 import Settings from './pages/Settings';
 import Schedule from './pages/Schedule';
 import Analytics from './pages/Analytics';
+import PrescriptionBuilder from './pages/PrescriptionBuilder';
 
 const theme = createTheme({
     palette: {
@@ -163,6 +164,8 @@ function App() {
                                 <Route path="/patients" element={<PatientList />} />
                                 <Route path="/schedule" element={<Schedule />} />
                                 <Route path="/history" element={<AccessHistory />} />
+                                <Route path="/prescriptions" element={<PrescriptionBuilder />} />
+                                <Route path="/prescriptions/:patientId" element={<PrescriptionBuilder />} />
                                 <Route path="/analytics" element={<Analytics />} />
                                 <Route path="/alerts" element={<Alerts />} />
                                 <Route path="/settings" element={<Settings />} />

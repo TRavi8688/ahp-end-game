@@ -130,8 +130,8 @@ class AsyncAIService:
 
     async def get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
-            # Enforce strict 10s timeout for production reliability
-            timeout = httpx.Timeout(10.0, connect=10.0, read=10.0)
+            # Enforce 30s timeout for production reliability, especially for images
+            timeout = httpx.Timeout(30.0, connect=10.0, read=30.0)
             self._client = httpx.AsyncClient(timeout=timeout)
         return self._client
 
@@ -158,7 +158,7 @@ class AsyncAIService:
         if not self.gemini_key: return "MISSING_KEY"
         provider = "gemini"
         
-        url = f"https://generativelanguage.googleapis.com/v1/models/{model_name}:generateContent?key={self.gemini_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={self.gemini_key}"
         parts = [{"text": prompt}]
         
         imgs = image_bytes_list or []
@@ -433,11 +433,13 @@ class AsyncAIService:
         # 2. Define Providers (Priority Ranked)
         if imgs:
             providers = [
+                ("anthropic", self._call_anthropic, "claude-3-haiku-20240307"),
                 ("gemini", self._call_gemini, "gemini-2.5-flash"),
                 ("groq", self._call_groq, "llama-3.2-11b-vision-preview")
             ]
         else:
             providers = [
+                ("anthropic", self._call_anthropic, "claude-3-haiku-20240307"),
                 ("gemini", self._call_gemini, "gemini-2.5-flash"),
                 ("groq", self._call_groq, "llama-3.3-70b-versatile")
             ]

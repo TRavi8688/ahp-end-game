@@ -105,6 +105,7 @@ export const AuthProvider = ({ children }) => {
         try {
             console.warn('[Auth] Terminating session...');
             await SecurityUtils.deleteToken();
+            await SecurityUtils.saveHospynId(null);
             await AsyncStorage.removeItem('auth_provider');
             setIsAuthenticated(false);
             setUser(null);

@@ -244,7 +244,8 @@ export default function AiAssistScreen({ navigation, route }) {
                     onPress: async () => {
                         const updated = recentSessions.filter(s => s.id !== sessionId);
                         setRecentSessions(updated);
-                        await AsyncStorage.setItem('chitti_sessions', JSON.stringify(updated));
+                        const hospynId = await SecurityUtils.getHospynId() || 'default';
+                        await AsyncStorage.setItem(`chitti_sessions_${hospynId}`, JSON.stringify(updated));
                         if (currentSessionId === sessionId) {
                             startNewChat();
                         }
@@ -275,7 +276,8 @@ export default function AiAssistScreen({ navigation, route }) {
             }
 
             // --- Load Sessions ---
-            const sessionsStr = await AsyncStorage.getItem('chitti_sessions').catch(() => null);
+            const hospynId = await SecurityUtils.getHospynId() || 'default';
+            const sessionsStr = await AsyncStorage.getItem(`chitti_sessions_${hospynId}`).catch(() => null);
             let sessions = [];
             if (sessionsStr) {
                 sessions = JSON.parse(sessionsStr);
@@ -373,7 +375,8 @@ export default function AiAssistScreen({ navigation, route }) {
             
             updatedRecent = [newSession, ...updatedRecent];
             setRecentSessions(updatedRecent);
-            await AsyncStorage.setItem('chitti_sessions', JSON.stringify(updatedRecent));
+            const hospynId = await SecurityUtils.getHospynId() || 'default';
+            await AsyncStorage.setItem(`chitti_sessions_${hospynId}`, JSON.stringify(updatedRecent));
         } else {
             updatedRecent = recentSessions.map(s => {
                 if (s.id === activeSessionId) {
@@ -382,7 +385,8 @@ export default function AiAssistScreen({ navigation, route }) {
                 return s;
             });
             setRecentSessions(updatedRecent);
-            await AsyncStorage.setItem('chitti_sessions', JSON.stringify(updatedRecent));
+            const hospynId = await SecurityUtils.getHospynId() || 'default';
+            await AsyncStorage.setItem(`chitti_sessions_${hospynId}`, JSON.stringify(updatedRecent));
         }
 
         try {
@@ -434,7 +438,8 @@ export default function AiAssistScreen({ navigation, route }) {
                 return s;
             });
             setRecentSessions(finalRecent);
-            await AsyncStorage.setItem('chitti_sessions', JSON.stringify(finalRecent));
+            const hospynId = await SecurityUtils.getHospynId() || 'default';
+            await AsyncStorage.setItem(`chitti_sessions_${hospynId}`, JSON.stringify(finalRecent));
 
         } catch (error) {
             console.error('[ChittiAI] send error:', error);
@@ -467,7 +472,8 @@ export default function AiAssistScreen({ navigation, route }) {
                 return s;
             });
             setRecentSessions(finalRecent);
-            await AsyncStorage.setItem('chitti_sessions', JSON.stringify(finalRecent));
+            const hospynId = await SecurityUtils.getHospynId() || 'default';
+            await AsyncStorage.setItem(`chitti_sessions_${hospynId}`, JSON.stringify(finalRecent));
         } finally {
             setIsTyping(false);
             setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 200);

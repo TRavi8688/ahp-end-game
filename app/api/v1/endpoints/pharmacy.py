@@ -11,6 +11,7 @@ from app.schemas.pharmacy import PharmacyCreate, PharmacyAIScanRequest, Pharmacy
 import asyncio
 from app.core.config import settings
 from datetime import datetime
+from app.services.ai_service import AsyncAIService
 
 router = APIRouter(dependencies=[Depends(require_module("pharmacy"))])
 
@@ -465,37 +466,18 @@ async def ai_scan_medication(
 ):
     """
     VISION AI PROCUREMENT:
-    Sends the captured image to Gemini 2.5 to extract structured medical data from the wrapper.
+    Sends the captured image to Anthropic/Unified AI to extract structured medical data from the wrapper.
     """
-    import google.generativeai as genai
     import base64
     import json
 
-    if not settings.GEMINI_API_KEY:
-        # Fallback if no key is configured
-        await asyncio.sleep(1.0)
-        now = datetime.now()
-        next_year = now.replace(year=now.year + 2)
-        return PharmacyAIScanResponse(
-            item_name="Dolo 650 (MOCK - No API Key)",
-            generic_name="Paracetamol IP 650mg",
-            batch_number=f"BNO-{now.strftime('%H%M%S')}",
-            expiry_date=next_year.strftime("%Y-%m-%d"),
-            unit_price=30.50,
-            confidence=0.98
-        )
-        
     try:
-        genai.configure(api_key=settings.GEMINI_API_KEY)
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        
         # Remove data:image/...;base64, prefix if present
         b64_data = req.image_base64
         if "base64," in b64_data:
             b64_data = b64_data.split("base64,")[1]
             
         image_bytes = base64.b64decode(b64_data)
-        image_parts = [{"mime_type": "image/jpeg", "data": image_bytes}]
         
         prompt = '''
         Analyze this image of a medicine wrapper/bottle. Extract the following details and return ONLY a valid JSON object. Do not include markdown formatting or backticks.
@@ -510,8 +492,17 @@ async def ai_scan_medication(
         If a field is missing, guess logically or leave empty string/0.0.
         '''
         
-        response = await asyncio.to_thread(model.generate_content, [prompt, image_parts[0]])
-        text = response.text.replace('```json', '').replace('```', '').strip()
+        ai_service = AsyncAIService()
+        res = await ai_service.unified_ai_engine(
+            prompt=prompt,
+            image_bytes=image_bytes,
+            force_json=True
+        )
+        
+        if not res.get("success"):
+            raise Exception(res.get("error", "AI Extraction failed"))
+            
+        text = res["response"].replace('```json', '').replace('```', '').strip()
         data = json.loads(text)
         
         now = datetime.now()
@@ -526,5 +517,5 @@ async def ai_scan_medication(
             confidence=0.92
         )
     except Exception as e:
-        print(f"Gemini Extraction Error: {e}")
+        print(f"AI Extraction Error: {e}")
         raise HTTPException(status_code=500, detail="Failed to extract data from image. Please try again or enter manually.")

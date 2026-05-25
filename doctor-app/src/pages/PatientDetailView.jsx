@@ -584,7 +584,7 @@ export default function PatientDetailView() {
                                 fontSize: '1rem',
                                 boxShadow: '0 8px 20px rgba(13, 148, 136, 0.3)'
                             }}
-                            onClick={() => navigate('/prescriptions', { state: { patient: patient.profile } })}
+                            onClick={() => navigate(`/prescriptions/${patient.profile.id}`, { state: { patient: patient.profile } })}
                         >
                             Draft Prescription
                         </Button>

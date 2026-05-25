@@ -101,8 +101,25 @@ async def request_phone_otp(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_db_user)
 ):
-    # Mock OTP generation
-    # In reality, send SMS via Twilio and store OTP in Redis
+    # Actual OTP generation
+    import secrets
+    otp = "".join([str(secrets.randbelow(10)) for _ in range(6)])
+    from app.models.models import OTPVerification
+    from datetime import datetime, timezone, timedelta
+    
+    new_otp = OTPVerification(
+        identifier=data.phone_number,
+        otp=otp,
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=5)
+    )
+    db.add(new_otp)
+    await db.commit()
+    
+    from app.services.two_factor_service import send_sms_otp
+    success = await send_sms_otp(data.phone_number, otp)
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to send OTP via Twilio.")
+        
     return {"message": "OTP sent to new phone number successfully"}
 
 @router.post("/phone/verify-otp", response_model=schemas.UserResponse)
@@ -111,8 +128,19 @@ async def verify_phone_otp(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_db_user)
 ):
-    # Mock OTP verification (always succeed if otp="123456")
-    if data.otp != "123456":
+    from app.models.models import OTPVerification
+    from sqlalchemy import select
+    from datetime import datetime, timezone
+
+    result = await db.execute(
+        select(OTPVerification)
+        .where(OTPVerification.identifier == data.phone_number)
+        .where(OTPVerification.expires_at > datetime.now(timezone.utc))
+        .order_by(OTPVerification.created_at.desc())
+    )
+    otp_record = result.scalars().first()
+    
+    if not otp_record or otp_record.otp != data.otp:
         raise HTTPException(status_code=400, detail="Invalid OTP")
     current_user.email = data.phone_number  # The system uses email column for phone/email
     await db.commit()

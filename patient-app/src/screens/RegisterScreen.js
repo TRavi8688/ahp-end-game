@@ -71,8 +71,8 @@ export default function RegisterScreen({ navigation }) {
             await axios.post(`${API_BASE_URL}/auth/register`, {
                 phone_number: phone,
                 password: password,
-                first_name: firstName || 'Unknown',
-                last_name: lastName || '',
+                first_name: firstName,
+                last_name: lastName,
                 role: 'patient'
             });
 
@@ -98,8 +98,8 @@ export default function RegisterScreen({ navigation }) {
             // Immediately complete profile setup
             const setupPayload = {
                 phone_number: formData.phone,
-                first_name: formData.firstName || 'Unknown',
-                last_name: formData.lastName || '',
+                first_name: formData.firstName,
+                last_name: formData.lastName,
                 date_of_birth: formData.age || null,
                 gender: formData.gender || 'Unknown',
                 blood_group: 'Unknown',

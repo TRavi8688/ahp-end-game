@@ -1,37 +1,28 @@
 import asyncio
-import uuid
-import sys
+import base64
 from app.services.ai_service import get_ai_service
-from app.api.patient import chat_with_chitti
+from app.database import async_session_maker
 
-async def mock_chat():
+async def test_chat():
+    ai = await get_ai_service()
+    
+    # 1x1 JPEG base64
+    b64 = "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA="
+    img_bytes = base64.b64decode(b64)
+    
+    print("Testing chat_with_memory...")
     try:
-        ai = await get_ai_service()
-        # We just want to see what chat_with_memory raises!
-        print("Calling chat_with_memory directly")
-        from app.core.database import get_db
-        # We need a db session
-        db_gen = get_db()
-        db = await anext(db_gen)
-        # Mock user id
-        user_id = "00000000-0000-0000-0000-000000000000"
-        conversation_id = "test_chat"
-        try:
+        async with async_session_maker() as db:
             res = await ai.chat_with_memory(
-                user_id=user_id,
-                conversation_id=conversation_id,
-                user_message="Hello",
-                db=db
+                user_id="123e4567-e89b-12d3-a456-426614174000",
+                conversation_id="test_conv",
+                prompt="What is this?",
+                db=db,
+                image_bytes_list=[img_bytes]
             )
-            print("Success!", res)
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-        finally:
-            await db.close()
+            print("Chat response:", repr(res))
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        print("Chat error:", e)
 
 if __name__ == "__main__":
-    asyncio.run(mock_chat())
+    asyncio.run(test_chat())

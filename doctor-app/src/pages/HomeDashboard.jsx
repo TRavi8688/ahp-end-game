@@ -199,7 +199,7 @@ export default function HomeDashboard({ onOpenScan }) {
                                         <QuickActionButton
                                             label="Write Rx"
                                             icon={<MedicationIcon />}
-                                            onClick={() => navigate('/prescriptions')}
+                                            onClick={() => navigate('/patients')}
                                             color="#6366f1"
                                         />
                                     </Grid>

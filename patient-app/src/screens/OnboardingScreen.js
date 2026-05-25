@@ -152,8 +152,8 @@ export default function OnboardingScreen({ navigation }) {
             const registerResp = await axios.post(`${API_BASE_URL}/auth/register`, {
                 phone_number: formData.phone,
                 password: formData.password,
-                first_name: formData.firstName || 'Member',
-                last_name: formData.lastName || '',
+                first_name: formData.firstName,
+                last_name: formData.lastName,
                 role: 'patient',
                 date_of_birth: formData.dob,
                 gender: formData.gender,
