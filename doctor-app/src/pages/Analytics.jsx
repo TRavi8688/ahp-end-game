@@ -31,6 +31,14 @@ export default function Analytics() {
     const conditionChart = data?.conditions || [];
     const weeklyConsults = data?.weekly_stats || [];
 
+    if (isLoading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+                <Typography variant="h6" sx={{ color: '#64748b' }}>Loading Analytics Engine...</Typography>
+            </Box>
+        );
+    }
+
     return (
         <Box sx={{ maxWidth: 1400, mx: 'auto', pb: 8 }}>
 
@@ -68,11 +76,11 @@ export default function Analytics() {
                             <Typography variant="h6" fontWeight="bold" sx={{ color: '#1f2937' }}>Common Conditions in Panel</Typography>
                         </Box>
                         <Box sx={{ p: 3, flex: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', gap: 2 }}>
-                            {conditionChart.map(c => (
-                                <Box key={c.label} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '20%' }}>
+                            {conditionChart.map((c, i) => (
+                                <Box key={c.label || i} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '20%', height: '100%', justifyContent: 'flex-end' }}>
                                     <Typography variant="caption" sx={{ fontWeight: 'bold', mb: 1, color: '#4b5563' }}>{c.percent}%</Typography>
-                                    <Box sx={{ width: '100%', height: `${c.percent * 2}px`, bgcolor: c.color, borderRadius: '4px 4px 0 0', transition: 'height 1s' }} />
-                                    <Box sx={{ mt: 1, textAlign: 'center' }}>
+                                    <Box sx={{ width: '100%', height: `${Math.max(c.percent, 5)}%`, bgcolor: c.color, borderRadius: '4px 4px 0 0', transition: 'height 1s ease-in-out' }} />
+                                    <Box sx={{ mt: 1, textAlign: 'center', height: '30px' }}>
                                         <Typography variant="caption" sx={{ color: '#6b7280', display: 'block', lineHeight: 1 }}>{c.label}</Typography>
                                     </Box>
                                 </Box>
@@ -88,12 +96,12 @@ export default function Analytics() {
                             <Typography variant="h6" fontWeight="bold" sx={{ color: '#1f2937' }}>Consultations per Day (This Week)</Typography>
                         </Box>
                         <Box sx={{ p: 3, flex: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-around', gap: 2 }}>
-                            {weeklyConsults.map(w => {
-                                const heightPercent = (w.count / w.max) * 100;
+                            {weeklyConsults.map((w, i) => {
+                                const heightPercent = (w.count / (w.max || 20)) * 100;
                                 return (
-                                    <Box key={w.day} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '15%' }}>
+                                    <Box key={w.day || i} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '15%', height: '100%', justifyContent: 'flex-end' }}>
                                         <Typography variant="caption" sx={{ fontWeight: 'bold', mb: 1, color: '#0d9488' }}>{w.count}</Typography>
-                                        <Box sx={{ width: '100%', height: `${heightPercent * 1.5}px`, bgcolor: '#0d9488', borderRadius: '4px 4px 0 0', opacity: 0.8 }} />
+                                        <Box sx={{ width: '100%', height: `${Math.max(heightPercent, 5)}%`, bgcolor: '#0d9488', borderRadius: '4px 4px 0 0', opacity: 0.8, transition: 'height 1s ease-in-out' }} />
                                         <Typography variant="caption" sx={{ color: '#6b7280', mt: 1, fontWeight: 'bold' }}>{w.day}</Typography>
                                     </Box>
                                 );
