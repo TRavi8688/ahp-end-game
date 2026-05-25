@@ -82,7 +82,7 @@ export default function PrescriptionBuilder() {
                 instructions: `Follow up: ${followUpDate || 'As needed'}`
             };
 
-            const response = await fetch(`${API_BASE_URL}/clinical/prescribe`, {
+            const response = await fetch(`${API_BASE_URL}/prescribe`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
