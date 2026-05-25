@@ -301,7 +301,6 @@ async def get_owner_dashboard(
             "role": u.role.value if hasattr(u.role, 'value') else str(u.role),
             "department_name": dept_name or "Administration"
         })
-        })
         
     # 7.5 Doctor Metrics
     stmt_docs = select(models.Doctor, models.User).join(
