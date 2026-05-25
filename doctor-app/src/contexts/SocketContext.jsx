@@ -20,17 +20,24 @@ export const SocketProvider = ({ children }) => {
             return;
         }
 
-        const ws = new WebSocket(`${WS_BASE_URL}/ws/${token}`);
+        // Connect to the base WS endpoint. We do NOT pass the token in the URL path.
+        const ws = new WebSocket(`${WS_BASE_URL}/ws`);
         socketRef.current = ws;
 
         ws.onopen = () => {
-            console.log('WebSocket Connected');
+            console.log('WebSocket Connected - Completing Handshake');
+            // Send the token in the first payload as expected by backend
+            ws.send(JSON.stringify({ token }));
             setSocket(ws);
         };
 
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
+                if (data.type === 'auth_success') {
+                    console.log('WS Auth Successful');
+                    return;
+                }
                 console.log('WS Message:', data);
                 setLastMessage(data);
             } catch (e) {
@@ -40,7 +47,7 @@ export const SocketProvider = ({ children }) => {
 
         ws.onerror = (err) => {
             console.error('WebSocket Error:', err);
-            ws.close();
+            // Removed ws.close() to allow onclose to handle reconnection gracefully
         };
 
         ws.onclose = (event) => {

@@ -5,7 +5,7 @@ export const doctorService = {
      * Fetch the doctor's own profile
      */
     getProfile: async () => {
-        return apiClient.get('/profile/me');
+        return apiClient.get('/doctor/profile/me');
     },
 
     /**
@@ -13,7 +13,7 @@ export const doctorService = {
      */
     getStats: async () => {
         // Updated backend path
-        return apiClient.get('/analytics/doctor-stats');
+        return apiClient.get('/doctor/stats');
     },
 
     /**
