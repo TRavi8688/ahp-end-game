@@ -76,10 +76,12 @@ class ErrorBoundary extends React.Component {
                         </Button>
                     </Box>
 
-                    {process.env.NODE_ENV === 'development' && this.state.error && (
-                        <Box sx={{ mt: 4, p: 2, bgcolor: 'rgba(0,0,0,0.5)', borderRadius: '8px', textAlign: 'left', overflowX: 'auto', width: '100%', maxWidth: '600px' }}>
-                            <Typography variant="caption" sx={{ color: '#ef4444', fontFamily: 'monospace' }}>
+                    {this.state.error && (
+                        <Box sx={{ mt: 4, p: 2, bgcolor: 'rgba(0,0,0,0.5)', borderRadius: '8px', textAlign: 'left', overflowX: 'auto', width: '100%', maxWidth: '800px' }}>
+                            <Typography variant="caption" sx={{ color: '#ef4444', fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
                                 {this.state.error.toString()}
+                                {'\n\n'}
+                                {this.state.errorInfo?.componentStack}
                             </Typography>
                         </Box>
                     )}

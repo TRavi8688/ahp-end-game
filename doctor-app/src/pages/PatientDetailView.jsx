@@ -362,7 +362,7 @@ export default function PatientDetailView() {
                         boxShadow: '0 0 30px rgba(99, 102, 241, 0.1)',
                         fontFamily: 'Outfit'
                     }}>
-                        {patient?.profile?.name.split(' ').map(n => n[0]).join('')}
+                        {(patient?.profile?.name || 'Unknown Patient').split(' ').map(n => n[0]).join('')}
                     </Avatar>
 
                     <Box sx={{ flex: 1, minWidth: 300 }}>

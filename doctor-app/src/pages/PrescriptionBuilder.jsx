@@ -78,8 +78,14 @@ export default function PrescriptionBuilder() {
             const payload = {
                 patient_id: patientId,
                 diagnosis: diagnosis || 'Clinical Consultation',
-                medications: validMedications,
-                instructions: `Follow up: ${followUpDate || 'As needed'}`
+                medications: validMedications.map(m => ({
+                    name: m.medication_name,
+                    dosage: m.dosage,
+                    frequency: m.frequency,
+                    duration: m.duration,
+                    instructions: m.instructions
+                })),
+                notes: `Follow up: ${followUpDate || 'As needed'}`
             };
 
             const response = await fetch(`${API_BASE_URL}/prescribe`, {
@@ -98,7 +104,11 @@ export default function PrescriptionBuilder() {
                 }, 1500);
             } else {
                 const err = await response.json();
-                setToast({ open: true, message: err.detail || 'Failed to submit prescription', type: 'error' });
+                let errorMessage = 'Failed to submit prescription';
+                if (err.detail) {
+                    errorMessage = typeof err.detail === 'string' ? err.detail : 'Validation Error: Check all fields';
+                }
+                setToast({ open: true, message: errorMessage, type: 'error' });
             }
         } catch (error) {
             console.error(error);
