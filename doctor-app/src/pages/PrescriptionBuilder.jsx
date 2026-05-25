@@ -13,6 +13,8 @@ export default function PrescriptionBuilder() {
     const { patientId } = useParams();
     const location = useLocation();
     
+    const isPatientIdValid = patientId && patientId !== 'undefined' && patientId !== 'null' && patientId.trim() !== '';
+    
     // We can potentially pass patient context through route state
     const [patient, setPatient] = useState(location.state?.patient || null);
     
@@ -26,7 +28,7 @@ export default function PrescriptionBuilder() {
 
     useEffect(() => {
         // Fetch patient details if not passed in state and if patientId exists
-        if (!patient && patientId) {
+        if (!patient && isPatientIdValid) {
             const fetchPatient = async () => {
                 try {
                     const response = await fetch(`${API_BASE_URL}/doctor/patient/${patientId}`, {
@@ -42,7 +44,7 @@ export default function PrescriptionBuilder() {
             };
             fetchPatient();
         }
-    }, [patientId, patient]);
+    }, [patientId, patient, isPatientIdValid]);
 
     const handleAddMedication = () => {
         setMedications([...medications, { medication_name: '', dosage: '', frequency: '1-0-1', duration: '5 days', route: 'Oral', instructions: '' }]);
@@ -61,8 +63,8 @@ export default function PrescriptionBuilder() {
     };
 
     const handleSubmit = async () => {
-        if (!patientId) {
-            setToast({ open: true, message: 'No patient selected.', type: 'error' });
+        if (!isPatientIdValid) {
+            setToast({ open: true, message: 'No valid patient selected.', type: 'error' });
             return;
         }
         
@@ -273,7 +275,7 @@ export default function PrescriptionBuilder() {
                     <Button 
                         variant="contained" 
                         onClick={handleSubmit}
-                        disabled={isSubmitting || !patientId}
+                        disabled={isSubmitting || !isPatientIdValid}
                         sx={{ 
                             bgcolor: '#6366f1', 
                             '&:hover': { bgcolor: '#4f46e5' }, 

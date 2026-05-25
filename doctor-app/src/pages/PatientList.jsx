@@ -310,7 +310,7 @@ export default function PatientList() {
                             <Button
                                 variant="outlined"
                                 fullWidth
-                                onClick={() => navigate('/prescriptions')}
+                                onClick={() => navigate(`/prescriptions/${selectedPatientData.profile.hospyn_id}`, { state: { patient: selectedPatientData.profile } })}
                                 sx={{ 
                                     color: '#fff', 
                                     borderColor: 'rgba(255,255,255,0.1)', 
