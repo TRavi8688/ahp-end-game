@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import Webcam from 'react-webcam';
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
+import { QRCodeSVG as QRCode } from 'qrcode.react';
 import apiClient from '../services/apiClient';
 
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
@@ -43,7 +44,17 @@ export default function Dashboard() {
   const [patientSearch, setPatientSearch] = useState('');
   const [patients, setPatients] = useState([]);
 
-  const headers = () => ({ Authorization: `Bearer ${localStorage.getItem('token')}` });
+  // Extract Pharmacy ID
+  const token = localStorage.getItem('token');
+  let pharmacyId = 'UNKNOWN_PHARMACY';
+  if (token) {
+      try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          pharmacyId = payload.hospital_id || payload.sub;
+      } catch(e) {}
+  }
+
+  const headers = () => ({ Authorization: `Bearer ${token}` });
   const showMsg = (msg, type='success') => { setToast({msg, type}); setTimeout(() => setToast(null), 3500); };
 
   const fetchOverview = async () => {
@@ -245,11 +256,16 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
-              <div className="bg-white/[0.02] border border-white/5 rounded-3xl p-8 h-[400px]">
-                 <h3 className="text-sm font-bold text-slate-400 mb-6">Stock Velocity (Placeholder)</h3>
-                 <div className="flex flex-col items-center justify-center h-full text-slate-700 opacity-50">
-                    <TrendingUp size={48} className="mb-4" />
-                    <span className="text-xs font-black uppercase tracking-widest">Awaiting Real-time Data</span>
+              
+              <div className="mt-8 bg-white/[0.02] border border-white/5 rounded-3xl p-8 flex flex-col md:flex-row items-center gap-8 justify-between">
+                 <div>
+                    <h3 className="text-xl font-black text-white mb-2">Universal Receiving QR</h3>
+                    <p className="text-sm text-slate-400 max-w-md">
+                      Display this QR code at the counter. Patients can scan it with their Hospyn app to instantly share their digital prescriptions.
+                    </p>
+                 </div>
+                 <div className="p-4 bg-white rounded-2xl">
+                    <QRCode value={pharmacyId} size={150} fgColor="#000" bgColor="#fff" />
                  </div>
               </div>
             </div>

@@ -5,12 +5,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Theme, GlobalStyles } from '../theme';
 import HapticUtils from '../utils/HapticUtils';
 import ApiService from '../utils/ApiService';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 
 export default function PrescriptionDetailScreen({ route, navigation }) {
     const { prescription } = route.params;
     const [showShareModal, setShowShareModal] = useState(false);
     const [pharmacyId, setPharmacyId] = useState('');
     const [isSharing, setIsSharing] = useState(false);
+    const [isScanning, setIsScanning] = useState(false);
+    const [permission, requestPermission] = useCameraPermissions();
 
     const shareExternally = async () => {
         try {
@@ -34,10 +37,13 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
     };
 
     const shareInternally = async () => {
-        if (!pharmacyId) return Alert.alert('Error', 'Please enter a Pharmacy ID');
+        if (!pharmacyId) return Alert.alert('Error', 'Please enter a Pharmacy ID or scan a QR');
         setIsSharing(true);
         try {
-            await ApiService.post(`/clinical/prescriptions/${prescription.id}/share`, { pharmacy_id: pharmacyId });
+            await ApiService.post(`/referrals/pharmacies/request`, { 
+                prescription_id: prescription.id,
+                partner_pharmacy_id: pharmacyId 
+            });
             setShowShareModal(false);
             setPharmacyId('');
             Alert.alert('Success', 'Prescription securely shared with Pharmacy!');
@@ -46,6 +52,15 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
         } finally {
             setIsSharing(false);
         }
+    };
+
+    const handleBarcodeScanned = ({ data }) => {
+        setIsScanning(false);
+        setPharmacyId(data);
+        Alert.alert('QR Scanned', `Scanned Pharmacy ID: ${data}`, [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Share Now', onPress: shareInternally }
+        ]);
     };
 
     return (
@@ -156,14 +171,40 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
                         </View>
                         <Text style={styles.modalSub}>Enter the Pharmacy's Hospyn ID to instantly beam this prescription to their queue.</Text>
                         
-                        <TextInput 
-                            style={styles.input} 
-                            placeholder="e.g. Hospyn-PHARMA-123" 
-                            placeholderTextColor="#64748B"
-                            value={pharmacyId}
-                            onChangeText={setPharmacyId}
-                            autoCapitalize="characters"
-                        />
+                        {isScanning ? (
+                            <View style={{ height: 300, borderRadius: 16, overflow: 'hidden', marginBottom: 20 }}>
+                                <CameraView 
+                                    style={{ flex: 1 }} 
+                                    facing="back"
+                                    onBarcodeScanned={handleBarcodeScanned}
+                                    barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+                                />
+                                <TouchableOpacity style={{ position: 'absolute', top: 10, right: 10, padding: 10, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20 }} onPress={() => setIsScanning(false)}>
+                                    <Ionicons name="close" size={20} color="#fff" />
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            <>
+                                <TextInput 
+                                    style={styles.input} 
+                                    placeholder="e.g. Hospyn-PHARMA-123" 
+                                    placeholderTextColor="#64748B"
+                                    value={pharmacyId}
+                                    onChangeText={setPharmacyId}
+                                    autoCapitalize="characters"
+                                />
+                                <TouchableOpacity 
+                                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#6366F1', marginBottom: 20 }}
+                                    onPress={async () => {
+                                        if (!permission?.granted) await requestPermission();
+                                        setIsScanning(true);
+                                    }}
+                                >
+                                    <Ionicons name="qr-code" size={20} color="#6366F1" />
+                                    <Text style={{ color: '#6366F1', fontSize: 12, fontWeight: 'bold' }}>SCAN PHARMACY QR</Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
                         
                         <TouchableOpacity style={styles.sendBtn} onPress={shareInternally} disabled={isSharing}>
                             {isSharing ? <ActivityIndicator color="#fff" /> : <Text style={styles.sendBtnText}>BEAM PRESCRIPTION</Text>}

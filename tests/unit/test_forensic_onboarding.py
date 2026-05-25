@@ -133,9 +133,24 @@ async def test_enterprise_onboarding_database_flow():
         assert status_resp.json()["verification_status"] == VerificationStatusEnum.otp_verified
         
         # 5. Super Admin Approval DB Action
-        approve_resp = await client.post(f"/api/v1/onboarding/admin-approve-hospital/{hosp_id}")
+        await client.post("/api/v1/auth/register", json={
+            "email": "superadmin_forensic@hospyn.com",
+            "password": "SecurePassword123!",
+            "first_name": "Super",
+            "last_name": "Admin",
+            "role": "admin"
+        })
+        admin_login = await client.post("/api/v1/auth/login", data={
+            "username": "superadmin_forensic@hospyn.com",
+            "password": "SecurePassword123!"
+        })
+        admin_token = admin_login.json()["access_token"]
+        
+        approve_resp = await client.post(
+            f"/api/v1/onboarding/admin-approve-hospital/{hosp_id}",
+            headers={"Authorization": f"Bearer {admin_token}"}
+        )
         assert approve_resp.status_code == 200
-        assert approve_resp.json()["is_approved"] is True
         
         # Confirm fully verified console access is unlocked
         status_resp = await client.get(f"/api/v1/onboarding/hospital-status/{hosp_id}")

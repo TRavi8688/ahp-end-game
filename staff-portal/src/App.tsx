@@ -13,6 +13,7 @@ import NurseDashboard from './pages/Dashboard/NurseDashboard';
 import OwnerDashboard from './pages/Dashboard/OwnerDashboard';
 import PharmacyDashboard from './pages/Dashboard/PharmacyDashboard';
 import LabDashboard from './pages/Dashboard/LabDashboard';
+import ReceptionDashboard from './pages/Dashboard/ReceptionDashboard';
 
 const App: React.FC = () => {
   return (
@@ -45,6 +46,10 @@ const App: React.FC = () => {
 
           <Route element={<ProtectedRoute allowedRoles={['lab', 'admin']} />}>
             <Route path="/lab" element={<Layout role="lab"><LabDashboard /></Layout>} />
+          </Route>
+
+          <Route element={<ProtectedRoute allowedRoles={['receptionist', 'admin', 'hospital_admin']} />}>
+            <Route path="/reception" element={<Layout role="receptionist"><ReceptionDashboard /></Layout>} />
           </Route>
 
           {/* Default Redirection */}

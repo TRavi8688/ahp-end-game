@@ -69,7 +69,21 @@ async def seed_demo():
         else:
             doctor_res = await db.execute(select(Doctor).where(Doctor.user_id == doc_user.id))
             doctor = doctor_res.scalars().first()
-            print("[SEED] Doctor User and Profiles already exist")
+            if not doctor:
+                staff = StaffProfile(user_id=doc_user.id, hospital_id=hospital.id)
+                db.add(staff)
+                
+                doctor = Doctor(
+                    user_id=doc_user.id,
+                    specialty="Cardiovascular Surgery",
+                    license_number="LIC-SURGEON-8888",
+                    license_status="verified"
+                )
+                db.add(doctor)
+                await db.flush()
+                print("[SEED] Doctor User existed, but Profile was missing. Recreated Profile.")
+            else:
+                print("[SEED] Doctor User and Profiles already exist")
 
         # 2. Patient User Setup
         patient_email = "test@hospyn.com"
@@ -99,7 +113,18 @@ async def seed_demo():
         else:
             patient_res = await db.execute(select(Patient).where(Patient.user_id == pat_user.id))
             patient = patient_res.scalars().first()
-            print("[SEED] Patient User and Profile already exist")
+            if not patient:
+                patient = Patient(
+                    user_id=pat_user.id,
+                    hospyn_id="HOSPYN-000000-TEST",
+                    phone_number="9876543210",
+                    gender="Male"
+                )
+                db.add(patient)
+                await db.flush()
+                print("[SEED] Patient User existed, but Profile was missing. Recreated Profile.")
+            else:
+                print("[SEED] Patient User and Profile already exist")
 
         # To make it clean and repeatable, delete any existing clinical records for this patient
         print("[SEED] Cleaning up existing clinical records for patient to avoid duplicates...")

@@ -4,6 +4,8 @@ import DOMPurify from 'dompurify';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSocket } from '../contexts/SocketContext';
 import { API_BASE_URL } from '../api';
+import ApiService from '../utils/ApiService';
+import IntakeModal from '../components/IntakeModal';
 
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import MedicationIcon from '@mui/icons-material/Medication';
@@ -32,121 +34,21 @@ export default function PatientDetailView() {
     const [requestSent, setRequestSent] = useState(false);
     const [isSendingRequest, setIsSendingRequest] = useState(false);
 
-    // Baseline Intake Guide States
     const [intakeModalOpen, setIntakeModalOpen] = useState(false);
-    const [intakeConditions, setIntakeConditions] = useState('');
-    const [intakeSymptoms, setIntakeSymptoms] = useState('');
-    const [intakeVitalsBp, setIntakeVitalsBp] = useState('');
-    const [intakeVitalsHr, setIntakeVitalsHr] = useState('');
-    const [intakeMedications, setIntakeMedications] = useState([{ generic_name: '', dosage: '', frequency: 'daily' }]);
-    const [intakeAllergies, setIntakeAllergies] = useState([{ allergen: '', severity: 'moderate' }]);
-    const [intakeSubmitting, setIntakeSubmitting] = useState(false);
-
-    const handleIntakeSubmit = async () => {
-        setIntakeSubmitting(true);
-        try {
-            const conditions = intakeConditions.split(',')
-                .map(c => c.trim())
-                .filter(c => c.length > 0);
-
-            const medications = intakeMedications.filter(m => m.generic_name.trim().length > 0);
-            const allergies = intakeAllergies.filter(a => a.allergen.trim().length > 0);
-
-            const payload = {
-                conditions,
-                medications,
-                allergies,
-                symptoms: intakeSymptoms,
-                vitals_bp: intakeVitalsBp || "120/80",
-                vitals_hr: intakeVitalsHr || "72",
-                clinic_name: "Hospyn Clinic"
-            };
-
-            const response = await fetch(`${API_BASE_URL}/doctor/patient/${id}/intake`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (response.ok) {
-                setIntakeModalOpen(false);
-                setIntakeConditions('');
-                setIntakeSymptoms('');
-                setIntakeVitalsBp('');
-                setIntakeVitalsHr('');
-                setIntakeMedications([{ generic_name: '', dosage: '', frequency: 'daily' }]);
-                setIntakeAllergies([{ allergen: '', severity: 'moderate' }]);
-                fetchPatient();
-            } else {
-                const err = await response.json();
-                alert(err.detail || "Failed to record intake.");
-            }
-        } catch (error) {
-            console.error("Error submitting intake:", error);
-            alert("Network error. Please try again.");
-        } finally {
-            setIntakeSubmitting(false);
-        }
-    };
-
-    const addMedicationRow = () => {
-        setIntakeMedications([...intakeMedications, { generic_name: '', dosage: '', frequency: 'daily' }]);
-    };
-
-    const removeMedicationRow = (index) => {
-        const rows = [...intakeMedications];
-        rows.splice(index, 1);
-        setIntakeMedications(rows);
-    };
-
-    const handleMedicationChange = (index, field, value) => {
-        const rows = [...intakeMedications];
-        rows[index][field] = value;
-        setIntakeMedications(rows);
-    };
-
-    const addAllergyRow = () => {
-        setIntakeAllergies([...intakeAllergies, { allergen: '', severity: 'moderate' }]);
-    };
-
-    const removeAllergyRow = (index) => {
-        const rows = [...intakeAllergies];
-        rows.splice(index, 1);
-        setIntakeAllergies(rows);
-    };
-
-    const handleAllergyChange = (index, field, value) => {
-        const rows = [...intakeAllergies];
-        rows[index][field] = value;
-        setIntakeAllergies(rows);
-    };
 
     const fetchPatient = async (silent = false) => {
         if (!silent) setIsLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/doctor/patient/${id}`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                if (data) {
-                    // Safe normalization: Guarantee clinical sub-arrays are never null/undefined to prevent React render crashes!
-                    data.allergies = data.allergies || [];
-                    data.conditions = data.conditions || [];
-                    data.medications = data.medications || [];
-                    data.records = data.records || [];
-                    data.history = data.history || [];
-                    data.contacts = data.contacts || [];
-                }
-                setPatient(data);
-            } else {
-                console.error("Failed to fetch patient:", response.status);
+            const data = await ApiService.get(`/doctor/patient/${id}`);
+            if (data) {
+                data.allergies = data.allergies || [];
+                data.conditions = data.conditions || [];
+                data.medications = data.medications || [];
+                data.records = data.records || [];
+                data.history = data.history || [];
+                data.contacts = data.contacts || [];
             }
+            setPatient(data);
         } catch (error) {
             console.error("Error fetching patient:", error);
         } finally {
@@ -178,72 +80,19 @@ export default function PatientDetailView() {
         }
     }, [lastMessage]);
 
-    // Robust Polling Fallback: Automatically check consent status every 2 seconds when request is pending
-    React.useEffect(() => {
-        let interval;
-        if (patient && patient.consent_required && requestSent) {
-            console.log("DEBUG: Patient consent pending, starting robust polling fallback...");
-            interval = setInterval(() => {
-                const pollStatus = async () => {
-                    try {
-                        const response = await fetch(`${API_BASE_URL}/doctor/patient/${id}`, {
-                            headers: {
-                                'Authorization': `Bearer ${localStorage.getItem('token')}`
-                            }
-                        });
-                        if (response.ok) {
-                            const data = await response.json();
-                            if (data && !data.consent_required) {
-                                console.log("DEBUG: Access granted detected via background polling!");
-                                data.allergies = data.allergies || [];
-                                data.conditions = data.conditions || [];
-                                data.medications = data.medications || [];
-                                data.records = data.records || [];
-                                data.history = data.history || [];
-                                data.contacts = data.contacts || [];
-                                setPatient(data);
-                                setRequestSent(false);
-                            }
-                        }
-                    } catch (err) {
-                        console.error("Polling error:", err);
-                    }
-                };
-                pollStatus();
-            }, 2000);
-        }
-
-        return () => {
-            if (interval) clearInterval(interval);
-        };
-    }, [patient, requestSent, id]);
-
     const handleRequestAccess = async () => {
         setIsSendingRequest(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/doctor/scan-patient`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    hospyn_id: patient.profile.hospyn_id,
-                    clinic_name: "Hospyn Clinic",
-                    access_level: "full"
-                })
+            await ApiService.post(`/doctor/scan-patient`, {
+                hospyn_id: patient?.profile?.hospyn_id,
+                clinic_name: "Hospyn Clinic",
+                access_level: "full"
             });
-
-            if (response.ok) {
-                setRequestSent(true);
-                setToastOpen(true);
-            } else {
-                const err = await response.json();
-                alert(err.detail || "Failed to submit request.");
-            }
+            setRequestSent(true);
+            setToastOpen(true);
         } catch (error) {
             console.error("Error requesting access:", error);
-            alert("Network error, please try again.");
+            alert(error.response?.data?.detail || "Network error, please try again.");
         } finally {
             setIsSendingRequest(false);
         }
@@ -339,8 +188,8 @@ export default function PatientDetailView() {
                         mb: 5 
                     }}>
                         <Typography variant="caption" sx={{ color: '#475569', fontWeight: 800, display: 'block', mb: 0.5, letterSpacing: 1 }}>PATIENT IDENTITY</Typography>
-                        <Typography variant="h5" sx={{ fontWeight: 800, color: '#fff', mb: 1 }}>{patient.profile.name}</Typography>
-                        <Typography variant="body2" sx={{ fontFamily: 'monospace', color: '#0d9488', fontWeight: 700 }}>{patient.profile.hospyn_id}</Typography>
+                        <Typography variant="h5" sx={{ fontWeight: 800, color: '#fff', mb: 1 }}>{patient?.profile?.name}</Typography>
+                        <Typography variant="body2" sx={{ fontFamily: 'monospace', color: '#0d9488', fontWeight: 700 }}>{patient?.profile?.hospyn_id}</Typography>
                     </Box>
 
                     {requestSent ? (
@@ -352,7 +201,7 @@ export default function PatientDetailView() {
                                 Awaiting Patient Approval...
                             </Typography>
                             <Typography variant="body2" sx={{ color: '#64748b', maxWidth: 400, mx: 'auto' }}>
-                                A secure request was sent to {patient.profile.name}'s Hospyn app. Ask them to verify and click <strong>Approve</strong>.
+                                A secure request was sent to {patient?.profile?.name}'s Hospyn app. Ask them to verify and click <strong>Approve</strong>.
                             </Typography>
                         </Box>
                     ) : (
@@ -403,20 +252,11 @@ export default function PatientDetailView() {
         formData.append('file', file);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/doctor/patient/${patient.profile.hospyn_id}/upload-report`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: formData
+            await ApiService.client.post(`/doctor/patient/${patient?.profile?.hospyn_id}/upload-report`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
             });
-
-            if (response.ok) {
-                setToastOpen(true);
-                fetchPatient(true); // Silent reload!
-            } else {
-                console.error("Upload failed");
-            }
+            setToastOpen(true);
+            fetchPatient(true);
         } catch (error) {
             console.error("Error uploading file:", error);
         } finally {
@@ -425,34 +265,20 @@ export default function PatientDetailView() {
     };
 
     const handleVerifyRecord = async (recordId) => {
-        // Optimistic UI Update: Mark record as verified in state instantly with 0ms delay!
         if (patient && patient.records) {
-            const updatedRecords = patient.records.map(r => 
+            const updatedRecords = patient?.records?.map(r => 
                 r.id === recordId ? { ...r, verified: true } : r
             );
             setPatient(prev => ({ ...prev, records: updatedRecords }));
         }
 
         try {
-            const response = await fetch(`${API_BASE_URL}/clinical/records/${recordId}/verify`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                setToastOpen(true);
-                fetchPatient(true); // Silent background synchronization!
-            } else {
-                const err = await response.json();
-                console.error("Verification failed:", err);
-                fetchPatient(true); // Revert state from backend in case of failure
-            }
+            await ApiService.post(`/clinical/records/${recordId}/verify`);
+            setToastOpen(true);
+            fetchPatient(true);
         } catch (error) {
             console.error("Error verifying record:", error);
-            fetchPatient(true); // Revert state from backend on exception
+            fetchPatient(true);
         }
     };
 
@@ -536,12 +362,12 @@ export default function PatientDetailView() {
                         boxShadow: '0 0 30px rgba(99, 102, 241, 0.1)',
                         fontFamily: 'Outfit'
                     }}>
-                        {patient.profile.name.split(' ').map(n => n[0]).join('')}
+                        {patient?.profile?.name.split(' ').map(n => n[0]).join('')}
                     </Avatar>
 
                     <Box sx={{ flex: 1, minWidth: 300 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1.5 }}>
-                            <Typography variant="h2" sx={{ fontWeight: 900, fontFamily: 'Outfit', letterSpacing: '-2px' }}>{patient.profile.name}</Typography>
+                            <Typography variant="h2" sx={{ fontWeight: 900, fontFamily: 'Outfit', letterSpacing: '-2px' }}>{patient?.profile?.name}</Typography>
                             <Chip
                                 label="VERIFIED IDENTITY"
                                 size="small"
@@ -556,13 +382,13 @@ export default function PatientDetailView() {
                             />
                         </Box>
                         <Typography variant="h6" sx={{ color: '#64748b', mb: 3, fontWeight: 600 }}>
-                            {patient.profile.age} Years Old · {patient.profile.gender} · <Box component="span" sx={{ color: '#fff', fontWeight: 800 }}>{patient.profile.blood_group}</Box>
+                            {patient?.profile?.age} Years Old · {patient?.profile?.gender} · <Box component="span" sx={{ color: '#fff', fontWeight: 800 }}>{patient?.profile?.blood_group}</Box>
                         </Typography>
 
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                             <Box sx={{ px: 2, py: 0.8, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px' }}>
                                 <Typography variant="caption" sx={{ color: '#475569', fontWeight: 800, mr: 1 }}>Hospyn ID:</Typography>
-                                <Typography component="span" sx={{ color: '#fff', fontFamily: 'monospace', fontWeight: 700 }}>{patient.profile.hospyn_id}</Typography>
+                                <Typography component="span" sx={{ color: '#fff', fontFamily: 'monospace', fontWeight: 700 }}>{patient?.profile?.hospyn_id}</Typography>
                             </Box>
                         </Box>
                     </Box>
@@ -584,7 +410,7 @@ export default function PatientDetailView() {
                                 fontSize: '1rem',
                                 boxShadow: '0 8px 20px rgba(13, 148, 136, 0.3)'
                             }}
-                            onClick={() => navigate(`/prescriptions/${patient.profile.id}`, { state: { patient: patient.profile } })}
+                            onClick={() => navigate(`/prescriptions/${patient?.profile?.id}`, { state: { patient: patient.profile } })}
                         >
                             Draft Prescription
                         </Button>
@@ -646,7 +472,7 @@ export default function PatientDetailView() {
             )}
 
             {/* Allergy Alert Bar - Premium Warning */}
-            {patient.allergies.length > 0 ? (
+            {patient?.allergies?.length > 0 ? (
                 <Box sx={{ 
                     background: 'rgba(239, 68, 68, 0.05)', 
                     p: 3, 
@@ -666,7 +492,7 @@ export default function PatientDetailView() {
                         <Typography variant="body2" sx={{ color: '#64748b' }}>Detected hypersensitivity patterns. Exercise high clinical caution.</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-                        {patient.allergies.map(a => (
+                        {patient?.allergies?.map(a => (
                             <Chip 
                                 key={a.id} 
                                 label={`${a.allergen} (${a.severity})`} 
@@ -755,8 +581,8 @@ export default function PatientDetailView() {
                         <Card className="glass-card" sx={{ p: 4, height: '100%', bgcolor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
                             <Typography variant="h6" fontWeight="900" sx={{ color: '#fff', mb: 3, letterSpacing: 1 }}>CLINICAL CONDITIONS</Typography>
                             <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 4 }}>
-                                {patient.conditions.length > 0 ? (
-                                    patient.conditions.map(c => (
+                                {patient?.conditions?.length > 0 ? (
+                                    patient?.conditions?.map(c => (
                                         <Chip
                                             key={c.id}
                                             label={c.name.toUpperCase()}
@@ -793,9 +619,9 @@ export default function PatientDetailView() {
                     <Grid item xs={12} md={6}>
                         <Card className="glass-card" sx={{ p: 4, height: '100%', bgcolor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
                             <Typography variant="h6" fontWeight="900" sx={{ color: '#fff', mb: 3, letterSpacing: 1 }}>ACTIVE PRESCRIPTIONS</Typography>
-                            {patient.medications.length > 0 ? (
+                            {patient?.medications?.length > 0 ? (
                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                    {patient.medications.map((m, i) => (
+                                    {patient?.medications?.map((m, i) => (
                                         <Box
                                             key={m.id}
                                             sx={{
@@ -869,12 +695,12 @@ export default function PatientDetailView() {
                             <Typography variant="subtitle2" fontWeight="900" sx={{ color: 'rgba(255,255,255,0.4)', width: '15%', textAlign: 'right', letterSpacing: 1 }}>INTEL</Typography>
                         </Box>
 
-                        {patient.records && patient.records.length > 0 ? patient.records.map((r, i) => (
+                        {patient.records && patient?.records?.length > 0 ? patient?.records?.map((r, i) => (
                             <Box
                                 key={r.id}
                                 sx={{
                                     p: 3,
-                                    borderBottom: i < patient.records.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                                    borderBottom: i < patient?.records?.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
                                     display: 'flex',
                                     alignItems: 'center',
                                     transition: 'all 0.2s',
@@ -969,7 +795,7 @@ export default function PatientDetailView() {
                         <Card className="glass-card" sx={{ p: 4, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '24px' }}>
                             <Typography variant="h6" sx={{ fontWeight: 900, color: '#fff', mb: 4, fontFamily: 'Outfit', letterSpacing: 1 }}>CHRONOLOGICAL ENCOUNTERS</Typography>
                             <Box sx={{ position: 'relative', pl: 4, borderLeft: '1px solid rgba(255,255,255,0.1)', ml: 1 }}>
-                                {patient.history && patient.history.length > 0 ? patient.history.map((h, i) => (
+                                {patient.history && patient?.history?.length > 0 ? patient?.history?.map((h, i) => (
                                     <Box key={i} sx={{ mb: 5, position: 'relative' }}>
                                         <Box sx={{
                                             position: 'absolute', left: -37, top: 4, width: 14, height: 14, borderRadius: '50%',
@@ -993,7 +819,7 @@ export default function PatientDetailView() {
                         <Card className="glass-card" sx={{ p: 4, mb: 4, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '24px' }}>
                             <Typography variant="h6" sx={{ fontWeight: 900, color: '#fff', mb: 3, fontFamily: 'Outfit', letterSpacing: 1 }}>EMERGENCY HUB</Typography>
                             <Box sx={{ mb: 2 }}>
-                                {patient.contacts && patient.contacts.length > 0 ? patient.contacts.map(c => (
+                                {patient.contacts && patient?.contacts?.length > 0 ? patient?.contacts?.map(c => (
                                     <Box key={c.name} sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', p: 2.5, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
                                         <Box>
                                             <Typography variant="subtitle2" sx={{ fontWeight: 900, color: '#fff' }}>{c.name}</Typography>
@@ -1086,194 +912,15 @@ export default function PatientDetailView() {
             </Dialog>
 
             {/* Baseline Health Intake Dialog */}
-            <Dialog
-                open={intakeModalOpen}
-                onClose={() => setIntakeModalOpen(false)}
-                maxWidth="md"
-                fullWidth
-                PaperProps={{
-                    sx: {
-                        borderRadius: '24px',
-                        background: '#0a0f1d',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        color: 'white',
-                        boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
-                        p: 1
-                    }
-                }}
-            >
-                <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, borderBottom: '1px solid rgba(255,255,255,0.05)', pb: 2 }}>
-                    <SmartToyIcon sx={{ color: '#f59e0b', fontSize: 28 }} />
-                    <Typography variant="h5" sx={{ fontWeight: 900, fontFamily: 'Outfit', letterSpacing: 0.5 }}>
-                        Baseline Health Intake Assessment
-                    </Typography>
-                </DialogTitle>
-                <DialogContent sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <Typography variant="body2" sx={{ color: '#94a3b8', lineHeight: 1.6 }}>
-                        Please capture the patient's current clinical baseline. This data registers chronic conditions, home medications, allergies, and initial vitals. Chitti AI will immediately synthesize this info.
-                    </Typography>
-
-                    {/* Vitals Section */}
-                    <Box>
-                        <Typography variant="subtitle2" sx={{ color: '#f59e0b', fontWeight: 900, mb: 1.5, letterSpacing: 0.5 }}>INITIAL BASELINE VITALS</Typography>
-                        <Grid container spacing={2}>
-                            <Grid item xs={6}>
-                                <TextField
-                                    fullWidth
-                                    label="Blood Pressure (mmHg)"
-                                    placeholder="e.g. 120/80"
-                                    value={intakeVitalsBp}
-                                    onChange={e => setIntakeVitalsBp(e.target.value)}
-                                    InputLabelProps={{ style: { color: '#64748b' } }}
-                                    inputProps={{ style: { color: 'white' } }}
-                                    sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '12px', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } } }}
-                                />
-                            </Grid>
-                            <Grid item xs={6}>
-                                <TextField
-                                    fullWidth
-                                    label="Heart Rate (bpm)"
-                                    placeholder="e.g. 72"
-                                    value={intakeVitalsHr}
-                                    onChange={e => setIntakeVitalsHr(e.target.value)}
-                                    InputLabelProps={{ style: { color: '#64748b' } }}
-                                    inputProps={{ style: { color: 'white' } }}
-                                    sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '12px', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } } }}
-                                />
-                            </Grid>
-                        </Grid>
-                    </Box>
-
-                    {/* Chronic Conditions Section */}
-                    <Box>
-                        <Typography variant="subtitle2" sx={{ color: '#f59e0b', fontWeight: 900, mb: 1.5, letterSpacing: 0.5 }}>CHRONIC CONDITIONS & DIAGNOSES</Typography>
-                        <TextField
-                            fullWidth
-                            label="Active Diagnoses (Comma-separated)"
-                            placeholder="e.g. Hypertension, Type II Diabetes, Asthma"
-                            value={intakeConditions}
-                            onChange={e => setIntakeConditions(e.target.value)}
-                            InputLabelProps={{ style: { color: '#64748b' } }}
-                            inputProps={{ style: { color: 'white' } }}
-                            sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '12px', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } } }}
-                        />
-                    </Box>
-
-                    {/* Medications Section */}
-                    <Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                            <Typography variant="subtitle2" sx={{ color: '#f59e0b', fontWeight: 900, letterSpacing: 0.5 }}>ACTIVE HOME MEDICATIONS</Typography>
-                            <Button size="small" onClick={addMedicationRow} sx={{ color: '#0d9488', fontWeight: 'bold' }}>+ Add Med</Button>
-                        </Box>
-                        {intakeMedications.map((med, idx) => (
-                            <Box key={idx} sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
-                                <TextField
-                                    label="Generic Name"
-                                    placeholder="e.g. Metformin"
-                                    value={med.generic_name}
-                                    onChange={e => handleMedicationChange(idx, 'generic_name', e.target.value)}
-                                    InputLabelProps={{ style: { color: '#64748b' } }}
-                                    inputProps={{ style: { color: 'white' } }}
-                                    sx={{ flex: 2, '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '12px', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } } }}
-                                />
-                                <TextField
-                                    label="Dosage"
-                                    placeholder="e.g. 500mg"
-                                    value={med.dosage}
-                                    onChange={e => handleMedicationChange(idx, 'dosage', e.target.value)}
-                                    InputLabelProps={{ style: { color: '#64748b' } }}
-                                    inputProps={{ style: { color: 'white' } }}
-                                    sx={{ flex: 1, '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '12px', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } } }}
-                                />
-                                <TextField
-                                    label="Frequency"
-                                    placeholder="e.g. Daily"
-                                    value={med.frequency}
-                                    onChange={e => handleMedicationChange(idx, 'frequency', e.target.value)}
-                                    InputLabelProps={{ style: { color: '#64748b' } }}
-                                    inputProps={{ style: { color: 'white' } }}
-                                    sx={{ flex: 1, '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '12px', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } } }}
-                                />
-                                {intakeMedications.length > 1 && (
-                                    <Button sx={{ color: '#ef4444', minWidth: 40 }} onClick={() => removeMedicationRow(idx)}>Remove</Button>
-                                )}
-                            </Box>
-                        ))}
-                    </Box>
-
-                    {/* Allergies Section */}
-                    <Box>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                            <Typography variant="subtitle2" sx={{ color: '#f59e0b', fontWeight: 900, letterSpacing: 0.5 }}>KNOWN ALLERGIES & CONTRAINDICATIONS</Typography>
-                            <Button size="small" onClick={addAllergyRow} sx={{ color: '#0d9488', fontWeight: 'bold' }}>+ Add Allergy</Button>
-                        </Box>
-                        {intakeAllergies.map((alg, idx) => (
-                            <Box key={idx} sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
-                                <TextField
-                                    label="Allergen"
-                                    placeholder="e.g. Penicillin"
-                                    value={alg.allergen}
-                                    onChange={e => handleAllergyChange(idx, 'allergen', e.target.value)}
-                                    InputLabelProps={{ style: { color: '#64748b' } }}
-                                    inputProps={{ style: { color: 'white' } }}
-                                    sx={{ flex: 2, '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '12px', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } } }}
-                                />
-                                <TextField
-                                    label="Severity"
-                                    placeholder="e.g. Severe / Moderate"
-                                    value={alg.severity}
-                                    onChange={e => handleAllergyChange(idx, 'severity', e.target.value)}
-                                    InputLabelProps={{ style: { color: '#64748b' } }}
-                                    inputProps={{ style: { color: 'white' } }}
-                                    sx={{ flex: 1, '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '12px', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } } }}
-                                />
-                                {intakeAllergies.length > 1 && (
-                                    <Button sx={{ color: '#ef4444', minWidth: 40 }} onClick={() => removeAllergyRow(idx)}>Remove</Button>
-                                )}
-                            </Box>
-                        ))}
-                    </Box>
-
-                    {/* Vitals / Symptom Note Section */}
-                    <Box>
-                        <Typography variant="subtitle2" sx={{ color: '#f59e0b', fontWeight: 900, mb: 1.5, letterSpacing: 0.5 }}>INITIAL ENCOUNTER NOTES</Typography>
-                        <TextField
-                            fullWidth
-                            multiline
-                            rows={3}
-                            label="Primary Symptoms & Intake Memo"
-                            placeholder="Describe primary concerns and observations..."
-                            value={intakeSymptoms}
-                            onChange={e => setIntakeSymptoms(e.target.value)}
-                            InputLabelProps={{ style: { color: '#64748b' } }}
-                            inputProps={{ style: { color: 'white' } }}
-                            sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '12px', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } } }}
-                        />
-                    </Box>
-                </DialogContent>
-                <DialogActions sx={{ p: 3, borderTop: '1px solid rgba(255,255,255,0.05)', gap: 1.5 }}>
-                    <Button onClick={() => setIntakeModalOpen(false)} sx={{ color: '#94a3b8', fontWeight: 'bold' }}>
-                        Cancel
-                    </Button>
-                    <Button
-                        variant="contained"
-                        disabled={intakeSubmitting}
-                        onClick={handleIntakeSubmit}
-                        sx={{
-                            background: 'linear-gradient(45deg, #0d9488 0%, #0f766e 100%)',
-                            color: 'white',
-                            px: 4,
-                            py: 1.5,
-                            borderRadius: '12px',
-                            fontWeight: 'bold',
-                            boxShadow: '0 8px 20px rgba(13, 148, 136, 0.3)',
-                            '&:hover': { background: 'linear-gradient(45deg, #0f766e 0%, #115e59 100%)' }
-                        }}
-                    >
-                        {intakeSubmitting ? 'Recording Intake...' : 'Submit Baseline Record'}
-                    </Button>
-                </DialogActions>
-            </Dialog>
+            <IntakeModal 
+                open={intakeModalOpen} 
+                onClose={() => setIntakeModalOpen(false)} 
+                patientId={id} 
+                onComplete={() => {
+                    setIntakeModalOpen(false);
+                    fetchPatient(true);
+                }} 
+            />
 
         </Box>
     );

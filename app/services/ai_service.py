@@ -130,8 +130,8 @@ class AsyncAIService:
 
     async def get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
-            # Enforce 30s timeout for production reliability, especially for images
-            timeout = httpx.Timeout(30.0, connect=10.0, read=30.0)
+            # Enforce 10s timeout for production reliability
+            timeout = httpx.Timeout(10.0, connect=10.0, read=10.0)
             self._client = httpx.AsyncClient(timeout=timeout)
         return self._client
 

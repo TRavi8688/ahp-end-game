@@ -24,7 +24,8 @@ const Login: React.FC = () => {
         'lab': 'lab',
         'doctor': 'doctor',
         'nurse': 'nurse',
-        'owner': 'owner'
+        'owner': 'owner',
+        'receptionist': 'reception'
       };
       navigate(`/${redirectMap[role] || role}`);
     } catch (error) {

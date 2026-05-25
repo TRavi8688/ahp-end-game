@@ -138,6 +138,9 @@ async def test_e2e_patient_doctor_billing_lifecycle(client):
     6. Digital prescription with cryptographic signature seal
     7. Consultation invoice generation and revenue cash collection
     """
+    old_sid = settings.TWILIO_ACCOUNT_SID
+    settings.TWILIO_ACCOUNT_SID = "placeholder"
+    
     # Create valid 800x800 pixel PNG in memory to bypass PIL verify check and exceed 500 byte limit
     selfie_io = io.BytesIO()
     img = Image.new("RGB", (800, 800), color="white")

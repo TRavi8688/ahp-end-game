@@ -11,6 +11,13 @@ export const clinicalService = {
     },
 
     /**
+     * Fetch live active queue of patients
+     */
+    getActiveQueue: async (signal) => {
+        return apiClient.get('/queue/active', { signal });
+    },
+
+    /**
      * Fetch a specific patient's comprehensive details
      */
     getPatientDetails: async (patientId, signal) => {

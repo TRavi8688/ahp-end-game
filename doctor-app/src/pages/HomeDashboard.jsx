@@ -15,7 +15,7 @@ import { doctorService } from '../services/doctorService';
 import { clinicalService } from '../services/clinicalService';
 export default function HomeDashboard({ onOpenScan }) {
     const navigate = useNavigate();
-    const [patients, setPatients] = React.useState([]);
+    const [patients, setPatients] = React.useState([]); // This will now hold queue
     const [profile, setProfile] = React.useState(null);
     const [stats, setStats] = React.useState({
         patients_count: 0,
@@ -31,13 +31,13 @@ export default function HomeDashboard({ onOpenScan }) {
         const fetchData = async () => {
             try {
                 // Parallel fetching via services
-                const [patientsData, profileData, statsData] = await Promise.all([
-                    clinicalService.getMyPatients(abortController.signal),
+                const [queueData, profileData, statsData] = await Promise.all([
+                    clinicalService.getActiveQueue(abortController.signal),
                     doctorService.getProfile(),
                     doctorService.getStats()
                 ]);
 
-                setPatients(patientsData);
+                setPatients(queueData);
                 setProfile(profileData);
                 setStats(statsData);
             } catch (error) {
@@ -57,9 +57,9 @@ export default function HomeDashboard({ onOpenScan }) {
     }, []);
 
     // Derived Stats
-    const appointmentsToday = stats.schedule_count;
-    const pendingPrescriptions = stats.pending_rx_count;
-    const urgentAlertsCount = stats.alerts_count;
+    const appointmentsToday = stats?.schedule_count || 0;
+    const pendingPrescriptions = stats?.pending_rx_count || 0;
+    const urgentAlertsCount = stats?.alerts_count || 0;
 
     return (
         <Box sx={{ width: '100%', px: { xs: 2, md: 4 }, pt: 4, pb: 6 }} className="animate-fade-in">
@@ -110,7 +110,7 @@ export default function HomeDashboard({ onOpenScan }) {
                 <Grid item xs={12} sm={6} md={3}>
                     <StatCard
                         title="Authorized Patients"
-                        value={stats.patients_count}
+                        value={stats?.patients_count || 0}
                         change="SECURE"
                         color="#0ea5e9"
                         icon={<PeopleIcon sx={{ fontSize: 40 }} />}
@@ -142,7 +142,7 @@ export default function HomeDashboard({ onOpenScan }) {
                 <Grid item xs={12} lg={8}>
                     <Card elevation={0} sx={{ background: 'rgba(255,255,255,0.01)', backdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.05)', height: '100%', borderRadius: '24px', boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)' }}>
                         <Box sx={{ p: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                            <Typography variant="h6" sx={{ fontWeight: 800, color: '#fff', fontFamily: 'Syne', letterSpacing: '-0.01em' }}>Recent Consultations</Typography>
+                            <Typography variant="h6" sx={{ fontWeight: 800, color: '#fff', fontFamily: 'Syne', letterSpacing: '-0.01em' }}>Live Waiting Room</Typography>
                             <Button
                                 endIcon={<ArrowForwardIosIcon sx={{ fontSize: 10 }} />}
                                 onClick={() => navigate('/patients')}
@@ -156,20 +156,20 @@ export default function HomeDashboard({ onOpenScan }) {
                                 <Box sx={{ p: 8, textAlign: 'center' }}>
                                     <Typography color="#64748b" sx={{ fontFamily: 'Space Mono', fontWeight: 700 }}>LOADING HIGH-FIDELITY DATA...</Typography>
                                 </Box>
-                            ) : patients.length === 0 ? (
+                            ) : !patients || patients.length === 0 ? (
                                 <Box sx={{ p: 8, textAlign: 'center' }}>
                                     <Typography color="#64748b" sx={{ fontWeight: 600 }}>No active clinical encounters recorded today.</Typography>
                                 </Box>
                             ) : (
                                 patients.slice(0, 6).map((p) => (
                                     <AppointmentRow
-                                        key={p.hospyn_id}
-                                        name={p.name}
-                                        time={new Date(p.granted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                        status={p.access_level === 'full' ? 'Active Access' : 'Restricted'}
-                                        statusColor="success"
-                                        id={p.hospyn_id}
-                                        condition="Verified Patient"
+                                        key={p.queue_entry_id}
+                                        name={p.patient_name}
+                                        time={`Token ${p.token_number}`}
+                                        status={p.status === 'CHECKED_IN' ? 'Waiting' : p.status}
+                                        statusColor={p.status === 'CHECKED_IN' ? 'warning' : 'success'}
+                                        id={p.patient_hospyn_id}
+                                        condition="In Queue"
                                     />
                                 ))
                             )}
@@ -231,13 +231,13 @@ export default function HomeDashboard({ onOpenScan }) {
                             <Box sx={{ p: 4 }}>
                                 <Grid container rowSpacing={4} columnSpacing={2}>
                                     <Grid item xs={6}>
-                                        <MiniStat label="Encounters" value={stats.patients_count} />
+                                        <MiniStat label="Encounters" value={stats?.patients_count || 0} />
                                     </Grid>
                                     <Grid item xs={6}>
-                                        <MiniStat label="Flags" value={stats.alerts_count} color={stats.alerts_count > 0 ? "#ef4444" : "#10b981"} />
+                                        <MiniStat label="Flags" value={stats?.alerts_count || 0} color={stats?.alerts_count > 0 ? "#ef4444" : "#10b981"} />
                                     </Grid>
                                     <Grid item xs={6}>
-                                        <MiniStat label="Authored Rx" value={stats.pending_rx_count} />
+                                        <MiniStat label="Authored Rx" value={stats?.pending_rx_count || 0} />
                                     </Grid>
                                     <Grid item xs={6}>
                                         <MiniStat label="Queue Status" value="Optimal" color="#0d9488" />
