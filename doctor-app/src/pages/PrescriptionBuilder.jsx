@@ -6,6 +6,7 @@ import MedicationIcon from '@mui/icons-material/Medication';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { API_BASE_URL } from '../api';
+import { clinicalService } from '../services/clinicalService';
 
 export default function PrescriptionBuilder() {
     const navigate = useNavigate();
@@ -88,31 +89,14 @@ export default function PrescriptionBuilder() {
                 notes: `Follow up: ${followUpDate || 'As needed'}`
             };
 
-            const response = await fetch(`${API_BASE_URL}/prescribe`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (response.ok) {
-                setToast({ open: true, message: 'Prescription drafted securely!', type: 'success' });
-                setTimeout(() => {
-                    navigate(`/patient/${patientId}`);
-                }, 1500);
-            } else {
-                const err = await response.json();
-                let errorMessage = 'Failed to submit prescription';
-                if (err.detail) {
-                    errorMessage = typeof err.detail === 'string' ? err.detail : 'Validation Error: Check all fields';
-                }
-                setToast({ open: true, message: errorMessage, type: 'error' });
-            }
+            await clinicalService.createPrescription(payload);
+            setToast({ open: true, message: 'Prescription drafted securely!', type: 'success' });
+            setTimeout(() => {
+                navigate(`/patient/${patientId}`);
+            }, 1500);
         } catch (error) {
             console.error(error);
-            setToast({ open: true, message: 'Network error.', type: 'error' });
+            setToast({ open: true, message: error.message || 'Failed to submit prescription', type: 'error' });
         } finally {
             setIsSubmitting(false);
         }
