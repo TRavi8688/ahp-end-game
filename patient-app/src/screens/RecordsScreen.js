@@ -201,7 +201,7 @@ export default function RecordsScreen({ navigation }) {
                             </View>
                         ) : (
                             <Text style={[styles.recordSummaryLine, { color: Theme.colors.textMuted }]} numberOfLines={1}>
-                                {item.ai_summary || 'No summary available.'}
+                                {item.record_name || item.hospital_name || 'Clinical Document'}
                             </Text>
                         )}
                     </View>
@@ -524,28 +524,16 @@ export default function RecordsScreen({ navigation }) {
                             {docUrl && (
                                 <View style={styles.previewBox}>
                                     <Image source={{ uri: docUrl }} style={styles.previewImage} resizeMode="contain" />
-                                    <View style={{ position: 'absolute', bottom: 16, right: 16, flexDirection: 'row', gap: 8 }}>
+                                    {/* Action buttons row - use separate non-overlapping styles */}
+                                    <View style={styles.previewActionsRow}>
                                         <TouchableOpacity
-                                            style={[styles.fullViewBtn, { backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }]}
+                                            style={styles.previewBtn}
                                             onPress={() => Linking.openURL(docUrl)}
                                         >
                                             <Text style={styles.fullViewText}>VIEW FULL</Text>
                                         </TouchableOpacity>
-                                        {!isAnalyzing(selectedRecord) && (
-                                            <TouchableOpacity 
-                                                style={[styles.fullViewBtn, { backgroundColor: Theme.colors.primary, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }]} 
-                                                onPress={async () => {
-                                                    const { SecurityService } = require('../utils/SecurityService');
-                                                    if (await SecurityService.confirmSensitiveAction('share your medical data')) {
-                                                        Alert.alert("Success", "Secure sharing link generated and ready.");
-                                                    }
-                                                }}
-                                            >
-                                                <Text style={styles.fullViewText}>SHARE</Text>
-                                            </TouchableOpacity>
-                                        )}
                                         <TouchableOpacity 
-                                            style={[styles.fullViewBtn, { backgroundColor: '#ef4444', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 }]} 
+                                            style={[styles.previewBtn, { backgroundColor: '#ef4444' }]} 
                                             onPress={() => setShowDeleteModal(true)}
                                         >
                                             <Text style={styles.fullViewText}>DELETE</Text>
@@ -568,7 +556,9 @@ export default function RecordsScreen({ navigation }) {
                                     </View>
                                 ) : (
                                     <>
-                                        <Text style={[styles.summaryText, { color: Theme.colors.text }]}>{selectedRecord?.ai_summary || 'No summary available.'}</Text>
+                                        <Text style={[styles.summaryText, { color: Theme.colors.text }]}>
+                                            {selectedRecord?.patient_summary || selectedRecord?.record_name || 'Clinical record stored securely.'}
+                                        </Text>
                                         
                                         <View style={styles.infoRow}>
                                             <View style={styles.infoItem}>
@@ -580,15 +570,6 @@ export default function RecordsScreen({ navigation }) {
                                                 <Text style={[styles.infoValue, { color: Theme.colors.text }]}>{formatFullDate(selectedRecord?.created_at)}</Text>
                                             </View>
                                         </View>
-
-                                        {selectedRecord?.raw_text && selectedRecord.raw_text !== '[PIPELINE_ANALYSIS_STAGED]' && (
-                                            <View style={{ marginTop: 20 }}>
-                                                <Text style={styles.label}>RAW DATA EXTRACTED</Text>
-                                                <View style={[styles.rawBox, { backgroundColor: Theme.colors.primary === '#7C3AED' ? '#F1F5F9' : 'rgba(0,0,0,0.3)', borderColor: Theme.colors.border, borderWidth: 1 }]}>
-                                                    <Text style={[styles.rawText, { color: Theme.colors.text }]}>{selectedRecord.raw_text}</Text>
-                                                </View>
-                                            </View>
-                                        )}
                                     </>
                                 )}
                             </View>
@@ -702,7 +683,9 @@ const styles = StyleSheet.create({
     modalTitle: { fontSize: 14, fontWeight: '900', letterSpacing: 2 },
     previewBox: { width: '100%', height: 300, backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: 24, overflow: 'hidden', marginBottom: 30, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
     previewImage: { width: '100%', height: '100%' },
-    fullViewBtn: { position: 'absolute', bottom: 16, right: 16, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+    previewActionsRow: { position: 'absolute', bottom: 12, right: 12, flexDirection: 'row', gap: 8 },
+    previewBtn: { backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
+    fullViewBtn: { backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
     fullViewText: { color: '#fff', fontSize: 10, fontWeight: 'bold' },
     detailsBox: { gap: 15 },
     label: { color: '#64748B', fontSize: 10, fontWeight: '900', letterSpacing: 1 },
