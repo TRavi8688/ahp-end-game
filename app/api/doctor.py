@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from app.core.database import get_db
 from app.schemas import schemas
-from app.models.models import Doctor, User, Patient, DoctorAccess, Allergy, QueueEntry, ClinicalAIEvent, ClinicianOverride, FamilyMember
+from app.models.models import Doctor, User, Patient, DoctorAccess, Allergy, QueueEntry, ClinicalAIEvent, ClinicianOverride, FamilyMember, AISummary, Condition, Medication, MedicalRecord, DigitalPrescription, PatientVisit
 from app.models.core import AccessStatusEnum, QueueStatusEnum
 from app.api.deps import get_current_doctor
 from app.repositories.base import PatientRepository
@@ -500,8 +500,6 @@ async def lookup_patient(
         )
 
     # 2. Detailed clinical lookup (only if access is granted)
-    from datetime import datetime
-    from app.models.models import AISummary, Condition, Medication, MedicalRecord, DigitalPrescription, PatientVisit
     
     dob = family_member.date_of_birth if family_member else patient.date_of_birth
     gender = family_member.gender if family_member else patient.gender
