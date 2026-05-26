@@ -10,7 +10,7 @@ from app.models.models import DigitalPrescription, PrescriptionStatusEnum, User
 from app.schemas.clinical import PrescriptionResponse, PrescriptionCreate
 from app.services.notifications import notification_service
 
-router = APIRouter()
+router = APIRouter(prefix="/clinical")
 
 @router.post("/prescribe", response_model=PrescriptionResponse)
 async def create_prescription(
