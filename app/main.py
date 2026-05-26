@@ -192,8 +192,9 @@ if settings.ENVIRONMENT == "production":
         "https://hospyn-doctor-pro.firebaseapp.com",
         "https://hospyn-erp-portal.web.app",
         "https://hospyn-erp-portal.firebaseapp.com",
-        "https://hospyn-gateway.web.app",
         "https://hospyn-gateway.firebaseapp.com",
+        "http://localhost:8081",
+        "http://127.0.0.1:8081"
     ]
     for domain in core_domains:
         if domain not in production_origins:

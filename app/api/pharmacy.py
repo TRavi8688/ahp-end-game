@@ -99,6 +99,7 @@ async def get_network_orders(
         orders.append({
             "id": str(req.id),
             "prescription_id": str(req.prescription_id),
+            "patient_id": str(req.patient_id),
             "patient_name": f"{first_name} {last_name}".strip(),
             "patient_phone": req.patient.phone_number or "N/A",
             "diagnosis": req.prescription.diagnosis,
