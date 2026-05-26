@@ -88,4 +88,5 @@ error_logs.txt
 maintenance_archive/
 scratch_backup/
 backups/
+scratch/
 

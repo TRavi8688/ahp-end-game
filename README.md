@@ -3,7 +3,7 @@ this is the final codeing
 
 # AI Health Passport (Hospyn) 2.0 Enterprise
 
-Official Enterprise-Grade Backend for the Nirixa Healthcare Platform.
+Official Enterprise-Grade Backend for the Hospyn Healthcare Platform.
 
 ## 🚀 Key Architectural Upgrades
 
