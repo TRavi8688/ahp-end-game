@@ -24,8 +24,11 @@ async def create_prescription(
     Signs and issues a digital prescription for a patient.
     Triggers automated notifications to the patient and pharmacy.
     """
+    from sqlalchemy import func
+    from app.models.models import Doctor, Patient
+    from app.services.clinical_service import ClinicalService
+
     # 0. Load Doctor profile by user_id
-    from app.models.models import Doctor
     stmt_doc = select(Doctor).where(Doctor.user_id == current_user.id)
     res_doc = await db.execute(stmt_doc)
     doctor = res_doc.scalars().first()
@@ -35,53 +38,49 @@ async def create_prescription(
             detail="Doctor profile not found. Please contact admin."
         )
 
-    # 1. Prepare clinical payload for cryptographic sealing
-    clinical_data = {
-        "patient_id": str(req.patient_id),
-        "doctor_id": str(doctor.id),
-        "diagnosis": req.diagnosis,
-        "medications": [m.model_dump() for m in req.medications],
-        "visit_id": str(req.visit_id) if req.visit_id else None
-    }
-    
-    # 2. Seal the prescription record
-    from app.services.integrity import integrity_service
-    signature_hash = integrity_service.calculate_entity_hash(clinical_data)
+    # 1. Resolve Patient ID (handles UUIDs and Hospyn IDs)
+    final_patient_id = None
+    if req.patient_id and req.patient_id not in ["null", "undefined", ""]:
+        try:
+            final_patient_id = uuid.UUID(str(req.patient_id))
+        except ValueError:
+            stmt_p = select(Patient).where(func.lower(Patient.hospyn_id) == func.lower(str(req.patient_id)))
+            patient_res = await db.execute(stmt_p)
+            patient_obj = patient_res.scalars().first()
+            if patient_obj:
+                final_patient_id = patient_obj.id
+            else:
+                raise HTTPException(status_code=404, detail="Patient not found in system")
+    else:
+        raise HTTPException(status_code=422, detail="Empty patient_id")
 
-    prescription = DigitalPrescription(
-        hospital_id=hospital_id,
-        doctor_id=doctor.id,
-        patient_id=req.patient_id,
-        visit_id=req.visit_id,
-        diagnosis=req.diagnosis,
-        medications=[m.model_dump() for m in req.medications],
-        notes=req.notes,
-        status=PrescriptionStatusEnum.pending,
-        signature_hash=signature_hash # SEALED
-    )
-    db.add(prescription)
-    await db.flush()
+    # 2. Resolve Visit ID
+    final_visit_id = None
+    if req.visit_id and req.visit_id not in ["null", "undefined", ""]:
+        try:
+            final_visit_id = uuid.UUID(str(req.visit_id))
+        except ValueError:
+            pass
 
-    # 3. Emit Sovereign Audit Link (Event Ledger)
-    await notification_service.trigger_event(
-        db=db,
-        hospital_id=hospital_id,
-        actor_id=current_user.id,
-        action="ISSUE_PRESCRIPTION",
-        resource_type="Prescription",
-        resource_id=prescription.id,
-        patient_id=req.patient_id,
-        notification_text=f"A digital prescription (HASH: {signature_hash[:8]}...) has been issued by Dr. {current_user.last_name}.",
-        payload={
-            "diagnosis": req.diagnosis, 
-            "medication_count": len(req.medications),
-            "forensic_seal": signature_hash
-        }
-    )
-
-    await db.commit()
-    await db.refresh(prescription)
-    return prescription
+    # 3. Use enterprise clinical service
+    clinical_service = ClinicalService()
+    try:
+        prescription = await clinical_service.create_prescription(
+            db=db,
+            hospital_id=hospital_id,
+            user_id=current_user.id,
+            doctor_id=doctor.id,
+            patient_id=final_patient_id,
+            medications=[m.model_dump() for m in req.medications],
+            notes=req.notes,
+            diagnosis=req.diagnosis,
+            visit_id=final_visit_id
+        )
+        await db.commit()
+        return prescription
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to issue prescription: {str(e)}")
 
 @router.get("/prescriptions", response_model=List[PrescriptionResponse])
 async def get_prescriptions(
