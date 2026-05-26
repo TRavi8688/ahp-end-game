@@ -65,7 +65,7 @@ class DispenseRequest(BaseModel):
 
 class PartnerPharmacyRequestCreate(BaseModel):
     prescription_id: uuid.UUID
-    partner_pharmacy_id: uuid.UUID
+    partner_pharmacy_id: str
 
 class PartnerPharmacyRequestResponse(BaseModel):
     id: uuid.UUID

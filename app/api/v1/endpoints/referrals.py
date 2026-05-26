@@ -132,7 +132,15 @@ async def create_partner_pharmacy_request(
             detail="This prescription is already being prepared by another pharmacy."
         )
 
-    stmt_partner = select(Hospital).where(Hospital.id == request_in.partner_pharmacy_id)
+    import uuid
+    try:
+        # Check if it's a UUID string
+        parsed_uuid = uuid.UUID(request_in.partner_pharmacy_id)
+        stmt_partner = select(Hospital).where(Hospital.id == parsed_uuid)
+    except ValueError:
+        # It's a Hospyn ID (e.g. HOS-FEA067)
+        stmt_partner = select(Hospital).where(Hospital.hospyn_id == request_in.partner_pharmacy_id.strip())
+        
     partner = (await db.execute(stmt_partner)).scalar_one_or_none()
     if not partner:
         raise HTTPException(status_code=404, detail="Partner pharmacy not found.")
@@ -168,7 +176,7 @@ async def get_incoming_lab_requests(
     requests = (await db.execute(stmt)).scalars().all()
     return requests
 
-@router.get("/pharmacies/incoming", response_model=List[PartnerPharmacyRequestResponse])
+@router.get("/pharmacies/incoming")
 async def get_incoming_pharmacy_requests(
     db: AsyncSession = Depends(deps.get_db),
     hospital_id: uuid.UUID = Depends(deps.get_hospital_id)
@@ -176,12 +184,34 @@ async def get_incoming_pharmacy_requests(
     """
     Partner Pharmacy Staff retrieves incoming prescription requests sent to their location.
     """
-    stmt = select(PartnerPharmacyRequest).where(
-        PartnerPharmacyRequest.partner_pharmacy_id == hospital_id
+    from app.models.models import Patient, User
+    
+    stmt = select(PartnerPharmacyRequest, DigitalPrescription, Patient, User).join(
+        DigitalPrescription, PartnerPharmacyRequest.prescription_id == DigitalPrescription.id
+    ).join(
+        Patient, PartnerPharmacyRequest.patient_id == Patient.id
+    ).join(
+        User, Patient.user_id == User.id
+    ).where(
+        PartnerPharmacyRequest.partner_pharmacy_id == hospital_id,
+        PartnerPharmacyRequest.status == PartnerReferralStatusEnum.pending
     ).order_by(PartnerPharmacyRequest.created_at.desc())
     
-    requests = (await db.execute(stmt)).scalars().all()
-    return requests
+    rows = (await db.execute(stmt)).all()
+    
+    results = []
+    for req, rx, patient, user in rows:
+        results.append({
+            "id": str(req.id),
+            "prescription_id": str(req.prescription_id),
+            "patient_name": f"{user.first_name} {user.last_name}",
+            "diagnosis": rx.diagnosis,
+            "medications": rx.medications,
+            "status": req.status,
+            "shared_at": req.created_at.isoformat()
+        })
+        
+    return results
 
 @router.post("/labs/{request_id}/action", response_model=PartnerLabRequestResponse)
 async def action_lab_request(

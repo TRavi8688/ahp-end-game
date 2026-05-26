@@ -891,3 +891,15 @@ async def change_password(
     
     await db.commit()
     return {"success": True, "message": "Password updated successfully."}
+
+ @ r o u t e r . g e t ( ' / m e ' ) 
+ a s y n c   d e f   g e t _ c u r r e n t _ u s e r _ m e ( c u r r e n t _ u s e r :   m o d e l s . U s e r   =   D e p e n d s ( d e p s . g e t _ c u r r e n t _ u s e r ) ,   d b :   A s y n c S e s s i o n   =   D e p e n d s ( d e p s . g e t _ d b ) ) : 
+         h o s p y n _ i d   =   c u r r e n t _ u s e r . h o s p y n _ i d 
+         i f   n o t   h o s p y n _ i d   a n d   c u r r e n t _ u s e r . s t a f f _ p r o f i l e : 
+                 r e s u l t   =   a w a i t   d b . e x e c u t e ( s e l e c t ( m o d e l s . H o s p i t a l ) . w h e r e ( m o d e l s . H o s p i t a l . i d   = =   c u r r e n t _ u s e r . s t a f f _ p r o f i l e . h o s p i t a l _ i d ) ) 
+                 h o s p i t a l   =   r e s u l t . s c a l a r _ o n e _ o r _ n o n e ( ) 
+                 i f   h o s p i t a l : 
+                         h o s p y n _ i d   =   h o s p i t a l . h o s p y n _ i d 
+         r e t u r n   { ' i d ' :   c u r r e n t _ u s e r . i d ,   ' e m a i l ' :   c u r r e n t _ u s e r . e m a i l ,   ' r o l e ' :   c u r r e n t _ u s e r . r o l e ,   ' h o s p y n _ i d ' :   h o s p y n _ i d ,   ' h o s p i t a l _ i d ' :   c u r r e n t _ u s e r . h o s p i t a l _ i d } 
+  
+ 
