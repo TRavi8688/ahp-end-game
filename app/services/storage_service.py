@@ -11,12 +11,6 @@ try:
 except ImportError:
     gcs_storage = None
 
-try:
-    import boto3
-    from botocore.exceptions import ClientError
-except ImportError:
-    boto3 = None
-    ClientError = Exception
 
 class StorageService:
     """
@@ -71,19 +65,6 @@ class StorageService:
             self.client = StorageService._gcs_client_cache
             self.bucket = self.client.bucket(self.bucket_name)
             
-        elif self.provider == "aws":
-            if not boto3:
-                raise ImportError("AWS storage library 'boto3' not installed.")
-            self.bucket_name = settings.S3_BUCKET_NAME or settings.AWS_S3_BUCKET
-            
-            if StorageService._s3_client_cache is None:
-                StorageService._s3_client_cache = boto3.client(
-                    's3',
-                    aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                    aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-                    region_name=settings.AWS_REGION
-                )
-            self.client = StorageService._s3_client_cache
         else:
             raise ValueError(f"Unsupported storage provider: {self.provider}")
 
@@ -95,12 +76,7 @@ class StorageService:
                 blob = self.bucket.blob(object_name)
                 blob.upload_from_string(content, content_type=mime_type)
             else:
-                self.client.put_object(
-                    Bucket=self.bucket_name,
-                    Key=object_name,
-                    Body=content,
-                    ContentType=mime_type
-                )
+                raise ValueError(f"Unsupported storage provider: {self.provider}")
         
         try:
             await asyncio.to_thread(_sync_upload)
@@ -117,12 +93,7 @@ class StorageService:
                 blob = self.bucket.blob(object_name)
                 blob.upload_from_file(file_obj, content_type=mime_type)
             else:
-                self.client.upload_fileobj(
-                    file_obj,
-                    self.bucket_name,
-                    object_name,
-                    ExtraArgs={'ContentType': mime_type}
-                )
+                raise ValueError(f"Unsupported storage provider: {self.provider}")
 
         try:
             await asyncio.to_thread(_sync_stream)
@@ -143,11 +114,7 @@ class StorageService:
                     method="GET",
                 )
             else:
-                return self.client.generate_presigned_url(
-                    'get_object',
-                    Params={'Bucket': self.bucket_name, 'Key': object_name},
-                    ExpiresIn=expires_in
-                )
+                raise ValueError(f"Unsupported storage provider: {self.provider}")
         except Exception as e:
             logger.error("STORAGE_SIGNED_URL_FAILURE", provider=self.provider, error=str(e))
             raise RuntimeError(f"Failed to generate secure link: {e}")

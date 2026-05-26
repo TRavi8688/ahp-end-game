@@ -3,11 +3,10 @@ import apiClient from './apiClient';
 export const clinicalService = {
     /**
      * Fetch all patients assigned to the doctor
-     * Uses AbortSignal for request cancellation on unmount
+     * Uses the correct /doctor/my-patients endpoint
      */
     getMyPatients: async (signal) => {
-        // Was /doctor/my-patients -> mapped to /clinical/patients (if scoped to user in backend)
-        return apiClient.get('/clinical/patients', { signal });
+        return apiClient.get('/doctor/my-patients', { signal });
     },
 
     /**
@@ -18,31 +17,34 @@ export const clinicalService = {
     },
 
     /**
-     * Fetch a specific patient's comprehensive details
+     * Fetch a specific patient's comprehensive details by Hospyn ID
+     * Uses the correct /doctor/patient/{hospynId} endpoint
      */
-    getPatientDetails: async (patientId, signal) => {
-        return apiClient.get(`/clinical/patients/${patientId}`, { signal });
+    getPatientDetails: async (hospynId, signal) => {
+        return apiClient.get(`/doctor/patient/${hospynId}`, { signal });
     },
 
     /**
      * Fetch clinical intake (vitals, chief complaint) for a patient
      */
-    getPatientIntake: async (patientId) => {
-        return apiClient.get(`/clinical/patients/${patientId}/intake`);
+    getPatientIntake: async (hospynId) => {
+        return apiClient.get(`/doctor/patient/${hospynId}/intake`);
     },
 
     /**
      * Issue a prescription
+     * Uses the correct /clinical/prescribe endpoint
      */
     createPrescription: async (prescriptionData) => {
-        return apiClient.post('/clinical/prescriptions', prescriptionData);
+        return apiClient.post('/clinical/prescribe', prescriptionData);
     },
 
     /**
-     * Check drug interaction
+     * Check drug interaction for a specific patient
+     * Uses the correct /doctor/patient/{patientId}/check-drug endpoint
      */
     checkDrugInteraction: async (patientId, medicationName) => {
-        return apiClient.get(`/clinical/patients/${patientId}/check-drug`, {
+        return apiClient.get(`/doctor/patient/${patientId}/check-drug`, {
             params: { medication: medicationName }
         });
     },
@@ -53,8 +55,7 @@ export const clinicalService = {
     uploadMedicalReport: async (hospynId, file) => {
         const formData = new FormData();
         formData.append('file', file);
-        
-        // This explicitly overrides Content-Type to multipart/form-data
+
         return apiClient.post(`/clinical/patients/${hospynId}/upload-report`, formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',

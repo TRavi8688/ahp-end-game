@@ -294,6 +294,12 @@ class Doctor(Base):
     license_copy_url: Mapped[Optional[str]] = mapped_column(String(255))
     verification_notes: Mapped[Optional[str]] = mapped_column(Text)
     
+    # settings & preferences
+    email_notifications_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    sms_notifications_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    session_timeout_minutes: Mapped[int] = mapped_column(Integer, default=15)
+    phone_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    
     user: Mapped["User"] = relationship(back_populates="doctor_profile")
 
     @property

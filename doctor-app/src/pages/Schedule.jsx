@@ -1,14 +1,96 @@
-import React from 'react';
-import { Box, Typography, Button, IconButton, Grid, Card } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Typography, Button, IconButton, Grid, Card, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import AddIcon from '@mui/icons-material/Add';
 import WatchLaterIcon from '@mui/icons-material/WatchLater';
+import { API_BASE_URL } from '../api';
 
 export default function Schedule() {
     const navigate = useNavigate();
+    const [appointments, setAppointments] = useState({
+        'MON': [],
+        'TUE': [],
+        'WED': [],
+        'THU': [],
+        'FRI': []
+    });
+    
+    // Provision slot dialog states
+    const [openDialog, setOpenDialog] = useState(false);
+    const [hospynId, setHospynId] = useState('');
+    const [slotTime, setSlotTime] = useState(''); // YYYY-MM-DD HH:MM
+    const [errorMsg, setErrorMsg] = useState('');
+    const [successMsg, setSuccessMsg] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    const fetchSchedule = async () => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/doctor/schedule`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setAppointments(data);
+            }
+        } catch (err) {
+            console.error("Failed to fetch schedule", err);
+        }
+    };
+
+    useEffect(() => {
+        fetchSchedule();
+    }, []);
+
+    const handleProvisionSlot = async () => {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        if (!hospynId || !slotTime) {
+            setErrorMsg("Hospyn ID and Date/Time are required.");
+            return;
+        }
+        setLoading(true);
+        setErrorMsg('');
+        setSuccessMsg('');
+        
+        // Reformat time from 'YYYY-MM-DDTHH:MM' (HTML input) to 'YYYY-MM-DD HH:MM'
+        const formattedTime = slotTime.replace('T', ' ');
+        
+        try {
+            const res = await fetch(`${API_BASE_URL}/doctor/schedule/provision`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    hospyn_id: hospynId,
+                    scheduled_time: formattedTime
+                })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setSuccessMsg("Clinical consultation slot successfully provisioned!");
+                setHospynId('');
+                setSlotTime('');
+                fetchSchedule();
+                setTimeout(() => {
+                    setOpenDialog(false);
+                    setSuccessMsg('');
+                }, 1500);
+            } else {
+                setErrorMsg(data.detail || "Failed to provision slot. Please check patient ID.");
+            }
+        } catch (e) {
+            setErrorMsg("Network error occurred.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Dynamic weekly structure
     const today = new Date();
@@ -23,13 +105,13 @@ export default function Schedule() {
         };
     });
 
-    const appointments = {
-        'MON': [],
-        'TUE': [],
-        'WED': [],
-        'THU': [],
-        'FRI': []
-    };
+    // Compute dynamic week label from the days array
+    const monthNames = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    const mondayDate = new Date(today);
+    mondayDate.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    const fridayDate = new Date(mondayDate);
+    fridayDate.setDate(mondayDate.getDate() + 4);
+    const weekLabel = `${monthNames[mondayDate.getMonth()]} ${mondayDate.getDate()} — ${monthNames[fridayDate.getMonth()]} ${fridayDate.getDate()}`;
 
     const getColorHex = (color) => {
         switch (color) {
@@ -38,16 +120,6 @@ export default function Schedule() {
             case 'amber': return '#f59e0b';
             case 'purple': return '#8b5cf6';
             default: return '#e5e7eb';
-        }
-    };
-
-    const getBgHex = (color) => {
-        switch (color) {
-            case 'teal': return '#f0fdfa';
-            case 'red': return '#fef2f2';
-            case 'amber': return '#fffbeb';
-            case 'purple': return '#f5f3ff';
-            default: return '#f9fafb';
         }
     };
 
@@ -66,7 +138,7 @@ export default function Schedule() {
                         <ArrowBackIosNewIcon fontSize="small" />
                     </IconButton>
                     <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#fff', minWidth: 160, textAlign: 'center', fontFamily: 'Outfit' }}>
-                        OCT 14 — OCT 18
+                        {weekLabel}
                     </Typography>
                     <IconButton size="small" sx={{ color: '#fff', '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' } }}>
                         <ArrowForwardIosIcon fontSize="small" />
@@ -76,6 +148,7 @@ export default function Schedule() {
                 <Button 
                     variant="contained" 
                     startIcon={<AddIcon />} 
+                    onClick={() => { setOpenDialog(true); setErrorMsg(''); setSuccessMsg(''); }}
                     sx={{ 
                         bgcolor: '#0d9488', 
                         boxShadow: '0 8px 25px rgba(13, 148, 136, 0.3)',
@@ -145,7 +218,7 @@ export default function Schedule() {
 
                             {/* Column Node Body */}
                             <Box sx={{ flex: 1, p: 2, overflowY: 'auto' }}>
-                                {appointments[dayObj.day].map((apt, i) => (
+                                {appointments[dayObj.day] && appointments[dayObj.day].map((apt, i) => (
                                     <Box
                                         key={i}
                                         onClick={() => apt.id ? navigate(`/patient/${apt.id}`) : null}
@@ -182,7 +255,7 @@ export default function Schedule() {
                                         </Box>
                                     </Box>
                                 ))}
-                                {appointments[dayObj.day].length === 0 && (
+                                {(!appointments[dayObj.day] || appointments[dayObj.day].length === 0) && (
                                     <Box sx={{ py: 4, textAlign: 'center' }}>
                                         <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.02)', fontWeight: 900, letterSpacing: 2 }}>VAULT EMPTY</Typography>
                                     </Box>
@@ -192,6 +265,50 @@ export default function Schedule() {
                     ))}
                 </Grid>
             </Card>
+
+            {/* Provision Slot Dialog Modal */}
+            <Dialog open={openDialog} onClose={() => setOpenDialog(false)} PaperProps={{ sx: { bgcolor: '#1e293b', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 4, p: 2, minWidth: 400 } }}>
+                <DialogTitle sx={{ color: '#fff', fontWeight: 'bold' }}>Provision Consultation Slot</DialogTitle>
+                <DialogContent>
+                    {errorMsg && <Alert severity="error" sx={{ mb: 2 }}>{errorMsg}</Alert>}
+                    {successMsg && <Alert severity="success" sx={{ mb: 2 }}>{successMsg}</Alert>}
+                    <TextField
+                        autoFocus
+                        margin="dense"
+                        label="Patient Hospyn ID"
+                        type="text"
+                        fullWidth
+                        variant="outlined"
+                        value={hospynId}
+                        onChange={(e) => setHospynId(e.target.value)}
+                        placeholder="e.g. Hospyn-8A9F3C1D"
+                        sx={{ input: { color: '#fff' }, mb: 2 }}
+                        InputLabelProps={{ shrink: true }}
+                    />
+                    <TextField
+                        margin="dense"
+                        label="Date & Time"
+                        type="datetime-local"
+                        fullWidth
+                        variant="outlined"
+                        value={slotTime}
+                        onChange={(e) => setSlotTime(e.target.value)}
+                        sx={{ input: { color: '#fff' } }}
+                        InputLabelProps={{ shrink: true }}
+                    />
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 2 }}>
+                    <Button onClick={() => setOpenDialog(false)} sx={{ color: '#94a3b8' }}>Cancel</Button>
+                    <Button 
+                        onClick={handleProvisionSlot} 
+                        variant="contained" 
+                        disabled={loading}
+                        sx={{ bgcolor: '#0d9488', '&:hover': { bgcolor: '#0f766e' }, fontWeight: 'bold' }}
+                    >
+                        {loading ? 'Provisioning...' : 'Provision Slot'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
         </Box>
     );

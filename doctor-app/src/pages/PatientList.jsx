@@ -269,7 +269,7 @@ export default function PatientList() {
                                     <Typography variant="caption" sx={{ color: '#6366f1', fontWeight: 900, letterSpacing: 1 }}>CORE CONTEXT</Typography>
                                 </Box>
                                 <Typography variant="body2" sx={{ color: '#94a3b8', lineHeight: 1.6, fontWeight: 500, fontFamily: 'Inter' }}>
-                                    {selectedPatientData.profile.description || "Intelligence node synthesis pending. Access full profile for deep analysis."}
+                                    {selectedPatientData.ai_summary || "Intelligence node synthesis pending. Access full profile for deep analysis."}
                                 </Typography>
                             </Box>
 

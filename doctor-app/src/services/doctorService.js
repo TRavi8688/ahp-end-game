@@ -12,22 +12,20 @@ export const doctorService = {
      * Fetch dashboard statistics for the doctor
      */
     getStats: async () => {
-        // Updated backend path
         return apiClient.get('/doctor/stats');
     },
 
     /**
-     * Fetch alerts/notifications
+     * Fetch alerts/notifications - fixed from /clinical/alerts to /doctor/alerts
      */
     getAlerts: async () => {
-        // Mocked or redirected to standard endpoint
-        return apiClient.get('/clinical/alerts');
+        return apiClient.get('/doctor/alerts');
     },
 
     /**
-     * Fetch security access history
+     * Fetch security access history - fixed from /profile/access-history to /doctor/access-history
      */
     getAccessHistory: async () => {
-        return apiClient.get('/profile/access-history');
+        return apiClient.get('/doctor/access-history');
     }
 };

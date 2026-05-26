@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Tabs, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Button, Fade, Select, MenuItem, FormControl } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../api';
 
 const glassStyle = {
@@ -10,6 +11,7 @@ const glassStyle = {
 };
 
 export default function AccessHistory() {
+    const navigate = useNavigate();
     const [tabIndex, setTabIndex] = useState(0);
     const [dateFilter, setDateFilter] = useState('all');
     const [records, setRecords] = useState([]);
@@ -236,6 +238,7 @@ export default function AccessHistory() {
                                                 variant="text"
                                                 size="small"
                                                 disabled={isRevoked}
+                                                onClick={() => row.hospyn_id && navigate(`/patient/${row.hospyn_id}`)}
                                                 sx={{ 
                                                     color: '#14B8A6', 
                                                     textTransform: 'none', 
