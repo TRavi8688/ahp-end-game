@@ -138,7 +138,7 @@ async def get_active_queue(
             "patient_name": f"{user.first_name} {user.last_name}" if user else "Unknown Patient",
             "patient_hospyn_id": user.hospyn_id if user else None,
             "patient_id": str(entry.patient_id) if entry.patient_id else None,
-            "status": entry.status.value
+            "status": entry.status.value if hasattr(entry.status, 'value') else str(entry.status)
         })
         
     return result

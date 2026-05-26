@@ -6,6 +6,7 @@ from sqlalchemy import select, func
 from app.core.database import get_db
 from app.schemas import schemas
 from app.models.models import Doctor, User, Patient, DoctorAccess, Allergy, QueueEntry, ClinicalAIEvent, ClinicianOverride, FamilyMember
+from app.models.core import AccessStatusEnum, QueueStatusEnum
 from app.api.deps import get_current_doctor
 from app.repositories.base import PatientRepository
 from typing import List, Any, Dict
@@ -425,7 +426,7 @@ async def lookup_patient(
     stmt = select(DoctorAccess).where(
         DoctorAccess.patient_id == target_patient_id,
         DoctorAccess.doctor_user_id == current_doctor.user_id,
-        DoctorAccess.status == "granted"
+        DoctorAccess.status == AccessStatusEnum.granted
     )
     result = await db.execute(stmt)
     existing_access = result.scalars().first()
@@ -438,7 +439,7 @@ async def lookup_patient(
             granted_utc = granted_utc.replace(tzinfo=timezone.utc)
             
         if now_utc - granted_utc > timedelta(minutes=15):
-            existing_access.status = "revoked"
+            existing_access.status = AccessStatusEnum.revoked
             existing_access.revoked_at = now_utc
             await db.commit()
             existing_access = None
@@ -608,6 +609,9 @@ async def lookup_patient(
                 "phone": "+91 98765 43210"
             }
         ]
+
+    # Commit audit log
+    await db.commit()
 
     return {
         "profile": {
@@ -1038,14 +1042,14 @@ async def get_doctor_stats(
     # 1. Patients Count
     stmt_p = select(func.count(DoctorAccess.id)).where(
         DoctorAccess.doctor_user_id == current_doctor.user_id,
-        DoctorAccess.status == "granted"
+        DoctorAccess.status == AccessStatusEnum.granted
     )
     patients_count = (await db.execute(stmt_p)).scalar() or 0
 
     # 2. Schedule Count (Active Queue)
     stmt_q = select(func.count(QueueEntry.id)).where(
         QueueEntry.doctor_id == current_doctor.id,
-        QueueEntry.status.in_(["waiting", "active"]),
+        QueueEntry.status.in_([QueueStatusEnum.waiting_doctor, QueueStatusEnum.waiting_vitals]),
         func.date(QueueEntry.check_in_time) == func.current_date()
     )
     schedule_count = (await db.execute(stmt_q)).scalar() or 0
@@ -1053,7 +1057,7 @@ async def get_doctor_stats(
     # 3. Alerts Count (Pending Access Requests)
     stmt_a = select(func.count(DoctorAccess.id)).where(
         DoctorAccess.doctor_user_id == current_doctor.user_id,
-        DoctorAccess.status == "requested"
+        DoctorAccess.status == AccessStatusEnum.requested
     )
     alerts_count = (await db.execute(stmt_a)).scalar() or 0
 
@@ -1083,7 +1087,7 @@ async def get_analytics(
     # Total Patients
     stmt_p = select(func.count(DoctorAccess.id)).where(
         DoctorAccess.doctor_user_id == current_doctor.user_id,
-        DoctorAccess.status == "granted"
+        DoctorAccess.status == AccessStatusEnum.granted
     )
     total_patients = (await db.execute(stmt_p)).scalar() or 0
     
@@ -1094,7 +1098,7 @@ async def get_analytics(
         DoctorAccess, Patient.id == DoctorAccess.patient_id
     ).where(
         DoctorAccess.doctor_user_id == current_doctor.user_id,
-        DoctorAccess.status == "granted"
+        DoctorAccess.status == AccessStatusEnum.granted
     ).group_by(Condition.name).order_by(func.count(Condition.id).desc()).limit(4)
     
     res_cond = await db.execute(stmt_cond)
