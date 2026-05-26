@@ -118,6 +118,12 @@ async def get_prescriptions(
         if patient_id:
             stmt = stmt.where(DigitalPrescription.patient_id == patient_id)
             
+    from sqlalchemy.orm import selectinload
+    stmt = stmt.options(
+        selectinload(DigitalPrescription.doctor).selectinload(Doctor.user),
+        selectinload(DigitalPrescription.hospital)
+    )
+            
     result = await db.execute(stmt)
     return result.scalars().all()
 

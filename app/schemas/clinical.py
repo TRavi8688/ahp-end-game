@@ -46,5 +46,8 @@ class PrescriptionResponse(PrescriptionBase):
     status: PrescriptionStatusEnum
     created_at: datetime
     signature_hash: Optional[str] = None # FORENSIC SEAL
+    qr_code_id: Optional[str] = None
+    doctor_name: Optional[str] = None
+    hospital_name: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)

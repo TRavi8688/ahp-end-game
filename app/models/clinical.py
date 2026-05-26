@@ -209,6 +209,16 @@ class DigitalPrescription(Base, TenantScopedMixin, TimestampMixin):
     pharmacist_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"))
     
     items: Mapped[List["PrescriptionItem"]] = relationship(back_populates="prescription", cascade="all, delete-orphan")
+    doctor = relationship("Doctor", primaryjoin="DigitalPrescription.doctor_id == Doctor.id")
+    hospital = relationship("Hospital", primaryjoin="DigitalPrescription.hospital_id == Hospital.id")
+
+    @property
+    def doctor_name(self) -> Optional[str]:
+        return f"Dr. {self.doctor.user.last_name}" if getattr(self, 'doctor', None) and getattr(self.doctor, 'user', None) else None
+
+    @property
+    def hospital_name(self) -> Optional[str]:
+        return self.hospital.name if getattr(self, 'hospital', None) else None
 
 class PrescriptionItem(Base):
     __tablename__ = "prescription_items"

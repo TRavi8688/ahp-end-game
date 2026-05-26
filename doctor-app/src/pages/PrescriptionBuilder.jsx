@@ -94,7 +94,7 @@ export default function PrescriptionBuilder() {
             await clinicalService.createPrescription(payload);
             setToast({ open: true, message: 'Prescription drafted securely!', type: 'success' });
             setTimeout(() => {
-                navigate(`/patient/${patientId}`);
+                navigate('/');
             }, 1500);
         } catch (error) {
             console.error(error);
