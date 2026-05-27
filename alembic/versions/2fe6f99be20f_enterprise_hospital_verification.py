@@ -50,8 +50,8 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column('gst_number', sa.String(length=100), nullable=True))
         # Adding the enum column and using server_default to ensure existing rows don't break the NOT NULL constraint
         batch_op.add_column(sa.Column('status', hospital_status_enum, nullable=False, server_default='draft'))
-        batch_op.add_column(sa.Column('risk_score', sa.Integer(), nullable=False))
-        batch_op.add_column(sa.Column('trust_score', sa.Integer(), nullable=False))
+        batch_op.add_column(sa.Column('risk_score', sa.Integer(), nullable=False, server_default='0'))
+        batch_op.add_column(sa.Column('trust_score', sa.Integer(), nullable=False, server_default='100'))
         batch_op.add_column(sa.Column('submitted_at', sa.DateTime(timezone=True), nullable=True))
         batch_op.add_column(sa.Column('verified_at', sa.DateTime(timezone=True), nullable=True))
         batch_op.add_column(sa.Column('rejected_at', sa.DateTime(timezone=True), nullable=True))
