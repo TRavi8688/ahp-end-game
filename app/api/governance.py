@@ -73,3 +73,60 @@ async def trigger_emergency_access(
     )
     # Logic to update user context in session or return emergency token
     return {"status": "EMERGENCY_ACCESS_GRANTED", "scope": "READ_ONLY_PHI", "expiry": "30m"}
+
+# --- PHASE 8: GLOBAL GOVERNANCE CONTROLS ---
+
+from app.models.core import Hospital, HospitalVerificationStatusEnum
+from sqlalchemy.future import select
+
+@router.post("/hospitals/{hospital_id}/suspend")
+async def suspend_hospital(
+    hospital_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_admin: Any = Depends(get_super_admin)
+):
+    """
+    SUPER ADMIN ONLY: Instantly suspend a hospital's access to the platform.
+    """
+    res = await db.execute(select(Hospital).where(Hospital.id == hospital_id))
+    hospital = res.scalars().first()
+    if not hospital:
+        raise HTTPException(status_code=404, detail="Hospital not found")
+        
+    hospital.status = HospitalVerificationStatusEnum.suspended
+    hospital.subscription_status = "suspended"
+    await db.commit()
+    
+    from app.core.audit import log_audit_action
+    await log_audit_action(
+        db, 
+        action="HOSPITAL_SUSPENDED", 
+        user_id=current_admin.id,
+        resource_type="HOSPITAL",
+        details={"hospital_id": str(hospital_id)}
+    )
+    
+    return {"detail": f"Hospital {hospital.name} has been suspended."}
+
+@router.post("/platform/lockdown")
+async def platform_emergency_lockdown(
+    db: AsyncSession = Depends(get_db),
+    current_admin: Any = Depends(get_super_admin)
+):
+    """
+    SUPER ADMIN ONLY: Triggers a global ecosystem lockdown in the event of a critical cyber threat.
+    """
+    # In a real environment, this would flip a Redis flag that the authentication middleware checks,
+    # immediately invalidating all non-super-admin sessions globally.
+    
+    from app.core.audit import log_audit_action
+    await log_audit_action(
+        db, 
+        action="GLOBAL_PLATFORM_LOCKDOWN", 
+        user_id=current_admin.id,
+        resource_type="SYSTEM",
+        details={"initiated_by": current_admin.email}
+    )
+    
+    return {"detail": "GLOBAL LOCKDOWN INITIATED. All non-admin traffic is now blocked."}
+

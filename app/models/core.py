@@ -32,6 +32,18 @@ class VerificationStatusEnum(str, enum.Enum):
     otp_verified = "otp_verified"
     completed = "completed"
 
+class HospitalVerificationStatusEnum(str, enum.Enum):
+    draft = "draft"
+    submitted = "submitted"
+    under_review = "under_review"
+    request_more_info = "request_more_info"
+    verified = "verified"
+    rejected = "rejected"
+    suspended = "suspended"
+    blacklisted = "blacklisted"
+    verification_expired = "verification_expired"
+
+
 class BedStatusEnum(str, enum.Enum):
     available = "available"
     reserved = "reserved"
@@ -193,6 +205,20 @@ class Hospital(Base):
     certificate_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     pan_number: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     selfie_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    
+    # --- Enterprise Verification Fields ---
+    hospital_email: Mapped[Optional[str]] = mapped_column(String(255), index=True)
+    hospital_phone: Mapped[Optional[str]] = mapped_column(String(50))
+    domain: Mapped[Optional[str]] = mapped_column(String(255), unique=True, index=True)
+    gst_number: Mapped[Optional[str]] = mapped_column(String(100), index=True)
+    status: Mapped[HospitalVerificationStatusEnum] = mapped_column(SQLEnum(HospitalVerificationStatusEnum), default=HospitalVerificationStatusEnum.draft)
+    risk_score: Mapped[int] = mapped_column(Integer, default=0)
+    trust_score: Mapped[int] = mapped_column(Integer, default=0)
+    
+    submitted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    verified_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    rejected_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    blacklisted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
     
     # Precise physical locations and geolocations
     physical_address: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)

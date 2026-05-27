@@ -252,7 +252,7 @@ def safe_include(router, name, prefix=settings.API_V1_STR, tags=None):
 # Import everything inside a safe block
 global_import_error_msg = None
 try:
-    from app.api import auth, patient, profile, doctor, admin, privacy, auth_onboarding, staff, governance, visit, billing, pharmacy, clinical, lab, ward, surgery, queue, settings as hospital_settings
+    from app.api import auth, patient, profile, doctor, admin, privacy, auth_onboarding, staff, governance, visit, billing, pharmacy, clinical, lab, ward, surgery, queue, hospital_verification, settings as hospital_settings, iam, analytics
     from app.api.v1.endpoints import onboarding, owner_analytics
     from app.api.v1.router import api_router as enterprise_v1_router
     
@@ -263,6 +263,7 @@ try:
     safe_include(enterprise_v1_router, "Enterprise V1")
     safe_include(doctor.router, "Doctor", tags=["Doctor"])
     safe_include(admin.router, "Admin", tags=["Admin"])
+    safe_include(hospital_verification.router, "Hospital Verification", prefix="/admin/verification", tags=["Admin Verification"])
     safe_include(privacy.router, "Privacy", tags=["Privacy"])
     safe_include(auth_onboarding.router, "Onboarding", tags=["Onboarding"])
     safe_include(staff.router, "Staff", tags=["Staff"])
@@ -277,6 +278,8 @@ try:
     safe_include(onboarding.router, "Premium Onboarding", prefix=settings.API_V1_STR + "/onboarding", tags=["Premium Onboarding"])
     safe_include(hospital_settings.router, "Hospital Settings", prefix=settings.API_V1_STR + "/hospital-settings", tags=["Hospital Settings"])
     safe_include(queue.router, "Queue Management", prefix=settings.API_V1_STR, tags=["Queue Management"])
+    safe_include(iam.router, "IAM Management", prefix=settings.API_V1_STR + "/iam", tags=["IAM Management"])
+    safe_include(analytics.router, "Operational Analytics", prefix=settings.API_V1_STR + "/analytics", tags=["Analytics"])
 
 except Exception as global_e:
     global_import_error_msg = str(global_e)
