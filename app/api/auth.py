@@ -7,7 +7,7 @@ from typing import Any
 
 from app.core.database import get_db
 from app.core.security import create_access_token, verify_password
-from app.models.iam import User
+from app.models.core import User
 
 router = APIRouter()
 
@@ -40,17 +40,18 @@ async def login_access_token(
         raise HTTPException(status_code=400, detail="Inactive user")
 
     # 3. Generate JWT
+    user_role = user.role.value if hasattr(user.role, 'value') else user.role
     access_token = create_access_token(
         subject=user.id,
-        role=user.global_role,
-        tenant_id=user.tenant_id
+        role=user_role,
+        tenant_id=user.hospyn_id
     )
     
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "user_id": str(user.id),
-        "role": user.global_role
+        "role": user_role
     }
 
 @router.get("/me")
