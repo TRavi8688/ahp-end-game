@@ -15,3 +15,8 @@ slowapi
 arq
 reportlab
 twilio
+pytesseract
+Pillow
+google-cloud-storage
+psutil
+prometheus-client
