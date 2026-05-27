@@ -1,3 +1,4 @@
+# Hospyn API - Cloud Run optimised build
 FROM python:3.11-slim
 
 WORKDIR /app

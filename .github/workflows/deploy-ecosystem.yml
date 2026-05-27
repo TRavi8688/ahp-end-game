@@ -36,9 +36,11 @@ jobs:
               - 'app/**'
               - 'requirements.txt'
               - 'Dockerfile'
+              - 'entrypoint.sh'
               - 'alembic.ini'
               - 'alembic/**'
               - 'migrations/**'
+              - '.github/workflows/deploy-ecosystem.yml'
             patient:
               - 'patient-app/**'
             doctor:
