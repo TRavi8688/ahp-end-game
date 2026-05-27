@@ -415,11 +415,19 @@ export default function AiAssistScreen({ navigation, route }) {
             }
 
             const requestUrl = `${API_BASE_URL}/patient/chat`;
-            const response = await axios.post(requestUrl, formData, {
+            const response = await fetch(requestUrl, {
+                method: 'POST',
                 headers: { Authorization: `Bearer ${token}` },
+                body: formData
             });
 
-            const aiData = response.data;
+            if (!response.ok) {
+                const err = new Error('HTTP Error');
+                err.response = { status: response.status, data: await response.text() };
+                throw err;
+            }
+
+            const aiData = await response.json();
 
             const aiMsg = {
                 id:      `a_${Date.now() + 1}`,
