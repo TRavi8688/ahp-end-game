@@ -7,7 +7,7 @@ from uuid import UUID
 from datetime import datetime
 
 from app.api import deps
-from app.models.core import User, Hospital, RoleEnum, HospitalBranch
+from app.models.models import User, Hospital, RoleEnum, HospitalBranch
 from app.core.security import get_password_hash
 
 router = APIRouter()

@@ -20,7 +20,7 @@ from app.schemas.hospital_verification import (
 router = APIRouter()
 
 # --- RBAC Dependency ---
-def require_verifier_role(current_user: User = Depends(deps.get_current_active_user)):
+def require_verifier_role(current_user: User = Depends(deps.get_current_user)):
     # Assuming 'admin' and 'hospital_admin' can verify for now.
     if current_user.role not in [RoleEnum.admin]:
         raise HTTPException(status_code=403, detail="Not enough permissions to access verification queue")
