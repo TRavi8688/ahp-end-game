@@ -176,16 +176,22 @@ jobs:
           echo "🚀 Running extra enterprise migrations (migrate.py)..."
           python3 scripts/migrate.py
 
+      - name: Purge DATABASE_URL conflict (secret-type vs string-type)
+        run: |
+          # DATABASE_URL was set as a Secret Manager reference in a previous deploy.
+          # Cloud Run refuses to overwrite a secret-type var with a string literal.
+          # Solution: remove it as BOTH types (|| true so we never fail here).
+          gcloud run services update hospyn-495906-api \
+            --region us-central1 --project hospyn-495906 \
+            --remove-secrets "DATABASE_URL" 2>/dev/null || true
+          gcloud run services update hospyn-495906-api \
+            --region us-central1 --project hospyn-495906 \
+            --remove-env-vars "DATABASE_URL" 2>/dev/null || true
+          echo "DATABASE_URL purged. Will use ASYNC_DATABASE_URL from this point forward."
+
       - name: Deploy API Service
         run: |
           IMAGE_NAME="us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-backend:${{ github.sha }}"
-          # Remove DATABASE_URL if it was previously set as a Secret Manager reference
-          # to avoid the "different type" error when setting it as a plain string.
-          gcloud run services update hospyn-495906-api \
-            --region us-central1 \
-            --project hospyn-495906 \
-            --remove-env-vars "DATABASE_URL" 2>/dev/null || true
-
           gcloud run deploy hospyn-495906-api \
             --image $IMAGE_NAME \
             --region us-central1 \
@@ -211,7 +217,7 @@ jobs:
             --min-instances 0 \
             --command "bash" \
             --args "-c,python3 -m http.server \$PORT & arq app.workers.arq_worker.WorkerSettings" \
-            --update-env-vars "ASYNC_DATABASE_URL=${{ secrets.DATABASE_URL }},HOSPYN_ALLOW_INSECURE_BOOT=true,HOSPYN_SECRET_KEY=${{ secrets.SECRET_KEY || 'hospyn_fast_track_smoke_test_key_32_chars' }},HOSPYN_PRIVATE_KEY=${{ secrets.JWT_PRIVATE_KEY || '-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA7V9Bf1pZ...\n-----END RSA PRIVATE KEY-----' }},HOSPYN_PUBLIC_KEY=${{ secrets.JWT_PUBLIC_KEY }},HOSPYN_ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY || 'hospyn_vault_encryption_key_32_ch' }},ENVIRONMENT=production,USE_REDIS=False,TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }},TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }},TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }},GCP_PROJECT_ID=hospyn-495906,GCS_BUCKET_NAME=hospyn-495906-vault" \
+            --set-env-vars "ASYNC_DATABASE_URL=${{ secrets.DATABASE_URL }},SECRET_KEY=${{ secrets.SECRET_KEY || 'hospyn_fast_track_smoke_test_key_32_chars' }},JWT_PRIVATE_KEY=${{ secrets.JWT_PRIVATE_KEY }},JWT_PUBLIC_KEY=${{ secrets.JWT_PUBLIC_KEY }},ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY || 'hospyn_vault_encryption_key_32_ch' }},ENVIRONMENT=production,USE_REDIS=False,TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }},TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }},TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }},GCP_PROJECT_ID=hospyn-495906,GCS_BUCKET_NAME=hospyn-495906-vault,HOSPYN_ALLOW_INSECURE_BOOT=true" \
             --update-secrets "GEMINI_API_KEY=GEMINI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest"
 
   deploy-frontends:
