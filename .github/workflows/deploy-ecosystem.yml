@@ -188,8 +188,18 @@ jobs:
             --remove-secrets "DATABASE_URL,SECRET_KEY,JWT_PRIVATE_KEY,JWT_PUBLIC_KEY,ENCRYPTION_KEY,ASYNC_DATABASE_URL,HOSPYN_SECRET_KEY,HOSPYN_PRIVATE_KEY,HOSPYN_PUBLIC_KEY,HOSPYN_ENCRYPTION_KEY" \
             2>/dev/null || true
 
+          gcloud run services update hospyn-495906-worker \
+            --region us-central1 --project hospyn-495906 \
+            --remove-secrets "DATABASE_URL,SECRET_KEY,JWT_PRIVATE_KEY,JWT_PUBLIC_KEY,ENCRYPTION_KEY,ASYNC_DATABASE_URL,HOSPYN_SECRET_KEY,HOSPYN_PRIVATE_KEY,HOSPYN_PUBLIC_KEY,HOSPYN_ENCRYPTION_KEY" \
+            2>/dev/null || true
+
           # 2. Remove ALL plain env vars in one shot
           gcloud run services update hospyn-495906-api \
+            --region us-central1 --project hospyn-495906 \
+            --clear-env-vars \
+            2>/dev/null || true
+            
+          gcloud run services update hospyn-495906-worker \
             --region us-central1 --project hospyn-495906 \
             --clear-env-vars \
             2>/dev/null || true
@@ -209,8 +219,8 @@ jobs:
             --timeout 300 \
             --cpu 1 \
             --memory 512Mi \
-            --set-env-vars "ASYNC_DATABASE_URL=${{ secrets.DATABASE_URL }},JWT_PRIVATE_KEY=${{ secrets.JWT_PRIVATE_KEY }},JWT_PUBLIC_KEY=${{ secrets.JWT_PUBLIC_KEY }},ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY || 'hospyn_vault_encryption_key_32_ch' }},ENVIRONMENT=production,USE_REDIS=False,GCP_PROJECT_ID=hospyn-495906,GCS_BUCKET_NAME=hospyn-495906-vault,HOSPYN_ALLOW_INSECURE_BOOT=true,TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }},TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }},TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }}" \
-            --update-secrets "SECRET_KEY=SECRET_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest"
+            --set-env-vars "ENVIRONMENT=production,USE_REDIS=False,GCP_PROJECT_ID=hospyn-495906,GCS_BUCKET_NAME=hospyn-495906-vault,HOSPYN_ALLOW_INSECURE_BOOT=true,TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }},TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }},TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }}" \
+            --update-secrets "ASYNC_DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest,JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest"
 
       - name: Deploy Worker Service
         run: |
@@ -224,8 +234,8 @@ jobs:
             --min-instances 0 \
             --command "bash" \
             --args "-c,python3 -m http.server \$PORT & arq app.workers.arq_worker.WorkerSettings" \
-            --set-env-vars "ASYNC_DATABASE_URL=${{ secrets.DATABASE_URL }},SECRET_KEY=${{ secrets.SECRET_KEY || 'hospyn_fast_track_smoke_test_key_32_chars' }},JWT_PRIVATE_KEY=${{ secrets.JWT_PRIVATE_KEY }},JWT_PUBLIC_KEY=${{ secrets.JWT_PUBLIC_KEY }},ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY || 'hospyn_vault_encryption_key_32_ch' }},ENVIRONMENT=production,USE_REDIS=False,TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }},TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }},TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }},GCP_PROJECT_ID=hospyn-495906,GCS_BUCKET_NAME=hospyn-495906-vault,HOSPYN_ALLOW_INSECURE_BOOT=true" \
-            --update-secrets "GEMINI_API_KEY=GEMINI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest"
+            --set-env-vars "ENVIRONMENT=production,USE_REDIS=False,TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }},TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }},TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }},GCP_PROJECT_ID=hospyn-495906,GCS_BUCKET_NAME=hospyn-495906-vault,HOSPYN_ALLOW_INSECURE_BOOT=true" \
+            --update-secrets "ASYNC_DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest,JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest"
 
   deploy-frontends:
     name: Deploy Frontends to Firebase
