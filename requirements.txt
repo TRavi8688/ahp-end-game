@@ -21,3 +21,16 @@ google-cloud-storage
 psutil
 prometheus-client
 bleach
+razorpay
+python-dotenv
+httpx
+pypdf
+qrcode
+opentelemetry-api
+opentelemetry-sdk
+opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-sqlalchemy
+opentelemetry-instrumentation-redis
+opentelemetry-instrumentation-httpx
+google-cloud-secret-manager
