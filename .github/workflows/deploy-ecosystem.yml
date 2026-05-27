@@ -176,18 +176,25 @@ jobs:
           echo "🚀 Running extra enterprise migrations (migrate.py)..."
           python3 scripts/migrate.py
 
-      - name: Purge DATABASE_URL conflict (secret-type vs string-type)
+      - name: Nuclear purge all Cloud Run env vars and secret mounts
         run: |
-          # DATABASE_URL was set as a Secret Manager reference in a previous deploy.
-          # Cloud Run refuses to overwrite a secret-type var with a string literal.
-          # Solution: remove it as BOTH types (|| true so we never fail here).
+          # ANY var that was EVER set as a Secret Manager mount cannot be overwritten
+          # as a plain string — Cloud Run blocks it with "different type" error.
+          # Solution: wipe EVERYTHING first, then deploy fresh.
+
+          # 1. Remove ALL known secret mounts (|| true = safe if they don't exist)
           gcloud run services update hospyn-495906-api \
             --region us-central1 --project hospyn-495906 \
-            --remove-secrets "DATABASE_URL" 2>/dev/null || true
+            --remove-secrets "DATABASE_URL,SECRET_KEY,JWT_PRIVATE_KEY,JWT_PUBLIC_KEY,ENCRYPTION_KEY,ASYNC_DATABASE_URL,HOSPYN_SECRET_KEY,HOSPYN_PRIVATE_KEY,HOSPYN_PUBLIC_KEY,HOSPYN_ENCRYPTION_KEY" \
+            2>/dev/null || true
+
+          # 2. Remove ALL plain env vars in one shot
           gcloud run services update hospyn-495906-api \
             --region us-central1 --project hospyn-495906 \
-            --remove-env-vars "DATABASE_URL" 2>/dev/null || true
-          echo "DATABASE_URL purged. Will use ASYNC_DATABASE_URL from this point forward."
+            --clear-env-vars \
+            2>/dev/null || true
+
+          echo "All env vars and secret mounts cleared. Deploying fresh."
 
       - name: Deploy API Service
         run: |
