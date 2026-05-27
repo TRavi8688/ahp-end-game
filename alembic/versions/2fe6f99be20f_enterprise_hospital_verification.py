@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
@@ -38,12 +39,17 @@ def upgrade() -> None:
     with op.batch_alter_table('hospital_branches', schema=None) as batch_op:
         batch_op.drop_column('physical_address')
 
+    # Explicitly create the ENUM type for PostgreSQL
+    hospital_status_enum = postgresql.ENUM('draft', 'submitted', 'under_review', 'request_more_info', 'verified', 'rejected', 'suspended', 'blacklisted', 'verification_expired', name='hospitalverificationstatusenum')
+    hospital_status_enum.create(op.get_bind(), checkfirst=True)
+
     with op.batch_alter_table('hospitals', schema=None) as batch_op:
         batch_op.add_column(sa.Column('hospital_email', sa.String(length=255), nullable=True))
         batch_op.add_column(sa.Column('hospital_phone', sa.String(length=50), nullable=True))
         batch_op.add_column(sa.Column('domain', sa.String(length=255), nullable=True))
         batch_op.add_column(sa.Column('gst_number', sa.String(length=100), nullable=True))
-        batch_op.add_column(sa.Column('status', sa.Enum('draft', 'submitted', 'under_review', 'request_more_info', 'verified', 'rejected', 'suspended', 'blacklisted', 'verification_expired', name='hospitalverificationstatusenum'), nullable=False))
+        # Adding the enum column and using server_default to ensure existing rows don't break the NOT NULL constraint
+        batch_op.add_column(sa.Column('status', hospital_status_enum, nullable=False, server_default='draft'))
         batch_op.add_column(sa.Column('risk_score', sa.Integer(), nullable=False))
         batch_op.add_column(sa.Column('trust_score', sa.Integer(), nullable=False))
         batch_op.add_column(sa.Column('submitted_at', sa.DateTime(timezone=True), nullable=True))
@@ -92,5 +98,9 @@ def downgrade() -> None:
                existing_type=sa.BOOLEAN(),
                nullable=True,
                existing_server_default=sa.text('true'))
+
+    # Drop the ENUM type
+    hospital_status_enum = postgresql.ENUM('draft', 'submitted', 'under_review', 'request_more_info', 'verified', 'rejected', 'suspended', 'blacklisted', 'verification_expired', name='hospitalverificationstatusenum')
+    hospital_status_enum.drop(op.get_bind(), checkfirst=True)
 
     # ### end Alembic commands ###
