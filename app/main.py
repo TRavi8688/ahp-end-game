@@ -192,8 +192,16 @@ if settings.ENVIRONMENT == "production":
         "https://hospyn-doctor-pro.firebaseapp.com",
         "https://hospyn-erp-portal.web.app",
         "https://hospyn-erp-portal.firebaseapp.com",
+        "https://hospyn-gateway.web.app",
         "https://hospyn-gateway.firebaseapp.com",
+        "https://hospyn-495906-96438.web.app",
+        "https://hospyn-495906-96438.firebaseapp.com",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:5174",
         "http://localhost:8081",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
         "http://127.0.0.1:8081"
     ]
     for domain in core_domains:
