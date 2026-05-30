@@ -3,6 +3,7 @@ Alembic Environment Configuration for Healthcare Core.
 
 Uses async engine. Reads DATABASE_URL from settings/environment.
 """
+
 import asyncio
 from logging.config import fileConfig
 
@@ -41,7 +42,7 @@ def run_migrations_offline() -> None:
 
 def do_run_migrations(connection: Connection) -> None:
     context.configure(
-        connection=connection, 
+        connection=connection,
         target_metadata=target_metadata,
     )
     with context.begin_transaction():

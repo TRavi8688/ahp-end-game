@@ -4,6 +4,7 @@ from sqlalchemy import String, DateTime, UUID, ForeignKey, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
+
 class QueueEvent(Base):
     __tablename__ = "queue_events"
 
@@ -11,8 +12,10 @@ class QueueEvent(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
     walkin_request_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("walkin_requests.id", ondelete="CASCADE"),
-        nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("walkin_requests.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     event_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     old_status: Mapped[str] = mapped_column(String(50), nullable=False)

@@ -6,6 +6,7 @@ Endpoints:
     PATCH /nurse/queue/{id}/start          - Pick up patient for triage
     PATCH /nurse/queue/{id}/complete       - Submit vitals and route to doctor
 """
+
 import uuid
 from typing import Annotated, Optional
 from datetime import datetime, timezone
@@ -21,7 +22,9 @@ from app.models.walkin import WalkInRequest, QueueState, PriorityLevel
 from app.models.staff import Staff, StaffRole
 from app.models.doctor import Doctor
 from app.services.queue_service import (
-    resolve_staff, resolve_any_staff, transition_queue_state,
+    resolve_staff,
+    resolve_any_staff,
+    transition_queue_state,
 )
 from app.services.triage_service import apply_triage_data
 from shared.utils.responses import success_response
@@ -34,8 +37,10 @@ router = APIRouter()
 # Schemas
 # ---------------------------------------------------------------------------
 
+
 class TriageCompletePayload(BaseModel):
     """Vitals and triage notes submitted by the nurse."""
+
     triage_notes: str = Field(..., min_length=1, max_length=5000)
     vitals: dict = Field(..., description="Vitals readings")
     assigned_doctor_id: Optional[str] = None  # Nurse can assign a specific doctor
@@ -45,6 +50,7 @@ class TriageCompletePayload(BaseModel):
 # ---------------------------------------------------------------------------
 # GET Nurse Queue — WAITING_TRIAGE + IN_TRIAGE for this hospital
 # ---------------------------------------------------------------------------
+
 
 @router.get("/queue")
 async def get_nurse_queue(
@@ -66,51 +72,68 @@ async def get_nurse_queue(
     )
 
     result = await db.execute(
-        select(WalkInRequest).where(
+        select(WalkInRequest)
+        .where(
             WalkInRequest.hospital_id == staff.hospital_id,
-            WalkInRequest.queue_state.in_([
-                QueueState.waiting_triage,
-                QueueState.in_triage,
-            ]),
+            WalkInRequest.queue_state.in_(
+                [
+                    QueueState.waiting_triage,
+                    QueueState.in_triage,
+                ]
+            ),
             WalkInRequest.deleted_at.is_(None),
-        ).order_by(priority_order, WalkInRequest.created_at.asc())
+        )
+        .order_by(priority_order, WalkInRequest.created_at.asc())
     )
     walkins = result.scalars().all()
 
     now = datetime.now(timezone.utc)
     items = []
     for w in walkins:
-        created_at = w.created_at.replace(tzinfo=timezone.utc) if w.created_at and w.created_at.tzinfo is None else w.created_at
+        created_at = (
+            w.created_at.replace(tzinfo=timezone.utc)
+            if w.created_at and w.created_at.tzinfo is None
+            else w.created_at
+        )
         wait_seconds = (now - created_at).total_seconds() if created_at else 0
-        items.append({
-            "id": str(w.id),
-            "queue_number": w.queue_number,
-            "first_name": w.first_name,
-            "last_name": w.last_name,
-            "full_name": w.full_name,
-            "phone": w.phone,
-            "age": w.age,
-            "gender": w.gender,
-            "reason_for_visit": w.reason_for_visit,
-            "symptoms": w.symptoms,
-            "priority_level": w.priority_level.value,
-            "queue_state": w.queue_state.value,
-            "wait_minutes": int(wait_seconds / 60),
-            "triage_vitals_json": w.triage_vitals_json,
-            "triage_notes": w.triage_notes,
-            "created_at": w.created_at.isoformat() if w.created_at else None,
-        })
+        items.append(
+            {
+                "id": str(w.id),
+                "queue_number": w.queue_number,
+                "first_name": w.first_name,
+                "last_name": w.last_name,
+                "full_name": w.full_name,
+                "phone": w.phone,
+                "age": w.age,
+                "gender": w.gender,
+                "reason_for_visit": w.reason_for_visit,
+                "symptoms": w.symptoms,
+                "priority_level": w.priority_level.value,
+                "queue_state": w.queue_state.value,
+                "wait_minutes": int(wait_seconds / 60),
+                "triage_vitals_json": w.triage_vitals_json,
+                "triage_notes": w.triage_notes,
+                "created_at": w.created_at.isoformat() if w.created_at else None,
+            }
+        )
 
-    return success_response(data={
-        "queue": items,
-        "total_pending": len([i for i in items if i["queue_state"] == "waiting_triage"]),
-        "total_in_triage": len([i for i in items if i["queue_state"] == "in_triage"]),
-    })
+    return success_response(
+        data={
+            "queue": items,
+            "total_pending": len(
+                [i for i in items if i["queue_state"] == "waiting_triage"]
+            ),
+            "total_in_triage": len(
+                [i for i in items if i["queue_state"] == "in_triage"]
+            ),
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # PATCH Start Triage — Nurse picks up patient
 # ---------------------------------------------------------------------------
+
 
 @router.patch("/queue/{walkin_id}/start")
 async def start_triage(
@@ -126,13 +149,16 @@ async def start_triage(
     if walkin.queue_state != QueueState.waiting_triage:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot start triage: current state is '{walkin.queue_state.value}'."
+            detail=f"Cannot start triage: current state is '{walkin.queue_state.value}'.",
         )
 
     walkin.assigned_nurse_id = staff.id
 
     await transition_queue_state(
-        db, walkin, QueueState.in_triage, current_user.sub,
+        db,
+        walkin,
+        QueueState.in_triage,
+        current_user.sub,
         ip_address=request.client.host if request.client else None,
     )
 
@@ -149,6 +175,7 @@ async def start_triage(
 # ---------------------------------------------------------------------------
 # PATCH Complete Triage — Submit vitals and route to doctor
 # ---------------------------------------------------------------------------
+
 
 @router.patch("/queue/{walkin_id}/complete")
 async def complete_triage(
@@ -169,7 +196,7 @@ async def complete_triage(
     if walkin.queue_state != QueueState.in_triage:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot complete triage: current state is '{walkin.queue_state.value}'."
+            detail=f"Cannot complete triage: current state is '{walkin.queue_state.value}'.",
         )
 
     # Apply triage data (vitals, notes, auto-escalation)
@@ -205,7 +232,10 @@ async def complete_triage(
             walkin.assigned_doctor_id = doctor.id
 
     await transition_queue_state(
-        db, walkin, QueueState.waiting_doctor, current_user.sub,
+        db,
+        walkin,
+        QueueState.waiting_doctor,
+        current_user.sub,
         ip_address=request.client.host if request.client else None,
     )
 
@@ -224,7 +254,8 @@ async def complete_triage(
             "request_id": str(walkin.id),
             "new_state": walkin.queue_state.value,
             "priority_level": walkin.priority_level.value,
-            "auto_escalated": payload.priority_override is None and walkin.priority_level != PriorityLevel.normal,
+            "auto_escalated": payload.priority_override is None
+            and walkin.priority_level != PriorityLevel.normal,
         },
         message="Triage completed. Patient routed to doctor.",
     )
@@ -233,6 +264,7 @@ async def complete_triage(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 async def _resolve_nurse(db: AsyncSession, user_id: str) -> Staff:
     staff = await resolve_staff(db, user_id, StaffRole.nurse)
@@ -255,5 +287,7 @@ async def _get_walkin_for_hospital(
     )
     walkin = result.scalars().first()
     if not walkin:
-        raise HTTPException(status_code=404, detail="Walk-in request not found in your hospital.")
+        raise HTTPException(
+            status_code=404, detail="Walk-in request not found in your hospital."
+        )
     return walkin

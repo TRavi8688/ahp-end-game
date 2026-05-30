@@ -4,6 +4,7 @@ Alembic Environment Configuration for Auth Service.
 Uses the async engine from the app's database module.
 Reads DATABASE_URL from the app's settings (which reads from environment).
 """
+
 import asyncio
 from logging.config import fileConfig
 

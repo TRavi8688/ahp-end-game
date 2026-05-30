@@ -10,6 +10,7 @@ This is the core healthcare backend. It handles:
 Authentication is NEVER handled here. All requests must carry
 a valid JWT issued by the Auth Service.
 """
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -40,6 +41,7 @@ async def lifespan(app: FastAPI):
 
     # Run production safety checks
     from shared.startup_checks import validate_production_secrets
+
     try:
         validate_production_secrets(settings)
     except ValueError as e:
@@ -48,11 +50,14 @@ async def lifespan(app: FastAPI):
 
     # Initialize Redis for token blacklist checks
     from shared.redis_client import init_redis, close_redis
+
     try:
         await init_redis(settings.REDIS_URL)
         logger.info("   ✅ Redis connected")
     except Exception as e:
-        logger.warning(f"   ⚠️ Redis connection failed: {e} — blacklist checks disabled")
+        logger.warning(
+            f"   ⚠️ Redis connection failed: {e} — blacklist checks disabled"
+        )
 
     yield
 
@@ -78,7 +83,8 @@ app.add_middleware(CorrelationIdMiddleware)
 
 # CORS — strict in production, env-driven origins
 _allowed_origins = (
-    ["*"] if settings.ENVIRONMENT == "development"
+    ["*"]
+    if settings.ENVIRONMENT == "development"
     else settings.ALLOWED_ORIGINS.split(",")
 )
 app.add_middleware(
@@ -92,6 +98,7 @@ app.add_middleware(
 
 # Rate limiting
 from shared.middleware.rate_limiter import RateLimitMiddleware
+
 app.add_middleware(
     RateLimitMiddleware,
     default_limit=100,

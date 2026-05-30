@@ -1,6 +1,7 @@
 """
 Auth API Schemas — strict validation at the boundary.
 """
+
 from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
 from app.models.user import RoleEnum
@@ -28,7 +29,9 @@ class UserCreate(BaseModel):
     def validate_role(cls, v: RoleEnum) -> RoleEnum:
         """Prevent self-registration as admin or hospital_admin."""
         if v in (RoleEnum.admin, RoleEnum.hospital_admin):
-            raise ValueError("Cannot self-register as admin or hospital_admin. Contact support.")
+            raise ValueError(
+                "Cannot self-register as admin or hospital_admin. Contact support."
+            )
         return v
 
     @field_validator("phone_number")

@@ -7,6 +7,7 @@ Engine and session factory are initialised lazily so that:
   - Pool settings are applied only when the driver supports them (i.e. NOT
     for the in-memory SQLite driver used during testing).
 """
+
 from __future__ import annotations
 
 import logging
@@ -29,11 +30,13 @@ logger = logging.getLogger(__name__)
 # ORM Base
 # ---------------------------------------------------------------------------
 
+
 class Base(DeclarativeBase):
     """
     Base class for all SQLAlchemy ORM models in healthcare-core.
     All models must inherit from this class.
     """
+
     pass
 
 
@@ -113,6 +116,7 @@ AsyncSessionLocal = _LazySessionFactory()
 # AsyncSession internally).  Registering on `async_sessionmaker` or its
 # `sync_session_class` attribute does NOT work and raises AttributeError.
 
+
 @event.listens_for(Session, "do_orm_execute")
 def _add_filtering_criteria(execute_state):
     """
@@ -127,7 +131,11 @@ def _add_filtering_criteria(execute_state):
         execute_state.statement = execute_state.statement.options(
             with_loader_criteria(
                 Base,
-                lambda cls: getattr(cls, "deleted_at").is_(None) if hasattr(cls, "deleted_at") else True,
+                lambda cls: (
+                    getattr(cls, "deleted_at").is_(None)
+                    if hasattr(cls, "deleted_at")
+                    else True
+                ),
                 include_aliases=True,
             )
         )
@@ -136,6 +144,7 @@ def _add_filtering_criteria(execute_state):
 # ---------------------------------------------------------------------------
 # FastAPI dependency
 # ---------------------------------------------------------------------------
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """

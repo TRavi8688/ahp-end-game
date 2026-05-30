@@ -4,6 +4,7 @@ Startup Checks — Production safety validations.
 Run once at service boot (inside the lifespan context) to catch
 fatal misconfigurations BEFORE the service starts accepting traffic.
 """
+
 import logging
 import os
 

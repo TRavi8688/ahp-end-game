@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 # Key loading
 # ---------------------------------------------------------------------------
 
+
 def _load_fernet_keys() -> list[Fernet]:
     """Return a list of Fernet instances from ENCRYPTION_KEY env var."""
     raw = os.environ.get("ENCRYPTION_KEY", "").strip()
@@ -45,7 +46,7 @@ def _load_fernet_keys() -> list[Fernet]:
     if environment == "production":
         raise ValueError(
             "ENCRYPTION_KEY environment variable is REQUIRED in production. "
-            "Generate one with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
+            'Generate one with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
         )
 
     # Dev-only deterministic key — NEVER use in production
@@ -65,6 +66,7 @@ _PRIMARY_FERNET: Fernet = _FERNET_KEYS[0]
 # ---------------------------------------------------------------------------
 # Encrypt / Decrypt helpers
 # ---------------------------------------------------------------------------
+
 
 def _encrypt(value: str) -> str:
     """Encrypt a plaintext string and return the ciphertext as a UTF-8 string."""
@@ -95,6 +97,7 @@ def _decrypt(token: str, keys: Sequence[Fernet] = _FERNET_KEYS) -> str:
 # ---------------------------------------------------------------------------
 # SQLAlchemy TypeDecorators
 # ---------------------------------------------------------------------------
+
 
 class EncryptedString(TypeDecorator):
     """

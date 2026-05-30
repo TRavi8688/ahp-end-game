@@ -4,6 +4,7 @@ Auth Service Database Engine & Session Factory.
 Each service owns its database connection independently.
 Auth Service connects to hospyn_auth_db.
 """
+
 from __future__ import annotations
 
 import logging
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Lazy engine & session factory (SQLite-safe for testing)
 # ---------------------------------------------------------------------------
+
 
 def _build_engine_args(database_url: str) -> dict:
     """Return engine kwargs appropriate for the given database URL."""
@@ -76,10 +78,13 @@ def get_session_factory() -> async_sessionmaker:
 # Backwards-compatible module-level alias
 class _LazySessionFactory:
     """Proxy that creates the real session factory on first attribute access."""
+
     def __call__(self, *args, **kwargs):
         return get_session_factory()(*args, **kwargs)
+
     def __getattr__(self, name):
         return getattr(get_session_factory(), name)
+
 
 AsyncSessionLocal = _LazySessionFactory()
 
@@ -94,6 +99,7 @@ AsyncSessionLocal = _LazySessionFactory()
 # FIX: Use hasattr() guard then .is_(None) for a proper SQL IS NULL expression.
 # Event registered on Session (sync base class), NOT on async_sessionmaker.
 
+
 @event.listens_for(Session, "do_orm_execute")
 def _add_filtering_criteria(execute_state):
     """
@@ -105,7 +111,11 @@ def _add_filtering_criteria(execute_state):
         execute_state.statement = execute_state.statement.options(
             with_loader_criteria(
                 Base,
-                lambda cls: getattr(cls, "deleted_at").is_(None) if hasattr(cls, "deleted_at") else True,
+                lambda cls: (
+                    getattr(cls, "deleted_at").is_(None)
+                    if hasattr(cls, "deleted_at")
+                    else True
+                ),
                 include_aliases=True,
             )
         )
@@ -114,6 +124,7 @@ def _add_filtering_criteria(execute_state):
 # ---------------------------------------------------------------------------
 # FastAPI dependency
 # ---------------------------------------------------------------------------
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """

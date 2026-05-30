@@ -10,6 +10,7 @@ Endpoints:
     PUT    /appointments/{id}/clinical-notes     - Add clinical notes (doctor only)
     PUT    /appointments/{id}/complete           - Mark appointment complete (doctor only)
 """
+
 import uuid
 from datetime import timezone, datetime
 from typing import Annotated
@@ -23,8 +24,12 @@ from app.models.appointment import Appointment, AppointmentStatus
 from app.models.doctor import Doctor
 from app.models.patient import Patient
 from app.schemas.appointment import (
-    AppointmentCreate, AppointmentUpdate, AppointmentResponse,
-    AppointmentListResponse, AppointmentClinicalUpdate, AppointmentCancelRequest,
+    AppointmentCreate,
+    AppointmentUpdate,
+    AppointmentResponse,
+    AppointmentListResponse,
+    AppointmentClinicalUpdate,
+    AppointmentCancelRequest,
 )
 from shared.utils.responses import success_response, error_response
 from shared.audit import log_audit_event
@@ -51,7 +56,9 @@ async def create_appointment(
 
     # Verify patient exists
     pat_result = await db.execute(
-        select(Patient).where(Patient.id == payload.patient_id, Patient.deleted_at.is_(None))
+        select(Patient).where(
+            Patient.id == payload.patient_id, Patient.deleted_at.is_(None)
+        )
     )
     patient = pat_result.scalars().first()
     if not patient:
@@ -59,32 +66,43 @@ async def create_appointment(
 
     # Patients can only book for themselves
     if current_user.role == "patient" and str(patient.user_id) != current_user.sub:
-        raise HTTPException(status_code=403, detail="Patients can only book appointments for themselves")
+        raise HTTPException(
+            status_code=403, detail="Patients can only book appointments for themselves"
+        )
 
     # Doctor or staff booking on behalf of patient requires explicit booking consent token
     if str(patient.user_id) != current_user.sub:
         if not payload.patient_consent_token:
             raise HTTPException(
                 status_code=403,
-                detail="A valid patient booking consent token is required for third-party scheduling."
+                detail="A valid patient booking consent token is required for third-party scheduling.",
             )
         from shared.redis_client import verify_patient_consent_token
-        consent_verified = await verify_patient_consent_token(str(patient.id), payload.patient_consent_token)
+
+        consent_verified = await verify_patient_consent_token(
+            str(patient.id), payload.patient_consent_token
+        )
         if not consent_verified:
             raise HTTPException(
                 status_code=403,
-                detail="Invalid or expired patient booking consent token."
+                detail="Invalid or expired patient booking consent token.",
             )
 
     # Check for scheduling conflicts (same doctor, overlapping time)
     conflict_query = select(Appointment).where(
         Appointment.doctor_id == payload.doctor_id,
         Appointment.scheduled_at == payload.scheduled_at,
-        Appointment.status.in_([AppointmentStatus.scheduled, AppointmentStatus.confirmed]),
+        Appointment.status.in_(
+            [AppointmentStatus.scheduled, AppointmentStatus.confirmed]
+        ),
     )
     conflict_result = await db.execute(conflict_query)
     if conflict_result.scalars().first():
-        return error_response("SCHEDULING_CONFLICT", "Doctor already has an appointment at this time.", 409)
+        return error_response(
+            "SCHEDULING_CONFLICT",
+            "Doctor already has an appointment at this time.",
+            409,
+        )
 
     appointment_data = payload.model_dump()
     appointment_data.pop("patient_consent_token", None)
@@ -93,7 +111,11 @@ async def create_appointment(
     await db.flush()
     await db.refresh(appointment)
 
-    log_audit_event(action="appointment_created", actor_id=current_user.sub, target_id=str(appointment.id))
+    log_audit_event(
+        action="appointment_created",
+        actor_id=current_user.sub,
+        target_id=str(appointment.id),
+    )
 
     return success_response(
         data=AppointmentResponse.model_validate(appointment).model_dump(mode="json"),
@@ -126,9 +148,11 @@ async def list_appointments(
         )
         patient = pat_result.scalars().first()
         if not patient:
-            return success_response(data=AppointmentListResponse(
-                total=0, page=page, page_size=page_size, items=[]
-            ).model_dump(mode="json"))
+            return success_response(
+                data=AppointmentListResponse(
+                    total=0, page=page, page_size=page_size, items=[]
+                ).model_dump(mode="json")
+            )
         query = query.where(Appointment.patient_id == patient.id)
     elif current_user.role == "doctor":
         doc_result = await db.execute(
@@ -136,9 +160,11 @@ async def list_appointments(
         )
         doctor = doc_result.scalars().first()
         if not doctor:
-            return success_response(data=AppointmentListResponse(
-                total=0, page=page, page_size=page_size, items=[]
-            ).model_dump(mode="json"))
+            return success_response(
+                data=AppointmentListResponse(
+                    total=0, page=page, page_size=page_size, items=[]
+                ).model_dump(mode="json")
+            )
         query = query.where(Appointment.doctor_id == doctor.id)
     else:
         # Admin / hospital_admin
@@ -151,14 +177,22 @@ async def list_appointments(
     count_result = await db.execute(select(func.count()).select_from(query.subquery()))
     total = count_result.scalar_one()
 
-    query = query.offset((page - 1) * page_size).limit(page_size).order_by(Appointment.scheduled_at.desc())
+    query = (
+        query.offset((page - 1) * page_size)
+        .limit(page_size)
+        .order_by(Appointment.scheduled_at.desc())
+    )
     result = await db.execute(query)
     appointments = result.scalars().all()
 
-    return success_response(data=AppointmentListResponse(
-        total=total, page=page, page_size=page_size,
-        items=[AppointmentResponse.model_validate(a) for a in appointments],
-    ).model_dump(mode="json"))
+    return success_response(
+        data=AppointmentListResponse(
+            total=total,
+            page=page,
+            page_size=page_size,
+            items=[AppointmentResponse.model_validate(a) for a in appointments],
+        ).model_dump(mode="json")
+    )
 
 
 @router.get("/{appointment_id}")
@@ -168,7 +202,9 @@ async def get_appointment(
     db: AsyncSession = Depends(get_db),
 ):
     """Get appointment details. Access restricted by role."""
-    result = await db.execute(select(Appointment).where(Appointment.id == appointment_id))
+    result = await db.execute(
+        select(Appointment).where(Appointment.id == appointment_id)
+    )
     appointment = result.scalars().first()
     if not appointment:
         raise HTTPException(status_code=404, detail="Appointment not found")
@@ -189,7 +225,9 @@ async def get_appointment(
         if not doctor or appointment.doctor_id != doctor.id:
             raise HTTPException(status_code=403, detail="Access denied")
 
-    return success_response(data=AppointmentResponse.model_validate(appointment).model_dump(mode="json"))
+    return success_response(
+        data=AppointmentResponse.model_validate(appointment).model_dump(mode="json")
+    )
 
 
 @router.post("/{appointment_id}/cancel")
@@ -200,20 +238,31 @@ async def cancel_appointment(
     db: AsyncSession = Depends(get_db),
 ):
     """Cancel an appointment. Involved parties or admins only."""
-    result = await db.execute(select(Appointment).where(Appointment.id == appointment_id))
+    result = await db.execute(
+        select(Appointment).where(Appointment.id == appointment_id)
+    )
     appointment = result.scalars().first()
     if not appointment:
         raise HTTPException(status_code=404, detail="Appointment not found")
 
     if appointment.status in (AppointmentStatus.completed, AppointmentStatus.cancelled):
-        return error_response("INVALID_STATE", "Cannot cancel a completed or already cancelled appointment.", 400)
+        return error_response(
+            "INVALID_STATE",
+            "Cannot cancel a completed or already cancelled appointment.",
+            400,
+        )
 
     appointment.status = AppointmentStatus.cancelled
     appointment.cancelled_by_user_id = uuid.UUID(current_user.sub)
     appointment.cancellation_reason = payload.reason
     await db.flush()
 
-    log_audit_event(action="appointment_cancelled", actor_id=current_user.sub, target_id=str(appointment.id), details={"reason": payload.reason})
+    log_audit_event(
+        action="appointment_cancelled",
+        actor_id=current_user.sub,
+        target_id=str(appointment.id),
+        details={"reason": payload.reason},
+    )
 
     return success_response(message="Appointment cancelled successfully.")
 
@@ -226,7 +275,9 @@ async def update_clinical_notes(
     db: AsyncSession = Depends(get_db),
 ):
     """Add clinical notes, diagnosis, prescription. Doctor only."""
-    result = await db.execute(select(Appointment).where(Appointment.id == appointment_id))
+    result = await db.execute(
+        select(Appointment).where(Appointment.id == appointment_id)
+    )
     appointment = result.scalars().first()
     if not appointment:
         raise HTTPException(status_code=404, detail="Appointment not found")
@@ -237,7 +288,9 @@ async def update_clinical_notes(
     )
     doctor = doc_result.scalars().first()
     if not doctor or appointment.doctor_id != doctor.id:
-        raise HTTPException(status_code=403, detail="Only the assigned doctor can update clinical notes")
+        raise HTTPException(
+            status_code=403, detail="Only the assigned doctor can update clinical notes"
+        )
 
     update_data = payload.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -245,7 +298,11 @@ async def update_clinical_notes(
 
     await db.flush()
     await db.refresh(appointment)
-    log_audit_event(action="clinical_notes_updated", actor_id=current_user.sub, target_id=str(appointment.id))
+    log_audit_event(
+        action="clinical_notes_updated",
+        actor_id=current_user.sub,
+        target_id=str(appointment.id),
+    )
 
     return success_response(
         data=AppointmentResponse.model_validate(appointment).model_dump(mode="json"),
@@ -260,7 +317,9 @@ async def complete_appointment(
     db: AsyncSession = Depends(get_db),
 ):
     """Mark appointment as completed. Doctor only."""
-    result = await db.execute(select(Appointment).where(Appointment.id == appointment_id))
+    result = await db.execute(
+        select(Appointment).where(Appointment.id == appointment_id)
+    )
     appointment = result.scalars().first()
     if not appointment:
         raise HTTPException(status_code=404, detail="Appointment not found")
@@ -271,15 +330,24 @@ async def complete_appointment(
     )
     doctor = doc_result.scalars().first()
     if not doctor or appointment.doctor_id != doctor.id:
-        raise HTTPException(status_code=403, detail="Only the assigned doctor can complete this appointment")
+        raise HTTPException(
+            status_code=403,
+            detail="Only the assigned doctor can complete this appointment",
+        )
 
     if appointment.status == AppointmentStatus.cancelled:
-        return error_response("INVALID_STATE", "Cannot complete a cancelled appointment.", 400)
+        return error_response(
+            "INVALID_STATE", "Cannot complete a cancelled appointment.", 400
+        )
 
     appointment.status = AppointmentStatus.completed
     appointment.completed_at = datetime.now(timezone.utc)
     await db.flush()
 
-    log_audit_event(action="appointment_completed", actor_id=current_user.sub, target_id=str(appointment.id))
+    log_audit_event(
+        action="appointment_completed",
+        actor_id=current_user.sub,
+        target_id=str(appointment.id),
+    )
 
     return success_response(message="Appointment marked as completed.")

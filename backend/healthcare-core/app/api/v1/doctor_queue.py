@@ -6,6 +6,7 @@ Endpoints:
     PATCH /doctor/queue/{id}/start         - Start consultation (creates Appointment)
     PATCH /doctor/queue/{id}/complete      - Complete consultation with notes
 """
+
 import uuid
 from typing import Annotated, Optional
 from datetime import datetime, timezone
@@ -19,7 +20,12 @@ from app.core.database import get_db
 from app.core.security import require_role, TokenPayload
 from app.models.walkin import WalkInRequest, QueueState, PriorityLevel
 from app.models.doctor import Doctor
-from app.models.appointment import Appointment, AppointmentStatus, AppointmentType, AppointmentSource
+from app.models.appointment import (
+    Appointment,
+    AppointmentStatus,
+    AppointmentType,
+    AppointmentSource,
+)
 from app.services.queue_service import transition_queue_state
 from shared.utils.responses import success_response
 from shared.audit import log_audit_event
@@ -30,6 +36,7 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # Schemas
 # ---------------------------------------------------------------------------
+
 
 class PrescriptionItemInput(BaseModel):
     drug_name: str = Field(..., max_length=200)
@@ -53,10 +60,10 @@ class ConsultationCompletePayload(BaseModel):
 # (Keep get_doctor_queue implementation and start_consultation implementation, replacing complete_consultation)
 
 
-
 # ---------------------------------------------------------------------------
 # GET Doctor Queue — WAITING_DOCTOR for this hospital (or assigned to this doc)
 # ---------------------------------------------------------------------------
+
 
 @router.get("/queue")
 async def get_doctor_queue(
@@ -80,54 +87,75 @@ async def get_doctor_queue(
 
     # Show: assigned to me OR unassigned at my hospital
     result = await db.execute(
-        select(WalkInRequest).where(
+        select(WalkInRequest)
+        .where(
             WalkInRequest.hospital_id == doctor.hospital_id,
-            WalkInRequest.queue_state.in_([
-                QueueState.waiting_doctor,
-                QueueState.in_consultation,
-            ]),
+            WalkInRequest.queue_state.in_(
+                [
+                    QueueState.waiting_doctor,
+                    QueueState.in_consultation,
+                ]
+            ),
             WalkInRequest.deleted_at.is_(None),
             # Hospital-scoped: assigned to me OR unassigned
-            (WalkInRequest.assigned_doctor_id == doctor.id) |
-            (WalkInRequest.assigned_doctor_id.is_(None)),
-        ).order_by(priority_order, WalkInRequest.created_at.asc())
+            (WalkInRequest.assigned_doctor_id == doctor.id)
+            | (WalkInRequest.assigned_doctor_id.is_(None)),
+        )
+        .order_by(priority_order, WalkInRequest.created_at.asc())
     )
     walkins = result.scalars().all()
 
     now = datetime.now(timezone.utc)
     items = []
     for w in walkins:
-        created_at = w.created_at.replace(tzinfo=timezone.utc) if w.created_at and w.created_at.tzinfo is None else w.created_at
+        created_at = (
+            w.created_at.replace(tzinfo=timezone.utc)
+            if w.created_at and w.created_at.tzinfo is None
+            else w.created_at
+        )
         wait_seconds = (now - created_at).total_seconds() if created_at else 0
-        items.append({
-            "id": str(w.id),
-            "queue_number": w.queue_number,
-            "first_name": w.first_name,
-            "last_name": w.last_name,
-            "full_name": w.full_name,
-            "age": w.age,
-            "gender": w.gender,
-            "reason_for_visit": w.reason_for_visit,
-            "symptoms": w.symptoms,
-            "priority_level": w.priority_level.value,
-            "queue_state": w.queue_state.value,
-            "wait_minutes": int(wait_seconds / 60),
-            "triage_vitals_json": w.triage_vitals_json,
-            "triage_notes": w.triage_notes,
-            "assigned_to_me": str(w.assigned_doctor_id) == str(doctor.id) if w.assigned_doctor_id else False,
-            "created_at": w.created_at.isoformat() if w.created_at else None,
-        })
+        items.append(
+            {
+                "id": str(w.id),
+                "queue_number": w.queue_number,
+                "first_name": w.first_name,
+                "last_name": w.last_name,
+                "full_name": w.full_name,
+                "age": w.age,
+                "gender": w.gender,
+                "reason_for_visit": w.reason_for_visit,
+                "symptoms": w.symptoms,
+                "priority_level": w.priority_level.value,
+                "queue_state": w.queue_state.value,
+                "wait_minutes": int(wait_seconds / 60),
+                "triage_vitals_json": w.triage_vitals_json,
+                "triage_notes": w.triage_notes,
+                "assigned_to_me": (
+                    str(w.assigned_doctor_id) == str(doctor.id)
+                    if w.assigned_doctor_id
+                    else False
+                ),
+                "created_at": w.created_at.isoformat() if w.created_at else None,
+            }
+        )
 
-    return success_response(data={
-        "queue": items,
-        "total_waiting": len([i for i in items if i["queue_state"] == "waiting_doctor"]),
-        "total_in_consultation": len([i for i in items if i["queue_state"] == "in_consultation"]),
-    })
+    return success_response(
+        data={
+            "queue": items,
+            "total_waiting": len(
+                [i for i in items if i["queue_state"] == "waiting_doctor"]
+            ),
+            "total_in_consultation": len(
+                [i for i in items if i["queue_state"] == "in_consultation"]
+            ),
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # GET Patient Details for a specific walk-in request
 # ---------------------------------------------------------------------------
+
 
 @router.get("/patient/{walkin_id}")
 async def get_patient_details(
@@ -144,13 +172,13 @@ async def get_patient_details(
 
     # Initialize empty patient data
     profile = {
-        "id": str(walkin.id), # Treat walkin_id as patient ID in frontend for now
+        "id": str(walkin.id),  # Treat walkin_id as patient ID in frontend for now
         "hospyn_id": str(walkin.id),
         "name": walkin.full_name,
         "age": walkin.age,
         "gender": walkin.gender,
         "blood_group": "Unknown",
-        "consent_required": False
+        "consent_required": False,
     }
     allergies = []
     conditions = []
@@ -161,87 +189,117 @@ async def get_patient_details(
     if walkin.patient_id:
         from app.models.patient import Patient
         from app.models.medical_record import MedicalRecord
-        
-        result = await db.execute(select(Patient).where(Patient.id == walkin.patient_id))
+
+        result = await db.execute(
+            select(Patient).where(Patient.id == walkin.patient_id)
+        )
         patient = result.scalars().first()
         if patient:
-            profile.update({
-                "id": str(patient.id),
-                "hospyn_id": patient.hospyn_id or str(patient.id),
-                "name": patient.full_name,
-                "age": patient.age or walkin.age,
-                "gender": patient.gender or walkin.gender,
-                "blood_group": patient.blood_type or "Unknown"
-            })
-            
+            profile.update(
+                {
+                    "id": str(patient.id),
+                    "hospyn_id": patient.hospyn_id or str(patient.id),
+                    "name": patient.full_name,
+                    "age": patient.age or walkin.age,
+                    "gender": patient.gender or walkin.gender,
+                    "blood_group": patient.blood_type or "Unknown",
+                }
+            )
+
             # Extract basic data
             if patient.known_allergies:
-                allergies = [{"id": i, "allergen": a.strip(), "severity": "High"} for i, a in enumerate(patient.known_allergies.split(",")) if a.strip()]
+                allergies = [
+                    {"id": i, "allergen": a.strip(), "severity": "High"}
+                    for i, a in enumerate(patient.known_allergies.split(","))
+                    if a.strip()
+                ]
             if patient.chronic_conditions:
-                conditions = [{"id": i, "name": c.strip()} for i, c in enumerate(patient.chronic_conditions.split(",")) if c.strip()]
-                
+                conditions = [
+                    {"id": i, "name": c.strip()}
+                    for i, c in enumerate(patient.chronic_conditions.split(","))
+                    if c.strip()
+                ]
+
             # Fetch medical records
             records_result = await db.execute(
-                select(MedicalRecord).where(MedicalRecord.patient_id == patient.id)
+                select(MedicalRecord)
+                .where(MedicalRecord.patient_id == patient.id)
                 .order_by(MedicalRecord.created_at.desc())
             )
             patient_records = records_result.scalars().all()
             for r in patient_records:
                 import json
+
                 extracted = {}
                 if r.ai_extracted:
                     try:
                         extracted = json.loads(r.ai_extracted)
                     except:
                         pass
-                records.append({
-                    "id": str(r.id),
-                    "type": r.record_type or "Document",
-                    "ai_extracted": extracted,
-                    "created_at": r.created_at.isoformat() if r.created_at else None
-                })
+                records.append(
+                    {
+                        "id": str(r.id),
+                        "type": r.record_type or "Document",
+                        "ai_extracted": extracted,
+                        "created_at": (
+                            r.created_at.isoformat() if r.created_at else None
+                        ),
+                    }
+                )
                 # Attempt to extract medications from prescriptions
                 if r.record_type == "prescription" and "medications" in extracted:
                     for m in extracted["medications"]:
-                        medications.append({
-                            "id": str(uuid.uuid4()),
-                            "generic_name": m.get("name", "Unknown"),
-                            "dosage": m.get("dosage", ""),
-                            "frequency": m.get("frequency", "")
-                        })
+                        medications.append(
+                            {
+                                "id": str(uuid.uuid4()),
+                                "generic_name": m.get("name", "Unknown"),
+                                "dosage": m.get("dosage", ""),
+                                "frequency": m.get("frequency", ""),
+                            }
+                        )
 
     # Add triage vitals as a record
     if walkin.triage_vitals_json:
         import json
+
         try:
             vitals = json.loads(walkin.triage_vitals_json)
-            records.insert(0, {
-                "id": str(walkin.id) + "_vitals",
-                "type": "vitals",
-                "ai_extracted": {
-                    "heartRate": {"value": vitals.get("heart_rate")},
-                    "bloodPressure": {"value": vitals.get("blood_pressure")},
-                    "bloodOxygen": {"value": vitals.get("oxygen_saturation")},
-                    "temperature": {"value": vitals.get("temperature")}
+            records.insert(
+                0,
+                {
+                    "id": str(walkin.id) + "_vitals",
+                    "type": "vitals",
+                    "ai_extracted": {
+                        "heartRate": {"value": vitals.get("heart_rate")},
+                        "bloodPressure": {"value": vitals.get("blood_pressure")},
+                        "bloodOxygen": {"value": vitals.get("oxygen_saturation")},
+                        "temperature": {"value": vitals.get("temperature")},
+                    },
+                    "created_at": (
+                        walkin.created_at.isoformat() if walkin.created_at else None
+                    ),
                 },
-                "created_at": walkin.created_at.isoformat() if walkin.created_at else None
-            })
+            )
         except:
             pass
 
-    return success_response(data={
-        "profile": profile,
-        "allergies": allergies,
-        "conditions": conditions,
-        "medications": medications,
-        "records": records,
-        "ai_summary": ai_summary,
-        "consent_required": profile.get("consent_required", False)
-    })
+    return success_response(
+        data={
+            "profile": profile,
+            "allergies": allergies,
+            "conditions": conditions,
+            "medications": medications,
+            "records": records,
+            "ai_summary": ai_summary,
+            "consent_required": profile.get("consent_required", False),
+        }
+    )
+
 
 # ---------------------------------------------------------------------------
 # PATCH Start Consultation — Doctor picks up patient
 # ---------------------------------------------------------------------------
+
 
 @router.patch("/queue/{walkin_id}/start")
 async def start_consultation(
@@ -261,14 +319,17 @@ async def start_consultation(
     if walkin.queue_state != QueueState.waiting_doctor:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot start: current state is '{walkin.queue_state.value}'."
+            detail=f"Cannot start: current state is '{walkin.queue_state.value}'.",
         )
 
     # Assign this doctor
     walkin.assigned_doctor_id = doctor.id
 
     await transition_queue_state(
-        db, walkin, QueueState.in_consultation, current_user.sub,
+        db,
+        walkin,
+        QueueState.in_consultation,
+        current_user.sub,
         ip_address=request.client.host if request.client else None,
     )
 
@@ -314,6 +375,7 @@ async def start_consultation(
 # PATCH Complete Consultation — Doctor finishes and writes notes
 # ---------------------------------------------------------------------------
 
+
 @router.patch("/queue/{walkin_id}/complete")
 async def complete_consultation(
     walkin_id: uuid.UUID,
@@ -333,7 +395,7 @@ async def complete_consultation(
     if walkin.queue_state != QueueState.in_consultation:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot complete: current state is '{walkin.queue_state.value}'."
+            detail=f"Cannot complete: current state is '{walkin.queue_state.value}'.",
         )
 
     # 1. Update redundant Appointment model (for backward compatibility / consent tracking)
@@ -345,30 +407,37 @@ async def complete_consultation(
     )
     appointment = appt_result.scalars().first()
     if appointment:
-        appointment.chief_complaint = payload.chief_complaint or appointment.chief_complaint
+        appointment.chief_complaint = (
+            payload.chief_complaint or appointment.chief_complaint
+        )
         appointment.clinical_notes = payload.clinical_notes
         appointment.diagnosis = payload.diagnosis
         # Store serialized string of prescriptions on Appointment.prescription for legacy reports
         if payload.prescription_items:
             items_desc = []
             for item in payload.prescription_items:
-                items_desc.append(f"{item.drug_name} {item.dosage} ({item.frequency}) x {item.duration}")
+                items_desc.append(
+                    f"{item.drug_name} {item.dosage} ({item.frequency}) x {item.duration}"
+                )
             appointment.prescription = "; ".join(items_desc)
         appointment.status = AppointmentStatus.completed
         appointment.completed_at = datetime.now(timezone.utc)
 
     # 2. Call transactional ClinicalService to create MedicalRecord and Prescription items
     from app.services.clinical_service import ClinicalService
+
     items_list = []
     if payload.prescription_items:
         for item in payload.prescription_items:
-            items_list.append({
-                "drug_name": item.drug_name,
-                "dosage": item.dosage,
-                "frequency": item.frequency,
-                "duration": item.duration,
-                "instructions": item.instructions
-            })
+            items_list.append(
+                {
+                    "drug_name": item.drug_name,
+                    "dosage": item.dosage,
+                    "frequency": item.frequency,
+                    "duration": item.duration,
+                    "instructions": item.instructions,
+                }
+            )
 
     try:
         await ClinicalService.complete_consultation(
@@ -378,7 +447,7 @@ async def complete_consultation(
             chief_complaint=payload.chief_complaint or "",
             clinical_notes=payload.clinical_notes or "",
             diagnosis=payload.diagnosis or "",
-            prescription_items=items_list
+            prescription_items=items_list,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -406,6 +475,7 @@ async def complete_consultation(
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 async def _resolve_doctor(db: AsyncSession, user_id: str) -> Doctor:
     result = await db.execute(
         select(Doctor).where(
@@ -432,5 +502,7 @@ async def _get_walkin_for_hospital(
     )
     walkin = result.scalars().first()
     if not walkin:
-        raise HTTPException(status_code=404, detail="Walk-in request not found in your hospital.")
+        raise HTTPException(
+            status_code=404, detail="Walk-in request not found in your hospital."
+        )
     return walkin

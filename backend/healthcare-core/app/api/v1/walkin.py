@@ -6,6 +6,7 @@ Endpoints:
     GET  /walkin/qr/{hospital_id}       - Generate QR token (hospital admin only)
     GET  /walkin/status/{request_id}    - Patient checks their queue position
 """
+
 import uuid
 from typing import Annotated, Optional
 from datetime import datetime, timezone
@@ -17,11 +18,19 @@ from pydantic import BaseModel, Field
 
 from app.core.database import get_db
 from app.core.security import get_current_user, require_role, TokenPayload
-from app.models.walkin import WalkInRequest, QueueState, PriorityLevel, WalkInSource, ACTIVE_QUEUE_STATES
+from app.models.walkin import (
+    WalkInRequest,
+    QueueState,
+    PriorityLevel,
+    WalkInSource,
+    ACTIVE_QUEUE_STATES,
+)
 from app.models.hospital import Hospital
 from app.services.queue_service import (
-    validate_walkin_token, generate_walkin_token,
-    check_duplicate_walkin, generate_queue_number,
+    validate_walkin_token,
+    generate_walkin_token,
+    check_duplicate_walkin,
+    generate_queue_number,
 )
 from shared.utils.responses import success_response, error_response
 from shared.audit import log_audit_event
@@ -32,6 +41,7 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # Schemas
 # ---------------------------------------------------------------------------
+
 
 class WalkInIntakeForm(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=100)
@@ -56,6 +66,7 @@ class WalkInStatusResponse(BaseModel):
 # Patient Walk-In Submission
 # ---------------------------------------------------------------------------
 
+
 @router.post("/join/{signed_token}", status_code=status.HTTP_201_CREATED)
 async def submit_walkin(
     signed_token: str,
@@ -72,7 +83,7 @@ async def submit_walkin(
     if not hospital_id_str:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid or expired QR code. Please scan a valid hospital QR code."
+            detail="Invalid or expired QR code. Please scan a valid hospital QR code.",
         )
 
     hospital_id = uuid.UUID(hospital_id_str)
@@ -89,7 +100,7 @@ async def submit_walkin(
     if not hospital:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Hospital not found or inactive."
+            detail="Hospital not found or inactive.",
         )
 
     # 3. Duplicate prevention — same phone + same hospital + active queue
@@ -97,7 +108,7 @@ async def submit_walkin(
     if is_duplicate:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="You already have an active walk-in request at this hospital. Please wait for your turn."
+            detail="You already have an active walk-in request at this hospital. Please wait for your turn.",
         )
 
     # 4. Generate queue number
@@ -161,6 +172,7 @@ async def submit_walkin(
 # Queue Position Check (Patient)
 # ---------------------------------------------------------------------------
 
+
 @router.get("/status/{request_id}")
 async def check_walkin_status(
     request_id: uuid.UUID,
@@ -181,22 +193,27 @@ async def check_walkin_status(
 
     position = await _count_ahead_in_queue(db, walkin.hospital_id, walkin.created_at)
 
-    return success_response(data={
-        "request_id": str(walkin.id),
-        "queue_number": walkin.queue_number,
-        "queue_state": walkin.queue_state.value,
-        "estimated_wait_minutes": position * 8,
-        "position_in_queue": position + 1,
-    })
+    return success_response(
+        data={
+            "request_id": str(walkin.id),
+            "queue_number": walkin.queue_number,
+            "queue_state": walkin.queue_state.value,
+            "estimated_wait_minutes": position * 8,
+            "position_in_queue": position + 1,
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # QR Token Generation (Hospital Admin)
 # ---------------------------------------------------------------------------
 
+
 @router.get("/qr-token")
 async def get_qr_token(
-    current_user: Annotated[TokenPayload, Depends(require_role("hospital_admin", "admin"))],
+    current_user: Annotated[
+        TokenPayload, Depends(require_role("hospital_admin", "admin"))
+    ],
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -223,17 +240,20 @@ async def get_qr_token(
         target_id=str(hospital.id),
     )
 
-    return success_response(data={
-        "signed_token": token,
-        "hospital_id": str(hospital.id),
-        "hospital_name": hospital.name,
-        "walkin_url": f"https://walkin.hospyn.com/join/{token}",
-    })
+    return success_response(
+        data={
+            "signed_token": token,
+            "hospital_id": str(hospital.id),
+            "hospital_name": hospital.name,
+            "walkin_url": f"https://walkin.hospyn.com/join/{token}",
+        }
+    )
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 async def _count_ahead_in_queue(
     db: AsyncSession, hospital_id: uuid.UUID, created_at: datetime

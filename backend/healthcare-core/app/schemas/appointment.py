@@ -1,6 +1,7 @@
 """
 Appointment Pydantic Schemas
 """
+
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -29,6 +30,7 @@ class AppointmentCreate(BaseModel):
     @classmethod
     def validate_scheduled_at(cls, v: datetime) -> datetime:
         from datetime import timezone
+
         now = datetime.now(timezone.utc)
         if v.tzinfo is None:
             raise ValueError("scheduled_at must be timezone-aware")
@@ -47,6 +49,7 @@ class AppointmentUpdate(BaseModel):
 
 class AppointmentClinicalUpdate(BaseModel):
     """Only doctors can fill clinical notes after appointment."""
+
     clinical_notes: Optional[str] = None
     diagnosis: Optional[str] = None
     prescription: Optional[str] = None

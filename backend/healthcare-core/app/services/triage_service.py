@@ -4,9 +4,9 @@ Triage Service
 Business logic for nurse triage operations.
 Handles vitals storage, priority escalation, and doctor assignment.
 """
+
 from typing import Optional
 from app.models.walkin import WalkInRequest, PriorityLevel
-
 
 # ---------------------------------------------------------------------------
 # Vitals Validation
@@ -43,11 +43,12 @@ def validate_vitals(vitals: dict) -> dict:
 # Priority Escalation
 # ---------------------------------------------------------------------------
 
+
 def assess_priority_from_vitals(vitals: dict) -> Optional[PriorityLevel]:
     """
     Auto-escalate priority based on vitals readings.
     Returns a PriorityLevel if escalation is needed, else None.
-    
+
     Thresholds based on standard clinical emergency criteria:
     - SpO2 < 90% → EMERGENCY
     - Heart Rate > 150 or < 40 → EMERGENCY
@@ -76,6 +77,7 @@ def assess_priority_from_vitals(vitals: dict) -> Optional[PriorityLevel]:
 
 import uuid
 
+
 def apply_triage_data(
     walkin: WalkInRequest,
     vitals: dict,
@@ -101,7 +103,12 @@ def apply_triage_data(
     escalation = assess_priority_from_vitals(cleaned_vitals)
     if escalation is not None:
         # Only escalate UP, never down
-        priority_order = [PriorityLevel.low, PriorityLevel.normal, PriorityLevel.urgent, PriorityLevel.emergency]
+        priority_order = [
+            PriorityLevel.low,
+            PriorityLevel.normal,
+            PriorityLevel.urgent,
+            PriorityLevel.emergency,
+        ]
         current_idx = priority_order.index(walkin.priority_level)
         new_idx = priority_order.index(escalation)
         if new_idx > current_idx:

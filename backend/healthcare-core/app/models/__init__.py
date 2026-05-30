@@ -12,8 +12,15 @@ from app.models.payment_transaction import PaymentTransaction
 from app.models.prescription import Prescription, PrescriptionItem
 
 __all__ = [
-    "Hospital", "Doctor", "Patient", "Appointment",
-    "MedicalRecord", "WalkInRequest", "Staff",
-    "QueueEvent", "PaymentTransaction",
-    "Prescription", "PrescriptionItem",
+    "Hospital",
+    "Doctor",
+    "Patient",
+    "Appointment",
+    "MedicalRecord",
+    "WalkInRequest",
+    "Staff",
+    "QueueEvent",
+    "PaymentTransaction",
+    "Prescription",
+    "PrescriptionItem",
 ]

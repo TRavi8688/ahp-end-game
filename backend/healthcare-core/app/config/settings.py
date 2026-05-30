@@ -16,7 +16,9 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "https://hospyn.com,https://www.hospyn.com"
 
     # JWT Validation — MUST match Auth Service.
-    JWT_SECRET_KEY: str = "local_dev_secret_key_must_be_at_least_32_characters_long_for_security"
+    JWT_SECRET_KEY: str = (
+        "local_dev_secret_key_must_be_at_least_32_characters_long_for_security"
+    )
     JWT_ALGORITHM: str = "HS256"
 
     # Google Cloud Storage (GCP)
@@ -37,9 +39,7 @@ class Settings(BaseSettings):
         return v
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        case_sensitive=True,
-        extra="ignore"
+        env_file=".env", case_sensitive=True, extra="ignore"
     )
 
 

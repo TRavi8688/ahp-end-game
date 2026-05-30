@@ -4,12 +4,20 @@ Appointment Model
 Core scheduling entity linking a Patient to a Doctor.
 Tracks appointment lifecycle: scheduled -> confirmed -> completed/cancelled.
 """
+
 import uuid
 import enum
 from datetime import datetime
 from sqlalchemy import (
-    String, DateTime, Enum as SQLEnum,
-    UUID, Text, ForeignKey, Integer, func, Index
+    String,
+    DateTime,
+    Enum as SQLEnum,
+    UUID,
+    Text,
+    ForeignKey,
+    Integer,
+    func,
+    Index,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING
@@ -39,9 +47,10 @@ class AppointmentType(str, enum.Enum):
 
 class AppointmentSource(str, enum.Enum):
     """How was this appointment created?"""
-    scheduled = "scheduled"          # Patient booked via app
-    walkin = "walkin"                # Created from a WalkInRequest
-    receptionist = "receptionist"    # Receptionist booked on behalf
+
+    scheduled = "scheduled"  # Patient booked via app
+    walkin = "walkin"  # Created from a WalkInRequest
+    receptionist = "receptionist"  # Receptionist booked on behalf
 
 
 class Appointment(Base):
@@ -57,17 +66,28 @@ class Appointment(Base):
 
     # Core relationships
     patient_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("patients.id", ondelete="RESTRICT"), nullable=True, index=True
+        UUID(as_uuid=True),
+        ForeignKey("patients.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
     )
     doctor_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("doctors.id", ondelete="RESTRICT"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("doctors.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
     )
     hospital_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("hospitals.id", ondelete="RESTRICT"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("hospitals.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
     )
 
     # Scheduling
-    scheduled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    scheduled_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
     duration_minutes: Mapped[int] = mapped_column(Integer, default=30)
 
     # Type & Status
@@ -89,20 +109,28 @@ class Appointment(Base):
         SQLEnum(AppointmentSource), default=AppointmentSource.scheduled, nullable=False
     )
     walkin_request_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("walkin_requests.id", ondelete="SET NULL"),
-        nullable=True, index=True
+        UUID(as_uuid=True),
+        ForeignKey("walkin_requests.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
 
     # Cancellation tracking
-    cancelled_by_user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=True)
+    cancelled_by_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )
     cancellation_reason: Mapped[str] = mapped_column(String(500), nullable=True)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Relationships — string references, no circular imports
     patient: Mapped["Patient"] = relationship("Patient", back_populates="appointments")

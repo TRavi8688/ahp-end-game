@@ -3,6 +3,7 @@ import sys
 import structlog
 from app.config.settings import settings
 
+
 def setup_logging():
     """
     Configures structured JSON logging optimized for GCP Cloud Logging (Stackdriver).
@@ -29,13 +30,11 @@ def setup_logging():
         # JSON formatting for GCP
         processors = shared_processors + [
             structlog.processors.dict_tracebacks,
-            structlog.processors.JSONRenderer()
+            structlog.processors.JSONRenderer(),
         ]
     else:
         # Console formatting for local
-        processors = shared_processors + [
-            structlog.dev.ConsoleRenderer(colors=True)
-        ]
+        processors = shared_processors + [structlog.dev.ConsoleRenderer(colors=True)]
 
     structlog.configure(
         processors=processors,
@@ -49,13 +48,17 @@ def setup_logging():
         foreign_pre_chain=shared_processors,
         processors=[
             structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-            structlog.processors.JSONRenderer() if is_prod else structlog.dev.ConsoleRenderer(colors=True),
+            (
+                structlog.processors.JSONRenderer()
+                if is_prod
+                else structlog.dev.ConsoleRenderer(colors=True)
+            ),
         ],
     )
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(formatter)
-    
+
     root_logger = logging.getLogger()
     root_logger.handlers = []
     root_logger.addHandler(handler)

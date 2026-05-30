@@ -9,6 +9,7 @@ Endpoints:
     PUT    /patients/{id}          - Update patient (self or admin)
     DELETE /patients/{id}          - Soft-delete patient (admin only)
 """
+
 import uuid
 import json
 import os
@@ -25,7 +26,12 @@ from app.core.security import get_current_user, require_role, TokenPayload
 from app.models.patient import Patient
 from app.models.hospital import Hospital
 from app.models.medical_record import MedicalRecord
-from app.schemas.patient import PatientCreate, PatientUpdate, PatientResponse, PatientListResponse
+from app.schemas.patient import (
+    PatientCreate,
+    PatientUpdate,
+    PatientResponse,
+    PatientListResponse,
+)
 from shared.utils.responses import success_response, error_response
 from shared.security.files import validate_file_security
 from shared.gcs import GCSStorageService
@@ -39,13 +45,17 @@ router = APIRouter()
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_patient(
     payload: PatientCreate,
-    current_user: Annotated[TokenPayload, Depends(require_role("patient", "admin", "hospital_admin"))],
+    current_user: Annotated[
+        TokenPayload, Depends(require_role("patient", "admin", "hospital_admin"))
+    ],
     db: AsyncSession = Depends(get_db),
 ):
     """Register a new patient profile. Links to user_id from auth service."""
     # Verify the hospital exists
     hospital_result = await db.execute(
-        select(Hospital).where(Hospital.id == payload.hospital_id, Hospital.deleted_at.is_(None))
+        select(Hospital).where(
+            Hospital.id == payload.hospital_id, Hospital.deleted_at.is_(None)
+        )
     )
     if not hospital_result.scalars().first():
         raise HTTPException(status_code=404, detail="Hospital not found")
@@ -55,7 +65,9 @@ async def create_patient(
         select(Patient).where(Patient.user_id == uuid.UUID(current_user.sub))
     )
     if existing.scalars().first():
-        return error_response("PROFILE_EXISTS", "Patient profile already exists for this user.", 409)
+        return error_response(
+            "PROFILE_EXISTS", "Patient profile already exists for this user.", 409
+        )
 
     patient = Patient(
         **payload.model_dump(),
@@ -65,7 +77,9 @@ async def create_patient(
     await db.flush()
     await db.refresh(patient)
 
-    log_audit_event(action="patient_created", actor_id=current_user.sub, target_id=str(patient.id))
+    log_audit_event(
+        action="patient_created", actor_id=current_user.sub, target_id=str(patient.id)
+    )
 
     return success_response(
         data=PatientResponse.model_validate(patient).model_dump(mode="json"),
@@ -88,11 +102,19 @@ async def get_my_profile(
     )
     patient = result.scalars().first()
     if not patient:
-        raise HTTPException(status_code=404, detail="Patient profile not found. Please register first.")
+        raise HTTPException(
+            status_code=404, detail="Patient profile not found. Please register first."
+        )
 
-    log_audit_event(action="patient_profile_accessed", actor_id=current_user.sub, target_id=str(patient.id))
+    log_audit_event(
+        action="patient_profile_accessed",
+        actor_id=current_user.sub,
+        target_id=str(patient.id),
+    )
 
-    return success_response(data=PatientResponse.model_validate(patient).model_dump(mode="json"))
+    return success_response(
+        data=PatientResponse.model_validate(patient).model_dump(mode="json")
+    )
 
 
 @router.post("/booking-consent")
@@ -109,25 +131,31 @@ async def generate_booking_consent(
     )
     patient = result.scalars().first()
     if not patient:
-        raise HTTPException(status_code=404, detail="Patient profile not found. Please register first.")
+        raise HTTPException(
+            status_code=404, detail="Patient profile not found. Please register first."
+        )
 
     import secrets
+
     consent_token = secrets.token_urlsafe(16)
 
     from shared.redis_client import set_patient_consent_token
+
     success = await set_patient_consent_token(str(patient.id), consent_token)
     if not success:
-        raise HTTPException(status_code=500, detail="Consent token cache generation failed.")
+        raise HTTPException(
+            status_code=500, detail="Consent token cache generation failed."
+        )
 
     log_audit_event(
         action="patient_consent_token_generated",
         actor_id=current_user.sub,
-        target_id=str(patient.id)
+        target_id=str(patient.id),
     )
 
     return success_response(
         data={"consent_token": consent_token, "expires_in_seconds": 900},
-        message="Consent token generated successfully. Share this with your doctor/staff to allow booking."
+        message="Consent token generated successfully. Share this with your doctor/staff to allow booking.",
     )
 
 
@@ -139,7 +167,9 @@ async def search_doctors(
     page_size: int = Query(20, ge=1, le=100),
     hospital_id: uuid.UUID = Query(None),
     specialization: str = Query(None),
-    search_query: str = Query(None, description="Search by doctor name or specialization"),
+    search_query: str = Query(
+        None, description="Search by doctor name or specialization"
+    ),
 ):
     """
     Robust API for patients to discover active doctors.
@@ -148,7 +178,7 @@ async def search_doctors(
     query = select(Doctor).where(
         Doctor.deleted_at.is_(None),
         Doctor.status == DoctorStatus.active,
-        Doctor.is_active == True
+        Doctor.is_active == True,
     )
 
     if hospital_id:
@@ -158,15 +188,19 @@ async def search_doctors(
     if search_query:
         search_term = f"%{search_query}%"
         query = query.where(
-            (Doctor.first_name.ilike(search_term)) |
-            (Doctor.last_name.ilike(search_term)) |
-            (Doctor.specialization.ilike(search_term))
+            (Doctor.first_name.ilike(search_term))
+            | (Doctor.last_name.ilike(search_term))
+            | (Doctor.specialization.ilike(search_term))
         )
 
     count_result = await db.execute(select(func.count()).select_from(query.subquery()))
     total = count_result.scalar_one()
 
-    query = query.offset((page - 1) * page_size).limit(page_size).order_by(Doctor.created_at.desc())
+    query = (
+        query.offset((page - 1) * page_size)
+        .limit(page_size)
+        .order_by(Doctor.created_at.desc())
+    )
     result = await db.execute(query)
     doctors = result.scalars().all()
 
@@ -175,18 +209,28 @@ async def search_doctors(
         action="patient_searched_doctors",
         actor_id=current_user.sub,
         target_id=current_user.sub,
-        details={"search_query": search_query, "hospital_id": str(hospital_id) if hospital_id else None}
+        details={
+            "search_query": search_query,
+            "hospital_id": str(hospital_id) if hospital_id else None,
+        },
     )
 
-    return success_response(data=DoctorListResponse(
-        total=total, page=page, page_size=page_size,
-        items=[DoctorResponse.model_validate(d) for d in doctors],
-    ).model_dump(mode="json"))
+    return success_response(
+        data=DoctorListResponse(
+            total=total,
+            page=page,
+            page_size=page_size,
+            items=[DoctorResponse.model_validate(d) for d in doctors],
+        ).model_dump(mode="json")
+    )
 
 
 @router.get("/")
 async def list_patients(
-    current_user: Annotated[TokenPayload, Depends(require_role("doctor", "admin", "hospital_admin", "staff"))],
+    current_user: Annotated[
+        TokenPayload,
+        Depends(require_role("doctor", "admin", "hospital_admin", "staff")),
+    ],
     db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -201,32 +245,37 @@ async def list_patients(
     if search:
         search_term = f"%{search}%"
         query = query.where(
-            (Patient.first_name.ilike(search_term)) |
-            (Patient.last_name.ilike(search_term)) |
-            (Patient.email.ilike(search_term)) |
-            (Patient.phone.ilike(search_term))
+            (Patient.first_name.ilike(search_term))
+            | (Patient.last_name.ilike(search_term))
+            | (Patient.email.ilike(search_term))
+            | (Patient.phone.ilike(search_term))
         )
 
     count_result = await db.execute(select(func.count()).select_from(query.subquery()))
     total = count_result.scalar_one()
 
-    query = query.offset((page - 1) * page_size).limit(page_size).order_by(Patient.created_at.desc())
+    query = (
+        query.offset((page - 1) * page_size)
+        .limit(page_size)
+        .order_by(Patient.created_at.desc())
+    )
     result = await db.execute(query)
     patients = result.scalars().all()
 
-    return success_response(data=PatientListResponse(
-        total=total, page=page, page_size=page_size,
-        items=[PatientResponse.model_validate(p) for p in patients],
-    ).model_dump(mode="json"))
-
+    return success_response(
+        data=PatientListResponse(
+            total=total,
+            page=page,
+            page_size=page_size,
+            items=[PatientResponse.model_validate(p) for p in patients],
+        ).model_dump(mode="json")
+    )
 
 
 # ---------------------------------------------------------------------------
 # /records and /records/preview MUST be declared before /{patient_id} so that
 # FastAPI does not match the literal string "records" as a UUID path parameter.
 # ---------------------------------------------------------------------------
-
-
 
 
 class ReportAnalysisResponse(BaseModel):
@@ -249,9 +298,6 @@ class ReportConfirmSave(BaseModel):
     update_profile: bool = False
 
 
-
-
-
 @router.get("/records")
 async def get_my_records(
     current_user: TokenPayload = Depends(require_role("patient")),
@@ -263,8 +309,7 @@ async def get_my_records(
     """
     result = await db.execute(
         select(Patient).where(
-            Patient.user_id == uuid.UUID(current_user.sub),
-            Patient.deleted_at.is_(None)
+            Patient.user_id == uuid.UUID(current_user.sub), Patient.deleted_at.is_(None)
         )
     )
     patient = result.scalars().first()
@@ -273,9 +318,7 @@ async def get_my_records(
 
     # Load all records from PostgreSQL database
     records_result = await db.execute(
-        select(MedicalRecord).where(
-            MedicalRecord.patient_id == patient.id
-        )
+        select(MedicalRecord).where(MedicalRecord.patient_id == patient.id)
     )
     records = records_result.scalars().all()
 
@@ -283,27 +326,33 @@ async def get_my_records(
     storage = GCSStorageService()
     formatted_records = []
     for r in records:
-        secure_url = await storage.get_secure_url(r.file_url, expires_in=600) if r.file_url else None
-        formatted_records.append({
-            "id": str(r.id),
-            "patient_id": str(r.patient_id),
-            "type": r.record_type,
-            "record_name": r.record_name,
-            "hospital_name": r.hospital_name,
-            "file_url": r.file_url,
-            "secure_url": secure_url,
-            "raw_text": r.raw_text,
-            "ai_extracted": json.loads(r.ai_extracted) if r.ai_extracted else {},
-            "ai_summary": r.ai_summary,
-            "patient_summary": r.patient_summary,
-            "created_at": r.created_at.isoformat() if r.created_at else None,
-            "hidden_by_patient": r.hidden_by_patient
-        })
+        secure_url = (
+            await storage.get_secure_url(r.file_url, expires_in=600)
+            if r.file_url
+            else None
+        )
+        formatted_records.append(
+            {
+                "id": str(r.id),
+                "patient_id": str(r.patient_id),
+                "type": r.record_type,
+                "record_name": r.record_name,
+                "hospital_name": r.hospital_name,
+                "file_url": r.file_url,
+                "secure_url": secure_url,
+                "raw_text": r.raw_text,
+                "ai_extracted": json.loads(r.ai_extracted) if r.ai_extracted else {},
+                "ai_summary": r.ai_summary,
+                "patient_summary": r.patient_summary,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+                "hidden_by_patient": r.hidden_by_patient,
+            }
+        )
 
     log_audit_event(
         action="patient_records_list_accessed",
         actor_id=current_user.sub,
-        target_id=str(patient.id)
+        target_id=str(patient.id),
     )
 
     return formatted_records
@@ -311,8 +360,7 @@ async def get_my_records(
 
 @router.get("/records/preview/{filename}")
 async def preview_local_file(
-    filename: str,
-    current_user: TokenPayload = Depends(get_current_user)
+    filename: str, current_user: TokenPayload = Depends(get_current_user)
 ):
     """
     Serves local files securely from local storage during development.
@@ -320,13 +368,18 @@ async def preview_local_file(
     """
     # Simple directory traversal prevention
     clean_fn = os.path.basename(filename)
-    root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))))
+    root_dir = os.path.dirname(
+        os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        )
+    )
     file_path = os.path.join(root_dir, "secure_uploads", clean_fn)
 
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Preview file not found.")
 
     from fastapi.responses import FileResponse
+
     return FileResponse(file_path)
 
 
@@ -346,11 +399,19 @@ async def get_patient(
 
     # Patients can only view their own record
     if current_user.role == "patient" and str(patient.user_id) != current_user.sub:
-        raise HTTPException(status_code=403, detail="You can only view your own patient record")
+        raise HTTPException(
+            status_code=403, detail="You can only view your own patient record"
+        )
 
-    log_audit_event(action="patient_record_accessed", actor_id=current_user.sub, target_id=str(patient.id))
+    log_audit_event(
+        action="patient_record_accessed",
+        actor_id=current_user.sub,
+        target_id=str(patient.id),
+    )
 
-    return success_response(data=PatientResponse.model_validate(patient).model_dump(mode="json"))
+    return success_response(
+        data=PatientResponse.model_validate(patient).model_dump(mode="json")
+    )
 
 
 @router.put("/{patient_id}")
@@ -370,7 +431,9 @@ async def update_patient(
 
     # Patients can only update their own record
     if current_user.role == "patient" and str(patient.user_id) != current_user.sub:
-        raise HTTPException(status_code=403, detail="You can only update your own patient record")
+        raise HTTPException(
+            status_code=403, detail="You can only update your own patient record"
+        )
     elif current_user.role not in ("patient", "admin", "hospital_admin", "staff"):
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
@@ -380,7 +443,9 @@ async def update_patient(
 
     await db.flush()
     await db.refresh(patient)
-    log_audit_event(action="patient_updated", actor_id=current_user.sub, target_id=str(patient.id))
+    log_audit_event(
+        action="patient_updated", actor_id=current_user.sub, target_id=str(patient.id)
+    )
 
     return success_response(
         data=PatientResponse.model_validate(patient).model_dump(mode="json"),
@@ -405,7 +470,9 @@ async def delete_patient(
     patient.deleted_at = datetime.now(timezone.utc)
     patient.is_active = False
     await db.flush()
-    log_audit_event(action="patient_deleted", actor_id=current_user.sub, target_id=str(patient_id))
+    log_audit_event(
+        action="patient_deleted", actor_id=current_user.sub, target_id=str(patient_id)
+    )
 
     return success_response(message="Patient record deactivated.")
 
@@ -426,13 +493,14 @@ async def upload_report(
     # 1. Fetch current patient profile
     result = await db.execute(
         select(Patient).where(
-            Patient.user_id == uuid.UUID(current_user.sub),
-            Patient.deleted_at.is_(None)
+            Patient.user_id == uuid.UUID(current_user.sub), Patient.deleted_at.is_(None)
         )
     )
     patient = result.scalars().first()
     if not patient:
-        raise HTTPException(status_code=404, detail="Patient profile not found. Please register first.")
+        raise HTTPException(
+            status_code=404, detail="Patient profile not found. Please register first."
+        )
 
     # 2. Read file content
     contents = await file.read()
@@ -444,7 +512,7 @@ async def upload_report(
         file_content=contents,
         filename=file.filename,
         max_size_bytes=max_size,
-        allowed_types=allowed_types
+        allowed_types=allowed_types,
     )
 
     # 4. Stream to Google Cloud Storage (or local fallback)
@@ -453,9 +521,7 @@ async def upload_report(
     object_name = f"reports/{patient.id}/{safe_filename}"
 
     gcs_url = await storage.upload_file_bytes(
-        file_content=contents,
-        object_name=object_name,
-        content_type=detected_mime
+        file_content=contents, object_name=object_name, content_type=detected_mime
     )
 
     # 5. Generate high-fidelity simulated clinical AI analysis
@@ -470,19 +536,42 @@ async def upload_report(
 
     # Simulate realistic AI extraction
     conditions = [{"name": "Allergic Rhinitis", "notes": "Seasonal flare-up"}]
-    medications = [{"name": "Montelukast", "dosage": "10mg", "frequency": "Once daily at bedtime"}]
+    medications = [
+        {"name": "Montelukast", "dosage": "10mg", "frequency": "Once daily at bedtime"}
+    ]
     hospital_name = "Hospyn General Hospital"
     summary = "The patient presents with symptoms consistent with seasonal allergic rhinitis. Lungs are clear on auscultation. Recommended continuous monitoring."
-    findings = "Nasal mucosa shows mild edema. No evidence of secondary bacterial infection."
+    findings = (
+        "Nasal mucosa shows mild edema. No evidence of secondary bacterial infection."
+    )
 
     if record_type == "lab":
-        conditions = [{"name": "Mild Anemia", "notes": "Hemoglobin slightly below reference range"}]
-        medications = [{"name": "Iron Supplement", "dosage": "100mg", "frequency": "Once daily with meals"}]
+        conditions = [
+            {
+                "name": "Mild Anemia",
+                "notes": "Hemoglobin slightly below reference range",
+            }
+        ]
+        medications = [
+            {
+                "name": "Iron Supplement",
+                "dosage": "100mg",
+                "frequency": "Once daily with meals",
+            }
+        ]
         summary = "Blood panel indicates mild microcytic anemia. All other metabolic and lipid values are within normal limits."
         findings = "Hemoglobin: 11.2 g/dL (Reference: 12.0 - 15.5 g/dL). MCV: 78 fL (Reference: 80 - 100 fL)."
     elif record_type == "scan":
-        conditions = [{"name": "Lumbar Muscle Strain", "notes": "No disc herniation detected"}]
-        medications = [{"name": "Ibuprofen", "dosage": "400mg", "frequency": "Twice daily as needed"}]
+        conditions = [
+            {"name": "Lumbar Muscle Strain", "notes": "No disc herniation detected"}
+        ]
+        medications = [
+            {
+                "name": "Ibuprofen",
+                "dosage": "400mg",
+                "frequency": "Twice daily as needed",
+            }
+        ]
         summary = "Spine MRI shows normal vertebral alignment and disc spacing. Minimal paraspinal muscle inflammation observed."
         findings = "L4-L5 and L5-S1 disc spaces are intact. No spinal stenosis or nerve root compression."
 
@@ -490,7 +579,7 @@ async def upload_report(
         action="patient_report_uploaded",
         actor_id=current_user.sub,
         target_id=str(patient.id),
-        details={"record_name": file.filename, "record_type": record_type}
+        details={"record_name": file.filename, "record_type": record_type},
     )
 
     return ReportAnalysisResponse(
@@ -501,7 +590,7 @@ async def upload_report(
         extracted_data={"conditions": conditions, "medications": medications},
         visual_findings=findings,
         url=gcs_url,
-        type=record_type
+        type=record_type,
     )
 
 
@@ -518,8 +607,7 @@ async def confirm_and_save_report(
     # 1. Fetch current patient profile
     result = await db.execute(
         select(Patient).where(
-            Patient.user_id == uuid.UUID(current_user.sub),
-            Patient.deleted_at.is_(None)
+            Patient.user_id == uuid.UUID(current_user.sub), Patient.deleted_at.is_(None)
         )
     )
     patient = result.scalars().first()
@@ -528,7 +616,7 @@ async def confirm_and_save_report(
 
     # 2. Save the confirmed medical record to PostgreSQL database
     record_id = uuid.uuid4()
-    
+
     ai_extracted_data = payload.analysis.get("structured_data") or {}
     ai_extracted_str = json.dumps(ai_extracted_data)
 
@@ -543,7 +631,7 @@ async def confirm_and_save_report(
         ai_extracted=ai_extracted_str,
         ai_summary=payload.analysis.get("summary") or "",
         patient_summary=payload.analysis.get("summary") or "",
-        hidden_by_patient=False
+        hidden_by_patient=False,
     )
     db.add(db_record)
     await db.flush()
@@ -552,16 +640,20 @@ async def confirm_and_save_report(
         action="patient_record_saved",
         actor_id=current_user.sub,
         target_id=str(patient.id),
-        details={"record_id": str(record_id), "record_name": db_record.record_name}
+        details={"record_id": str(record_id), "record_name": db_record.record_name},
     )
 
     # 3. Update patient database profile if requested
     if payload.update_profile:
-        conditions_data = payload.analysis.get("structured_data", {}).get("conditions", [])
+        conditions_data = payload.analysis.get("structured_data", {}).get(
+            "conditions", []
+        )
         meds_data = payload.analysis.get("structured_data", {}).get("medications", [])
 
         # Format new medical conditions
-        new_conditions = [c["name"] if isinstance(c, dict) else str(c) for c in conditions_data]
+        new_conditions = [
+            c["name"] if isinstance(c, dict) else str(c) for c in conditions_data
+        ]
         new_meds = [
             f"{m['name']} ({m.get('dosage', '')})" if isinstance(m, dict) else str(m)
             for m in meds_data

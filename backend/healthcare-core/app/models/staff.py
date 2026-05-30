@@ -5,12 +5,19 @@ Represents a hospital staff member (receptionist, nurse, admin).
 Links to user_id from the Auth Service and is scoped to a single hospital.
 Doctors have their own model — this is for operational staff only.
 """
+
 import uuid
 import enum
 from datetime import datetime
 from sqlalchemy import (
-    String, Boolean, DateTime, Enum as SQLEnum,
-    UUID, ForeignKey, func, Index
+    String,
+    Boolean,
+    DateTime,
+    Enum as SQLEnum,
+    UUID,
+    ForeignKey,
+    func,
+    Index,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional, TYPE_CHECKING
@@ -52,8 +59,10 @@ class Staff(Base):
 
     # Hospital scope — every staff member belongs to exactly one hospital
     hospital_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("hospitals.id", ondelete="RESTRICT"),
-        nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("hospitals.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
     )
 
     # Identity
@@ -72,11 +81,15 @@ class Staff(Base):
     )
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Relationships
     hospital: Mapped["Hospital"] = relationship("Hospital")

@@ -11,6 +11,7 @@ Tests the full walk-in queue pipeline:
 7. Doctor views queue, starts consultation -> status: in_consultation (creates Appointment).
 8. Doctor completes consultation with clinical notes -> status: completed.
 """
+
 import pytest
 import uuid
 from datetime import datetime, timezone
@@ -34,7 +35,9 @@ def generate_token(user_id: str, role: str) -> str:
         "token_version": 1,
         "jti": str(uuid.uuid4()),
     }
-    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return jwt.encode(
+        payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+    )
 
 
 @pytest.fixture
@@ -163,11 +166,10 @@ async def test_full_walkin_queue_pipeline(
         "gender": "male",
         "reason_for_visit": "Persistent headache and mild fever.",
         "symptoms": "Headache, low fever, fatigue",
-        "is_emergency": False
+        "is_emergency": False,
     }
     response = await client.post(
-        f"/api/v1/healthcare/walkin/join/{qr_token}",
-        json=intake_data
+        f"/api/v1/healthcare/walkin/join/{qr_token}", json=intake_data
     )
     assert response.status_code == 201, f"Intake submission failed: {response.text}"
     res_json = response.json()
@@ -184,8 +186,7 @@ async def test_full_walkin_queue_pipeline(
 
     # 3. Duplicate check - try to join again with same details
     response_dup = await client.post(
-        f"/api/v1/healthcare/walkin/join/{qr_token}",
-        json=intake_data
+        f"/api/v1/healthcare/walkin/join/{qr_token}", json=intake_data
     )
     assert response_dup.status_code == 409
     assert "active walk-in request" in response_dup.json()["message"]
@@ -197,8 +198,7 @@ async def test_full_walkin_queue_pipeline(
 
     # 5. Receptionist fetches the reception queue
     reception_queue_res = await client.get(
-        "/api/v1/healthcare/reception/queue",
-        headers=receptionist_headers
+        "/api/v1/healthcare/reception/queue", headers=receptionist_headers
     )
     assert reception_queue_res.status_code == 200
     queue_data = reception_queue_res.json()["data"]
@@ -210,15 +210,14 @@ async def test_full_walkin_queue_pipeline(
     accept_res = await client.patch(
         f"/api/v1/healthcare/reception/queue/{walkin_id}/accept",
         json=accept_payload,
-        headers=receptionist_headers
+        headers=receptionist_headers,
     )
     assert accept_res.status_code == 200
     assert accept_res.json()["data"]["new_state"] == "waiting_triage"
 
     # 7. Nurse fetches triage queue
     nurse_queue_res = await client.get(
-        "/api/v1/healthcare/nurse/queue",
-        headers=nurse_headers
+        "/api/v1/healthcare/nurse/queue", headers=nurse_headers
     )
     assert nurse_queue_res.status_code == 200
     nurse_queue = nurse_queue_res.json()["data"]
@@ -227,8 +226,7 @@ async def test_full_walkin_queue_pipeline(
 
     # 8. Nurse starts triage
     start_triage_res = await client.patch(
-        f"/api/v1/healthcare/nurse/queue/{walkin_id}/start",
-        headers=nurse_headers
+        f"/api/v1/healthcare/nurse/queue/{walkin_id}/start", headers=nurse_headers
     )
     assert start_triage_res.status_code == 200
     assert start_triage_res.json()["data"]["new_state"] == "in_triage"
@@ -241,23 +239,22 @@ async def test_full_walkin_queue_pipeline(
             "diastolic": 80,
             "pulse": 72,
             "temperature": 98.6,
-            "spo2": 99
+            "spo2": 99,
         },
         "assigned_doctor_id": str(test_doctor.id),
-        "priority_override": "normal"
+        "priority_override": "normal",
     }
     complete_triage_res = await client.patch(
         f"/api/v1/healthcare/nurse/queue/{walkin_id}/complete",
         json=triage_payload,
-        headers=nurse_headers
+        headers=nurse_headers,
     )
     assert complete_triage_res.status_code == 200
     assert complete_triage_res.json()["data"]["new_state"] == "waiting_doctor"
 
     # 10. Doctor views queue
     doctor_queue_res = await client.get(
-        "/api/v1/healthcare/doctor/queue",
-        headers=doctor_headers
+        "/api/v1/healthcare/doctor/queue", headers=doctor_headers
     )
     assert doctor_queue_res.status_code == 200
     doc_queue = doctor_queue_res.json()["data"]
@@ -266,8 +263,7 @@ async def test_full_walkin_queue_pipeline(
 
     # 11. Doctor starts consultation (creates Appointment record)
     start_consult_res = await client.patch(
-        f"/api/v1/healthcare/doctor/queue/{walkin_id}/start",
-        headers=doctor_headers
+        f"/api/v1/healthcare/doctor/queue/{walkin_id}/start", headers=doctor_headers
     )
     assert start_consult_res.status_code == 200
     consult_data = start_consult_res.json()["data"]
@@ -280,12 +276,12 @@ async def test_full_walkin_queue_pipeline(
         "chief_complaint": "Migraine headache.",
         "clinical_notes": "Prescribed rest and hydration.",
         "diagnosis": "Tension Migraine",
-        "prescription": "Paracetamol 650mg TDS x 3 days"
+        "prescription": "Paracetamol 650mg TDS x 3 days",
     }
     complete_consult_res = await client.patch(
         f"/api/v1/healthcare/doctor/queue/{walkin_id}/complete",
         json=consult_complete_payload,
-        headers=doctor_headers
+        headers=doctor_headers,
     )
     assert complete_consult_res.status_code == 200
     assert complete_consult_res.json()["data"]["new_state"] == "completed"

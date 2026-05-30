@@ -1,6 +1,7 @@
 """
 Integration test: Stage 1 Patient and Doctor flow.
 """
+
 import pytest
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -21,7 +22,9 @@ def generate_token(user_id: str, role: str) -> str:
         "token_version": 1,
         "jti": str(uuid.uuid4()),
     }
-    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return jwt.encode(
+        payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+    )
 
 
 @pytest.fixture
@@ -98,7 +101,9 @@ async def client_doctor(client, active_doctor):
 
 @pytest.fixture
 async def test_appointment(db_session, test_hospital, test_patient, active_doctor):
-    scheduled_time = (datetime.now(timezone.utc) + timedelta(days=1)).replace(microsecond=0)
+    scheduled_time = (datetime.now(timezone.utc) + timedelta(days=1)).replace(
+        microsecond=0
+    )
     appointment = Appointment(
         patient_id=test_patient.id,
         doctor_id=active_doctor.id,
@@ -132,11 +137,11 @@ async def test_update_clinical_notes(client_doctor: AsyncClient, test_appointmen
     payload = {
         "clinical_notes": "Patient presents with mild fever.",
         "diagnosis": "Viral Infection",
-        "prescription": "Paracetamol 500mg"
+        "prescription": "Paracetamol 500mg",
     }
     response = await client_doctor.patch(
         f"/api/v1/healthcare/appointments/{test_appointment.id}/clinical-notes",
-        json=payload
+        json=payload,
     )
     assert response.status_code == 200, f"Update clinical notes failed: {response.text}"
     data = response.json()["data"]
@@ -146,7 +151,9 @@ async def test_update_clinical_notes(client_doctor: AsyncClient, test_appointmen
 
 
 @pytest.mark.asyncio
-async def test_doctor_get_patient_medical_records(client_doctor: AsyncClient, test_appointment, test_patient):
+async def test_doctor_get_patient_medical_records(
+    client_doctor: AsyncClient, test_appointment, test_patient
+):
     """Test that a doctor can view medical records of a patient they have an appointment with."""
     response = await client_doctor.get(
         f"/api/v1/healthcare/doctors/patients/{test_patient.id}/medical-records"

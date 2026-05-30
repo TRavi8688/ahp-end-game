@@ -8,11 +8,9 @@ from app.core.database import get_session_factory
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+
 @router.websocket("/ws/reception")
-async def websocket_reception(
-    websocket: WebSocket,
-    token: str = Query(...)
-):
+async def websocket_reception(websocket: WebSocket, token: str = Query(...)):
     """
     WebSocket endpoint for real-time reception dashboard updates.
     Expects JWT token in query parameters for security verification.
@@ -28,7 +26,9 @@ async def websocket_reception(
     async with session_factory() as db:
         staff = await resolve_any_staff(db, payload.sub)
         if not staff:
-            logger.warning(f"WebSocket auth failed: User {payload.sub} is not registered staff.")
+            logger.warning(
+                f"WebSocket auth failed: User {payload.sub} is not registered staff."
+            )
             await websocket.close(code=1008)
             return
         hospital_id = str(staff.hospital_id)

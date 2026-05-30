@@ -4,6 +4,7 @@ Revision ID: 001_initial
 Revises:
 Create Date: 2026-05-29
 """
+
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
@@ -34,18 +35,27 @@ def upgrade() -> None:
         sa.Column(
             "status",
             sa.Enum(
-                "pending_verification", "active", "suspended", "deactivated",
+                "pending_verification",
+                "active",
+                "suspended",
+                "deactivated",
                 name="hospitalstatus",
             ),
             server_default="pending_verification",
             nullable=False,
             index=True,
         ),
-        sa.Column("is_active", sa.Boolean(), server_default=sa.text("true"), nullable=False),
+        sa.Column(
+            "is_active", sa.Boolean(), server_default=sa.text("true"), nullable=False
+        ),
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column("owner_user_id", sa.UUID(as_uuid=True), nullable=False, index=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
     )
 
@@ -53,10 +63,15 @@ def upgrade() -> None:
     op.create_table(
         "doctors",
         sa.Column("id", sa.UUID(as_uuid=True), primary_key=True),
-        sa.Column("user_id", sa.UUID(as_uuid=True), unique=True, nullable=False, index=True),
         sa.Column(
-            "hospital_id", sa.UUID(as_uuid=True),
-            sa.ForeignKey("hospitals.id", ondelete="RESTRICT"), nullable=False, index=True,
+            "user_id", sa.UUID(as_uuid=True), unique=True, nullable=False, index=True
+        ),
+        sa.Column(
+            "hospital_id",
+            sa.UUID(as_uuid=True),
+            sa.ForeignKey("hospitals.id", ondelete="RESTRICT"),
+            nullable=False,
+            index=True,
         ),
         sa.Column("first_name", sa.String(100), nullable=False),
         sa.Column("last_name", sa.String(100), nullable=False),
@@ -64,7 +79,9 @@ def upgrade() -> None:
         sa.Column("phone", sa.String(30), nullable=True),
         sa.Column("specialization", sa.String(200), nullable=False, index=True),
         sa.Column("qualification", sa.String(500), nullable=True),
-        sa.Column("medical_license_number", sa.String(100), unique=True, nullable=False),
+        sa.Column(
+            "medical_license_number", sa.String(100), unique=True, nullable=False
+        ),
         sa.Column("years_of_experience", sa.Integer(), server_default=sa.text("0")),
         sa.Column("consultation_fee", sa.Integer(), server_default=sa.text("0")),
         sa.Column("bio", sa.Text(), nullable=True),
@@ -72,16 +89,26 @@ def upgrade() -> None:
         sa.Column(
             "status",
             sa.Enum(
-                "pending_approval", "active", "on_leave", "suspended", "inactive",
+                "pending_approval",
+                "active",
+                "on_leave",
+                "suspended",
+                "inactive",
                 name="doctorstatus",
             ),
             server_default="pending_approval",
             nullable=False,
             index=True,
         ),
-        sa.Column("is_active", sa.Boolean(), server_default=sa.text("true"), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "is_active", sa.Boolean(), server_default=sa.text("true"), nullable=False
+        ),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
     )
 
@@ -89,10 +116,15 @@ def upgrade() -> None:
     op.create_table(
         "patients",
         sa.Column("id", sa.UUID(as_uuid=True), primary_key=True),
-        sa.Column("user_id", sa.UUID(as_uuid=True), unique=True, nullable=False, index=True),
         sa.Column(
-            "hospital_id", sa.UUID(as_uuid=True),
-            sa.ForeignKey("hospitals.id", ondelete="RESTRICT"), nullable=False, index=True,
+            "user_id", sa.UUID(as_uuid=True), unique=True, nullable=False, index=True
+        ),
+        sa.Column(
+            "hospital_id",
+            sa.UUID(as_uuid=True),
+            sa.ForeignKey("hospitals.id", ondelete="RESTRICT"),
+            nullable=False,
+            index=True,
         ),
         sa.Column("first_name", sa.String(100), nullable=False),
         sa.Column("last_name", sa.String(100), nullable=False),
@@ -107,7 +139,15 @@ def upgrade() -> None:
         sa.Column(
             "blood_group",
             sa.Enum(
-                "A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-", "Unknown",
+                "A+",
+                "A-",
+                "B+",
+                "B-",
+                "AB+",
+                "AB-",
+                "O+",
+                "O-",
+                "Unknown",
                 name="bloodgroup",
             ),
             server_default="Unknown",
@@ -121,9 +161,15 @@ def upgrade() -> None:
         sa.Column("city", sa.String(100), nullable=True),
         sa.Column("state", sa.String(100), nullable=True),
         sa.Column("pin_code", sa.String(20), nullable=True),
-        sa.Column("is_active", sa.Boolean(), server_default=sa.text("true"), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "is_active", sa.Boolean(), server_default=sa.text("true"), nullable=False
+        ),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
     )
 
@@ -132,28 +178,50 @@ def upgrade() -> None:
         "appointments",
         sa.Column("id", sa.UUID(as_uuid=True), primary_key=True),
         sa.Column(
-            "patient_id", sa.UUID(as_uuid=True),
-            sa.ForeignKey("patients.id", ondelete="RESTRICT"), nullable=False, index=True,
+            "patient_id",
+            sa.UUID(as_uuid=True),
+            sa.ForeignKey("patients.id", ondelete="RESTRICT"),
+            nullable=False,
+            index=True,
         ),
         sa.Column(
-            "doctor_id", sa.UUID(as_uuid=True),
-            sa.ForeignKey("doctors.id", ondelete="RESTRICT"), nullable=False, index=True,
+            "doctor_id",
+            sa.UUID(as_uuid=True),
+            sa.ForeignKey("doctors.id", ondelete="RESTRICT"),
+            nullable=False,
+            index=True,
         ),
         sa.Column(
-            "hospital_id", sa.UUID(as_uuid=True),
-            sa.ForeignKey("hospitals.id", ondelete="RESTRICT"), nullable=False, index=True,
+            "hospital_id",
+            sa.UUID(as_uuid=True),
+            sa.ForeignKey("hospitals.id", ondelete="RESTRICT"),
+            nullable=False,
+            index=True,
         ),
-        sa.Column("scheduled_at", sa.DateTime(timezone=True), nullable=False, index=True),
+        sa.Column(
+            "scheduled_at", sa.DateTime(timezone=True), nullable=False, index=True
+        ),
         sa.Column("duration_minutes", sa.Integer(), server_default=sa.text("30")),
         sa.Column(
             "appointment_type",
-            sa.Enum("in_person", "teleconsultation", "follow_up", "emergency", name="appointmenttype"),
+            sa.Enum(
+                "in_person",
+                "teleconsultation",
+                "follow_up",
+                "emergency",
+                name="appointmenttype",
+            ),
             server_default="in_person",
         ),
         sa.Column(
             "status",
             sa.Enum(
-                "scheduled", "confirmed", "in_progress", "completed", "cancelled", "no_show",
+                "scheduled",
+                "confirmed",
+                "in_progress",
+                "completed",
+                "cancelled",
+                "no_show",
                 name="appointmentstatus",
             ),
             server_default="scheduled",
@@ -165,8 +233,12 @@ def upgrade() -> None:
         sa.Column("diagnosis", sa.Text(), nullable=True),
         sa.Column("cancelled_by_user_id", sa.UUID(as_uuid=True), nullable=True),
         sa.Column("cancellation_reason", sa.String(500), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()
+        ),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
     )
 

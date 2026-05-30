@@ -12,8 +12,8 @@ WORKDIR /app/auth-service
 
 # Set PYTHONPATH to allow importing from shared (which is in /app)
 ENV PYTHONPATH=/app
-ENV PORT=8001
+ENV PORT=${PORT}
 
 EXPOSE 8001
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD exec uvicorn app.main:app --host 0.0.0.0 --port $PORT

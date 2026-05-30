@@ -5,12 +5,20 @@ Represents a patient registered in a hospital.
 References user_id from the Auth Service for authentication identity.
 All PHI (Protected Health Information) fields are stored here.
 """
+
 import uuid
 import enum
 from datetime import datetime, date
 from sqlalchemy import (
-    String, Boolean, DateTime, Date, Enum as SQLEnum,
-    UUID, Text, ForeignKey, func
+    String,
+    Boolean,
+    DateTime,
+    Date,
+    Enum as SQLEnum,
+    UUID,
+    Text,
+    ForeignKey,
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING
@@ -49,11 +57,16 @@ class Patient(Base):
     )
 
     # Link to auth-service user (cross-service, NOT a DB foreign key)
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), unique=True, nullable=False, index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), unique=True, nullable=False, index=True
+    )
 
     # Hospital association
     hospital_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("hospitals.id", ondelete="RESTRICT"), nullable=True, index=True
+        UUID(as_uuid=True),
+        ForeignKey("hospitals.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
     )
 
     # Personal Info (PHI)
@@ -70,8 +83,12 @@ class Patient(Base):
     )
     known_allergies: Mapped[str] = mapped_column(EncryptedText, nullable=True)
     chronic_conditions: Mapped[str] = mapped_column(EncryptedText, nullable=True)
-    emergency_contact_name: Mapped[str] = mapped_column(EncryptedString(600), nullable=True)
-    emergency_contact_phone: Mapped[str] = mapped_column(EncryptedString(200), nullable=True)
+    emergency_contact_name: Mapped[str] = mapped_column(
+        EncryptedString(600), nullable=True
+    )
+    emergency_contact_phone: Mapped[str] = mapped_column(
+        EncryptedString(200), nullable=True
+    )
 
     # Address
     address: Mapped[str] = mapped_column(Text, nullable=True)
@@ -83,7 +100,9 @@ class Patient(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -91,7 +110,9 @@ class Patient(Base):
 
     # Relationships — string references, no circular imports
     hospital: Mapped["Hospital"] = relationship("Hospital", back_populates="patients")
-    appointments: Mapped[list["Appointment"]] = relationship("Appointment", back_populates="patient")
+    appointments: Mapped[list["Appointment"]] = relationship(
+        "Appointment", back_populates="patient"
+    )
 
     @property
     def full_name(self) -> str:

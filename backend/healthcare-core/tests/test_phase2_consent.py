@@ -1,6 +1,7 @@
 """
 Integration test for Phase 2 Consent Token Booking Flow.
 """
+
 import pytest
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -18,7 +19,9 @@ def generate_token(user_id: str, role: str) -> str:
         "token_version": 1,
         "jti": str(uuid.uuid4()),
     }
-    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return jwt.encode(
+        payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+    )
 
 
 def _make_hospital(owner_id: uuid.UUID) -> Hospital:
@@ -89,7 +92,7 @@ async def test_doctor_booking_consent_flow(client, db_session):
         "scheduled_at": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
         "duration_minutes": 30,
         "appointment_type": "in_person",
-        "chief_complaint": "Routine checkup without consent token test"
+        "chief_complaint": "Routine checkup without consent token test",
     }
 
     response = await client.post(
@@ -112,7 +115,9 @@ async def test_doctor_booking_consent_flow(client, db_session):
         "/api/v1/healthcare/appointments/", json=booking_data, headers=doctor_headers
     )
     assert response.status_code == 403
-    assert "Invalid or expired patient booking consent token" in response.json()["message"]
+    assert (
+        "Invalid or expired patient booking consent token" in response.json()["message"]
+    )
 
     # 6. Doctor tries to book WITH the VALID consent token -> MUST SUCCEED (201)
     booking_data["patient_consent_token"] = consent_token

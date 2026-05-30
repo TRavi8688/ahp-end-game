@@ -9,6 +9,7 @@ Tests the full patient lifecycle:
   5. Retrieve saved records
   6. Verify clinical timeline includes the record
 """
+
 import pytest
 import uuid
 from jose import jwt
@@ -23,7 +24,9 @@ def generate_token(user_id: str, role: str) -> str:
         "token_version": 1,
         "jti": str(uuid.uuid4()),
     }
-    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return jwt.encode(
+        payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+    )
 
 
 def _make_hospital(owner_id: uuid.UUID, suffix: str = "") -> Hospital:

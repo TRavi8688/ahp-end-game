@@ -9,6 +9,7 @@ Used by:
 Design: Fail-open — if Redis is unavailable, operations log warnings
 and allow requests through (security degrades but service stays up).
 """
+
 import logging
 import redis.asyncio as aioredis
 from typing import Optional, Tuple
@@ -33,7 +34,9 @@ async def init_redis(redis_url: str) -> None:
         )
         # Verify connectivity
         await _redis_pool.ping()
-        logger.info(f"Redis connected: {redis_url.split('@')[-1] if '@' in redis_url else redis_url}")
+        logger.info(
+            f"Redis connected: {redis_url.split('@')[-1] if '@' in redis_url else redis_url}"
+        )
     except Exception as e:
         _redis_pool = None
         raise ConnectionError(f"Redis connection failed: {e}") from e
@@ -55,21 +58,22 @@ def get_redis() -> Optional[aioredis.Redis]:
 
 # ─── Token Blacklist ─────────────────────────────────────────────
 
+
 async def blacklist_token(jti: str, ttl_seconds: int) -> bool:
     """
     Add a JWT ID to the revocation blacklist.
-    
+
     Args:
         jti: The JWT ID (jti claim) to blacklist
         ttl_seconds: Time-to-live in seconds (should match remaining token life)
-    
+
     Returns:
         True if successfully blacklisted, False if Redis unavailable
     """
     if not _redis_pool:
         logger.warning(f"Redis unavailable — cannot blacklist token jti={jti}")
         return False
-    
+
     try:
         key = f"hospyn:blacklist:{jti}"
         await _redis_pool.setex(key, ttl_seconds, "1")
@@ -83,14 +87,14 @@ async def blacklist_token(jti: str, ttl_seconds: int) -> bool:
 async def is_token_blacklisted(jti: str) -> bool:
     """
     Check if a JWT ID has been revoked.
-    
+
     Returns:
         True if token is blacklisted (revoked).
         False if not blacklisted OR if Redis is unavailable (fail-open).
     """
     if not _redis_pool:
         return False  # Fail-open: allow request if Redis is down
-    
+
     try:
         key = f"hospyn:blacklist:{jti}"
         result = await _redis_pool.exists(key)
@@ -102,40 +106,43 @@ async def is_token_blacklisted(jti: str) -> bool:
 
 # ─── Rate Limiting (Sliding Window) ──────────────────────────────
 
-async def rate_limit_check(key: str, max_requests: int, window_seconds: int) -> Tuple[bool, int]:
+
+async def rate_limit_check(
+    key: str, max_requests: int, window_seconds: int
+) -> Tuple[bool, int]:
     """
     Sliding window rate limiter using Redis.
-    
+
     Args:
         key: Unique identifier (e.g., "login:192.168.1.1")
         max_requests: Maximum requests allowed in the window
         window_seconds: Window size in seconds
-    
+
     Returns:
         Tuple of (is_allowed: bool, remaining: int)
         If Redis is unavailable, returns (True, max_requests) — fail-open.
     """
     if not _redis_pool:
         return True, max_requests  # Fail-open
-    
+
     redis_key = f"hospyn:ratelimit:{key}"
-    
+
     try:
         pipe = _redis_pool.pipeline()
         pipe.incr(redis_key)
         pipe.ttl(redis_key)
         results = await pipe.execute()
-        
+
         current_count = results[0]
         current_ttl = results[1]
-        
+
         # Set expiry on first request in window
         if current_ttl == -1:
             await _redis_pool.expire(redis_key, window_seconds)
-        
+
         remaining = max(0, max_requests - current_count)
         is_allowed = current_count <= max_requests
-        
+
         return is_allowed, remaining
     except Exception as e:
         logger.warning(f"Rate limit check failed (fail-open): {e}")
@@ -144,7 +151,10 @@ async def rate_limit_check(key: str, max_requests: int, window_seconds: int) -> 
 
 # ─── User Status (Token Version / Active State) ──────────────────
 
-async def publish_user_status(user_id: str, is_active: bool, token_version: int, ttl: int = 300) -> bool:
+
+async def publish_user_status(
+    user_id: str, is_active: bool, token_version: int, ttl: int = 300
+) -> bool:
     """
     Publish user active-state and token version to Redis.
     Used by auth-service after login/password changes so healthcare-core
@@ -154,7 +164,13 @@ async def publish_user_status(user_id: str, is_active: bool, token_version: int,
         return False
     try:
         key = f"hospyn:user:{user_id}"
-        await _redis_pool.hset(key, mapping={"is_active": "1" if is_active else "0", "token_version": str(token_version)})
+        await _redis_pool.hset(
+            key,
+            mapping={
+                "is_active": "1" if is_active else "0",
+                "token_version": str(token_version),
+            },
+        )
         await _redis_pool.expire(key, ttl)
         return True
     except Exception as e:
@@ -181,7 +197,9 @@ async def get_user_status(user_id: str) -> dict | None:
 _local_consent_tokens = {}
 
 
-async def set_patient_consent_token(patient_id: str, consent_token: str, ttl: int = 900) -> bool:
+async def set_patient_consent_token(
+    patient_id: str, consent_token: str, ttl: int = 900
+) -> bool:
     """Store short-lived consent token for appointment bookings."""
     if not _redis_pool:
         _local_consent_tokens[patient_id] = consent_token

@@ -6,6 +6,7 @@ NOTE: SQLite does NOT support SELECT ... FOR UPDATE, so the race-condition
 prevention cannot be validated on SQLite.  This test is skipped when the
 test database is SQLite.  Run against PostgreSQL for a real concurrency test.
 """
+
 import pytest
 import uuid
 import asyncio
@@ -27,7 +28,9 @@ def generate_token(user_id: str, role: str) -> str:
         "token_version": 1,
         "jti": str(uuid.uuid4()),
     }
-    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return jwt.encode(
+        payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+    )
 
 
 # SQLite cannot handle FOR UPDATE locking — skip if not Postgres
@@ -35,7 +38,9 @@ _is_sqlite = settings.DATABASE_URL.startswith("sqlite")
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="SQLite in-memory fixture cannot handle concurrent session execution")
+@pytest.mark.skip(
+    reason="SQLite in-memory fixture cannot handle concurrent session execution"
+)
 async def test_appointment_booking_concurrency_race_condition(db_session):
     # 1. Generate test tokens
     patient1_id = str(uuid.uuid4())
@@ -125,8 +130,11 @@ async def test_appointment_booking_concurrency_race_condition(db_session):
 
     # Use two separate AsyncClients to simulate concurrent connections
     transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client1, \
-               httpx.AsyncClient(transport=transport, base_url="http://test") as client2:
+    async with httpx.AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client1, httpx.AsyncClient(
+        transport=transport, base_url="http://test"
+    ) as client2:
 
         # Run booking requests concurrently
         res1, res2 = await asyncio.gather(

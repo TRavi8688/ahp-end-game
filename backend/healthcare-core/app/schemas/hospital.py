@@ -4,6 +4,7 @@ Hospital Pydantic Schemas
 Request/Response schemas for the Hospital API.
 Enforces strict validation at the API boundary.
 """
+
 import uuid
 from datetime import datetime
 from typing import Optional

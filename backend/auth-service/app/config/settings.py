@@ -18,7 +18,9 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = "https://hospyn.com,https://www.hospyn.com"
 
     # JWT Configuration — default for local development, MUST override in production.
-    JWT_SECRET_KEY: str = "local_dev_secret_key_must_be_at_least_32_characters_long_for_security"
+    JWT_SECRET_KEY: str = (
+        "local_dev_secret_key_must_be_at_least_32_characters_long_for_security"
+    )
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15  # 15 minutes
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
@@ -48,14 +50,12 @@ class Settings(BaseSettings):
         if len(v) < 32:
             raise ValueError(
                 "JWT_SECRET_KEY must be at least 32 characters. "
-                "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+                'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(64))"'
             )
         return v
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        case_sensitive=True,
-        extra="ignore"
+        env_file=".env", case_sensitive=True, extra="ignore"
     )
 
 

@@ -4,6 +4,7 @@ Hospyn Auth Service — Main Application.
 Handles: User registration, login, JWT issuance, OTP flows, password reset.
 This service is the ONLY service that issues tokens.
 """
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -22,7 +23,11 @@ logger = setup_logging()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup and shutdown lifecycle."""
-    logger.info(f"🔐 Auth Service starting", environment=settings.ENVIRONMENT, jwt_alg=settings.JWT_ALGORITHM)
+    logger.info(
+        f"🔐 Auth Service starting",
+        environment=settings.ENVIRONMENT,
+        jwt_alg=settings.JWT_ALGORITHM,
+    )
 
     if hasattr(settings, "SENTRY_DSN") and settings.SENTRY_DSN:
         sentry_sdk.init(
@@ -34,6 +39,7 @@ async def lifespan(app: FastAPI):
 
     # Run production safety checks
     from shared.startup_checks import validate_production_secrets
+
     try:
         validate_production_secrets(settings)
     except ValueError as e:
@@ -42,17 +48,21 @@ async def lifespan(app: FastAPI):
 
     # Initialize Redis connection
     from shared.redis_client import init_redis, close_redis
+
     try:
         await init_redis(settings.REDIS_URL)
         logger.info("   ✅ Redis connected")
     except Exception as e:
-        logger.warning(f"   ⚠️ Redis connection failed: {e} — token blacklisting disabled")
+        logger.warning(
+            f"   ⚠️ Redis connection failed: {e} — token blacklisting disabled"
+        )
 
     yield
 
     # Cleanup
     try:
         from shared.redis_client import close_redis
+
         await close_redis()
     except Exception:
         pass
@@ -73,7 +83,8 @@ app.add_middleware(CorrelationIdMiddleware)
 
 # CORS — strict in production, env-driven origins
 _allowed_origins = (
-    ["*"] if settings.ENVIRONMENT == "development"
+    ["*"]
+    if settings.ENVIRONMENT == "development"
     else settings.ALLOWED_ORIGINS.split(",")
 )
 app.add_middleware(
@@ -87,15 +98,19 @@ app.add_middleware(
 
 # Rate limiting — strict limits on auth-sensitive endpoints
 from shared.middleware.rate_limiter import RateLimitMiddleware
+
 app.add_middleware(
     RateLimitMiddleware,
     default_limit=60,
     default_window=60,
     route_limits={
-        "/api/v1/auth/login": (5, 60),           # 5 login attempts per minute
-        "/api/v1/auth/register": (10, 60),        # 10 registrations per minute
+        "/api/v1/auth/login": (5, 60),  # 5 login attempts per minute
+        "/api/v1/auth/register": (10, 60),  # 10 registrations per minute
         "/api/v1/auth/forgot-password/request": (3, 60),  # 3 OTP requests per minute
-        "/api/v1/auth/forgot-password/verify": (5, 60),   # 5 OTP verify attempts per minute
+        "/api/v1/auth/forgot-password/verify": (
+            5,
+            60,
+        ),  # 5 OTP verify attempts per minute
     },
 )
 

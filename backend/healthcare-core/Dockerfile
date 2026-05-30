@@ -12,8 +12,8 @@ WORKDIR /app/healthcare-core
 
 # Set PYTHONPATH to allow importing from shared (which is in /app)
 ENV PYTHONPATH=/app
-ENV PORT=8002
+ENV PORT=${PORT}
 
 EXPOSE 8002
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002"]
+CMD exec uvicorn app.main:app --host 0.0.0.0 --port $PORT

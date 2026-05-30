@@ -8,6 +8,7 @@ Endpoints:
     PUT    /hospitals/{id}          - Update hospital (owner hospital_admin, admin)
     DELETE /hospitals/{id}          - Soft-delete hospital (admin only)
 """
+
 import uuid
 from datetime import timezone, datetime
 from typing import Annotated
@@ -18,7 +19,12 @@ from sqlalchemy import select, func
 from app.core.database import get_db
 from app.core.security import get_current_user, require_role, TokenPayload
 from app.models.hospital import Hospital, HospitalStatus
-from app.schemas.hospital import HospitalCreate, HospitalUpdate, HospitalResponse, HospitalListResponse
+from app.schemas.hospital import (
+    HospitalCreate,
+    HospitalUpdate,
+    HospitalResponse,
+    HospitalListResponse,
+)
 from shared.utils.responses import success_response, error_response
 
 router = APIRouter()
@@ -27,16 +33,24 @@ router = APIRouter()
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_hospital(
     payload: HospitalCreate,
-    current_user: Annotated[TokenPayload, Depends(require_role("hospital_admin", "admin"))],
+    current_user: Annotated[
+        TokenPayload, Depends(require_role("hospital_admin", "admin"))
+    ],
     db: AsyncSession = Depends(get_db),
 ):
     """Register a new hospital. Only hospital_admin or admin can do this."""
     # Check for duplicate registration number
     existing = await db.execute(
-        select(Hospital).where(Hospital.registration_number == payload.registration_number)
+        select(Hospital).where(
+            Hospital.registration_number == payload.registration_number
+        )
     )
     if existing.scalars().first():
-        return error_response("DUPLICATE_HOSPITAL", "A hospital with this registration number already exists.", 409)
+        return error_response(
+            "DUPLICATE_HOSPITAL",
+            "A hospital with this registration number already exists.",
+            409,
+        )
 
     hospital = Hospital(
         **payload.model_dump(),
@@ -73,14 +87,22 @@ async def list_hospitals(
     count_result = await db.execute(select(func.count()).select_from(query.subquery()))
     total = count_result.scalar_one()
 
-    query = query.offset((page - 1) * page_size).limit(page_size).order_by(Hospital.created_at.desc())
+    query = (
+        query.offset((page - 1) * page_size)
+        .limit(page_size)
+        .order_by(Hospital.created_at.desc())
+    )
     result = await db.execute(query)
     hospitals = result.scalars().all()
 
-    return success_response(data=HospitalListResponse(
-        total=total, page=page, page_size=page_size,
-        items=[HospitalResponse.model_validate(h) for h in hospitals],
-    ).model_dump(mode="json"))
+    return success_response(
+        data=HospitalListResponse(
+            total=total,
+            page=page,
+            page_size=page_size,
+            items=[HospitalResponse.model_validate(h) for h in hospitals],
+        ).model_dump(mode="json")
+    )
 
 
 @router.get("/{hospital_id}")
@@ -91,25 +113,33 @@ async def get_hospital(
 ):
     """Get a specific hospital. Any authenticated user can view."""
     result = await db.execute(
-        select(Hospital).where(Hospital.id == hospital_id, Hospital.deleted_at.is_(None))
+        select(Hospital).where(
+            Hospital.id == hospital_id, Hospital.deleted_at.is_(None)
+        )
     )
     hospital = result.scalars().first()
     if not hospital:
         raise HTTPException(status_code=404, detail="Hospital not found")
 
-    return success_response(data=HospitalResponse.model_validate(hospital).model_dump(mode="json"))
+    return success_response(
+        data=HospitalResponse.model_validate(hospital).model_dump(mode="json")
+    )
 
 
 @router.put("/{hospital_id}")
 async def update_hospital(
     hospital_id: uuid.UUID,
     payload: HospitalUpdate,
-    current_user: Annotated[TokenPayload, Depends(require_role("hospital_admin", "admin"))],
+    current_user: Annotated[
+        TokenPayload, Depends(require_role("hospital_admin", "admin"))
+    ],
     db: AsyncSession = Depends(get_db),
 ):
     """Update hospital info. Owner or admin only."""
     result = await db.execute(
-        select(Hospital).where(Hospital.id == hospital_id, Hospital.deleted_at.is_(None))
+        select(Hospital).where(
+            Hospital.id == hospital_id, Hospital.deleted_at.is_(None)
+        )
     )
     hospital = result.scalars().first()
     if not hospital:
@@ -117,7 +147,9 @@ async def update_hospital(
 
     # Non-admin users can only update their own hospital
     if current_user.role != "admin" and str(hospital.owner_user_id) != current_user.sub:
-        raise HTTPException(status_code=403, detail="You can only update your own hospital")
+        raise HTTPException(
+            status_code=403, detail="You can only update your own hospital"
+        )
 
     update_data = payload.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -125,7 +157,9 @@ async def update_hospital(
 
     await db.flush()
     await db.refresh(hospital)
-    return success_response(data=HospitalResponse.model_validate(hospital).model_dump(mode="json"))
+    return success_response(
+        data=HospitalResponse.model_validate(hospital).model_dump(mode="json")
+    )
 
 
 @router.delete("/{hospital_id}", status_code=status.HTTP_200_OK)
@@ -136,7 +170,9 @@ async def delete_hospital(
 ):
     """Soft-delete a hospital. Admin only."""
     result = await db.execute(
-        select(Hospital).where(Hospital.id == hospital_id, Hospital.deleted_at.is_(None))
+        select(Hospital).where(
+            Hospital.id == hospital_id, Hospital.deleted_at.is_(None)
+        )
     )
     hospital = result.scalars().first()
     if not hospital:

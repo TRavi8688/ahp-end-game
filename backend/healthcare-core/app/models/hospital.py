@@ -4,6 +4,7 @@ Hospital Model
 Represents a registered hospital/clinic on the platform.
 One hospital can have many doctors and many patients.
 """
+
 import uuid
 import enum
 from datetime import datetime
@@ -33,7 +34,9 @@ class Hospital(Base):
 
     # Identity
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    registration_number: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
+    registration_number: Mapped[str] = mapped_column(
+        String(100), unique=True, nullable=False
+    )
     license_number: Mapped[str] = mapped_column(String(100), unique=True, nullable=True)
 
     # Contact
@@ -57,10 +60,14 @@ class Hospital(Base):
     description: Mapped[str] = mapped_column(Text, nullable=True)
 
     # The user_id of the hospital admin in the auth-service
-    owner_user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
@@ -68,7 +75,9 @@ class Hospital(Base):
 
     # Relationships — use string references to avoid circular imports
     doctors: Mapped[list["Doctor"]] = relationship("Doctor", back_populates="hospital")
-    patients: Mapped[list["Patient"]] = relationship("Patient", back_populates="hospital")
+    patients: Mapped[list["Patient"]] = relationship(
+        "Patient", back_populates="hospital"
+    )
 
     def __repr__(self) -> str:
         return f"<Hospital id={self.id} name={self.name}>"

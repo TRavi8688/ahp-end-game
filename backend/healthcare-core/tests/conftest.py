@@ -5,6 +5,7 @@ Uses an in-memory SQLite database (via aiosqlite) so tests run without a
 real Postgres instance.  The FastAPI `get_db` dependency is overridden per-test
 to point at the temporary test database.
 """
+
 import os
 import sys
 import pytest
@@ -48,6 +49,7 @@ TestingSessionLocal = async_sessionmaker(
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture(scope="session")
 def event_loop():
     loop = asyncio.get_event_loop_policy().new_event_loop()
@@ -75,6 +77,7 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 @pytest.fixture(autouse=True)
 def override_db_dependency(db_session):
     """Override the real get_db with the test session for every test."""
+
     async def _get_test_db():
         yield db_session
 

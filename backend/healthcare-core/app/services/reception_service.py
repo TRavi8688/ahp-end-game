@@ -11,8 +11,9 @@ from app.core.websockets import manager
 from app.services.queue_service import (
     check_duplicate_walkin,
     generate_queue_number,
-    transition_queue_state
+    transition_queue_state,
 )
+
 
 class ReceptionService:
     """
@@ -32,7 +33,7 @@ class ReceptionService:
         reason_for_visit: str,
         symptoms: Optional[str] = None,
         priority_level: str = "normal",
-        hospyn_id: Optional[str] = None
+        hospyn_id: Optional[str] = None,
     ) -> WalkInRequest:
         """
         Manually checks in a patient, logs the event, and broadcasts the update.
@@ -42,7 +43,10 @@ class ReceptionService:
         patient_id = None
         if hospyn_id:
             from app.models.patient import Patient
-            result = await db.execute(select(Patient).where(Patient.hospyn_id == hospyn_id))
+
+            result = await db.execute(
+                select(Patient).where(Patient.hospyn_id == hospyn_id)
+            )
             patient = result.scalars().first()
             if not patient:
                 raise ValueError(f"No patient found with Hospyn ID: {hospyn_id}")
@@ -92,7 +96,7 @@ class ReceptionService:
             old_status=QueueState.waiting_reception.value,
             new_status=QueueState.waiting_reception.value,
             actor_user_id=staff_id,
-            notes="Manual reception check-in created."
+            notes="Manual reception check-in created.",
         )
         db.add(audit_event)
         await db.flush()
@@ -108,8 +112,8 @@ class ReceptionService:
                 "phone": walkin.phone,
                 "priority_level": walkin.priority_level.value,
                 "queue_state": walkin.queue_state.value,
-                "billing_status": walkin.billing_status
-            }
+                "billing_status": walkin.billing_status,
+            },
         )
 
         return walkin
@@ -121,7 +125,7 @@ class ReceptionService:
         hospital_id: uuid.UUID,
         staff_id: uuid.UUID,
         payment_method: str,
-        transaction_reference: Optional[str] = None
+        transaction_reference: Optional[str] = None,
     ) -> WalkInRequest:
         """
         Record a payment transaction for a walk-in, marks the walk-in billing as completed, and broadcasts updates.
@@ -130,7 +134,7 @@ class ReceptionService:
         query = select(WalkInRequest).where(
             WalkInRequest.id == walkin_id,
             WalkInRequest.hospital_id == hospital_id,
-            WalkInRequest.deleted_at.is_(None)
+            WalkInRequest.deleted_at.is_(None),
         )
         result = await db.execute(query)
         walkin = result.scalars().first()
@@ -147,7 +151,7 @@ class ReceptionService:
             payment_method=payment_method,
             status="completed",
             transaction_reference=transaction_reference,
-            collected_by=staff_id
+            collected_by=staff_id,
         )
         db.add(transaction)
 
@@ -164,7 +168,7 @@ class ReceptionService:
             old_status=walkin.queue_state.value,
             new_status=walkin.queue_state.value,
             actor_user_id=staff_id,
-            notes=f"Payment of {walkin.billing_amount / 100:.2f} collected via {payment_method}."
+            notes=f"Payment of {walkin.billing_amount / 100:.2f} collected via {payment_method}.",
         )
         db.add(audit_event)
         await db.flush()
@@ -178,8 +182,8 @@ class ReceptionService:
                 "queue_number": walkin.queue_number,
                 "full_name": walkin.full_name,
                 "billing_status": walkin.billing_status,
-                "payment_method": payment_method
-            }
+                "payment_method": payment_method,
+            },
         )
 
         return walkin
@@ -192,7 +196,7 @@ class ReceptionService:
         staff_id: uuid.UUID,
         route_to: str,  # "triage" or "doctor"
         assigned_doctor_id: Optional[uuid.UUID] = None,
-        ip_address: Optional[str] = None
+        ip_address: Optional[str] = None,
     ) -> WalkInRequest:
         """
         Transition queue state of a walk-in, log the event, and broadcast the transition.
@@ -201,7 +205,7 @@ class ReceptionService:
         query = select(WalkInRequest).where(
             WalkInRequest.id == walkin_id,
             WalkInRequest.hospital_id == hospital_id,
-            WalkInRequest.deleted_at.is_(None)
+            WalkInRequest.deleted_at.is_(None),
         )
         result = await db.execute(query)
         walkin = result.scalars().first()
@@ -209,10 +213,16 @@ class ReceptionService:
             raise ValueError("Walk-in request not found.")
 
         if walkin.queue_state != QueueState.waiting_reception:
-            raise ValueError(f"Cannot route: current state is '{walkin.queue_state.value}', expected 'waiting_reception'.")
+            raise ValueError(
+                f"Cannot route: current state is '{walkin.queue_state.value}', expected 'waiting_reception'."
+            )
 
-        target_state = QueueState.waiting_doctor if route_to == "doctor" else QueueState.waiting_triage
-        
+        target_state = (
+            QueueState.waiting_doctor
+            if route_to == "doctor"
+            else QueueState.waiting_triage
+        )
+
         # If routing to doctor, update assigned doctor ID
         if route_to == "doctor" and assigned_doctor_id:
             walkin.assigned_doctor_id = assigned_doctor_id
@@ -223,7 +233,7 @@ class ReceptionService:
             walkin=walkin,
             new_state=target_state,
             actor_id=str(staff_id),
-            ip_address=ip_address
+            ip_address=ip_address,
         )
         await db.flush()
 
@@ -234,7 +244,7 @@ class ReceptionService:
             old_status=QueueState.waiting_reception.value,
             new_status=target_state.value,
             actor_user_id=staff_id,
-            notes=f"Routed patient to {route_to}."
+            notes=f"Routed patient to {route_to}.",
         )
         db.add(audit_event)
         await db.flush()
@@ -248,8 +258,12 @@ class ReceptionService:
                 "queue_number": walkin.queue_number,
                 "full_name": walkin.full_name,
                 "queue_state": walkin.queue_state.value,
-                "assigned_doctor_id": str(walkin.assigned_doctor_id) if walkin.assigned_doctor_id else None
-            }
+                "assigned_doctor_id": (
+                    str(walkin.assigned_doctor_id)
+                    if walkin.assigned_doctor_id
+                    else None
+                ),
+            },
         )
 
         return walkin
