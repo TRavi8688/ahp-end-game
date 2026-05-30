@@ -20,11 +20,13 @@ const { width, height } = Dimensions.get('window');
 
 export default function AuthScreen({ navigation }) {
     const { login } = useAuth();
-    const [loading, setLoading] = useState(false);
+
+    // Auth States
     const [hospynId, setHospynId] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
-    const [mode, setMode] = useState('landing'); // 'landing', 'login'
+    const [loading, setLoading] = useState(false);
+    const [mode, setMode] = useState('login'); // Fallback mode state to prevent undefined errors
 
     // Google Login States
     
@@ -153,16 +155,22 @@ export default function AuthScreen({ navigation }) {
         }
     }, [mode]);
 
+    // After successful login, navigate to the main app screen
+    const handleLoginSuccess = async (accessToken, identifier) => {
+        await AsyncStorage.removeItem('mock_profile');
+        await login(accessToken, identifier);
+        // Navigate to Home (replace current stack)
+        navigation.replace('Home');
+    };
+
     const handleHospynLogin = async () => {
         if (!hospynId || !password) return Alert.alert('Missing Info', 'Please enter your Hospyn ID and Password.');
         setLoading(true);
         try {
             const identifier = hospynId.trim();
             const data = await authService.login(identifier, password);
-
             if (data.access_token) {
-                await AsyncStorage.removeItem('mock_profile');
-                await login(data.access_token, identifier);
+                await handleLoginSuccess(data.access_token, identifier);
             }
         } catch (e) {
             const errorMsg = e.response?.data?.message || e.response?.data?.detail || 'Invalid credentials.';
@@ -337,76 +345,13 @@ export default function AuthScreen({ navigation }) {
         }
     };
 
-    if (mode === 'landing') {
-        return (
-            <View style={styles.container}>
-                <LinearGradient colors={['#050810', '#1E1B4B', '#050810']} style={StyleSheet.absoluteFill} />
-                <View style={styles.landingContent}>
-                    <View style={styles.landingHeader}>
-                        <Image source={require('../../assets/logo.png')} style={styles.heroLogo} resizeMode="contain" />
-                    </View>
-
-                    <View style={styles.landingActions}>
-                        <TouchableOpacity style={styles.primaryBtn} onPress={() => setMode('login')}>
-                            <LinearGradient colors={['#6366F1', '#4F46E5']} style={styles.gradientBtn} start={{x:0, y:0}} end={{x:1, y:0}}>
-                                <Text style={styles.primaryBtnText}>Login to Passport</Text>
-                            </LinearGradient>
-                        </TouchableOpacity>
-
-                        {Platform.OS === 'web' ? (
-                            <View style={{height: 48, justifyContent: 'center', alignItems: 'center', width: '100%'}}>
-                                <View id="real-google-btn-container" />
-                            </View>
-                        ) : (
-                            <View style={{ gap: 12 }}>
-                                {Platform.OS === 'ios' && (
-                                    <AppleAuthentication.AppleAuthenticationButton
-                                        buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
-                                        buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
-                                        cornerRadius={20}
-                                        style={{ height: 50, width: '100%' }}
-                                        onPress={handleAppleLogin}
-                                    />
-                                )}
-                                <TouchableOpacity style={styles.googleBtn} onPress={() => Alert.alert('Google Sign-In', 'Native Google Auth requires separate native configuration. Use Web or Apple Auth for now.')}>
-                                    <Ionicons name="logo-google" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
-                                    <Text style={styles.googleBtnText}>Continue with Google</Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
-
-                        <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate('Onboarding')}>
-                            <Text style={styles.secondaryBtnText}>Create AI Account</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.trustFooter}>
-                        <View style={styles.trustItem}>
-                            <Ionicons name="shield-checkmark" size={16} color="#10b981" />
-                            <Text style={styles.trustText}>Military-Grade Encryption</Text>
-                        </View>
-                        <TouchableOpacity onPress={() => {
-                            const { Linking } = require('react-native');
-                            Linking.openURL('https://hospyn.com/privacy');
-                        }}>
-                            <Text style={[styles.privacyLink, { textDecorationLine: 'underline' }]}>By continuing, you agree to our Privacy Policy</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                
-            </View>
-        );
-    }
 
     return (
         <View style={styles.container}>
             <LinearGradient colors={['#050810', '#1E1B4B', '#050810']} style={StyleSheet.absoluteFill} />
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                 <ScrollView contentContainerStyle={styles.scrollContent}>
-                    <TouchableOpacity style={styles.backBtn} onPress={() => setMode('landing')}>
-                        <Ionicons name="arrow-back" size={24} color="#fff" />
-                    </TouchableOpacity>
+
 
                     <View style={styles.card}>
                         <Text style={styles.loginTitle}>Welcome Back</Text>

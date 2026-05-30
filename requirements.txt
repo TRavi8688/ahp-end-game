@@ -34,3 +34,5 @@ opentelemetry-instrumentation-sqlalchemy
 opentelemetry-instrumentation-redis
 opentelemetry-instrumentation-httpx
 google-cloud-secret-manager
+structlog==24.1.0
+python-magic==0.4.27

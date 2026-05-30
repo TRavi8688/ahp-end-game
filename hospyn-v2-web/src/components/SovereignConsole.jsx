@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Activity, Users, Shield, BedDouble, ArrowRight, ShieldAlert, FileText, Settings, Key, UserCheck, Stethoscope } from 'lucide-react';
 
-const API_BASE = "https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1";
+const API_BASE = '/api/v1';
 
 export default function SovereignConsole({ onLogout }) {
   const [activeTab, setActiveTab] = useState('branch');
@@ -62,13 +62,13 @@ export default function SovereignConsole({ onLogout }) {
           <span>HOSPYN<span className="text-primary">.</span></span>
         </div>
         
-        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 px-2">Owner Cockpit</div>
+        <div className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 px-2">Hospital Management</div>
         <nav className="flex-1 space-y-2">
           <TabButton id="branch" icon={Activity} label="Branch Analytics" />
           <TabButton id="ehr" icon={FileText} label="EHR Passports" />
           <TabButton id="beds" icon={BedDouble} label="Bed Scheduler" />
           <TabButton id="audit" icon={ShieldAlert} label="Audit Ledger" />
-          <TabButton id="staff" icon={Users} label="Staff Provisioning" />
+          <TabButton id="staff" icon={Users} label="Staff Management" />
         </nav>
 
         <button onClick={onLogout} className="mt-auto px-4 py-3 bg-red-50 text-red-600 font-bold text-xs rounded-xl hover:bg-red-100 transition-colors">
@@ -81,7 +81,7 @@ export default function SovereignConsole({ onLogout }) {
         {loading && data.branches.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full space-y-4">
             <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest animate-pulse">Syncing Secure Telemetry...</p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest animate-pulse">Loading Hospital Data...</p>
           </div>
         ) : (
           <div className="max-w-6xl mx-auto space-y-8 animate-fade-in">
@@ -93,14 +93,14 @@ export default function SovereignConsole({ onLogout }) {
                   {activeTab === 'ehr' && "EHR Patient Passports"}
                   {activeTab === 'beds' && "OPD & Bed Scheduler"}
                   {activeTab === 'audit' && "AI Safety & Audit Ledger"}
-                  {activeTab === 'staff' && "Staff Provisioning Matrix"}
+                  {activeTab === 'staff' && "Staff Management"}
                 </h1>
                 <p className="text-sm font-medium text-slate-500 mt-1">
-                  {activeTab === 'branch' && "Sovereign analytics and clinical throughput branch-by-branch."}
+                  {activeTab === 'branch' && "Branch performance analytics and clinical throughput."}
                   {activeTab === 'ehr' && "Longitudinal health history audit and dynamic consent."}
                   {activeTab === 'beds' && "Real-time ICU ward planner and capacity status."}
                   {activeTab === 'audit' && "Auditing clinical override registries and secure access logs."}
-                  {activeTab === 'staff' && "Generate immutable credentials for delegated personnel."}
+                  {activeTab === 'staff' && "Manage and invite staff members for your hospital."}
                 </p>
               </div>
               <div className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full text-xs font-bold">
@@ -214,9 +214,9 @@ export default function SovereignConsole({ onLogout }) {
             {activeTab === 'staff' && (
                <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center flex flex-col items-center">
                  <ShieldAlert size={48} className="text-slate-300 mb-4" />
-                 <h3 className="font-bold text-slate-900 text-lg">Staff Delegation Handled Securely</h3>
+                 <h3 className="font-bold text-slate-900 text-lg">Staff Management</h3>
                  <p className="text-slate-500 text-sm max-w-md mt-2 mb-6">
-                   To generate credentials and invite new Doctors, Nurses, or Managers, you must use the standard ERP Operational Portal.
+                   Invite and manage Doctors, Nurses, and Managers for your hospital through the operations portal.
                  </p>
                  <a href="https://hospyn-erp-portal.web.app/login" target="_blank" rel="noreferrer" className="px-6 py-3 bg-primary text-white font-bold text-xs rounded-xl hover:bg-blue-700 transition-colors">
                    Open ERP Portal

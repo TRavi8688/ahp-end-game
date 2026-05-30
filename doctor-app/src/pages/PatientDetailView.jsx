@@ -35,11 +35,17 @@ export default function PatientDetailView() {
     const [isSendingRequest, setIsSendingRequest] = useState(false);
 
     const [intakeModalOpen, setIntakeModalOpen] = useState(false);
+    const [requestingVitals, setRequestingVitals] = useState(false);
+
+    const vitalsRecords = patient?.records?.filter(r => r.type === 'vitals' || r.type === 'Vitals') || [];
+    const latestVitalsRecord = vitalsRecords.length > 0 ? vitalsRecords[0] : null;
+    const latestVitals = latestVitalsRecord?.ai_extracted;
 
     const fetchPatient = async (silent = false) => {
         if (!silent) setIsLoading(true);
         try {
-            const data = await ApiService.get(`/doctor/patient/${id}`);
+            const res = await ApiService.get(`/doctor/patient/${id}`);
+            const data = res?.data || res;
             if (data) {
                 data.allergies = data.allergies || [];
                 data.conditions = data.conditions || [];
@@ -59,6 +65,24 @@ export default function PatientDetailView() {
     React.useEffect(() => {
         fetchPatient(false);
     }, [id]);
+
+    // Treatment Time Tracking
+    React.useEffect(() => {
+        if (patient && patient.profile && patient.profile.id) {
+            const startTreatment = async () => {
+                try {
+                    await ApiService.post(`/doctor/treatment/${patient.profile.id}/start`);
+                } catch (e) {
+                    console.error("Failed to start treatment track", e);
+                }
+            };
+            startTreatment();
+            
+            return () => {
+                ApiService.post(`/doctor/treatment/${patient.profile.id}/end`).catch(e => console.error("Failed to end treatment", e));
+            };
+        }
+    }, [patient?.profile?.id]);
 
     // Global Socket Logic for Kickout / Updates
     React.useEffect(() => {
@@ -95,6 +119,20 @@ export default function PatientDetailView() {
             alert(error.response?.data?.detail || "Network error, please try again.");
         } finally {
             setIsSendingRequest(false);
+        }
+    };
+
+    const handleRequestVitals = async () => {
+        if (!patient?.profile?.id) return;
+        setRequestingVitals(true);
+        try {
+            await ApiService.post(`/doctor/patient/${patient.profile.id}/request-vitals`);
+            alert("🚨 Vitals request sent to nursing staff! Patient queue status updated.");
+        } catch (error) {
+            console.error("Error requesting vitals:", error);
+            alert("Failed to send vitals request.");
+        } finally {
+            setRequestingVitals(false);
         }
     };
 
@@ -410,7 +448,7 @@ export default function PatientDetailView() {
                                 fontSize: '1rem',
                                 boxShadow: '0 8px 20px rgba(13, 148, 136, 0.3)'
                             }}
-                            onClick={() => navigate(`/prescriptions/${patient?.profile?.hospyn_id}`, { state: { patient: patient.profile } })}
+                            onClick={() => navigate(`/prescriptions/${id}`, { state: { patient: patient.profile } })}
                         >
                             Draft Prescription
                         </Button>
@@ -603,15 +641,58 @@ export default function PatientDetailView() {
                             <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.1)' }} />
 
                             <Typography variant="h6" fontWeight="900" sx={{ color: '#fff', mb: 3, letterSpacing: 1 }}>VITALS COCKPIT</Typography>
-                            <Grid container spacing={2}>
-                                <Grid item xs={12}>
-                                    <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.03)', borderRadius: '16px', border: '1px dashed rgba(255,255,255,0.2)' }}>
-                                        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>
-                                            Real-time biometric sync active. Awaiting secondary sensor calibration...
-                                        </Typography>
-                                    </Box>
+                            {latestVitals ? (
+                                <Grid container spacing={2}>
+                                    <Grid item xs={6}>
+                                        <Box sx={{ p: 2, bgcolor: 'rgba(244, 63, 94, 0.05)', borderRadius: '16px', border: '1px solid rgba(244, 63, 94, 0.1)' }}>
+                                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>Heart Rate</Typography>
+                                            <Typography variant="h5" sx={{ color: '#f43f5e', fontWeight: 'bold', mt: 1 }}>
+                                                {latestVitals.heartRate?.value || 'N/A'} <span style={{ fontSize: '12px', color: '#64748b' }}>bpm</span>
+                                            </Typography>
+                                        </Box>
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <Box sx={{ p: 2, bgcolor: 'rgba(59, 130, 246, 0.05)', borderRadius: '16px', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
+                                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>Blood Pressure</Typography>
+                                            <Typography variant="h5" sx={{ color: '#3b82f6', fontWeight: 'bold', mt: 1 }}>
+                                                {latestVitals.bloodPressure?.value || 'N/A'}
+                                            </Typography>
+                                        </Box>
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <Box sx={{ p: 2, bgcolor: 'rgba(16, 185, 129, 0.05)', borderRadius: '16px', border: '1px solid rgba(16, 185, 129, 0.1)' }}>
+                                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>SPO₂</Typography>
+                                            <Typography variant="h5" sx={{ color: '#10b981', fontWeight: 'bold', mt: 1 }}>
+                                                {latestVitals.bloodOxygen?.value || 'N/A'}
+                                            </Typography>
+                                        </Box>
+                                    </Grid>
+                                    <Grid item xs={6}>
+                                        <Box sx={{ p: 2, bgcolor: 'rgba(245, 158, 11, 0.05)', borderRadius: '16px', border: '1px solid rgba(245, 158, 11, 0.1)' }}>
+                                            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>Temperature</Typography>
+                                            <Typography variant="h5" sx={{ color: '#f59e0b', fontWeight: 'bold', mt: 1 }}>
+                                                {latestVitals.temperature?.value || 'N/A'}
+                                            </Typography>
+                                        </Box>
+                                    </Grid>
                                 </Grid>
-                            </Grid>
+                            ) : (
+                                <Box sx={{ p: 3, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px dashed rgba(255,255,255,0.1)', textAlign: 'center' }}>
+                                    <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 2 }}>
+                                        No active vitals recorded for this session.
+                                    </Typography>
+                                    <Button 
+                                        variant="contained" 
+                                        color="primary" 
+                                        fullWidth 
+                                        onClick={handleRequestVitals}
+                                        disabled={requestingVitals}
+                                        sx={{ borderRadius: '12px', py: 1.2, fontWeight: 'bold' }}
+                                    >
+                                        {requestingVitals ? "Sending Request..." : "Request Nurse for Vitals"}
+                                    </Button>
+                                </Box>
+                            )}
                         </Card>
                     </Grid>
 

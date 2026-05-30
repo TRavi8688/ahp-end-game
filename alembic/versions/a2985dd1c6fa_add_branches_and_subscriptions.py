@@ -63,7 +63,7 @@ def upgrade() -> None:
                nullable=True)
         batch_op.create_index(batch_op.f('ix_lab_results_family_member_id'), ['family_member_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_lab_results_record_id'), ['record_id'], unique=False)
-        batch_op.drop_constraint(batch_op.f('lab_results_hospital_id_fkey'), type_='foreignkey')
+        # batch_op.drop_constraint(batch_op.f('lab_results_hospital_id_fkey'), type_='foreignkey')
         batch_op.create_foreign_key(None, 'family_members', ['family_member_id'], ['id'])
         batch_op.create_foreign_key(None, 'medical_records', ['record_id'], ['id'])
 

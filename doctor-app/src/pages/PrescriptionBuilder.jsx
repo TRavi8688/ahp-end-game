@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Button, IconButton, TextField, Grid, Card, CardContent, Divider, Snackbar, Alert, Chip, CircularProgress, Select, MenuItem, InputLabel, FormControl } from '@mui/material';
+import { Box, Typography, Button, IconButton, TextField, Grid, Card, CardContent, Divider, Snackbar, Alert, Chip, CircularProgress, Select, MenuItem, InputLabel, FormControl, Autocomplete } from '@mui/material';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import MedicationIcon from '@mui/icons-material/Medication';
@@ -25,6 +25,31 @@ export default function PrescriptionBuilder() {
     const [followUpDate, setFollowUpDate] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
+    
+    // Autocomplete state
+    const [options, setOptions] = useState([]);
+    const [searchLoading, setSearchLoading] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(async () => {
+            if (searchTerm.length >= 2) {
+                setSearchLoading(true);
+                try {
+                    const res = await fetch(`${API_BASE_URL}/medicines/search?q=${searchTerm}`);
+                    const data = await res.json();
+                    setOptions(data.results || []);
+                } catch (err) {
+                    console.error("Search error", err);
+                } finally {
+                    setSearchLoading(false);
+                }
+            } else {
+                setOptions([]);
+            }
+        }, 500);
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchTerm]);
 
     useEffect(() => {
         // Fetch patient details if not passed in state and if patientId exists
@@ -79,19 +104,18 @@ export default function PrescriptionBuilder() {
         setIsSubmitting(true);
         try {
             const payload = {
-                patient_id: patientId,
                 diagnosis: diagnosis || 'Clinical Consultation',
-                medications: validMedications.map(m => ({
-                    name: m.medication_name,
+                clinical_notes: `Follow up: ${followUpDate || 'As needed'}`,
+                prescription_items: validMedications.map(m => ({
+                    drug_name: m.medication_name,
                     dosage: m.dosage,
                     frequency: m.frequency,
                     duration: m.duration,
                     instructions: m.instructions
-                })),
-                notes: `Follow up: ${followUpDate || 'As needed'}`
+                }))
             };
 
-            await clinicalService.createPrescription(payload);
+            await clinicalService.createPrescription(patientId, payload);
             setToast({ open: true, message: 'Prescription drafted securely!', type: 'success' });
             setTimeout(() => {
                 navigate('/');
@@ -174,15 +198,44 @@ export default function PrescriptionBuilder() {
                         )}
                         <Grid container spacing={2}>
                             <Grid item xs={12} md={4}>
-                                <TextField
-                                    fullWidth
-                                    label="Medication Name"
-                                    placeholder="e.g. Amoxicillin"
-                                    value={med.medication_name}
-                                    onChange={(e) => handleChange(index, 'medication_name', e.target.value)}
-                                    InputLabelProps={{ style: { color: '#64748b' } }}
-                                    inputProps={{ style: { color: 'white' } }}
-                                    sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '12px', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } } }}
+                                <Autocomplete
+                                    freeSolo
+                                    options={options}
+                                    getOptionLabel={(option) => typeof option === 'string' ? option : `${option.name} (${option.generic_name || ''})`}
+                                    loading={searchLoading}
+                                    inputValue={med.medication_name}
+                                    onInputChange={(e, newInputValue) => {
+                                        handleChange(index, 'medication_name', newInputValue);
+                                        setSearchTerm(newInputValue);
+                                    }}
+                                    onChange={(e, newValue) => {
+                                        if (newValue && typeof newValue !== 'string') {
+                                            handleChange(index, 'medication_name', newValue.name);
+                                            if (newValue.common_dosages) {
+                                                const firstDose = newValue.common_dosages.split(',')[0];
+                                                handleChange(index, 'dosage', firstDose);
+                                            }
+                                        }
+                                    }}
+                                    renderInput={(params) => (
+                                        <TextField
+                                            {...params}
+                                            fullWidth
+                                            label="Medication Name"
+                                            placeholder="e.g. Amoxicillin"
+                                            InputLabelProps={{ style: { color: '#64748b' } }}
+                                            sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '12px', color: 'white', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } } }}
+                                            InputProps={{
+                                                ...params.InputProps,
+                                                endAdornment: (
+                                                    <React.Fragment>
+                                                        {searchLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                                                        {params.InputProps.endAdornment}
+                                                    </React.Fragment>
+                                                ),
+                                            }}
+                                        />
+                                    )}
                                 />
                             </Grid>
                             <Grid item xs={6} md={2}>

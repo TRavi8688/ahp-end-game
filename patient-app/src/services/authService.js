@@ -4,15 +4,21 @@ import apiClient from './apiClient';
 
 export const authService = {
     login: async (identifier, password) => {
+    try {
         const formData = new URLSearchParams();
         formData.append('username', identifier);
         formData.append('password', password);
-
         const response = await axios.post(`${API_BASE_URL}/auth/login`, formData.toString(), {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            timeout: 10000 // 10 seconds timeout
         });
         return response.data;
-    },
+    } catch (error) {
+        // Normalize error message
+        const msg = error.response?.data?.message || error.response?.data?.detail || error.message || 'Login request failed.';
+        throw new Error(msg);
+    }
+},
 
     googleLogin: async (credential) => {
         const response = await axios.post(`${API_BASE_URL}/auth/google`, { token: credential });

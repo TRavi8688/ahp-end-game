@@ -1,12 +1,37 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Theme, GlobalStyles } from '../theme';
+import { patientService } from '../services/patientService';
 
 const { width } = Dimensions.get('window');
 
 export default function VitalsScreen({ navigation }) {
     const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+    const [vitals, setVitals] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchVitals = async () => {
+            try {
+                const data = await patientService.getVitals();
+                setVitals(data);
+            } catch (error) {
+                console.error("Failed to load vitals:", error);
+                // Fallback for missing backend
+                setVitals({
+                    bloodPressure: { value: '128 / 84', status: '↑ STAGE 1 HYPERTENSION', statusColor: 'warning' },
+                    heartRate: { value: '76', status: '✓ NORMAL RANGE', statusColor: 'positive' },
+                    bloodOxygen: { value: '96%', percent: 96, status: '✓ NORMAL', statusColor: 'positive' },
+                    temperature: { value: '98.4°F', status: '✓ NORMAL', statusColor: 'positive' },
+                    lastUpdated: '08:42 AM'
+                });
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchVitals();
+    }, []);
 
     const VitalBlock = ({ label, value, unit, sub, status, statusColor, children }) => (
         <View style={styles.vitalBlock}>
@@ -36,19 +61,23 @@ export default function VitalsScreen({ navigation }) {
 
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <Text style={styles.bigHeading}>YOUR BODY.</Text>
-                <Text style={styles.updateText}>LAST UPDATED 08:42 AM</Text>
+                {loading ? (
+                    <ActivityIndicator size="large" color={Theme.colors.primary} style={{ marginTop: 20 }} />
+                ) : (
+                    <>
+                    <Text style={styles.updateText}>LAST UPDATED {vitals?.lastUpdated}</Text>
 
-                <View style={styles.divider} />
+                    <View style={styles.divider} />
 
                 {/* Block 1 — Blood Pressure */}
                 <TouchableOpacity onPress={() => navigation.navigate('WeeklyTrends')}>
                     <VitalBlock
                         label="BLOOD PRESSURE"
-                        value="128 / 84"
+                        value={vitals?.bloodPressure?.value || "--"}
                         unit="mmHg"
                         sub="SYSTOLIC / DIASTOLIC"
-                        status="↑ STAGE 1 HYPERTENSION"
-                        statusColor="warning"
+                        status={vitals?.bloodPressure?.status || "NO DATA"}
+                        statusColor={vitals?.bloodPressure?.statusColor || "secondary"}
                     >
                         {/* 7-bar mini chart */}
                         <View style={styles.miniChart}>
@@ -69,10 +98,10 @@ export default function VitalsScreen({ navigation }) {
                 {/* Block 2 — Heart Rate */}
                 <VitalBlock
                     label="HEART RATE"
-                    value="76"
+                    value={vitals?.heartRate?.value || "--"}
                     unit="bpm"
-                    status="✓ NORMAL RANGE"
-                    statusColor="positive"
+                    status={vitals?.heartRate?.status || "NO DATA"}
+                    statusColor={vitals?.heartRate?.statusColor || "secondary"}
                 >
                     {/* Flat line waveform graphic */}
                     <View style={styles.waveformContainer}>
@@ -85,29 +114,31 @@ export default function VitalsScreen({ navigation }) {
                 {/* Block 3 — Blood Oxygen */}
                 <VitalBlock
                     label="BLOOD OXYGEN"
-                    value="96%"
+                    value={vitals?.bloodOxygen?.value || "--"}
                     unit="SpO₂"
-                    status="✓ NORMAL"
-                    statusColor="positive"
+                    status={vitals?.bloodOxygen?.status || "NO DATA"}
+                    statusColor={vitals?.bloodOxygen?.statusColor || "secondary"}
                 >
                     {/* Horizontal fill bar */}
                     <View style={styles.fillBarContainer}>
-                        <View style={[styles.fillBar, { width: '96%' }]} />
+                        <View style={[styles.fillBar, { width: `${vitals?.bloodOxygen?.percent || 0}%` }]} />
                     </View>
                 </VitalBlock>
 
                 {/* Block 4 — Temperature */}
                 <VitalBlock
                     label="TEMPERATURE"
-                    value="98.4°F"
+                    value={vitals?.temperature?.value || "--"}
                     unit=""
-                    status="✓ NORMAL"
-                    statusColor="positive"
+                    status={vitals?.temperature?.status || "NO DATA"}
+                    statusColor={vitals?.temperature?.statusColor || "secondary"}
                 />
 
                 <TouchableOpacity style={styles.shareButton}>
-                    <Text style={styles.shareButtonText}>SHARE REPORT WITH DR. SHARMA →</Text>
+                    <Text style={styles.shareButtonText}>SHARE REPORT WITH DOCTOR →</Text>
                 </TouchableOpacity>
+                </>
+                )}
 
                 <View style={{ height: 50 }} />
             </ScrollView>

@@ -1,47 +1,55 @@
 import apiClient from './apiClient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL } from '../api';
 import { SecurityUtils } from '../utils/security';
 
+// Zero-footprint ephemeral in-memory cache (HIPAA/GDPR compliance)
+const ephemeralClinicalCache = new Map();
+
 export const clinicalService = {
     getClinicalSummary: async (signal) => {
+        const activeMemberId = await SecurityUtils.getActiveMemberId() || 'primary';
+        const cacheKey = `${activeMemberId}_summary`;
         try {
             const response = await apiClient.get('/patient/clinical-summary', { signal });
-            await AsyncStorage.setItem('@cache_clinical_summary', JSON.stringify(response.data));
+            ephemeralClinicalCache.set(cacheKey, response.data);
             return response.data;
         } catch (e) {
             if (e.name === 'CanceledError' || e.name === 'AbortError') throw e;
-            console.warn('[clinicalService] Failed to fetch clinical summary. Loading offline cache...');
-            const cachedStr = await AsyncStorage.getItem('@cache_clinical_summary');
-            if (cachedStr) return JSON.parse(cachedStr);
+            console.warn('[clinicalService] Failed to fetch clinical summary. Loading ephemeral in-memory cache...');
+            const cached = ephemeralClinicalCache.get(cacheKey);
+            if (cached) return cached;
             throw e;
         }
     },
 
     getTimeline: async (signal) => {
+        const activeMemberId = await SecurityUtils.getActiveMemberId() || 'primary';
+        const cacheKey = `${activeMemberId}_timeline`;
         try {
             const response = await apiClient.get('/clinical/timeline', { signal });
-            await AsyncStorage.setItem('@cache_timeline', JSON.stringify(response.data));
+            ephemeralClinicalCache.set(cacheKey, response.data);
             return response.data;
         } catch (e) {
             if (e.name === 'CanceledError' || e.name === 'AbortError') throw e;
-            console.warn('[clinicalService] Timeline offline mode...');
-            const cachedStr = await AsyncStorage.getItem('@cache_timeline');
-            if (cachedStr) return JSON.parse(cachedStr);
+            console.warn('[clinicalService] Timeline offline mode. Loading ephemeral in-memory cache...');
+            const cached = ephemeralClinicalCache.get(cacheKey);
+            if (cached) return cached;
             throw e;
         }
     },
 
     getRecords: async (signal) => {
+        const activeMemberId = await SecurityUtils.getActiveMemberId() || 'primary';
+        const cacheKey = `${activeMemberId}_records`;
         try {
             const response = await apiClient.get('/patient/records', { signal });
-            await AsyncStorage.setItem('@cache_records', JSON.stringify(response.data));
+            ephemeralClinicalCache.set(cacheKey, response.data);
             return response.data;
         } catch (e) {
             if (e.name === 'CanceledError' || e.name === 'AbortError') throw e;
-            console.warn('[clinicalService] Records offline mode...');
-            const cachedStr = await AsyncStorage.getItem('@cache_records');
-            if (cachedStr) return JSON.parse(cachedStr);
+            console.warn('[clinicalService] Records offline mode. Loading ephemeral in-memory cache...');
+            const cached = ephemeralClinicalCache.get(cacheKey);
+            if (cached) return cached;
             throw e;
         }
     },
@@ -172,5 +180,10 @@ export const clinicalService = {
             partner_pharmacy_id: partnerPharmacyId
         });
         return response.data;
+    },
+
+    clearCache: () => {
+        ephemeralClinicalCache.clear();
+        console.log('[clinicalService] Ephemeral cache successfully purged.');
     }
 };

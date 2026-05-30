@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Activity, User, Calendar, MapPin, CheckCircle, ArrowRight } from 'lucide-react';
 
-const API_BASE = 'https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1';
+const API_BASE = '/api/v1';
 
 const QuickRegister = () => {
   // Extract hospital_id from URL query params (e.g., /scan?hospital_id=1234)

@@ -211,6 +211,17 @@ export default function LoginScreen() {
 
             localStorage.setItem('isAuthenticated', 'true');
             localStorage.setItem('token', data.access_token);
+            
+            // Start Doctor Session
+            try {
+                await fetch(`${API_BASE_URL}/doctor/session/start`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${data.access_token}` }
+                });
+            } catch (e) {
+                console.error("Failed to start session", e);
+            }
+            
             window.location.href = '/';
         } catch (error) {
             setErrorMsg(error.message);

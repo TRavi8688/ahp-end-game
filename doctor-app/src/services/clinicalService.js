@@ -13,7 +13,7 @@ export const clinicalService = {
      * Fetch live active queue of patients
      */
     getActiveQueue: async (signal) => {
-        return apiClient.get('/queue/active', { signal });
+        return apiClient.get('/doctor/queue', { signal });
     },
 
     /**
@@ -32,11 +32,10 @@ export const clinicalService = {
     },
 
     /**
-     * Issue a prescription
-     * Uses the correct /clinical/prescribe endpoint
+     * Complete consultation and issue a prescription
      */
-    createPrescription: async (prescriptionData) => {
-        return apiClient.post('/clinical/prescribe', prescriptionData);
+    createPrescription: async (walkinId, consultationData) => {
+        return apiClient.patch(`/doctor/queue/${walkinId}/complete`, consultationData);
     },
 
     /**

@@ -532,6 +532,16 @@ export default function HomeScreen({ navigation }) {
                                 <Text style={styles.smallActionText}>LABS</Text>
                             </View>
                         </TouchableOpacity>
+
+                        <TouchableOpacity 
+                            style={styles.quickActionSmall}
+                            onPress={() => { HapticUtils.light(); navigation.navigate('Appointments'); }}
+                        >
+                            <View style={styles.smallActionInner}>
+                                <Ionicons name="calendar-outline" size={18} color="#F59E0B" />
+                                <Text style={styles.smallActionText}>APPOINT</Text>
+                            </View>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </View>

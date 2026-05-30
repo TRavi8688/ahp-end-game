@@ -14,6 +14,7 @@ import OwnerDashboard from './pages/Dashboard/OwnerDashboard';
 import PharmacyDashboard from './pages/Dashboard/PharmacyDashboard';
 import LabDashboard from './pages/Dashboard/LabDashboard';
 import ReceptionDashboard from './pages/Dashboard/ReceptionDashboard';
+import WalkInPage from './pages/WalkInPage';
 
 const App: React.FC = () => {
   return (
@@ -22,6 +23,7 @@ const App: React.FC = () => {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
+          <Route path="/join/:signedToken" element={<WalkInPage />} />
           
           {/* Protected Routes */}
           <Route element={<ProtectedRoute allowedRoles={['admin', 'hospital_admin']} />}>

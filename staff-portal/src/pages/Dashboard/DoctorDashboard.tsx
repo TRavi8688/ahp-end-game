@@ -1,214 +1,235 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Users, 
-  Activity, 
-  Clock, 
-  ChevronRight, 
-  Zap, 
-  AlertCircle,
-  Stethoscope,
-  Search,
-  Bell,
-  Heart,
-  Calendar,
-  LayoutDashboard
+  Stethoscope, 
+  Clock,
+  CheckCircle,
+  FileText,
+  Activity,
+  Pill,
+  MoreVertical
 } from 'lucide-react';
+import apiClient from '../../apiClient';
+import { useAuth } from '../../context/AuthContext';
 
-import { useStore } from '../../store/useStore';
+interface ConsultationPatient {
+  id: string;
+  queue_number: number;
+  full_name: string;
+  age: number;
+  gender: string;
+  reason_for_visit: string;
+  symptoms: string;
+  priority_level: string;
+  queue_state: string;
+  wait_minutes: number;
+  triage_vitals_json: any;
+  triage_notes: string;
+  assigned_to_me: boolean;
+}
 
 const DoctorDashboard: React.FC = () => {
-  const { queue, alerts } = useStore();
+  const { user } = useAuth();
+  const [queue, setQueue] = useState<ConsultationPatient[]>([]);
+  const [stats, setStats] = useState({ total_waiting: 0, total_in_consultation: 0 });
+  const [activePatient, setActivePatient] = useState<ConsultationPatient | null>(null);
   
-  const activePatients = queue.length > 0 ? queue : [
-    { id: 'TK-102', name: 'Arjun Mehta', age: 58, priority: 120, status: 'CRITICAL', zone: 'ICU-1', wait: '2m', type: 'Emergency' },
-    { id: 'TK-105', name: 'Sarah Khan', age: 34, priority: 85, status: 'STABLE', zone: 'OPD-B', wait: '12m', type: 'VIP' },
-    { id: 'TK-108', name: 'Vikram Singh', age: 72, priority: 45, status: 'WAITING', zone: 'OPD-A', wait: '28m', type: 'Regular' },
-  ];
+  // Clinical Notes Form State
+  const [chiefComplaint, setChiefComplaint] = useState('');
+  const [clinicalNotes, setClinicalNotes] = useState('');
+  const [diagnosis, setDiagnosis] = useState('');
+  const [prescription, setPrescription] = useState('');
 
-  const clinicalInsights = alerts.length > 0 ? alerts : [
-    { id: '1', type: 'critical', title: 'Cardiac Alert', message: "Abnormal heart rate spikes detected in Arjun Mehta. Neural analysis suggests tachycardia.", timestamp: '1m ago' },
-    { id: '2', type: 'info', title: 'Lab Update', message: 'SARAH KHAN: Comprehensive Metabolic Panel processed. Normal ranges confirmed.', timestamp: '14m ago' }
-  ];
+  const fetchQueue = async () => {
+    try {
+      const res = await apiClient.get('/doctor/queue');
+      setQueue(res.data.data.queue);
+      setStats({
+        total_waiting: res.data.data.total_waiting,
+        total_in_consultation: res.data.data.total_in_consultation
+      });
+      // Auto-select first in_consultation patient if none selected
+      if (!activePatient) {
+        const inProgress = res.data.data.queue.find((p: any) => p.queue_state === 'in_consultation' && p.assigned_to_me);
+        if (inProgress) setActivePatient(inProgress);
+      }
+    } catch (err) {
+      console.error('Failed to fetch doctor queue', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchQueue();
+    const interval = setInterval(fetchQueue, 15000); // Poll every 15s
+    return () => clearInterval(interval);
+  }, [activePatient]);
+
+  const handleStartConsultation = async (patient: ConsultationPatient) => {
+    try {
+      await apiClient.patch(`/doctor/queue/${patient.id}/start`);
+      setActivePatient({ ...patient, queue_state: 'in_consultation', assigned_to_me: true });
+      setChiefComplaint(patient.reason_for_visit || '');
+      fetchQueue();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCompleteConsultation = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activePatient) return;
+    try {
+      await apiClient.patch(`/doctor/queue/${activePatient.id}/complete`, {
+        chief_complaint: chiefComplaint,
+        clinical_notes: clinicalNotes,
+        diagnosis: diagnosis,
+        prescription: prescription
+      });
+      setActivePatient(null);
+      setChiefComplaint('');
+      setClinicalNotes('');
+      setDiagnosis('');
+      setPrescription('');
+      fetchQueue();
+    } catch (err) {
+      alert('Failed to submit consultation data.');
+    }
+  };
 
   return (
     <div className="min-h-screen p-10 bg-[#050505] text-[#f8fafc] font-inter">
-      
-      {/* Premium Header */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12">
+      <header className="flex justify-between items-end mb-12">
         <div className="space-y-2">
           <div className="flex items-center gap-2 mb-2">
-             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-             <span className="text-[10px] font-black text-emerald-500 tracking-[0.3em] uppercase">Node Active: Clinical Core</span>
+             <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+             <span className="text-[10px] font-black text-blue-500 tracking-[0.3em] uppercase">Consultation Suite</span>
           </div>
-          <h1 className="text-5xl font-black tracking-tighter outfit leading-none">Clinical Command</h1>
-          <p className="text-slate-500 text-sm font-medium">Monitoring {activePatients.length} active consultations in real-time.</p>
-        </div>
-
-        <div className="flex items-center gap-4">
-           <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" size={18} />
-              <input 
-                type="text" 
-                placeholder="Search patient record..." 
-                className="bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-6 text-sm w-80 focus:outline-none focus:border-blue-500/50 focus:bg-white/10 transition-all font-medium"
-              />
-           </div>
-           <button className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center relative hover:bg-white/10 transition-all">
-              <Bell size={20} className="text-slate-400" />
-              <span className="absolute top-4 right-4 w-2 h-2 bg-blue-500 rounded-full border-2 border-[#050505]" />
-           </button>
+          <h1 className="text-5xl font-black tracking-tighter outfit leading-none">Doctor</h1>
+          <p className="text-slate-500 text-sm font-medium">Dr. {(user as any)?.name || user?.email}. {stats.total_waiting} patients waiting.</p>
         </div>
       </header>
 
-      {/* Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-        {[
-          { label: 'Patient Queue', value: '18', sub: 'Consultations', icon: Users, color: 'text-blue-400' },
-          { label: 'Avg. Wait Time', value: '14m', sub: 'Optimal Range', icon: Clock, color: 'text-amber-400' },
-          { label: 'System Load', value: 'Light', sub: 'Resource Stable', icon: Activity, color: 'text-emerald-400' },
-          { label: 'Critical Alerts', value: '02', sub: 'Immediate Action', icon: AlertCircle, color: 'text-rose-400' },
-        ].map((stat, i) => (
-          <div key={i} className="bg-white/[0.03] border border-white/5 rounded-[32px] p-8 hover:border-white/10 transition-all group">
-             <div className="flex justify-between items-start mb-6">
-                <div className={`p-3 rounded-xl bg-white/5 ${stat.color}`}>
-                   <stat.icon size={24} />
-                </div>
-                <ChevronRight size={16} className="text-slate-700 group-hover:text-slate-400 transition-colors" />
-             </div>
-             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{stat.label}</p>
-             <h2 className="text-4xl font-black outfit tracking-tighter">{stat.value}</h2>
-             <p className="text-[10px] font-bold text-slate-600 mt-2 uppercase tracking-tighter">{stat.sub}</p>
-          </div>
-        ))}
-      </div>
-
       <div className="grid grid-cols-12 gap-8">
         
-        {/* Patient Queue Matrix */}
-        <div className="col-span-12 lg:col-span-8">
+        {/* Doctor Queue List */}
+        <div className={`col-span-12 ${activePatient ? 'lg:col-span-4' : 'lg:col-span-12'} transition-all`}>
            <div className="bg-white/[0.03] border border-white/5 rounded-[40px] overflow-hidden">
               <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/[0.01]">
                  <div className="flex items-center gap-3">
-                    <LayoutDashboard className="text-blue-500" size={22} />
-                    <h3 className="text-xl font-black outfit tracking-tight">Active Patient Stream</h3>
+                    <Stethoscope className="text-blue-500" size={22} />
+                    <h3 className="text-xl font-black outfit tracking-tight">Patient Queue</h3>
                  </div>
-                 <div className="flex gap-2">
-                    <span className="px-3 py-1 bg-white/5 rounded-lg text-[10px] font-black tracking-widest uppercase text-slate-500">Triage: Priority</span>
-                 </div>
+                 <span className="px-4 py-2 bg-blue-500/10 text-blue-500 rounded-xl text-[10px] font-black tracking-widest uppercase">
+                    {stats.total_waiting} Waiting
+                 </span>
               </div>
               
               <div className="divide-y divide-white/5">
-                 {activePatients.map((p) => (
-                    <div key={p.id} className="p-8 flex items-center justify-between group hover:bg-white/[0.02] transition-all cursor-pointer">
-                       <div className="flex items-center gap-8">
-                          <div className="relative">
-                             <div className={`w-16 h-16 rounded-[22px] flex items-center justify-center font-black text-2xl outfit transition-all ${
-                                p.status === 'CRITICAL' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20 shadow-[0_0_30px_rgba(244,63,94,0.1)]' : 'bg-white/5 text-slate-400'
-                             }`}>
-                                {p.name[0]}
-                             </div>
-                             {p.status === 'CRITICAL' && <div className="absolute -top-1 -right-1 w-5 h-5 bg-rose-500 rounded-full border-4 border-[#0a0a0a] animate-pulse" />}
-                          </div>
-                          
-                          <div className="space-y-1">
-                             <div className="flex items-center gap-3">
-                                <h4 className="text-2xl font-black outfit tracking-tight text-white group-hover:text-blue-400 transition-colors">{p.name}</h4>
-                                <span className={`text-[10px] px-3 py-1 rounded-full font-black uppercase tracking-widest border ${
-                                   p.status === 'CRITICAL' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
-                                   p.type === 'VIP' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
-                                   'bg-white/5 text-slate-500 border-white/10'
-                                }`}>
-                                   {p.status}
-                                </span>
-                             </div>
-                             <div className="flex items-center gap-4 text-xs font-bold text-slate-500 uppercase tracking-tighter">
-                                <span className="font-mono text-slate-400">{p.id}</span>
-                                <div className="w-1 h-1 rounded-full bg-slate-800" />
-                                <span>{p.age} Yrs</span>
-                                <div className="w-1 h-1 rounded-full bg-slate-800" />
-                                <span>ZONE: <span className="text-blue-500">{p.zone}</span></span>
-                             </div>
-                          </div>
+                 {queue.length === 0 && <div className="p-16 text-center text-slate-500 font-bold uppercase tracking-widest text-xs">Queue is empty</div>}
+                 
+                 {queue.map((p) => (
+                    <div key={p.id} className={`p-6 flex flex-col gap-4 transition-all cursor-pointer ${
+                      activePatient?.id === p.id ? 'bg-white/[0.05] border-l-4 border-l-blue-500' : 'hover:bg-white/[0.02]'
+                    }`}
+                    onClick={() => {
+                      if (p.queue_state === 'in_consultation' && p.assigned_to_me) setActivePatient(p);
+                    }}>
+                       <div className="flex items-center justify-between">
+                         <div className="flex items-center gap-4">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-lg outfit border ${
+                               p.priority_level === 'emergency' ? 'bg-rose-500/10 text-rose-500 border-rose-500/30' : 
+                               p.priority_level === 'urgent' ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' : 
+                               'bg-white/5 text-slate-400 border-white/10'
+                            }`}>
+                               {p.queue_number}
+                            </div>
+                            <div className="space-y-1">
+                               <h4 className="text-lg font-black outfit tracking-tight text-white">{p.full_name}</h4>
+                               <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                  <span>{p.age}y {p.gender[0]}</span>
+                                  <div className="w-1 h-1 rounded-full bg-slate-800" />
+                                  <span>Wait: {p.wait_minutes}m</span>
+                               </div>
+                            </div>
+                         </div>
+                         {p.queue_state === 'waiting_doctor' && (
+                           <button onClick={(e) => { e.stopPropagation(); handleStartConsultation(p); }} className="bg-blue-500/10 hover:bg-blue-500 text-blue-500 hover:text-white px-4 py-2 rounded-xl font-black text-[10px] tracking-widest uppercase transition-all">
+                              Start
+                           </button>
+                         )}
+                         {p.queue_state === 'in_consultation' && p.assigned_to_me && (
+                           <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest animate-pulse">In Session</span>
+                         )}
+                         {p.queue_state === 'in_consultation' && !p.assigned_to_me && (
+                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">With Another Doc</span>
+                         )}
                        </div>
-
-                       <div className="flex items-center gap-12">
-                          <div className="text-right">
-                             <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1">Queue Depth</p>
-                             <p className="text-2xl font-black outfit text-white">{p.wait}</p>
-                          </div>
-                          <button className="w-14 h-14 rounded-2xl bg-white/5 flex items-center justify-center group-hover:bg-blue-600 transition-all shadow-xl group-hover:shadow-blue-500/20">
-                             <ChevronRight size={24} className="text-slate-600 group-hover:text-white" />
-                          </button>
-                       </div>
+                       
+                       {/* Brief triage preview if available */}
+                       {p.triage_vitals_json && (
+                         <div className="flex gap-4 p-3 bg-white/[0.02] rounded-xl border border-white/5">
+                           <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                             HR: <span className="text-white font-black ml-1">{p.triage_vitals_json.heart_rate}</span>
+                           </div>
+                           <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                             BP: <span className="text-white font-black ml-1">{p.triage_vitals_json.blood_pressure_systolic}/{p.triage_vitals_json.blood_pressure_diastolic}</span>
+                           </div>
+                           <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                             SpO2: <span className="text-white font-black ml-1">{p.triage_vitals_json.spo2}%</span>
+                           </div>
+                         </div>
+                       )}
                     </div>
                  ))}
               </div>
            </div>
         </div>
 
-        {/* Right Column: Insights & Alerts */}
-        <div className="col-span-12 lg:col-span-4 space-y-8">
-           
-           {/* Clinical Insights Feed */}
-           <div className="bg-white/[0.03] border border-white/5 rounded-[40px] p-8 relative overflow-hidden group">
-              <div className="flex items-center gap-4 mb-8">
-                 <div className="w-12 h-12 rounded-[18px] bg-blue-600 flex items-center justify-center text-white shadow-2xl shadow-blue-500/30">
-                    <Zap size={24} className="fill-white" />
-                 </div>
-                 <div>
-                    <h3 className="text-xl font-black outfit tracking-tight text-white">Clinical Insights</h3>
-                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mt-0.5">Neural Network Audit</p>
-                 </div>
-              </div>
+        {/* Clinical Notes Pane */}
+        {activePatient && (
+          <div className="col-span-12 lg:col-span-8 space-y-6">
+             <div className="bg-white/[0.03] border border-blue-500/20 rounded-[40px] p-8 relative overflow-hidden shadow-[0_0_100px_rgba(59,130,246,0.05)]">
+                
+                <div className="flex items-start justify-between mb-8 pb-8 border-b border-white/10">
+                   <div>
+                     <div className="flex items-center gap-4 mb-2">
+                       <h3 className="text-4xl font-black outfit tracking-tighter text-white">{activePatient.full_name}</h3>
+                       <span className="px-3 py-1 bg-white/10 rounded-lg text-xs font-black uppercase tracking-widest text-white">{activePatient.age}y {activePatient.gender}</span>
+                     </div>
+                     <p className="text-sm font-medium text-slate-400">Chief Complaint: {activePatient.reason_for_visit}</p>
+                   </div>
+                   
+                   {/* Nurse Notes Snapshot */}
+                   {activePatient.triage_notes && (
+                     <div className="max-w-xs bg-rose-500/5 border border-rose-500/10 p-4 rounded-2xl">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-rose-500 mb-1 flex items-center gap-1"><Activity size={12}/> Nurse Triage Notes</p>
+                        <p className="text-xs font-medium text-slate-300">{activePatient.triage_notes}</p>
+                     </div>
+                   )}
+                </div>
 
-              <div className="space-y-5">
-                 {clinicalInsights.map((alert) => (
-                    <div key={alert.id} className={`p-6 rounded-3xl border transition-all ${
-                       alert.type === 'critical' ? 'bg-rose-500/[0.03] border-rose-500/10 hover:border-rose-500/30' : 'bg-blue-500/[0.03] border-blue-500/10 hover:border-blue-500/30'
-                    }`}>
-                       <div className="flex justify-between items-center mb-3">
-                          <span className={`text-[10px] font-black uppercase tracking-widest ${
-                             alert.type === 'critical' ? 'text-rose-500' : 'text-blue-500'
-                          }`}>{alert.title}</span>
-                          <span className="text-[10px] font-bold text-slate-600">{alert.timestamp}</span>
-                       </div>
-                       <p className={`text-sm font-medium leading-relaxed ${
-                          alert.type === 'critical' ? 'text-slate-200' : 'text-slate-400'
-                       }`}>
-                          {alert.message}
-                       </p>
-                    </div>
-                 ))}
-              </div>
+                <form onSubmit={handleCompleteConsultation} className="space-y-6 relative z-10">
+                  <div>
+                    <label className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2"><FileText size={14}/> Clinical Notes</label>
+                    <textarea required value={clinicalNotes} onChange={e => setClinicalNotes(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none h-40" placeholder="Patient presented with..." />
+                  </div>
 
-              <button className="w-full mt-8 py-5 bg-white/5 rounded-2xl text-[10px] font-black tracking-widest uppercase hover:bg-white/10 transition-all border border-white/5">
-                 Expand Knowledge Base
-              </button>
-           </div>
+                  <div>
+                    <label className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2"><Activity size={14}/> Diagnosis</label>
+                    <input required type="text" value={diagnosis} onChange={e => setDiagnosis(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Primary diagnosis (e.g., Acute Viral Pharyngitis)" />
+                  </div>
 
-           {/* Personal Schedule Brief */}
-           <div className="bg-white/[0.03] border border-white/5 rounded-[40px] p-8">
-              <div className="flex items-center gap-3 mb-8">
-                 <Calendar className="text-blue-500" size={20} />
-                 <h3 className="text-lg font-black outfit uppercase tracking-tight">Today's Schedule</h3>
-              </div>
-              
-              <div className="space-y-6">
-                 {[
-                    { time: '14:30', event: 'Surgery Review', patient: 'Room 402' },
-                    { time: '16:00', event: 'Grand Rounds', patient: 'Conference Hall' },
-                 ].map((item, i) => (
-                    <div key={i} className="flex items-start gap-5">
-                       <span className="text-sm font-black text-blue-500 outfit">{item.time}</span>
-                       <div className="space-y-0.5">
-                          <p className="text-sm font-black text-white">{item.event}</p>
-                          <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{item.patient}</p>
-                       </div>
-                    </div>
-                 ))}
-              </div>
-           </div>
-        </div>
+                  <div>
+                    <label className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2"><Pill size={14}/> Prescription / Treatment Plan</label>
+                    <textarea value={prescription} onChange={e => setPrescription(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none h-32" placeholder="1. Paracetamol 500mg BID..." />
+                  </div>
+
+                  <button type="submit" className="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-xs tracking-widest uppercase transition-all flex items-center justify-center gap-2 shadow-[0_0_40px_rgba(59,130,246,0.3)] hover:shadow-[0_0_60px_rgba(59,130,246,0.5)] mt-4">
+                    <CheckCircle size={18} /> Complete Consultation & Discharge
+                  </button>
+                </form>
+             </div>
+          </div>
+        )}
       </div>
     </div>
   );

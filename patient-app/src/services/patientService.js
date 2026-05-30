@@ -1,40 +1,39 @@
 import apiClient from './apiClient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SecurityUtils } from '../utils/security';
+
+// Zero-footprint ephemeral in-memory cache (HIPAA/GDPR compliance)
+const ephemeralProfileCache = new Map();
 
 export const patientService = {
     getProfile: async (signal) => {
+        const activeMemberId = await SecurityUtils.getActiveMemberId() || 'primary';
         try {
             const response = await apiClient.get('/patient/profile', { signal });
-            await AsyncStorage.setItem('@hospyn_profile_cache', JSON.stringify(response.data));
+            ephemeralProfileCache.set(activeMemberId, response.data);
             return response.data;
         } catch (e) {
-            // For CancelErrors, we just rethrow so UI can handle (or ignore) cleanly
             if (e.name === 'CanceledError' || e.name === 'AbortError') {
                 throw e;
             }
             
-            console.warn('[patientService] Network failure, attempting to load offline profile...');
-            const cachedStr = await AsyncStorage.getItem('@hospyn_profile_cache');
-            if (cachedStr) {
-                try {
-                    return JSON.parse(cachedStr);
-                } catch (parseErr) {
-                    console.error('Cache corrupted:', parseErr);
-                }
+            console.warn('[patientService] Network failure, attempting to load ephemeral in-memory profile...');
+            const cached = ephemeralProfileCache.get(activeMemberId);
+            if (cached) {
+                return cached;
             }
             throw e;
         }
     },
 
     updateProfile: async (data) => {
+        const activeMemberId = await SecurityUtils.getActiveMemberId() || 'primary';
         try {
             const response = await apiClient.post('/patient/profile/update', data);
             
-            // Re-sync local cache
-            const currentStr = await AsyncStorage.getItem('@hospyn_profile_cache');
-            const current = currentStr ? JSON.parse(currentStr) : {};
+            // Re-sync in-memory cache
+            const current = ephemeralProfileCache.get(activeMemberId) || {};
             const updated = { ...current, ...data };
-            await AsyncStorage.setItem('@hospyn_profile_cache', JSON.stringify(updated));
+            ephemeralProfileCache.set(activeMemberId, updated);
             
             return response.data;
         } catch (e) {
@@ -46,5 +45,20 @@ export const patientService = {
     getNotifications: async (signal) => {
         const response = await apiClient.get('/patient/notifications', { signal });
         return response.data;
+    },
+
+    getAppointments: async (signal) => {
+        const response = await apiClient.get('/patient/appointments', { signal });
+        return response.data;
+    },
+
+    getVitals: async (signal) => {
+        const response = await apiClient.get('/patient/vitals', { signal });
+        return response.data;
+    },
+
+    clearCache: () => {
+        ephemeralProfileCache.clear();
+        console.log('[patientService] Ephemeral cache successfully purged.');
     }
 };

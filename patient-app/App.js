@@ -63,6 +63,8 @@ import RecordsScreen from './src/screens/RecordsScreen';
 import ActivityLogScreen from './src/screens/ActivityLogScreen';
 import CEODashboardScreen from './src/screens/CEODashboardScreen';
 import MedsScreen from './src/screens/MedsScreen';
+import AppointmentsScreen from './src/screens/AppointmentsScreen';
+import ChittiAiScreen from './src/screens/ChittiAiScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -174,6 +176,8 @@ function AppContent() {
                 <Stack.Screen name="ActivityLog" component={ActivityLogScreen} />
                 <Stack.Screen name="CEODashboard" component={CEODashboardScreen} />
                 <Stack.Screen name="Meds" component={MedsScreen} />
+                <Stack.Screen name="Appointments" component={AppointmentsScreen} />
+                <Stack.Screen name="ChittiAi" component={ChittiAiScreen} />
               </>
             )}
           </Stack.Navigator>

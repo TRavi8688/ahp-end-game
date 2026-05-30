@@ -11,6 +11,8 @@ import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
 import LocalHospitalIcon from '@mui/icons-material/LocalHospital';
 import FolderSharedIcon from '@mui/icons-material/FolderShared';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
+import PauseCircleFilledIcon from '@mui/icons-material/PauseCircleFilled';
+import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled';
 import { doctorService } from '../services/doctorService';
 import { clinicalService } from '../services/clinicalService';
 export default function HomeDashboard({ onOpenScan }) {
@@ -24,6 +26,54 @@ export default function HomeDashboard({ onOpenScan }) {
         pending_rx_count: 0
     });
     const [isLoading, setIsLoading] = React.useState(true);
+    const [isOnBreak, setIsOnBreak] = React.useState(false);
+    const [breakLoading, setBreakLoading] = React.useState(false);
+    const [isEmergency, setIsEmergency] = React.useState(false);
+
+    const handleEmergency = async () => {
+        setIsEmergency(true);
+        try {
+            const response = await fetch(`${API_BASE_URL}/doctor/emergency/broadcast`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+            if (response.ok) {
+                alert("🚨 CRITICAL: EMERGENCY BROADCAST SENT. Hospital staff notified immediately.");
+            }
+        } catch (error) {
+            console.error("Emergency broadcast failed", error);
+            alert("Failed to send broadcast. Please use alternative comms.");
+        } finally {
+            setTimeout(() => setIsEmergency(false), 2000);
+        }
+    };
+
+    const toggleBreak = async () => {
+        setBreakLoading(true);
+        try {
+            const endpoint = isOnBreak ? '/doctor/session/break/end' : '/doctor/session/break/start';
+            const method = 'POST';
+            const payload = isOnBreak ? {} : { break_type: 'Bio Break' };
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify(payload)
+            });
+            if (response.ok) {
+                setIsOnBreak(!isOnBreak);
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setBreakLoading(false);
+        }
+    };
 
     React.useEffect(() => {
         const abortController = new AbortController();
@@ -37,7 +87,7 @@ export default function HomeDashboard({ onOpenScan }) {
                     doctorService.getStats()
                 ]);
 
-                setPatients(queueData);
+                setPatients(queueData?.data?.queue || []);
                 setProfile(profileData);
                 setStats(statsData);
             } catch (error) {
@@ -82,18 +132,30 @@ export default function HomeDashboard({ onOpenScan }) {
                         Secure session active · <span style={{ color: '#0d9488', fontWeight: 800 }}>{appointmentsToday}</span> consults pending · <span style={{ color: '#10b981', fontWeight: 800 }}>Ecosystem Synchronized</span>
                     </Typography>
                 </Box>
-                <Chip 
-                    label="HOSPYN SECURE SHELL" 
-                    variant="outlined" 
-                    sx={{ 
-                        borderColor: 'rgba(13, 148, 136, 0.3)', 
-                        color: '#0d9488', 
-                        fontFamily: 'Space Mono', 
-                        fontWeight: 700,
-                        bgcolor: 'rgba(13, 148, 136, 0.05)',
-                        px: 1
-                    }} 
-                />
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                    <Button 
+                        variant="outlined" 
+                        color={isOnBreak ? "success" : "warning"}
+                        startIcon={isOnBreak ? <PlayCircleFilledIcon /> : <PauseCircleFilledIcon />}
+                        onClick={toggleBreak}
+                        disabled={breakLoading}
+                        sx={{ borderRadius: '12px', fontWeight: 700 }}
+                    >
+                        {isOnBreak ? "Resume Session" : "Take Break"}
+                    </Button>
+                    <Chip 
+                        label="HOSPYN SECURE SHELL" 
+                        variant="outlined" 
+                        sx={{ 
+                            borderColor: 'rgba(13, 148, 136, 0.3)', 
+                            color: '#0d9488', 
+                            fontFamily: 'Space Mono', 
+                            fontWeight: 700,
+                            bgcolor: 'rgba(13, 148, 136, 0.05)',
+                            px: 1
+                        }} 
+                    />
+                </Box>
             </Box>
  
             {/* Stats Grid */}
@@ -163,13 +225,13 @@ export default function HomeDashboard({ onOpenScan }) {
                             ) : (
                                 patients.slice(0, 6).map((p) => (
                                     <AppointmentRow
-                                        key={p.queue_entry_id}
-                                        name={p.patient_name}
-                                        time={`Token ${p.token_number}`}
-                                        status={p.status === 'CHECKED_IN' ? 'Waiting' : p.status}
-                                        statusColor={p.status === 'CHECKED_IN' ? 'warning' : 'success'}
-                                        id={p.patient_hospyn_id}
-                                        condition="In Queue"
+                                        key={p.id}
+                                        name={p.full_name || p.first_name}
+                                        time={`Queue ${p.queue_number}`}
+                                        status={p.queue_state === 'waiting_doctor' ? 'Waiting' : 'In Consult'}
+                                        statusColor={p.queue_state === 'waiting_doctor' ? 'warning' : 'success'}
+                                        id={p.id}
+                                        condition={p.reason_for_visit || "In Queue"}
                                     />
                                 ))
                             )}
@@ -205,9 +267,9 @@ export default function HomeDashboard({ onOpenScan }) {
                                     </Grid>
                                     <Grid item xs={6}>
                                         <QuickActionButton
-                                            label="Emergency"
+                                            label={isEmergency ? "Broadcasting..." : "Emergency"}
                                             icon={<LocalHospitalIcon />}
-                                            onClick={() => { }} 
+                                            onClick={handleEmergency} 
                                             color="#ef4444"
                                         />
                                     </Grid>

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'Product to deploy (all, patient, doctor, erp, admin, api, worker)'
+        description: 'Product to deploy (all, patient, doctor, erp, admin, api)'
         required: true
         default: 'all'
         type: string
@@ -34,9 +34,11 @@ jobs:
           filters: |
             backend:
               - 'app/**'
+              - 'backend/**'
+              - 'start_api.py'
               - 'requirements.txt'
-              - 'Dockerfile'
-              - 'entrypoint.sh'
+              - 'Dockerfile*'
+              - 'docker-compose.yml'
               - 'alembic.ini'
               - 'alembic/**'
               - 'migrations/**'
@@ -46,7 +48,7 @@ jobs:
             doctor:
               - 'doctor-app/**'
             erp:
-              - 'hospital-erp/**'
+              - 'staff-portal/**'
             admin:
               - 'super-admin-dashboard/**'
             landing:
@@ -81,21 +83,19 @@ jobs:
       - name: Install Dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r backend/healthcare-core/requirements.txt
           pip install pytest pytest-asyncio httpx
 
       - name: Execute Pytest
         env:
           SECRET_KEY: "ci-test-secret-key-min-32-chars-long"
-          JWT_PRIVATE_KEY: "LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2QUlCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktZd2dnU2lBZ0VBQW9JQkFRRFNvYjBlNHhyNE40bVoKcnBBS3pLYklUUXhLZG8rN25SaXV3RjdpYVVSVkF0MzA3TjNzSytIaTZuQ2g2TzJkci8xRkxmREF0UVI0ZENrOApQalhVT3ZWdllzdHdXVEtZTUhvbzcweTlocnorNG9yUHErYnZXQmVxWGpwcjg5bTAxb3QzVjl3cU1LZ1RuTCtDCjVicUZnK1RTU2pSQWMzd0ZOSlgzYlBKMTZRNFNvRnQ3Qm9jUUVwd2ZPZGRLNWZrMSszVkpIYXI2YXo3c2p3RzAKRzFoT3VWUFVWL2dPN1U1VWpLVS9YVlJLblVnL2lkZldoUzAwWUVhTDk4dTV4WWFpLzBqU05jV2k4SWYxZVhzVAo1ZVdNU3hDVm12bmFUZ1hoeDNjd0krN0JpZFdCelNUN3hSNGtZa3IvZlVUSlgxdDA1eGM4TGl4aXFTSTd1QWxvCkRsaXdMT0N2QWdNQkFBRUNnZ0VBRk5mUWRGZ0EzNXpDZ2o1SkhyVkNmV2gvUEJDNTFHNk5ReURpS1RTcjVzV3IKMjRSall5Sk1oNk44TDJseWc2SW5Fa3R3VGs1T2sxZ09pdk11bkhWaEljZ3Z3K1JXSXBCekdXZCtWUFNBdm4wQwpFRVU5U3YzM2IvSjNIbElGNVg0S1ZLRmVUNkFVKzE4TmY2cm1aMnBQMDVRMUJSTzFST0F5M3QvcVF4ZndjY004CkpHRys4TFlQaThpeGxjUTJVdVU2QzYxZit0Q2RsS1hjeXk4dHhCZllvS3h4aE4wS0RETng2WFBVenFBc0Y1QjEKQ25pWSs3MzhwdHZybmJwQnB4dGNCM3BqNjBuK3FtMS9EZ2FTbld0N3Q2VmtlYStGMkFUQjdyVURVMXk1UmpsQwpvd3AydXRLZGxqd1BSQjMzUWhkREI5UW5oNWs0OGhWUkhPbUUyUmttNFFLQmdRRHlLRmVCMUl6QjMzZVNZajZhClhsUFlOcjRhV1cycEQwWFVOaUwwV1hpeGtjQ1p3dWZGMVc1Si9OVk5vSjA5RldCakJ4dlRBVVV5RXdhNlJBRG8KcDZFb2VKOFQ5dkhjc29JWjJ3ckRucmtnTi9XYnRBM2ZzOGxWK2hFUUtWR1hNL1BSYUhhUGpNRWt1ZTFWU0tkRQpFd25CZmJhY1JtbTZRRW56YURsSWQvbDNxUUtCZ1FEZXJBN3dTd0UxUklDTG5QY3JKbmFzNTZNc3RCcXp0R0Z6Cjc3aVgvNVFhRVlHQjlqN0VUb1dWOGx4amVXaHEzSHhzYjhGaTN1QlRqUVQ5OFNPRndRQU5vemM0bTd3VnoyME0KekJBdFArVHFzemJseGRhUXgyWC9PSnd4TFIyVXN6YlF3c1poQ1FxNFB4WXJKbEk5ZnlKVzVxY1ZmeHdJQmZ1bwpURzlyQ0t4c2x3S0JnSElCT0NGeGRjc1liK3pFd0FCaEJFdzRpWXRTS3VSNndqOUVOWFNnWXNnR2ZJeG5URUxCClZxa1NsVUYwcWxKRnJBa2lPN2dKYUE1WXNDemcKcndJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg=="
+          JWT_PRIVATE_KEY: "dummy"
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
           REDIS_URL: "redis://localhost:6379/0"
-          ENCRYPTION_KEY: "Y2ktdGVzdC1lbmNyeXB0aW9uLWtleS1tdXN0LWJlLTMyLWJ5dGVz"
           ENVIRONMENT: "testing"
         continue-on-error: true
         run: |
-          pytest -v --tb=short -m "not needs_db" --ignore=doctor-app --ignore=patient-app || echo "::warning::Tests failed - deployment continues."
-
+          cd backend/healthcare-core && PYTHONPATH=.. pytest -v --tb=short || echo "::warning::Tests failed - deployment continues."
 
   auth-and-backend:
     name: Deploy Backend & Database
@@ -116,7 +116,6 @@ jobs:
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
-          # Fallback to workload identity if SA Key is not provided
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: github-deployer@hospyn-495906.iam.gserviceaccount.com
           token_format: access_token
@@ -131,111 +130,65 @@ jobs:
           username: oauth2accesstoken
           password: ${{ steps.auth.outputs.access_token }}
 
-      - name: Build and Push Docker Image
+      - name: Build and Push Docker Images
         run: |
-          IMAGE_NAME="us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-backend:${{ github.sha }}"
-          docker build -t $IMAGE_NAME .
-          docker push $IMAGE_NAME
+          AUTH_IMAGE="us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-auth:${{ github.sha }}"
+          HEALTHCARE_IMAGE="us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-healthcare:${{ github.sha }}"
+          GATEWAY_IMAGE="us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-gateway:${{ github.sha }}"
+          
+          docker build -t $AUTH_IMAGE -f backend/auth-service/Dockerfile backend
+          docker build -t $HEALTHCARE_IMAGE -f backend/healthcare-core/Dockerfile backend
+          docker build -t $GATEWAY_IMAGE -f Dockerfile.gateway .
+          
+          docker push $AUTH_IMAGE
+          docker push $HEALTHCARE_IMAGE
+          docker push $GATEWAY_IMAGE
 
-      - name: Set up Python
-        uses: actions/setup-python@v5.3.0
-        with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install Migration Dependencies
+      - name: Deploy Auth Service
+        id: deploy-auth
         run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install asyncpg psycopg2-binary
-
-      - name: Validate Deployment Secrets
-        run: |
-          if [ -z "${{ secrets.DATABASE_URL_PROD }}" ] && [ -z "${{ secrets.DATABASE_URL }}" ]; then
-            echo "::error::CRITICAL: DATABASE_URL is missing from GitHub Secrets. Ensure it is set in Settings > Secrets > Actions."
-            exit 1
-          fi
-          echo "Database URL secret detected. Proceeding..."
-
-      - name: Run Database Migrations (Alembic)
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_PROD || secrets.DATABASE_URL }}
-          ENVIRONMENT: production
-          GCP_PROJECT_ID: hospyn-495906
-          SECRET_KEY: "ci-dummy-secret-key-for-migrations-only"
-          JWT_PRIVATE_KEY: "-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA7V9Bf1pZ...\n-----END RSA PRIVATE KEY-----"
-          JWT_PUBLIC_KEY: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7V9Bf1pZ...\n-----END PUBLIC KEY-----"
-          ENCRYPTION_KEY: "Y2ktdGVzdC1lbmNyeXB0aW9uLWtleS1tdXN0LWJlLTMyLWJ5dGVz"
-          HOSPYN_ALLOW_INSECURE_BOOT: "true"
-        run: |
-          export PYTHONPATH=$PYTHONPATH:.
-          # WIPE DISABLED FOR PRODUCTION DATA INTEGRITY
-          # python3 wipe_db.py
-          echo "🏗️ Building clinical schema..."
-          alembic upgrade head
-          echo "🚀 Running extra enterprise migrations (migrate.py)..."
-          python3 scripts/migrate.py
-
-      - name: Nuclear purge all Cloud Run env vars and secret mounts
-        run: |
-          # ANY var that was EVER set as a Secret Manager mount cannot be overwritten
-          # as a plain string — Cloud Run blocks it with "different type" error.
-          # Solution: wipe EVERYTHING first, then deploy fresh.
-
-          # 1. Remove ALL known secret mounts (|| true = safe if they don't exist)
-          gcloud run services update hospyn-495906-api \
-            --region us-central1 --project hospyn-495906 \
-            --remove-secrets "DATABASE_URL,SECRET_KEY,JWT_PRIVATE_KEY,JWT_PUBLIC_KEY,ENCRYPTION_KEY,ASYNC_DATABASE_URL,HOSPYN_SECRET_KEY,HOSPYN_PRIVATE_KEY,HOSPYN_PUBLIC_KEY,HOSPYN_ENCRYPTION_KEY" \
-            2>/dev/null || true
-
-          gcloud run services update hospyn-495906-worker \
-            --region us-central1 --project hospyn-495906 \
-            --remove-secrets "DATABASE_URL,SECRET_KEY,JWT_PRIVATE_KEY,JWT_PUBLIC_KEY,ENCRYPTION_KEY,ASYNC_DATABASE_URL,HOSPYN_SECRET_KEY,HOSPYN_PRIVATE_KEY,HOSPYN_PUBLIC_KEY,HOSPYN_ENCRYPTION_KEY" \
-            2>/dev/null || true
-
-          # 2. Remove ALL plain env vars in one shot
-          gcloud run services update hospyn-495906-api \
-            --region us-central1 --project hospyn-495906 \
-            --clear-env-vars \
-            2>/dev/null || true
-            
-          gcloud run services update hospyn-495906-worker \
-            --region us-central1 --project hospyn-495906 \
-            --clear-env-vars \
-            2>/dev/null || true
-
-          echo "All env vars and secret mounts cleared. Deploying fresh."
-
-      - name: Deploy API Service
-        run: |
-          IMAGE_NAME="us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-backend:${{ github.sha }}"
-          gcloud run deploy hospyn-495906-api \
-            --image $IMAGE_NAME \
-            --region us-central1 \
-            --project hospyn-495906 \
-            --platform managed \
-            --allow-unauthenticated \
-            --port 8080 \
-            --timeout 300 \
-            --cpu 1 \
-            --memory 512Mi \
-            --set-env-vars "ENVIRONMENT=production,USE_REDIS=False,GCP_PROJECT_ID=hospyn-495906,GCS_BUCKET_NAME=hospyn-495906-vault,HOSPYN_ALLOW_INSECURE_BOOT=true,TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }},TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }},TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }}" \
-            --update-secrets "ASYNC_DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest,JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest"
-
-      - name: Deploy Worker Service
-        run: |
-          IMAGE_NAME="us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-backend:${{ github.sha }}"
-          gcloud run deploy hospyn-495906-worker \
-            --image $IMAGE_NAME \
+          AUTH_IMAGE="us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-auth:${{ github.sha }}"
+          gcloud run deploy hospyn-495906-auth \
+            --image $AUTH_IMAGE \
             --region us-central1 \
             --project hospyn-495906 \
             --platform managed \
             --no-allow-unauthenticated \
-            --min-instances 0 \
-            --command "bash" \
-            --args "-c,python3 -m http.server \$PORT & arq app.workers.arq_worker.WorkerSettings" \
-            --set-env-vars "ENVIRONMENT=production,USE_REDIS=False,TWILIO_ACCOUNT_SID=${{ secrets.TWILIO_ACCOUNT_SID }},TWILIO_AUTH_TOKEN=${{ secrets.TWILIO_AUTH_TOKEN }},TWILIO_FROM_NUMBER=${{ secrets.TWILIO_FROM_NUMBER }},GCP_PROJECT_ID=hospyn-495906,GCS_BUCKET_NAME=hospyn-495906-vault,HOSPYN_ALLOW_INSECURE_BOOT=true" \
-            --update-secrets "ASYNC_DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest,JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,GROQ_API_KEY=GROQ_API_KEY:latest,ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest"
+            --port 8001 \
+            --set-env-vars "ENVIRONMENT=production" \
+            --update-secrets "DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_PRIVATE_KEY=JWT_PRIVATE_KEY:latest,JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest"
+          
+          AUTH_URL=$(gcloud run services describe hospyn-495906-auth --region us-central1 --format 'value(status.url)')
+          echo "AUTH_URL=$AUTH_URL" >> $GITHUB_ENV
+
+      - name: Deploy Healthcare Service
+        id: deploy-healthcare
+        run: |
+          HEALTHCARE_IMAGE="us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-healthcare:${{ github.sha }}"
+          gcloud run deploy hospyn-495906-healthcare \
+            --image $HEALTHCARE_IMAGE \
+            --region us-central1 \
+            --project hospyn-495906 \
+            --platform managed \
+            --no-allow-unauthenticated \
+            --port 8002 \
+            --set-env-vars "ENVIRONMENT=production" \
+            --update-secrets "DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_PUBLIC_KEY=JWT_PUBLIC_KEY:latest"
+            
+          HEALTH_URL=$(gcloud run services describe hospyn-495906-healthcare --region us-central1 --format 'value(status.url)')
+          echo "HEALTH_URL=$HEALTH_URL" >> $GITHUB_ENV
+
+      - name: Deploy API Gateway
+        run: |
+          GATEWAY_IMAGE="us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-gateway:${{ github.sha }}"
+          gcloud run deploy hospyn-495906-api \
+            --image $GATEWAY_IMAGE \
+            --region us-central1 \
+            --project hospyn-495906 \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8000 \
+            --set-env-vars "ENVIRONMENT=production,AUTH_SERVICE_URL=${{ env.AUTH_URL }},HEALTHCARE_SERVICE_URL=${{ env.HEALTH_URL }}"
 
   deploy-frontends:
     name: Deploy Frontends to Firebase
@@ -254,7 +207,7 @@ jobs:
           cache-dependency-path: |
             patient-app/package-lock.json
             doctor-app/package-lock.json
-            hospital-erp/package-lock.json
+            staff-portal/package-lock.json
             super-admin-dashboard/package-lock.json
             hospyn-v2-web/package-lock.json
 
@@ -264,7 +217,6 @@ jobs:
           cd patient-app
           echo "EXPO_PUBLIC_API_BASE_URL=https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1" > .env
           echo "EXPO_PUBLIC_ENVIRONMENT=production" >> .env
-          echo "EXPO_PUBLIC_GOOGLE_CLIENT_ID=625745217419-cq76tvb0mlt0bkmg8bd4r0csj4vmqmr8.apps.googleusercontent.com" >> .env
           npm install --legacy-peer-deps
           npm run build
 
@@ -272,13 +224,15 @@ jobs:
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'doctor' || (github.event_name == 'push' && needs.check-changes.outputs.doctor == 'true')
         run: |
           cd doctor-app
+          echo "VITE_API_URL=https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1" > .env
           npm install --legacy-peer-deps
           npm run build
 
-      - name: Build Hospital ERP
+      - name: Build Staff Portal
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'erp' || (github.event_name == 'push' && needs.check-changes.outputs.erp == 'true')
         run: |
-          cd hospital-erp
+          cd staff-portal
+          echo "VITE_API_URL=https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1" > .env
           npm install --legacy-peer-deps
           npm run build
 
@@ -296,22 +250,6 @@ jobs:
           npm install --legacy-peer-deps
           npm run build
 
-      - name: Deploy Patient App
-        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'patient' || (github.event_name == 'push' && needs.check-changes.outputs.patient == 'true')
-        run: npx firebase-tools deploy --only hosting:patient --token ${{ secrets.FIREBASE_TOKEN }}
-
-      - name: Deploy Doctor App
-        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'doctor' || (github.event_name == 'push' && needs.check-changes.outputs.doctor == 'true')
-        run: npx firebase-tools deploy --only hosting:doctor --token ${{ secrets.FIREBASE_TOKEN }}
-
-      - name: Deploy Hospital ERP
-        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'erp' || (github.event_name == 'push' && needs.check-changes.outputs.erp == 'true')
-        run: npx firebase-tools deploy --only hosting:erp --token ${{ secrets.FIREBASE_TOKEN }}
-
-      - name: Deploy Super Admin
-        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'admin' || (github.event_name == 'push' && needs.check-changes.outputs.admin == 'true')
-        run: npx firebase-tools deploy --only hosting:admin --token ${{ secrets.FIREBASE_TOKEN }}
-
-      - name: Deploy Landing Page
-        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'landing' || (github.event_name == 'push' && needs.check-changes.outputs.landing == 'true')
-        run: npx firebase-tools deploy --only hosting:landing --token ${{ secrets.FIREBASE_TOKEN }}
+      - name: Deploy Firebase Sites
+        run: |
+          npx firebase-tools deploy --only hosting --token ${{ secrets.FIREBASE_TOKEN }}

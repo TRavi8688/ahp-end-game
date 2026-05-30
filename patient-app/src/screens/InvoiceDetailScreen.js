@@ -9,10 +9,28 @@ import * as Haptics from 'expo-haptics';
 import { Theme } from '../theme';
 import { SecurityUtils } from '../utils/security';
 import { API_BASE_URL } from '../api';
+import { billingService } from '../services/billingService';
 
 const InvoiceDetailScreen = ({ route, navigation }) => {
     const { invoice } = route.params;
     const [isDownloading, setIsDownloading] = React.useState(false);
+    const [isPaying, setIsPaying] = React.useState(false);
+
+    const handlePayment = async () => {
+        try {
+            setIsPaying(true);
+            await billingService.payInvoice(invoice.id, invoice.payable_amount, 'UPI');
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            Alert.alert("Payment Successful", "Your clinical invoice has been settled.", [
+                { text: "OK", onPress: () => navigation.goBack() }
+            ]);
+        } catch (error) {
+            console.error("PAYMENT_ERROR:", error);
+            Alert.alert("Payment Failed", "Could not process the transaction.");
+        } finally {
+            setIsPaying(false);
+        }
+    };
 
     const handleDownload = async () => {
         try {
@@ -133,8 +151,16 @@ const InvoiceDetailScreen = ({ route, navigation }) => {
                     </TouchableOpacity>
                     
                     {invoice.status !== 'PAID' && (
-                        <TouchableOpacity style={styles.payNowButton}>
-                            <Text style={styles.payNowText}>PAY BALANCE NOW</Text>
+                        <TouchableOpacity 
+                            style={[styles.payNowButton, isPaying && { opacity: 0.7 }]}
+                            onPress={handlePayment}
+                            disabled={isPaying}
+                        >
+                            {isPaying ? (
+                                <ActivityIndicator color="#000" size="small" />
+                            ) : (
+                                <Text style={styles.payNowText}>PAY BALANCE NOW</Text>
+                            )}
                         </TouchableOpacity>
                     )}
                 </View>

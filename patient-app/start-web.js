@@ -25,7 +25,7 @@ async function start() {
     platform: 'web',
     mode: 'development',
     https: false,
-    port: 19008,
+    port: 19006,
   };
 
   console.log('[start-web] Building Webpack config...');
@@ -73,7 +73,7 @@ async function start() {
   const compiler = Webpack(config);
 
   const serverConfig = {
-    port: 19008,
+    port: 19006,
     host: '0.0.0.0', // Allow binding to all interfaces so localhost and LAN work
     client: {
       overlay: true,
@@ -89,8 +89,8 @@ async function start() {
       console.error('[start-web] COMPILATION FAILED:\n', stats.toString('errors-only'));
     } else {
       console.log('\n[start-web] Compiled successfully!');
-      console.log('[start-web] Patient App: http://localhost:19008');
-      console.log('[start-web] Mobile (Expo Go): exp://192.168.0.21:19008\n');
+      console.log('[start-web] Patient App: http://localhost:19006');
+      console.log('[start-web] Mobile (Expo Go): exp://192.168.0.21:19006\n');
     }
   });
 

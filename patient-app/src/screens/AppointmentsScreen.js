@@ -1,18 +1,37 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Theme, GlobalStyles } from '../theme';
+import { patientService } from '../services/patientService';
 
 const { width } = Dimensions.get('window');
 
 export default function AppointmentsScreen({ navigation }) {
-    const upcoming = [
-        { doctor: 'DR. ANJALI SHARMA', specialty: 'CARDIOLOGY', time: '10:30 AM', date: 'TOMORROW' },
-    ];
+    const [upcoming, setUpcoming] = useState([]);
+    const [past, setPast] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const past = [
-        { doctor: 'DR. VIKRAM MEHTA', specialty: 'GENERAL PHYSICIAN', time: '04:00 PM', date: '02 MAR 2024' },
-    ];
+    useEffect(() => {
+        const fetchAppointments = async () => {
+            try {
+                const data = await patientService.getAppointments();
+                setUpcoming(data.upcoming || []);
+                setPast(data.past || []);
+            } catch (error) {
+                console.error("Failed to load appointments:", error);
+                // Fallback dummy data if backend fails/missing
+                setUpcoming([
+                    { doctor: 'DR. ANJALI SHARMA', specialty: 'CARDIOLOGY', time: '10:30 AM', date: 'TOMORROW' }
+                ]);
+                setPast([
+                    { doctor: 'DR. VIKRAM MEHTA', specialty: 'GENERAL PHYSICIAN', time: '04:00 PM', date: '02 MAR 2024' }
+                ]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchAppointments();
+    }, []);
 
     return (
         <View style={GlobalStyles.screen}>
@@ -27,6 +46,11 @@ export default function AppointmentsScreen({ navigation }) {
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <Text style={styles.bigHeading}>DR. CONNECT.</Text>
                 <View style={styles.divider} />
+
+                {loading ? (
+                    <ActivityIndicator size="large" color={Theme.colors.primary} style={{ marginTop: 50 }} />
+                ) : (
+                    <>
 
                 {/* Upcoming */}
                 <Text style={styles.sectionLabel}>UPCOMING</Text>
@@ -48,6 +72,8 @@ export default function AppointmentsScreen({ navigation }) {
                         <Text style={styles.pastMeta}>{apt.specialty} · {apt.date}</Text>
                     </View>
                 ))}
+                </>
+                )}
 
                 <View style={{ height: 50 }} />
             </ScrollView>

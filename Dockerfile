@@ -12,12 +12,21 @@ RUN apt-get update && \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Create a non-root user for security
+RUN groupadd -r hospyn && useradd -r -g hospyn hospyn
+
 # Copy application code
 COPY . .
 
 # Copy entrypoint and fix line endings (strip Windows CRLF if present)
 COPY entrypoint.sh /entrypoint.sh
 RUN sed -i 's/\r//' /entrypoint.sh && chmod +x /entrypoint.sh
+
+# Change ownership of the app directory to the non-root user
+RUN chown -R hospyn:hospyn /app /entrypoint.sh
+
+# Switch to non-root user
+USER hospyn
 
 # Cloud Run requires listening on $PORT (default 8080)
 ENV PORT=8080

@@ -1,59 +1,57 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
-  db:
-    image: postgres:15-alpine
-    container_name: hospyn_postgres
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-hospyn}
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
     ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - "8000:8000"
+    environment:
+      - DOCKER_ENV=true
+      - AUTH_SERVICE_URL=http://auth-service:8001
+      - HEALTHCARE_SERVICE_URL=http://healthcare-core:8002
+    depends_on:
+      - auth-service
+      - healthcare-core
 
-  # Redis Cache
+  auth-service:
+    build:
+      context: ./backend
+      dockerfile: ./auth-service/Dockerfile
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///app/auth-service/hospyn_auth_local.db
+    ports:
+      - "8001:8001"
+    volumes:
+      - auth_data:/app/auth-service
+
+  healthcare-core:
+    build:
+      context: ./backend
+      dockerfile: ./healthcare-core/Dockerfile
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///app/healthcare-core/hospyn_healthcare_local.db
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - "8002:8002"
+    depends_on:
+      - redis
+    volumes:
+      - healthcare_data:/app/healthcare-core
+
   redis:
-    image: redis:7-alpine
-    container_name: hospyn_redis
+    image: redis:alpine
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
-  # FastAPI Backend
-  api:
-    build: 
-      context: .
-      dockerfile: Dockerfile
-    container_name: hospyn_api
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - .:/app
-    ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-hospyn}
-      - REDIS_URL=redis://redis:6379/0
-      - ENVIRONMENT=local
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+  # NOTE: To serve frontend apps in production, we would add their Dockerfiles 
+  # using NGINX here. Since this is a test environment, frontend apps can 
+  # point to http://localhost:8000 for the Gateway.
 
 volumes:
-  postgres_data:
+  auth_data:
+  healthcare_data:
   redis_data:

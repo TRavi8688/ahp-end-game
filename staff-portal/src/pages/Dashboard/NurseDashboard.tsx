@@ -1,195 +1,250 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Activity, 
-  Bed, 
-  ChevronRight, 
-  Thermometer, 
-  Droplets, 
-  Heart, 
+  HeartPulse, 
+  Activity,
+  AlertTriangle,
+  Play,
+  CheckCircle,
+  Thermometer,
   Wind,
-  ClipboardCheck,
-  AlertCircle,
-  Plus,
-  Monitor,
-  LayoutGrid
+  Droplets,
+  MoreVertical
 } from 'lucide-react';
+import apiClient from '../../apiClient';
+import { useAuth } from '../../context/AuthContext';
 
-import { useStore } from '../../store/useStore';
+interface TriagePatient {
+  id: string;
+  queue_number: number;
+  full_name: string;
+  age: number;
+  gender: string;
+  reason_for_visit: string;
+  priority_level: string;
+  queue_state: string;
+  wait_minutes: number;
+}
 
 const NurseDashboard: React.FC = () => {
-  const { queue } = useStore();
+  const { user } = useAuth();
+  const [queue, setQueue] = useState<TriagePatient[]>([]);
+  const [stats, setStats] = useState({ total_pending: 0, total_in_triage: 0 });
+  const [activePatient, setActivePatient] = useState<TriagePatient | null>(null);
   
-  const triageQueue = queue.length > 0 ? queue : [
-    { id: 'TR-402', name: 'Rohan Deshmukh', priority: 'High', time: '10:05 AM', task: 'Vitals Entry' },
-    { id: 'TR-405', name: 'Priya Verma', priority: 'Regular', time: '10:15 AM', task: 'Vitals Entry' },
-  ];
+  // Vitals Form State
+  const [vitals, setVitals] = useState({
+    heart_rate: '', blood_pressure_systolic: '', blood_pressure_diastolic: '',
+    temperature: '', spo2: '', respiratory_rate: '', weight_kg: ''
+  });
+  const [triageNotes, setTriageNotes] = useState('');
 
-  const bedsideTasks = [
-    { id: 'TS-901', patient: 'Arjun Mehta', ward: 'ICU-1', instruction: 'Monitor SpO2 every 15m', status: 'DUE NOW' },
-    { id: 'TS-904', patient: 'Sarah Khan', ward: 'OPD-B', instruction: 'Administer follow-up injection', status: 'PENDING' },
-  ];
+  const fetchQueue = async () => {
+    try {
+      const res = await apiClient.get('/nurse/queue');
+      setQueue(res.data.data.queue);
+      setStats({
+        total_pending: res.data.data.total_pending,
+        total_in_triage: res.data.data.total_in_triage
+      });
+      // Auto-select first in_triage patient if none selected
+      if (!activePatient) {
+        const inProgress = res.data.data.queue.find((p: any) => p.queue_state === 'in_triage');
+        if (inProgress) setActivePatient(inProgress);
+      }
+    } catch (err) {
+      console.error('Failed to fetch triage queue', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchQueue();
+    const interval = setInterval(fetchQueue, 15000); // Poll every 15s
+    return () => clearInterval(interval);
+  }, [activePatient]);
+
+  const handleStartTriage = async (patient: TriagePatient) => {
+    try {
+      await apiClient.patch(`/nurse/queue/${patient.id}/start`);
+      setActivePatient({ ...patient, queue_state: 'in_triage' });
+      fetchQueue();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCompleteTriage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activePatient) return;
+    try {
+      await apiClient.patch(`/nurse/queue/${activePatient.id}/complete`, {
+        triage_notes: triageNotes,
+        vitals: {
+          heart_rate: parseInt(vitals.heart_rate),
+          blood_pressure_systolic: parseInt(vitals.blood_pressure_systolic),
+          blood_pressure_diastolic: parseInt(vitals.blood_pressure_diastolic),
+          temperature: parseFloat(vitals.temperature),
+          spo2: parseInt(vitals.spo2),
+          respiratory_rate: parseInt(vitals.respiratory_rate),
+          weight_kg: parseFloat(vitals.weight_kg)
+        }
+      });
+      setActivePatient(null);
+      setVitals({ heart_rate: '', blood_pressure_systolic: '', blood_pressure_diastolic: '', temperature: '', spo2: '', respiratory_rate: '', weight_kg: '' });
+      setTriageNotes('');
+      fetchQueue();
+    } catch (err) {
+      alert('Failed to submit triage data. Check vitals formatting.');
+    }
+  };
 
   return (
     <div className="min-h-screen p-10 bg-[#050505] text-[#f8fafc] font-inter">
-      
-      {/* Premium Header */}
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-12">
+      <header className="flex justify-between items-end mb-12">
         <div className="space-y-2">
           <div className="flex items-center gap-2 mb-2">
-             <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-             <span className="text-[10px] font-black text-blue-500 tracking-[0.3em] uppercase">Ward Active: Main Block 4</span>
+             <div className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+             <span className="text-[10px] font-black text-rose-500 tracking-[0.3em] uppercase">Triage Command Center</span>
           </div>
-          <h1 className="text-5xl font-black tracking-tighter outfit leading-none">Nursing Command</h1>
-          <p className="text-slate-500 text-sm font-medium">Coordinating care for {triageQueue.length} triage cases and active beds.</p>
-        </div>
-
-        <div className="flex items-center gap-4">
-           <button className="bg-white text-black px-8 py-4 rounded-2xl font-black text-[10px] tracking-widest uppercase hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-3">
-              <Plus size={18} />
-              New Admission
-           </button>
+          <h1 className="text-5xl font-black tracking-tighter outfit leading-none">Nursing</h1>
+          <p className="text-slate-500 text-sm font-medium">Welcome back, {(user as any)?.name || user?.email}. Managing {stats.total_pending} pending triages.</p>
         </div>
       </header>
 
-      {/* Vitals Telemetry HUD */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
-        {[
-          { label: 'Heart Rate', value: '72', unit: 'BPM', icon: Heart, color: 'text-rose-500', trend: 'STABLE' },
-          { label: 'SpO2 Level', value: '98', unit: '%', icon: Wind, color: 'text-blue-500', trend: 'OPTIMAL' },
-          { label: 'Core Temp', value: '98.6', unit: '°F', icon: Thermometer, color: 'text-amber-500', trend: 'NORMAL' },
-          { label: 'Pressure', value: '120/80', unit: 'mmHg', icon: Droplets, color: 'text-indigo-500', trend: 'SECURED' },
-        ].map((stat, i) => (
-          <div key={i} className="bg-white/[0.03] border border-white/5 rounded-[32px] p-8 hover:border-white/10 transition-all group relative overflow-hidden">
-             <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-10 transition-opacity">
-                <stat.icon size={80} />
-             </div>
-             <div className="flex justify-between items-start mb-6">
-                <div className={`p-3 rounded-xl bg-white/5 ${stat.color}`}>
-                   <stat.icon size={24} />
-                </div>
-                <span className={`text-[10px] font-black tracking-widest ${stat.color}`}>{stat.trend}</span>
-             </div>
-             <h2 className="text-4xl font-black outfit tracking-tighter">{stat.value}<span className="text-sm font-medium text-slate-600 ml-1">{stat.unit}</span></h2>
-             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">{stat.label}</p>
-          </div>
-        ))}
-      </div>
-
       <div className="grid grid-cols-12 gap-8">
         
-        {/* Triage Matrix */}
-        <div className="col-span-12 lg:col-span-8">
+        {/* Triage Queue List */}
+        <div className={`col-span-12 ${activePatient ? 'lg:col-span-5' : 'lg:col-span-12'} transition-all`}>
            <div className="bg-white/[0.03] border border-white/5 rounded-[40px] overflow-hidden">
               <div className="p-8 border-b border-white/5 flex justify-between items-center bg-white/[0.01]">
                  <div className="flex items-center gap-3">
-                    <ClipboardCheck className="text-blue-500" size={22} />
-                    <h3 className="text-xl font-black outfit tracking-tight">Pending Triage Cases</h3>
+                    <Activity className="text-rose-500" size={22} />
+                    <h3 className="text-xl font-black outfit tracking-tight">Triage Queue</h3>
                  </div>
-                 <span className="px-4 py-2 bg-blue-500/10 text-blue-500 rounded-xl text-[10px] font-black tracking-widest uppercase">
-                    {triageQueue.length} Active Requests
+                 <span className="px-4 py-2 bg-rose-500/10 text-rose-500 rounded-xl text-[10px] font-black tracking-widest uppercase">
+                    {stats.total_pending} Waiting
                  </span>
               </div>
               
               <div className="divide-y divide-white/5">
-                 {triageQueue.map((p) => (
-                    <div key={p.id} className="p-8 flex items-center justify-between group hover:bg-white/[0.02] transition-all">
-                       <div className="flex items-center gap-8">
-                          <div className={`w-16 h-16 rounded-[22px] flex items-center justify-center font-black text-2xl outfit transition-all ${
-                             p.priority === 'High' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20 shadow-[0_0_30px_rgba(244,63,94,0.1)]' : 'bg-white/5 text-slate-500'
+                 {queue.length === 0 && <div className="p-16 text-center text-slate-500 font-bold uppercase tracking-widest text-xs">Queue is empty</div>}
+                 
+                 {queue.map((p) => (
+                    <div key={p.id} className={`p-6 flex items-center justify-between transition-all cursor-pointer ${
+                      activePatient?.id === p.id ? 'bg-white/[0.05] border-l-4 border-l-rose-500' : 'hover:bg-white/[0.02]'
+                    }`}
+                    onClick={() => {
+                      if (p.queue_state === 'in_triage') setActivePatient(p);
+                    }}>
+                       <div className="flex items-center gap-6">
+                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl outfit border ${
+                             p.priority_level === 'emergency' ? 'bg-rose-500/10 text-rose-500 border-rose-500/30' : 
+                             p.priority_level === 'urgent' ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' : 
+                             'bg-white/5 text-slate-400 border-white/10'
                           }`}>
-                             {p.name[0]}
+                             {p.queue_number}
                           </div>
-                          
                           <div className="space-y-1">
                              <div className="flex items-center gap-3">
-                                <h4 className="text-2xl font-black outfit tracking-tight text-white">{p.name}</h4>
-                                {p.priority === 'High' && (
-                                   <span className="text-[10px] px-3 py-1 bg-rose-500/10 text-rose-500 rounded-full font-black uppercase tracking-widest border border-rose-500/20">URGENT</span>
-                                )}
+                                <h4 className="text-lg font-black outfit tracking-tight text-white">{p.full_name}</h4>
                              </div>
-                             <div className="flex items-center gap-4 text-xs font-bold text-slate-500 uppercase tracking-tighter">
-                                <span className="font-mono text-slate-400">{p.id}</span>
+                             <div className="flex items-center gap-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                <span>{p.age}y {p.gender[0]}</span>
                                 <div className="w-1 h-1 rounded-full bg-slate-800" />
-                                <span>WAIT: <span className="text-blue-500">{(p as any).time}</span></span>
+                                <span>Wait: {p.wait_minutes}m</span>
                              </div>
                           </div>
                        </div>
 
-                       <button className="bg-white/5 hover:bg-blue-600 text-white px-8 py-4 rounded-2xl font-black text-[10px] tracking-widest uppercase transition-all">
-                          Initiate Intake
-                       </button>
+                       {p.queue_state === 'waiting_triage' ? (
+                         <button onClick={(e) => { e.stopPropagation(); handleStartTriage(p); }} className="bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white px-4 py-3 rounded-xl font-black text-[10px] tracking-widest uppercase transition-all flex items-center gap-2">
+                            <Play size={14} /> Start
+                         </button>
+                       ) : (
+                         <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest animate-pulse">In Triage</span>
+                       )}
                     </div>
                  ))}
               </div>
            </div>
         </div>
 
-        {/* Ward Intelligence */}
-        <div className="col-span-12 lg:col-span-4 space-y-8">
-           
-           <div className="bg-white/[0.03] border border-white/5 rounded-[40px] p-8">
-              <div className="flex items-center gap-4 mb-10">
-                 <div className="w-12 h-12 rounded-[18px] bg-blue-600 flex items-center justify-center text-white shadow-2xl shadow-blue-500/30">
-                    <Bed size={24} />
-                 </div>
-                 <div>
-                    <h3 className="text-xl font-black outfit tracking-tight text-white">Ward Capacity</h3>
-                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mt-0.5">80% Occupancy</p>
-                 </div>
-              </div>
+        {/* Vitals Capture Matrix */}
+        {activePatient && (
+          <div className="col-span-12 lg:col-span-7 space-y-6">
+             <div className="bg-white/[0.03] border border-rose-500/20 rounded-[40px] p-8 relative overflow-hidden shadow-[0_0_100px_rgba(244,63,94,0.05)]">
+                <div className="absolute top-0 right-0 p-6 opacity-5"><HeartPulse size={150} /></div>
+                
+                <div className="flex items-center gap-4 mb-8">
+                   <div className="w-16 h-16 bg-white border border-white/10 rounded-2xl flex items-center justify-center text-2xl font-black text-black">
+                     {activePatient.queue_number}
+                   </div>
+                   <div>
+                     <h3 className="text-3xl font-black outfit tracking-tighter text-white">{activePatient.full_name}</h3>
+                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1">Reason: {activePatient.reason_for_visit}</p>
+                   </div>
+                </div>
 
-              <div className="grid grid-cols-5 gap-4 mb-8">
-                 {[...Array(15)].map((_, i) => (
-                    <div 
-                       key={i} 
-                       className={`h-12 rounded-xl border transition-all duration-500 ${
-                          i < 12 ? 'bg-blue-500/20 border-blue-500/30' : 'bg-white/5 border-white/10'
-                       }`}
-                    />
-                 ))}
-              </div>
-
-              <div className="space-y-4 pt-6 border-t border-white/5">
-                 <div className="flex justify-between items-center text-[10px] font-black tracking-widest uppercase">
-                    <span className="text-slate-500">Critical Care Beds</span>
-                    <span className="text-rose-500">01 FREE</span>
-                 </div>
-                 <div className="flex justify-between items-center text-[10px] font-black tracking-widest uppercase">
-                    <span className="text-slate-500">General Ward</span>
-                    <span className="text-emerald-500">02 FREE</span>
-                 </div>
-              </div>
-           </div>
-
-           {/* Bedside Task Feed */}
-           <div className="bg-white/[0.03] border border-white/5 rounded-[40px] p-8">
-              <div className="flex items-center gap-3 mb-8">
-                 <Monitor className="text-blue-500" size={20} />
-                 <h3 className="text-lg font-black outfit uppercase tracking-tight text-white">Active Tasks</h3>
-              </div>
-              
-              <div className="space-y-6">
-                 {bedsideTasks.map((task) => (
-                    <div key={task.id} className="p-6 bg-white/5 rounded-3xl border border-white/5 space-y-4 hover:border-blue-500/30 transition-all">
-                       <div className="flex justify-between items-start">
-                          <div>
-                             <p className="text-sm font-black text-white">{task.patient}</p>
-                             <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{task.ward}</p>
-                          </div>
-                          <span className={`text-[10px] font-black px-2 py-1 rounded ${
-                             task.status === 'DUE NOW' ? 'bg-rose-500/10 text-rose-500' : 'bg-white/5 text-slate-500'
-                          }`}>
-                             {task.status}
-                          </span>
+                <form onSubmit={handleCompleteTriage} className="space-y-8 relative z-10">
+                  {/* Vitals Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                     <div className="bg-white/5 border border-white/10 rounded-2xl p-5 group hover:border-rose-500/50 transition-all">
+                       <HeartPulse className="text-rose-500 mb-3" size={24} />
+                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Heart Rate</label>
+                       <div className="flex items-end gap-2">
+                         <input required type="number" value={vitals.heart_rate} onChange={e => setVitals({...vitals, heart_rate: e.target.value})} className="w-full bg-transparent text-3xl font-black outfit text-white focus:outline-none placeholder-slate-800 p-0" placeholder="00" />
+                         <span className="text-xs font-bold text-slate-600 mb-1">bpm</span>
                        </div>
-                       <p className="text-xs font-medium text-slate-400 italic leading-relaxed">
-                          "{task.instruction}"
-                       </p>
-                    </div>
-                 ))}
-              </div>
-           </div>
-        </div>
+                     </div>
+                     <div className="bg-white/5 border border-white/10 rounded-2xl p-5 group hover:border-blue-500/50 transition-all">
+                       <Droplets className="text-blue-500 mb-3" size={24} />
+                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Blood Pressure</label>
+                       <div className="flex items-end gap-1">
+                         <input required type="number" value={vitals.blood_pressure_systolic} onChange={e => setVitals({...vitals, blood_pressure_systolic: e.target.value})} className="w-full bg-transparent text-2xl font-black outfit text-white focus:outline-none placeholder-slate-800 p-0 text-center" placeholder="120" />
+                         <span className="text-2xl font-black text-slate-700">/</span>
+                         <input required type="number" value={vitals.blood_pressure_diastolic} onChange={e => setVitals({...vitals, blood_pressure_diastolic: e.target.value})} className="w-full bg-transparent text-2xl font-black outfit text-white focus:outline-none placeholder-slate-800 p-0 text-center" placeholder="80" />
+                       </div>
+                     </div>
+                     <div className="bg-white/5 border border-white/10 rounded-2xl p-5 group hover:border-amber-500/50 transition-all">
+                       <Thermometer className="text-amber-500 mb-3" size={24} />
+                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Temperature</label>
+                       <div className="flex items-end gap-2">
+                         <input required type="number" step="0.1" value={vitals.temperature} onChange={e => setVitals({...vitals, temperature: e.target.value})} className="w-full bg-transparent text-3xl font-black outfit text-white focus:outline-none placeholder-slate-800 p-0" placeholder="00.0" />
+                         <span className="text-xs font-bold text-slate-600 mb-1">°F</span>
+                       </div>
+                     </div>
+                     <div className="bg-white/5 border border-white/10 rounded-2xl p-5 group hover:border-emerald-500/50 transition-all">
+                       <Wind className="text-emerald-500 mb-3" size={24} />
+                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">SpO2</label>
+                       <div className="flex items-end gap-2">
+                         <input required type="number" value={vitals.spo2} onChange={e => setVitals({...vitals, spo2: e.target.value})} className="w-full bg-transparent text-3xl font-black outfit text-white focus:outline-none placeholder-slate-800 p-0" placeholder="00" />
+                         <span className="text-xs font-bold text-slate-600 mb-1">%</span>
+                       </div>
+                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Respiratory Rate (breaths/min)</label>
+                       <input required type="number" value={vitals.respiratory_rate} onChange={e => setVitals({...vitals, respiratory_rate: e.target.value})} className="w-full bg-transparent text-xl font-black text-white focus:outline-none" placeholder="16" />
+                     </div>
+                     <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Weight (kg)</label>
+                       <input required type="number" step="0.1" value={vitals.weight_kg} onChange={e => setVitals({...vitals, weight_kg: e.target.value})} className="w-full bg-transparent text-xl font-black text-white focus:outline-none" placeholder="70.5" />
+                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Triage Notes</label>
+                    <textarea required value={triageNotes} onChange={e => setTriageNotes(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:ring-2 focus:ring-rose-500 focus:outline-none resize-none h-24" placeholder="Patient reports severe abdominal pain..." />
+                  </div>
+
+                  <button type="submit" className="w-full py-5 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl font-black text-xs tracking-widest uppercase transition-all flex items-center justify-center gap-2 shadow-[0_0_40px_rgba(225,29,72,0.3)] hover:shadow-[0_0_60px_rgba(225,29,72,0.5)]">
+                    <CheckCircle size={18} /> Submit Vitals & Route to Doctor
+                  </button>
+                </form>
+             </div>
+          </div>
+        )}
       </div>
     </div>
   );

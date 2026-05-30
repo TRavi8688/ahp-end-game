@@ -8,6 +8,7 @@ export default function AdminDashboard() {
   const [metrics, setMetrics] = useState(null);
   const [branches, setBranches] = useState([]);
   const [ledger, setLedger] = useState([]);
+  const [doctorPerformance, setDoctorPerformance] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,15 +21,17 @@ export default function AdminDashboard() {
   const fetchDashboardData = async () => {
     try {
       // Parallel fetch for hyper-performance
-      const [metricsRes, branchesRes, ledgerRes] = await Promise.all([
+      const [metricsRes, branchesRes, ledgerRes, perfRes] = await Promise.all([
         apiClient.get('/api/v1/owner/global-metrics'),
         apiClient.get('/api/v1/owner/branch-metrics'),
-        apiClient.get('/api/v1/owner/audit-ledger')
+        apiClient.get('/api/v1/owner/audit-ledger'),
+        apiClient.get('/api/v1/owner/doctor-performance')
       ]);
       
       setMetrics(metricsRes.data);
       setBranches(branchesRes.data.branches || []);
       setLedger(ledgerRes.data.ledger || []);
+      setDoctorPerformance(perfRes.data.performance || []);
     } catch (err) {
       console.error("God Mode Telemetry Failure:", err);
     } finally {
@@ -156,6 +159,54 @@ export default function AdminDashboard() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* Doctor Performance Matrix */}
+      <div className="card" style={{ padding: '2rem', marginTop: '1.5rem' }}>
+        <h2 style={{ margin: '0 0 1.5rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Stethoscope size={20} style={{ color: '#64748b' }}/> Doctor Performance & Activity Matrix
+        </h2>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #e2e8f0', color: '#64748b', fontSize: '0.85rem', textTransform: 'uppercase' }}>
+                <th style={{ padding: '1rem 0.5rem' }}>Doctor</th>
+                <th style={{ padding: '1rem 0.5rem' }}>Login Time</th>
+                <th style={{ padding: '1rem 0.5rem' }}>Patients Treated</th>
+                <th style={{ padding: '1rem 0.5rem' }}>Avg. Consult Time</th>
+                <th style={{ padding: '1rem 0.5rem' }}>Break Time</th>
+                <th style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>Performance Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {doctorPerformance.length === 0 ? (
+                <tr><td colSpan={6} style={{ padding: '1rem', color: '#94a3b8', textAlign: 'center' }}>No active doctor sessions today.</td></tr>
+              ) : doctorPerformance.map(doc => (
+                <tr key={doc.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                  <td style={{ padding: '1rem 0.5rem' }}>
+                    <div style={{ fontWeight: 600 }}>{doc.name}</div>
+                    <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{doc.specialty}</div>
+                  </td>
+                  <td style={{ padding: '1rem 0.5rem', color: '#475569' }}>
+                    {doc.login_time !== 'N/A' ? new Date(doc.login_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'Offline'}
+                  </td>
+                  <td style={{ padding: '1rem 0.5rem', fontWeight: 600, color: 'var(--color-brand)' }}>{doc.patients_treated}</td>
+                  <td style={{ padding: '1rem 0.5rem', color: '#475569' }}>{doc.avg_treatment_time}</td>
+                  <td style={{ padding: '1rem 0.5rem', color: '#f59e0b', fontWeight: 600 }}>{doc.break_time}</td>
+                  <td style={{ padding: '1rem 0.5rem', textAlign: 'right' }}>
+                    <span style={{ 
+                      display: 'inline-block', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.85rem', fontWeight: 700,
+                      background: doc.rating === 'A' ? '#dcfce7' : '#fef3c7',
+                      color: doc.rating === 'A' ? '#166534' : '#92400e'
+                    }}>
+                      Rating: {doc.rating}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

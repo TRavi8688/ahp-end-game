@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { SecurityUtils } from '../utils/security';
 import { patientService } from '../services/patientService';
+import { clinicalService } from '../services/clinicalService';
 import { setAuthFailureCallback } from '../services/apiClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -104,6 +105,15 @@ export const AuthProvider = ({ children }) => {
     const logout = async () => {
         try {
             console.warn('[Auth] Terminating session...');
+            
+            // HIPAA compliance cache clearing
+            try {
+                patientService.clearCache();
+                clinicalService.clearCache();
+            } catch (cacheErr) {
+                console.error('[Auth] Error clearing ephemeral caches:', cacheErr);
+            }
+
             await SecurityUtils.deleteToken();
             await SecurityUtils.saveHospynId(null);
             await AsyncStorage.removeItem('auth_provider');
