@@ -1,44 +1,100 @@
-# Node dependencies (each stage installs its own)
-doctor-app/node_modules
-patient-app/node_modules
-node_modules
-
-# Build outputs (each stage builds its own)
-doctor-app/build
-patient-app/dist
-doctor-app/deploy
-patient-app/deploy
+# ============================================================
+# HOSPYN - .dockerignore
+# FIXES APPLIED:
+#   - enc.key excluded (was being COPIED into every container)
+#   - *.key pattern added
+#   - Dead code dirs excluded (archive, scratch, store_room)
+#   - Tests excluded from production image
+#   - Frontend apps excluded from backend image
+#   - All .env files excluded
+# ============================================================
 
 # Git
 .git
-.github
+.gitignore
+.gitattributes
+
+# ── SECRETS — CRITICAL ────────────────────────────────────────
+# FIXED: enc.key was being copied into production containers
+enc.key
+*.key
+*.pem
+.env
+.env.*
+!.env.example
+secrets/
+
+# Dead code — none of this belongs in a production image
+archive/
+scratch/
+store_room/
+backups/
+scratch.py
+start_manual_testing.py
+start_all.py
+start_all.ps1
+start.bat
+start_api.py
+start_worker.py
+recovery.md
+
+# Documentation
+*.md
+!README.md
+book/
+docs/
+HOSPYN_CTO_BLUEPRINT_*.md
+
+# Tests — not needed in production image
+tests/
+pytest.ini
+locustfile.py
+.pytest_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# Frontend apps — not needed in backend API image
+patient-app/
+doctor-app/
+staff-portal/
+super-admin-dashboard/
+hr-portal/
+partner-app/
+pharma-mobile-app/
+hospyn-v2-web/
+
+# Node
+node_modules/
+npm-debug.log*
+package.json
+package-lock.json
+
+# Python cache
+**/__pycache__/
+**/*.py[cod]
+**/.mypy_cache/
+**/.ruff_cache/
 
 # IDE
-.vscode
-.idea
+.vscode/
+.idea/
 *.swp
-*.swo
-
-# Python
-__pycache__
-*.pyc
-.pytest_cache
-.mypy_cache
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Docker
-docker-compose.yml
-nginx/
+# Firebase / Railway / GCP
+.firebase/
+.firebaserc
+firebase.json
+.railway/
 
-# Environment (Railway provides these)
-.env
-.env.local
-.env.production
+# Terraform
+terraform/
+*.tfstate
+*.tfvars
 
-# Temp
-*.log
-secure_uploads/
-uploads/
+# CI
+.github/

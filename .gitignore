@@ -1,11 +1,16 @@
+# ============================================================
+# HOSPYN - .gitignore
+# FIXES APPLIED:
+#   - enc.key explicitly blocked (was not present before)
+#   - *.key pattern added
+#   - store_room/ added
+#   - archive/ added
+# ============================================================
+
 # Python
 **/__pycache__/
 **/*.py[cod]
 **/*$py.class
-.env
-.env.local
-.env.*.local
-.env.production
 **/.venv
 **/env/
 **/venv/
@@ -14,6 +19,28 @@
 **/dist/
 **/*.egg-info/
 **/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+
+# Environment files — NEVER commit real .env files
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+!.env.example
+
+# ── SECRETS — NEVER COMMIT THESE ─────────────────────────────
+# FIXED: enc.key was committed to the repo. This line prevents recurrence.
+enc.key
+*.key
+*.pem
+id_rsa
+id_rsa.pub
+key.json
+fresh_deploy_key.json
+secrets/
+private/
 
 # Node.js
 **/node_modules/
@@ -24,13 +51,17 @@ yarn-error.log*
 
 # Logs
 *.log
-uploads/
-secure_uploads/
+error_logs.txt
+
+# Database files — never commit DB files
 *.db
 test.db
+uploads/
+secure_uploads/
 
 # OS
 .DS_Store
+Thumbs.db
 
 # IDE
 .vscode/
@@ -38,19 +69,12 @@ test.db
 *.swp
 *.swo
 
-# Security - NEVER commit these
-.env
-.env.*
-!.env.example
-secrets/
-private/
-*.pem
-*.key
-id_rsa
-id_rsa.pub
-
-# Railway
+# Railway / GCP / Firebase
 .railway
+.railway/
+.firebase/
+.firebaserc
+firebase.json
 
 # Build artifacts
 build/
@@ -62,31 +86,30 @@ tmp/
 temp/
 *.tmp
 
-Thumbs.db
-
-# Misc
+# Dead code directories — FIXED: now explicitly excluded
+# FIXED: archive/ added
+archive/
+# FIXED: store_room/ added
+store_room/
+scratch/
+scratch_backup/
+maintenance_archive/
+backups/
+our-jorny/
+old-hospyn/
+brain/
 .gemini/
 .agents/
 .agent/
-brain/
-alembic/__pycache__/
-our-jorny/
-old-hospyn/
 
-# Expo
+# Expo / React Native
 **/.expo/
 **/web-build/
 
-# Railway
-.railway/
+# Alembic cache
+alembic/__pycache__/
 
-key.json
-fresh_deploy_key.json
-error_logs.txt
-
-# Maintenance & Archives
-maintenance_archive/
-scratch_backup/
-backups/
-scratch/
-
+# Coverage reports
+.coverage
+coverage.xml
+htmlcov/

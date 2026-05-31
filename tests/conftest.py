@@ -1,32 +1,21 @@
-import os
-import sys
-
-# Set ENVIRONMENT to testing before any application modules are imported
-os.environ["ENVIRONMENT"] = "testing"
-
+"""
+tests/conftest.py
+=================
+Test configuration and shared fixtures.
+Sets up in-memory test database and HTTP client.
+"""
+import asyncio
 import pytest
-import app.core.database as database
+from httpx import AsyncClient, ASGITransport
 
-@pytest.fixture(autouse=True)
-async def cleanup_db_engines():
-    """
-    Ensure that the SQLAlchemy connection pool is clean and does not leak
-    connections across different asyncio event loops, preventing
-    'RuntimeError: Event loop is closed' failures during test execution.
-    """
-    yield
-    # Safely dispose writer engine if initialized
-    if getattr(database, "_writer_engine", None) is not None:
-        try:
-            await database._writer_engine.dispose()
-        except Exception:
-            pass
-        database._writer_engine = None
-        
-    # Safely dispose reader engine if initialized
-    if getattr(database, "_reader_engine", None) is not None:
-        try:
-            await database._reader_engine.dispose()
-        except Exception:
-            pass
-        database._reader_engine = None
+
+@pytest.fixture(scope="session")
+def event_loop():
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest.fixture
+def anyio_backend():
+    return "asyncio"

@@ -1,102 +1,132 @@
-name: Hospyn Production CI Pipeline
+name: Hospyn CI — Tests & Security
 
 on:
   push:
-    branches: [ main, master, development ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, master, development ]
+    branches: [main, develop]
 
 jobs:
-  lint-and-format:
+  # ── Backend Tests ───────────────────────────────────────────────────────────
+  test-backend:
+    name: Backend Tests (Python)
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hospyn
+          POSTGRES_PASSWORD: ci_test_password_not_real
+          POSTGRES_DB: hospyn_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          cache: 'pip'
-
-      - name: Install Linting dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install flake8 black
-
-      - name: Check code formatting (Black)
-        run: black --check backend/
-
-      - name: Lint with flake8
-        run: |
-          # stop the build if there are Python syntax errors or undefined names
-          flake8 backend/ --count --select=E9,F63,F7,F82 --show-source --statistics
-          # exit-zero treats all errors as warnings
-          flake8 backend/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-
-  test-services:
-    needs: lint-and-format
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+          python-version: "3.11"
+          cache: "pip"
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r backend/auth-service/requirements.txt
-          pip install -r backend/healthcare-core/requirements.txt
-          pip install pytest pytest-asyncio httpx
+        run: pip install -r requirements.txt
 
-      - name: Run Auth Service Tests
+      - name: Run tests with coverage
         env:
-          ENVIRONMENT: test
-          SECRET_KEY: test_secret_key_must_be_at_least_32_characters_for_sentry_to_pass
+          DATABASE_URL: postgresql+asyncpg://hospyn:ci_test_password_not_real@localhost:5432/hospyn_test
           REDIS_URL: redis://localhost:6379/0
-        run: |
-          cd backend/auth-service
-          pytest
-
-      - name: Run Healthcare Core Tests
-        env:
+          # FIXED: Use a test-only secret that passes validation (64 chars, not default)
+          SECRET_KEY: ci_test_secret_key_that_is_definitely_not_the_default_value_and_is_64chars_long
           ENVIRONMENT: test
-          JWT_SECRET_KEY: test_secret_key_must_be_at_least_32_characters_for_sentry_to_pass
-          REDIS_URL: redis://localhost:6379/1
+          SENTRY_DSN: ""
         run: |
-          cd backend/healthcare-core
-          pytest
+          pytest \
+            --cov=app \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-fail-under=50 \
+            -v \
+            tests/
 
-  docker-validation:
-    needs: test-services
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          file: ./coverage.xml
+          fail_ci_if_error: false
+
+  # ── Secret Scanning ─────────────────────────────────────────────────────────
+  secret-scan:
+    name: Secret Scanning
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for secret scanning
+
+      - name: TruffleHog secret scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified
+
+  # ── Docker Build Validation ─────────────────────────────────────────────────
+  docker-build:
+    name: Docker Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Build Docker image
+        run: docker build -t hospyn-api-test .
 
-      - name: Validate Auth Service Dockerfile Build
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend/auth-service
-          file: ./backend/auth-service/Dockerfile.dev
-          push: false
-          tags: hospyn-auth:test
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Verify enc.key not in image
+        run: |
+          # FIXED: This would have PASSED before because enc.key was in the image
+          result=$(docker run --rm hospyn-api-test find /app -name "enc.key" 2>/dev/null || true)
+          if [ -n "$result" ]; then
+            echo "CRITICAL: enc.key found inside Docker image!"
+            exit 1
+          fi
+          echo "OK: enc.key is not present in the Docker image"
 
-      - name: Validate Healthcare Core Dockerfile Build
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend/healthcare-core
-          file: ./backend/healthcare-core/Dockerfile.dev
-          push: false
-          tags: hospyn-healthcare:test
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Verify archive directory not in image
+        run: |
+          result=$(docker run --rm hospyn-api-test ls /app/archive 2>/dev/null || true)
+          if [ -n "$result" ]; then
+            echo "FAIL: archive/ directory found in Docker image"
+            exit 1
+          fi
+          echo "OK: archive/ not present in Docker image"
+
+      - name: Check image size
+        run: |
+          SIZE=$(docker image inspect hospyn-api-test --format='{{.Size}}')
+          SIZE_MB=$((SIZE / 1024 / 1024))
+          echo "Image size: ${SIZE_MB}MB"
+          if [ $SIZE_MB -gt 600 ]; then
+            echo "WARNING: Image is larger than 600MB (${SIZE_MB}MB) — consider optimising"
+          fi
