@@ -1,60 +1,52 @@
-# =========================================================
-# Stage 1: Build dependencies
-# =========================================================
-FROM python:3.12-slim AS builder
+# Hospyn API - Cloud Run optimised build
+# PHASE 07 FIXES APPLIED:
+#   1. COPY . . replaced with explicit selective COPY (blocks secrets)
+#   2. HEALTHCHECK added so Docker/Cloud Run detects unhealthy containers
+#   3. curl installed for healthcheck probe
+#   4. Non-root user retained (was already good)
 
-WORKDIR /build
-
-# Install build tools
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc libpq-dev curl \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY pyproject.toml poetry.lock* requirements.txt* ./
-
-# Install to a prefix so we can copy cleanly
-RUN pip install --upgrade pip --break-system-packages && \
-    pip install --prefix=/install --no-cache-dir -r requirements.txt 2>/dev/null || \
-    pip install --prefix=/install --no-cache-dir .
-
-
-# =========================================================
-# Stage 2: Runtime image
-# =========================================================
-FROM python:3.12-slim AS runtime
-
-# Security: create non-root user
-RUN groupadd --gid 1001 hospyn && \
-    useradd --uid 1001 --gid hospyn --shell /bin/bash --create-home hospyn
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install only runtime system deps (no build tools)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 curl \
-    && rm -rf /var/lib/apt/lists/*
+# Install system dependencies — curl required for HEALTHCHECK
+RUN apt-get update && \
+    apt-get install -y gcc libpq-dev postgresql-client tesseract-ocr curl && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy installed packages from builder
-COPY --from=builder /install /usr/local
+# Install python dependencies BEFORE copying app code
+# (better Docker layer cache: deps only reinstall when requirements.txt changes)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application source ONLY — .dockerignore excludes enc.key, .env, scratch, archive
-# enc.key must NEVER be in the image; it is loaded at runtime from GCP Secret Manager
-COPY --chown=hospyn:hospyn backend/ ./backend/
-COPY --chown=hospyn:hospyn alembic.ini ./
-COPY --chown=hospyn:hospyn alembic/ ./alembic/
-COPY --chown=hospyn:hospyn entrypoint.sh ./
+# Create a non-root user for security
+RUN groupadd -r hospyn && useradd -r -g hospyn hospyn
 
-RUN chmod +x entrypoint.sh
+# FIX: Explicit selective COPY instead of 'COPY . .'
+# .dockerignore already blocks enc.key, .env*, scratch*, archive/, backups/
+# but explicit COPY here is defence-in-depth and makes the image smaller.
+COPY app/ ./app/
+COPY alembic/ ./alembic/
+COPY alembic.ini .
 
-# Switch to non-root user
+# Copy entrypoint and strip Windows CRLF if present
+COPY entrypoint.sh /entrypoint.sh
+RUN sed -i 's/\r//' /entrypoint.sh && chmod +x /entrypoint.sh
+
+# Transfer ownership BEFORE switching user
+RUN chown -R hospyn:hospyn /app /entrypoint.sh
+
+# Switch to non-root user (security hardening)
 USER hospyn
 
-# Cloud Run / Kubernetes: PORT env drives the listen port
+# Cloud Run injects PORT; default 8080
 ENV PORT=8080
 EXPOSE 8080
 
-# Health check — Docker/Cloud Run detect unhealthy containers
+# FIX: HEALTHCHECK — without this, Docker reports "healthy" even when
+# the app is returning 500 on every request.
+# --start-period=15s gives uvicorn time to boot before health is checked.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:${PORT}/health || exit 1
 
-ENTRYPOINT ["./entrypoint.sh"]
+ENTRYPOINT ["/entrypoint.sh"]

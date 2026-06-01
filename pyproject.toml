@@ -22,29 +22,65 @@ dependencies = [
     "httpx>=0.27.0",
     "arq>=0.25.0",
     "asyncpg>=0.29.0",
-    "aiosqlite>=0.20.0",
     "Pillow>=10.2.0",
     "pytesseract>=0.3.10",
     "cryptography>=42.0.0",
     "psutil>=5.9.0",
-    "twilio (>=9.10.3,<10.0.0)",
+    "twilio>=9.10.3,<10.0.0",
     "sentry-sdk[fastapi]>=1.40.0",
     "psycopg2-binary>=2.9.0",
     "google-cloud-storage>=2.10.0",
     "prometheus-client>=0.20.0",
+    # Phase 12: OpenTelemetry (was 'ready' in README, now actually wired)
+    "opentelemetry-api>=1.24.0",
+    "opentelemetry-sdk>=1.24.0",
+    "opentelemetry-instrumentation-fastapi>=0.45b0",
+    "opentelemetry-instrumentation-sqlalchemy>=0.45b0",
+    "opentelemetry-instrumentation-httpx>=0.45b0",
+    "opentelemetry-instrumentation-redis>=0.45b0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.24.0",
+    # Phase 14: multi-worker performance
+    "uvloop>=0.19.0",
+    "httptools>=0.6.0",
 ]
 
 [dependency-groups]
 dev = [
+    # Phase 11: full test suite
     "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
     "pytest-cov>=4.1.0",
+    "pytest-timeout>=2.3.0",
+    "anyio[trio]>=4.3.0",
+    "aiosqlite>=0.20.0",
+    "httpx>=0.27.0",
+    "factory-boy>=3.3.0",
     "ruff>=0.3.0",
     "mypy>=1.9.0",
     "bandit>=1.7.7",
-    "pytest-asyncio (>=1.3.0,<2.0.0)",
-    "locust (>=2.44.0,<3.0.0)",
+    "locust>=2.44.0,<3.0.0",
 ]
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests", "scripts"]
+timeout = 30
+markers = [
+    "unit: Pure unit tests (no I/O)",
+    "integration: Tests requiring DB/Redis",
+    "red_team: Security attack simulations",
+    "chaos: Chaos engineering tests",
+]

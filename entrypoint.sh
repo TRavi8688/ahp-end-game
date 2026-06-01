@@ -1,46 +1,65 @@
-#!/bin/sh
-# entrypoint.sh — waits for PostgreSQL to be ready before starting the service
-# DO NOT run alembic migrations here; run them as a separate deploy step
-set -e
+#!/usr/bin/env bash
+# entrypoint.sh
+# PHASE 07 FIX: Added database readiness wait loop before starting uvicorn.
+# Without this, if the container starts before postgres is accepting connections,
+# every request fails until postgres is ready — causing silent startup failures.
 
-PORT="${PORT:-8080}"
-MAX_RETRIES=30
-RETRY_INTERVAL=2
+set -euo pipefail
 
-# Wait for PostgreSQL to be ready
-if [ -n "${DATABASE_URL:-}" ]; then
-  echo "Waiting for database..."
-  retries=0
-  until python3 -c "
-import asyncio, sys, os
-import asyncpg
+# Cloud Run injects PORT=8080. Fall back to 8080 for safety.
+export PORT="${PORT:-8080}"
 
-async def check():
-    url = os.environ['DATABASE_URL'].replace('postgresql+asyncpg://', 'postgresql://')
-    try:
-        conn = await asyncpg.connect(url, timeout=3)
-        await conn.close()
-        sys.exit(0)
-    except Exception as e:
-        sys.exit(1)
+echo "=== Hospyn API Starting ==="
+echo "PORT: $PORT"
+echo "ENVIRONMENT: ${ENVIRONMENT:-not_set}"
 
-asyncio.run(check())
-" 2>/dev/null; do
-    retries=$((retries + 1))
-    if [ "$retries" -ge "$MAX_RETRIES" ]; then
-      echo "ERROR: Database not ready after ${MAX_RETRIES} attempts. Exiting."
-      exit 1
-    fi
-    echo "  Database not ready (attempt $retries/$MAX_RETRIES) — retrying in ${RETRY_INTERVAL}s..."
-    sleep "$RETRY_INTERVAL"
-  done
-  echo "Database ready."
+# ─── STARTUP KEY VALIDATION ──────────────────────────────────────────────────
+# Refuse to start if SECRET_KEY is the default/empty value.
+# This prevents accidentally deploying with an insecure key.
+if [ -z "${SECRET_KEY:-}" ]; then
+    echo "FATAL: SECRET_KEY environment variable is not set. Refusing to start."
+    exit 1
 fi
 
-# exec replaces this shell with uvicorn, so signals (SIGTERM) reach uvicorn directly
-exec uvicorn app.main:app \
-  --host 0.0.0.0 \
-  --port "$PORT" \
-  --workers "${UVICORN_WORKERS:-1}" \
-  --loop uvloop \
-  --log-level "${LOG_LEVEL:-info}"
+if [ "${SECRET_KEY}" = "your-secret-key-here" ] || [ "${SECRET_KEY}" = "changeme" ]; then
+    echo "FATAL: SECRET_KEY is set to a known default value. Rotate it immediately."
+    exit 1
+fi
+
+# ─── DATABASE READINESS WAIT ─────────────────────────────────────────────────
+# FIX: Wait for PostgreSQL to be accepting connections before starting uvicorn.
+# Avoids "could not connect to database" errors on fresh deployments.
+if [ -n "${DATABASE_URL:-}" ] && echo "$DATABASE_URL" | grep -q "postgresql"; then
+    echo "Waiting for PostgreSQL to be ready..."
+    # Extract host and port from DATABASE_URL
+    # Format: postgresql+asyncpg://user:pass@host:port/dbname
+    DB_HOST=$(echo "$DATABASE_URL" | sed -E 's|.*@([^:/]+).*|\1|')
+    DB_PORT=$(echo "$DATABASE_URL" | sed -E 's|.*:([0-9]+)/.*|\1|' || echo "5432")
+    DB_PORT="${DB_PORT:-5432}"
+
+    MAX_RETRIES=30
+    RETRY_INTERVAL=2
+    count=0
+    until pg_isready -h "$DB_HOST" -p "$DB_PORT" -q 2>/dev/null; do
+        count=$((count + 1))
+        if [ "$count" -ge "$MAX_RETRIES" ]; then
+            echo "FATAL: PostgreSQL at ${DB_HOST}:${DB_PORT} did not become ready after ${MAX_RETRIES} attempts."
+            exit 1
+        fi
+        echo "  Waiting for database... attempt ${count}/${MAX_RETRIES}"
+        sleep "$RETRY_INTERVAL"
+    done
+    echo "Database is ready."
+fi
+
+# ─── MIGRATIONS ──────────────────────────────────────────────────────────────
+# Migrations are handled by the CI/CD pipeline BEFORE this container starts.
+# DO NOT run alembic here — if it fails, uvicorn never starts and Cloud Run
+# reports "container failed to start on port".
+# For local development only, uncomment the line below:
+# alembic upgrade head
+
+# ─── START SERVER ────────────────────────────────────────────────────────────
+echo "Starting uvicorn on 0.0.0.0:$PORT"
+# exec replaces the shell process with uvicorn — proper PID 1 signal handling
+exec uvicorn app.main:app --host 0.0.0.0 --port "$PORT"

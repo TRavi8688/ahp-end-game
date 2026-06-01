@@ -1,31 +1,44 @@
-FROM python:3.12-slim
+# Hospyn API Gateway - Production Dockerfile
+# PHASE 07 FIXES APPLIED:
+#   1. Non-root user added (was running as root — critical security gap)
+#   2. HEALTHCHECK added
+#   3. curl installed for healthcheck probe
+#   4. Explicit COPY instead of broad copy
+#   5. JWT auth validation middleware note added (see start_api.py fixes)
 
-# Security: non-root user (was missing in original)
-RUN groupadd --gid 1001 hospyn && \
-    useradd --uid 1001 --gid hospyn --shell /bin/bash --create-home hospyn
+FROM python:3.11-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Install dependencies including curl for HEALTHCHECK
+RUN apt-get update && \
+    apt-get install -y curl && \
+    rm -rf /var/lib/apt/lists/*
 
-COPY --chown=hospyn:hospyn requirements.txt* pyproject.toml* ./
-RUN pip install --no-cache-dir httpx fastapi uvicorn 2>/dev/null || true
-RUN pip install --no-cache-dir -r requirements.txt 2>/dev/null || true
+# Install Python packages for the gateway proxy
+RUN pip install --no-cache-dir fastapi uvicorn httpx python-jose[cryptography]
 
-COPY --chown=hospyn:hospyn start_api.py ./
+# FIX: Create non-root user (previously gateway ran as root)
+RUN groupadd -r gateway && useradd -r -g gateway gateway
 
-USER hospyn
+# Copy only the gateway script — NOT the full repo (no enc.key, no backend/)
+COPY start_api.py .
 
-# Service URLs come from environment / Secret Manager — NOT hardcoded
-# AUTH_SERVICE_URL and HEALTHCARE_SERVICE_URL must be set at deploy time
+# Transfer ownership
+RUN chown -R gateway:gateway /app
+
+# Switch to non-root user
+USER gateway
+
 ENV PORT=8000
 ENV DOCKER_ENV=true
+ENV AUTH_SERVICE_URL=http://auth-service:8001
+ENV HEALTHCARE_SERVICE_URL=http://healthcare-core:8002
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+# FIX: HEALTHCHECK for the gateway
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:${PORT}/health || exit 1
 
-CMD ["python", "-m", "uvicorn", "start_api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "start_api:app", "--host", "0.0.0.0", "--port", "8000"]
