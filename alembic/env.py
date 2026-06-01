@@ -1,109 +1,81 @@
-import logging
+"""
+alembic/env.py
+Phase 6 fix: reads DATABASE_URL from environment variable.
+Blocks SQLite. Uses asyncpg for async migrations.
+"""
+import asyncio
+import os
+import sys
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
 from alembic import context
+from sqlalchemy import pool
+from sqlalchemy.ext.asyncio import async_engine_from_config
 
-# this is the Alembic Config object, which provides
-# access to the values within the .ini file in use.
+# Import all models so Alembic can detect schema changes
+# Add each service's Base here as they are built
+try:
+    from backend.auth_service.app.core.database import Base as AuthBase
+    target_metadata = AuthBase.metadata
+except ImportError:
+    target_metadata = None
+
 config = context.config
-
-# Interpret the config file for Python logging.
-# This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-logger = logging.getLogger("alembic.env")
+# Read DATABASE_URL from environment — never hardcoded
+_database_url = os.environ.get("DATABASE_URL", "")
+if not _database_url:
+    print("ERROR: DATABASE_URL environment variable is not set.", file=sys.stderr)
+    sys.exit(1)
+if "sqlite" in _database_url.lower():
+    print("ERROR: DATABASE_URL points to SQLite. Alembic requires PostgreSQL.", file=sys.stderr)
+    sys.exit(1)
 
-# add your model's MetaData object here
-# for 'autogenerate' support
-from app.models.models import Base
-from app.core.config import settings
-target_metadata = Base.metadata
+# asyncpg driver for async migrations
+if "postgresql://" in _database_url and "+asyncpg" not in _database_url:
+    _database_url = _database_url.replace("postgresql://", "postgresql+asyncpg://")
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
+config.set_main_option("sqlalchemy.url", _database_url)
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode.
-
-    This configures the context with just a URL
-    and not an Engine, though an Engine is acceptable
-    here as well.  By skipping the Engine creation
-    we don't even need a DBAPI to be available.
-
-    Calls to context.execute() here emit the given string to the
-    script output.
-
-    """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        render_as_batch=True,
+        compare_type=True,
     )
-
     with context.begin_transaction():
         context.run_migrations()
 
 
-def run_migrations_online() -> None:
-    """
-    ENTERPRISE MIGRATION GATEWAY (SHIELD V8):
-    Implements Distributed Locking and Forensic Audit Chains.
-    """
-    from sqlalchemy import text
-    sync_url = settings.sync_database_url
-    if not sync_url or ("://" not in sync_url and "sqlite" not in sync_url):
-        logger.error(f"FATAL: DATABASE_URL is malformed or empty. Length={len(sync_url) if sync_url else 0}")
-        # Log a masked version for debugging
-        if sync_url:
-            logger.error(f"URL_PREFIX: {sync_url[:10]}...")
-        raise RuntimeError("Could not initialize database connection: URL is empty or invalid.")
-    
-    sync_url = settings.sync_database_url
-    if not sync_url or ("://" not in sync_url and "sqlite" not in sync_url):
-        logger.error(f"FATAL: DATABASE_URL is malformed or empty. Length={len(sync_url) if sync_url else 0}")
-        raise RuntimeError("Could not initialize database connection: URL is empty or invalid.")
-    
-    config.set_main_option("sqlalchemy.url", sync_url)
-    
-    connectable = engine_from_config(
+def do_run_migrations(connection):
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        compare_type=True,
+    )
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+async def run_async_migrations() -> None:
+    connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
+    async with connectable.connect() as connection:
+        await connection.run_sync(do_run_migrations)
+    await connectable.dispose()
 
-    def render_item(type_, val, autogen_context):
-        """Safeguard: Ensures custom Hospyn types are rendered with deep imports, not absolute app.* paths."""
-        if type_ == "type" and hasattr(val, "__module__") and "app.core.encryption" in val.__module__:
-            # Ensure the import is added to the generated script
-            autogen_context.imports.add("from app.core.encryption import StringEncryptedType, TextEncryptedType")
-            return val.__class__.__name__
-        return False
 
-    with connectable.connect() as connection:
-        logger.info("MIGRATION_SEQUENCE_STARTED")
-        context.configure(
-            connection=connection, 
-            target_metadata=target_metadata,
-            render_as_batch=True,
-            render_item=render_item
-        )
-        try:
-            with context.begin_transaction():
-                context.run_migrations()
-            logger.info("MIGRATION_SEQUENCE_COMPLETED")
-        except Exception as e:
-            logger.error(f"MIGRATION_FAILURE: {e}")
-            raise
+def run_migrations_online() -> None:
+    asyncio.run(run_async_migrations())
 
 
 if context.is_offline_mode():
