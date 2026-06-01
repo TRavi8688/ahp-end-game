@@ -14,17 +14,15 @@ Tests the full walk-in queue pipeline:
 
 import pytest
 import uuid
-from datetime import datetime, timezone
 from jose import jwt
-from httpx import AsyncClient
 
 from app.config.settings import settings
 from app.models.hospital import Hospital
 from app.models.patient import Patient
 from app.models.doctor import Doctor, DoctorStatus
 from app.models.staff import Staff, StaffRole, ShiftStatus
-from app.models.appointment import Appointment, AppointmentStatus, AppointmentType
-from app.models.walkin import WalkInRequest, QueueState, PriorityLevel, WalkInSource
+from app.models.appointment import Appointment, AppointmentStatus
+from app.models.walkin import WalkInRequest
 from app.services.queue_service import generate_walkin_token
 
 

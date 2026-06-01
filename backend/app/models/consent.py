@@ -16,7 +16,6 @@ from typing import List, Optional
 from uuid import uuid4
 
 from sqlalchemy import (
-    Boolean,
     Column,
     DateTime,
     Enum,
@@ -27,7 +26,6 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.orm import relationship
 
 # ─── Import base — adjust path to match your project ─────────────────────────
 # from backend.app.models.base import Base
@@ -240,7 +238,7 @@ class ConsentService:
         """
         DPDP §6(4): Withdrawal of consent must be as easy as granting it.
         """
-        from sqlalchemy import select, update
+        from sqlalchemy import select
 
         result = await self.db.execute(
             select(ConsentRecord).where(

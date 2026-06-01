@@ -1,6 +1,4 @@
 import uuid
-import os
-import json
 from datetime import datetime
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException

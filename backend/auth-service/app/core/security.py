@@ -17,7 +17,7 @@ from typing import Optional
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.fernet import Fernet
-from jose import JWTError, jwt
+from jose import jwt
 from passlib.context import CryptContext
 
 from app.core.config import get_settings
@@ -118,8 +118,6 @@ def get_public_key_pem() -> str:
 # ---------------------------------------------------------------------------
 
 def get_jwks() -> dict:
-    from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
-    from cryptography.hazmat.backends import default_backend
     import base64
     pub = _load_public_key()
     pub_numbers = pub.public_key().public_numbers() if hasattr(pub, 'private_bytes') else pub.public_numbers()

@@ -1,7 +1,7 @@
 import uuid
 import enum
-from datetime import datetime, timezone
-from sqlalchemy import String, Integer, Boolean, DateTime, Enum as SQLEnum, UUID, func
+from datetime import datetime
+from sqlalchemy import String, Integer, DateTime, Enum as SQLEnum, UUID, func
 from sqlalchemy.orm import Mapped, mapped_column
 from shared.database.core import Base
 

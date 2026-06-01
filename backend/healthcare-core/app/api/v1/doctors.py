@@ -27,7 +27,6 @@ from app.schemas.doctor import (
     DoctorResponse,
     DoctorListResponse,
 )
-from app.models.patient import Patient
 from app.models.medical_record import MedicalRecord
 from app.models.appointment import Appointment
 from shared.utils.responses import success_response, error_response

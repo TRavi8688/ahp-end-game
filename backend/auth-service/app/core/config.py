@@ -37,7 +37,7 @@ class Settings(BaseSettings):
             _fatal("SECRET_KEY must be at least 32 characters. Generate: make gen-secret")
         weak = ("supersecretkey", "changeme", "secret", "password")
         if any(w in self.SECRET_KEY.lower() for w in weak):
-            _fatal(f"SECRET_KEY contains a weak placeholder. Generate: make gen-secret")
+            _fatal("SECRET_KEY contains a weak placeholder. Generate: make gen-secret")
         if "sqlite" in self.DATABASE_URL.lower():
             _fatal("DATABASE_URL points to SQLite. Use PostgreSQL: postgresql+asyncpg://...")
         if self.ENV == "production" and not self.ALLOWED_ORIGINS.strip():

@@ -25,7 +25,6 @@ from app.models.doctor import Doctor
 from app.models.patient import Patient
 from app.schemas.appointment import (
     AppointmentCreate,
-    AppointmentUpdate,
     AppointmentResponse,
     AppointmentListResponse,
     AppointmentClinicalUpdate,

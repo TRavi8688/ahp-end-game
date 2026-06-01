@@ -8,12 +8,10 @@ Register router in main.py.
 from datetime import datetime
 from typing import Dict, Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.logging_config import get_logger
-from backend.app.models.consent import AuditLogService, ConsentService
 
 logger = get_logger(__name__)
 data_rights_router = APIRouter(prefix="/api/v1/account", tags=["data-rights"])

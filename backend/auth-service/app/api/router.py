@@ -34,7 +34,6 @@ from app.services.auth_service import (
     verify_otp,
     generate_reset_token,
     hash_reset_token,
-    verify_reset_token,
 )
 from app.core.database import get_db
 from shared.utils.responses import success_response, error_response

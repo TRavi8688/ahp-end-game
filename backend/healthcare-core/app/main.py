@@ -14,7 +14,6 @@ a valid JWT issued by the Auth Service.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-import logging
 import sentry_sdk
 
 from app.api.router import router as healthcare_router
@@ -29,7 +28,7 @@ logger = setup_logging()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup and shutdown lifecycle."""
-    logger.info(f"🏥 Healthcare Core starting", environment=settings.ENVIRONMENT)
+    logger.info("🏥 Healthcare Core starting", environment=settings.ENVIRONMENT)
 
     if hasattr(settings, "SENTRY_DSN") and settings.SENTRY_DSN:
         sentry_sdk.init(

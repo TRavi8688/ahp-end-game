@@ -8,7 +8,6 @@ This service is the ONLY service that issues tokens.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
-import logging
 import sentry_sdk
 
 from app.api.router import router as auth_router
@@ -24,7 +23,7 @@ logger = setup_logging()
 async def lifespan(app: FastAPI):
     """Application startup and shutdown lifecycle."""
     logger.info(
-        f"🔐 Auth Service starting",
+        "🔐 Auth Service starting",
         environment=settings.ENVIRONMENT,
         jwt_alg=settings.JWT_ALGORITHM,
     )

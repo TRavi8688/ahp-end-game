@@ -14,19 +14,16 @@ import time
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.settings import settings
 from app.models.walkin import (
     WalkInRequest,
     QueueState,
-    PriorityLevel,
-    WalkInSource,
     ACTIVE_QUEUE_STATES,
 )
 from app.models.staff import Staff, StaffRole
-from app.models.hospital import Hospital
 from shared.audit import log_audit_event
 
 # ---------------------------------------------------------------------------

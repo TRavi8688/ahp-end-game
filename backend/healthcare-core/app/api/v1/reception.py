@@ -23,19 +23,15 @@ from app.models.walkin import (
     WalkInRequest,
     QueueState,
     PriorityLevel,
-    WalkInSource,
     ACTIVE_QUEUE_STATES,
 )
 from app.models.staff import Staff, StaffRole
-from app.models.hospital import Hospital
 from app.models.doctor import Doctor
 from app.services.queue_service import (
     resolve_staff,
     transition_queue_state,
-    generate_queue_number,
-    check_duplicate_walkin,
 )
-from shared.utils.responses import success_response, error_response
+from shared.utils.responses import success_response
 from shared.audit import log_audit_event
 
 router = APIRouter()

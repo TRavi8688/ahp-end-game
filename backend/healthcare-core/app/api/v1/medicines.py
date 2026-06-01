@@ -1,6 +1,4 @@
-import json
 from fastapi import APIRouter, Query
-from typing import List, Dict
 
 router = APIRouter()
 

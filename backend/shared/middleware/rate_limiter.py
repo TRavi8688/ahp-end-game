@@ -8,7 +8,6 @@ Fails open if Redis is unavailable — logs warning but allows request.
 """
 
 import logging
-import time
 from typing import Dict, Optional, Tuple
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request

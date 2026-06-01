@@ -6,7 +6,6 @@ with async PostgreSQL + connection pooling.
 Place at: backend/app/core/database.py (replace existing file)
 """
 import os
-from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -15,7 +14,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
     async_sessionmaker,
 )
-from sqlalchemy.pool import NullPool, QueuePool
+from sqlalchemy.pool import NullPool
 from sqlalchemy import event, text
 
 from backend.app.core.logging_config import get_logger

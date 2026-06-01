@@ -6,7 +6,7 @@ Fetches public key from auth-service JWKS endpoint (cached 1 hour).
 import time
 from typing import Optional
 import httpx
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt, JWTError
 from pydantic import BaseModel

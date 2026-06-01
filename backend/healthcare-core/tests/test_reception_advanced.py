@@ -8,7 +8,7 @@ from app.models.hospital import Hospital
 from app.models.patient import Patient
 from app.models.doctor import Doctor, DoctorStatus
 from app.models.staff import Staff, StaffRole, ShiftStatus
-from app.models.walkin import WalkInRequest, QueueState, PriorityLevel, WalkInSource
+from app.models.walkin import QueueState
 from app.services.routing_service import QueueRoutingService
 
 

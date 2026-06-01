@@ -9,17 +9,15 @@ import time
 import os
 from typing import Dict, Any
 
-from fastapi import APIRouter, Response, Depends
+from fastapi import APIRouter, Response
 from prometheus_client import (
     Counter,
     Histogram,
     Gauge,
     generate_latest,
     CONTENT_TYPE_LATEST,
-    CollectorRegistry,
     REGISTRY,
 )
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.logging_config import get_logger
 

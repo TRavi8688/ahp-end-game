@@ -6,10 +6,9 @@
 #   4. Audit log entry for every AI API call involving PHI
 #   5. Triage thresholds marked as requiring clinical validation
 
-from fastapi import FastAPI, HTTPException, Depends, Header
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import Optional
 import re
 import logging
 import os

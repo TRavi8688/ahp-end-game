@@ -11,7 +11,6 @@ FIXES APPLIED:
 import time
 import logging
 from fastapi import FastAPI, Request
-from fastapi.responses import Response
 
 logger = logging.getLogger(__name__)
 

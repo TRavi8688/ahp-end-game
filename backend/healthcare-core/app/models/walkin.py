@@ -13,7 +13,6 @@ import enum
 from datetime import datetime
 from sqlalchemy import (
     String,
-    Boolean,
     DateTime,
     Enum as SQLEnum,
     UUID,
@@ -30,7 +29,6 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.hospital import Hospital
-    from app.models.staff import Staff
 
 
 class QueueState(str, enum.Enum):

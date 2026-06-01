@@ -7,7 +7,6 @@ Place at: backend/app/core/logging_config.py
 import logging
 import re
 import sys
-import uuid
 from contextvars import ContextVar
 from typing import Any, MutableMapping
 
