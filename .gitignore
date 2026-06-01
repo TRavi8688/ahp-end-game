@@ -1,44 +1,109 @@
-# SECRETS — never commit these
-enc.key
-.env
-.env.local
-.env.production
-.env.staging
+# ─────────────────────────────────────────────────────────────────────────────
+# HOSPYN .gitignore
+# AUDIT FIXES:
+#   I1: .firebase/ added (was missing — Firebase channel cache)
+#   Resolved merge conflict (<<<<<<< HEAD markers removed)
+# ─────────────────────────────────────────────────────────────────────────────
 
-# Python
+# ── Secrets — NEVER commit these ─────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+enc.key
+*.key
+*.pem
+*.crt
+*.p12
+secrets/
+*.secret
+
+# ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
-*.egg-info/
-dist/
+*.so
+.Python
 build/
+develop-eggs/
+dist/
+downloads/
+eggs/
 .eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ── Virtual environments ──────────────────────────────────────────────────────
 .venv/
 venv/
+ENV/
 env/
 
-# Coverage
+# ── Database files — NEVER commit SQLite DBs ─────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+.pytest_cache/
 .coverage
 htmlcov/
-.pytest_cache/
+coverage.xml
+*.coveragerc
 
-# IDE
+# ── Type checking / linting ───────────────────────────────────────────────────
+.mypy_cache/
+.ruff_cache/
+
+# ── Node / Frontend ───────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+/package-lock.json
+
+# ── Build artifacts ───────────────────────────────────────────────────────────
+/build/
+/dist/
+*.tsbuildinfo
+.next/
+out/
+
+# ── Firebase (AUDIT FIX I1: .firebase/ contains hosting channel cache) ────────
+.firebase/
+# Keep firebase.json and .firebaserc (deployment config) but block cache
+firebase-debug.log
+firebase-debug.*.log
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+.dockerignore
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# OS
 .DS_Store
 Thumbs.db
 
-# Logs
+# ── Logs ─────────────────────────────────────────────────────────────────────
 *.log
 logs/
 
-# Docker
-*.override.yml
+# ── Junk directories ─────────────────────────────────────────────────────────
+/archive/
+/backups/
+/scratch/
+/store_room/
+/book/
 
-# Node
+# ── Node (deduped) ────────────────────────────────────────────────────────────
 node_modules/
-hospyn-fixes/ 
+hospyn-fixes/
