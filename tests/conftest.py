@@ -3,10 +3,14 @@ conftest.py — Shared pytest fixtures for Hospyn test suite.
 Phase 11 Fix: provides DB, client, auth tokens, and mock services.
 """
 import os
+import sys
 import pytest
 import pytest_asyncio
 from typing import AsyncGenerator, Generator
 from unittest.mock import AsyncMock, MagicMock, patch
+
+# ─── Add repo root to Python path so 'backend' module can be imported ─────────
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # ─── Force test environment ───────────────────────────────────────────────────
 os.environ.setdefault("ENV", "test")
@@ -117,12 +121,13 @@ def mock_admin_user():
 def patient_token(mock_patient_user):
     """Generate a valid JWT for patient role."""
     from jose import jwt
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
+    now = datetime.now(timezone.utc)
     payload = {
         **mock_patient_user,
-        "exp": datetime.utcnow() + timedelta(hours=1),
-        "iat": datetime.utcnow(),
+        "exp": now + timedelta(hours=1),
+        "iat": now,
         "sub": str(mock_patient_user["id"]),
     }
     return jwt.encode(payload, os.environ["SECRET_KEY"], algorithm="HS256")
@@ -131,12 +136,13 @@ def patient_token(mock_patient_user):
 @pytest.fixture
 def doctor_token(mock_doctor_user):
     from jose import jwt
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
+    now = datetime.now(timezone.utc)
     payload = {
         **mock_doctor_user,
-        "exp": datetime.utcnow() + timedelta(hours=1),
-        "iat": datetime.utcnow(),
+        "exp": now + timedelta(hours=1),
+        "iat": now,
         "sub": str(mock_doctor_user["id"]),
     }
     return jwt.encode(payload, os.environ["SECRET_KEY"], algorithm="HS256")
@@ -146,12 +152,13 @@ def doctor_token(mock_doctor_user):
 def expired_token(mock_patient_user):
     """Token that is already expired — for rejection tests."""
     from jose import jwt
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
+    now = datetime.now(timezone.utc)
     payload = {
         **mock_patient_user,
-        "exp": datetime.utcnow() - timedelta(hours=1),
-        "iat": datetime.utcnow() - timedelta(hours=2),
+        "exp": now - timedelta(hours=1),
+        "iat": now - timedelta(hours=2),
         "sub": str(mock_patient_user["id"]),
     }
     return jwt.encode(payload, os.environ["SECRET_KEY"], algorithm="HS256")
