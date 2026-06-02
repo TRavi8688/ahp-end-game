@@ -110,3 +110,5 @@ hospyn-fixes/
 doctor-app/project_dump.txt 
 doctor-app/doctor-app-fixes/ 
 *.txt 
+".env" 
+".env.production" 
