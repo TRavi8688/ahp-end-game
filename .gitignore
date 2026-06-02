@@ -107,3 +107,6 @@ logs/
 # ── Node (deduped) ────────────────────────────────────────────────────────────
 node_modules/
 hospyn-fixes/
+doctor-app/project_dump.txt 
+doctor-app/doctor-app-fixes/ 
+*.txt 
