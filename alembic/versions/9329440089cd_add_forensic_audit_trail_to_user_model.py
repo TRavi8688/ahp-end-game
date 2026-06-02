@@ -9,7 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from app.core.encryption import StringEncryptedType, TextEncryptedType
+# FIX: removed bad import from app.core.encryption — migrations must not import app code
 
 # revision identifiers, used by Alembic.
 revision: str = '9329440089cd'
@@ -232,7 +232,7 @@ def upgrade() -> None:
                existing_nullable=False)
 
     with op.batch_alter_table('users', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('forensic_audit_trail', StringEncryptedType, nullable=True))
+        batch_op.add_column(sa.Column('forensic_audit_trail', sa.String(600), nullable=True))
 
     with op.batch_alter_table('wearable_data', schema=None) as batch_op:
         batch_op.alter_column('hospital_id',

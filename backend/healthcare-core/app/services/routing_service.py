@@ -16,9 +16,9 @@ class QueueRoutingService:
         db: AsyncSession, hospital_id: uuid.UUID
     ) -> Dict[uuid.UUID, int]:
         """
-        Calculates the active load (waiting_doctor or in_consultation) for all active doctors in the hospital.
+        Calculates the active load (waiting_doctor or in_consultation)
+        for all active doctors in the hospital.
         """
-        # Fetch count of active requests for each doctor
         query = (
             select(WalkInRequest.assigned_doctor_id, func.count(WalkInRequest.id))
             .where(
@@ -44,19 +44,19 @@ class QueueRoutingService:
         priority_level: Optional[PriorityLevel] = None,
     ) -> Optional[Doctor]:
         """
-        Auto-suggests the best doctor based on specialization, status (must be active),
+        Auto-suggests the best doctor based on specialization, status,
         and active workload (waiting + consultation queue length).
         """
-        # 1. Fetch active, approved doctors for this hospital
+        # FIX E712: Doctor.is_active == True  →  Doctor.is_active
+        # FIX E711: Doctor.deleted_at.is_(None) is already correct SQLAlchemy style
         doctor_query = select(Doctor).where(
             Doctor.hospital_id == hospital_id,
             Doctor.status == DoctorStatus.active,
-            Doctor.is_active == True,
+            Doctor.is_active,  # was: Doctor.is_active == True
             Doctor.deleted_at.is_(None),
         )
 
         if specialization:
-            # Case insensitive search on specialization
             doctor_query = doctor_query.where(
                 Doctor.specialization.ilike(f"%{specialization}%")
             )
@@ -65,12 +65,12 @@ class QueueRoutingService:
         doctors = doctors_result.scalars().all()
 
         if not doctors:
-            # If a specific specialization was requested but no doctor found, fallback to any active doctor
             if specialization:
+                # Fallback: any active doctor in this hospital, ignore specialization
                 fallback_query = select(Doctor).where(
                     Doctor.hospital_id == hospital_id,
                     Doctor.status == DoctorStatus.active,
-                    Doctor.is_active == True,
+                    Doctor.is_active,  # was: Doctor.is_active == True
                     Doctor.deleted_at.is_(None),
                 )
                 doctors_result = await db.execute(fallback_query)
@@ -79,11 +79,8 @@ class QueueRoutingService:
         if not doctors:
             return None
 
-        # 2. Get active loads
         loads = await QueueRoutingService.get_doctor_loads(db, hospital_id)
 
-        # 3. Score doctors: primary sort by active load (ascending), secondary sort by experience (descending)
-        # Low workload first, higher experience first if workloads are equal
         def score_doctor(doc: Doctor):
             doc_load = loads.get(doc.id, 0)
             return (doc_load, -getattr(doc, "years_of_experience", 0))
