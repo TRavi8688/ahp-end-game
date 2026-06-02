@@ -12,7 +12,6 @@ try {
     Sentry = require('@sentry/react-native');
     Updates = require('expo-updates');
     
-    // STRICT PRODUCTION SENTRY CONFIGURATION
     const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
     if (!__DEV__ && !sentryDsn) {
         console.warn('CRITICAL SECURITY WARNING: EXPO_PUBLIC_SENTRY_DSN is missing in production. Crash reports will not be captured.');
@@ -31,7 +30,6 @@ try {
   console.log("Native module load skipped", e);
 }
 
-
 // Core
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { SocketProvider } from './src/contexts/SocketContext';
@@ -42,29 +40,38 @@ import { Syne_800ExtraBold, Syne_700Bold } from '@expo-google-fonts/syne';
 import { SpaceMono_400Regular } from '@expo-google-fonts/space-mono';
 import { DMSans_400Regular } from '@expo-google-fonts/dm-sans';
 
-// Screens
-import LoginScreen from './src/screens/LoginScreen';
-import RegisterScreen from './src/screens/RegisterScreen';
-import ProfileSetupScreen from './src/screens/ProfileSetupScreen';
-import OnboardingScreen from './src/screens/OnboardingScreen';
-import MainTabs from './src/navigation/MainTabs';
+// ─── Screens ──────────────────────────────────────────────────────────────────
+import LoginScreen            from './src/screens/LoginScreen';
+import RegisterScreen         from './src/screens/RegisterScreen';
+import ProfileSetupScreen     from './src/screens/ProfileSetupScreen';   // FIX: was imported but never registered
+import OnboardingScreen       from './src/screens/OnboardingScreen';
 import RegistrationSuccessScreen from './src/screens/RegistrationSuccessScreen';
-import SharedAccessScreen from './src/screens/SharedAccessScreen';
-import SharingSettingsScreen from './src/screens/SharingSettingsScreen';
-import NotificationsScreen from './src/screens/NotificationsScreen';
-import AccessHistoryScreen from './src/screens/AccessHistoryScreen';
-import UploadScreen from './src/screens/UploadScreen';
-import BillingScreen from './src/screens/BillingScreen';
-import InvoiceDetailScreen from './src/screens/InvoiceDetailScreen';
-import PrescriptionScreen from './src/screens/PrescriptionScreen';
+
+import MainTabs               from './src/navigation/MainTabs';
+
+// Existing authenticated screens
+import SharedAccessScreen     from './src/screens/SharedAccessScreen';
+import SharingSettingsScreen  from './src/screens/SharingSettingsScreen';
+import NotificationsScreen    from './src/screens/NotificationsScreen';
+import AccessHistoryScreen    from './src/screens/AccessHistoryScreen';
+import UploadScreen           from './src/screens/UploadScreen';
+import BillingScreen          from './src/screens/BillingScreen';
+import InvoiceDetailScreen    from './src/screens/InvoiceDetailScreen';
+import PrescriptionScreen     from './src/screens/PrescriptionScreen';
 import PrescriptionDetailScreen from './src/screens/PrescriptionDetailScreen';
-import FamilyProfilesScreen from './src/screens/FamilyProfilesScreen';
-import RecordsScreen from './src/screens/RecordsScreen';
-import ActivityLogScreen from './src/screens/ActivityLogScreen';
-import CEODashboardScreen from './src/screens/CEODashboardScreen';
-import MedsScreen from './src/screens/MedsScreen';
-import AppointmentsScreen from './src/screens/AppointmentsScreen';
-import ChittiAiScreen from './src/screens/ChittiAiScreen';
+import FamilyProfilesScreen   from './src/screens/FamilyProfilesScreen';
+import RecordsScreen          from './src/screens/RecordsScreen';
+import ActivityLogScreen      from './src/screens/ActivityLogScreen';
+import CEODashboardScreen     from './src/screens/CEODashboardScreen';
+import MedsScreen             from './src/screens/MedsScreen';
+import AppointmentsScreen     from './src/screens/AppointmentsScreen';
+import ChittiAiScreen         from './src/screens/ChittiAiScreen';
+
+// NEW: Doctor booking + queue flow
+import DoctorSearchScreen     from './src/screens/DoctorSearchScreen';
+import BookAppointmentScreen  from './src/screens/BookAppointmentScreen';
+import QueueStatusScreen      from './src/screens/QueueStatusScreen';
+// ─────────────────────────────────────────────────────────────────────────────
 
 const Stack = createNativeStackNavigator();
 
@@ -84,9 +91,9 @@ function AppContent() {
     });
   }, []);
 
-  const [bootReady, setBootReady] = useState(false);
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [bootReady,   setBootReady]   = useState(false);
+  const [isUnlocked,  setIsUnlocked]  = useState(false);
+  const [isUpdating,  setIsUpdating]  = useState(false);
 
   useEffect(() => {
     const checkUpdates = async () => {
@@ -120,7 +127,7 @@ function AppContent() {
           if (success) {
             setIsUnlocked(true);
           } else {
-            logout(); // Kick back to login screen to protect data
+            logout();
           }
           setBootReady(true);
         } else {
@@ -134,15 +141,30 @@ function AppContent() {
 
   if (isUpdating || !bootReady) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme === 'light' ? '#F8F7FF' : '#050810', justifyContent: 'center', alignItems: 'center', padding: 40 }}>
-        <Text style={{ color: '#6366F1', fontSize: 32, fontWeight: '900', letterSpacing: -1 }}>HOSPYN <Text style={{color: theme === 'light' ? '#0F172A' : '#fff'}}>CORE</Text></Text>
+      <View style={{
+        flex: 1,
+        backgroundColor: theme === 'light' ? '#F8F7FF' : '#050810',
+        justifyContent: 'center', alignItems: 'center', padding: 40
+      }}>
+        <Text style={{ color: '#6366F1', fontSize: 32, fontWeight: '900', letterSpacing: -1 }}>
+          HOSPYN <Text style={{ color: theme === 'light' ? '#0F172A' : '#fff' }}>CORE</Text>
+        </Text>
         <View style={{ marginTop: 40, alignItems: 'center' }}>
           <ActivityIndicator size="large" color="#6366F1" />
-          <Text style={{ color: theme === 'light' ? '#475569' : '#94A3B8', fontSize: 12, marginTop: 20, fontWeight: 'bold', letterSpacing: 2 }}>
+          <Text style={{
+            color: theme === 'light' ? '#475569' : '#94A3B8',
+            fontSize: 12, marginTop: 20, fontWeight: 'bold', letterSpacing: 2
+          }}>
             {isUpdating ? "SYNCING CLINICAL ASSETS..." : "INITIALIZING VAULT..."}
           </Text>
         </View>
-        <Text style={{ position: 'absolute', bottom: 40, color: theme === 'light' ? '#94A3B8' : '#1E293B', fontSize: 10, fontWeight: 'bold' }}>VERSION {Updates?.updateId ? Updates.updateId.substring(0,8).toUpperCase() : '2.0.2-STABLE'}</Text>
+        <Text style={{
+          position: 'absolute', bottom: 40,
+          color: theme === 'light' ? '#94A3B8' : '#1E293B',
+          fontSize: 10, fontWeight: 'bold'
+        }}>
+          VERSION {Updates?.updateId ? Updates.updateId.substring(0, 8).toUpperCase() : '2.0.2-STABLE'}
+        </Text>
       </View>
     );
   }
@@ -153,31 +175,49 @@ function AppContent() {
         <NavigationContainer>
           <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
             {!isAuthenticated ? (
+              // ─── Unauthenticated stack ──────────────────────────────────────
               <>
-                <Stack.Screen name="Login" component={LoginScreen} />
-                <Stack.Screen name="Register" component={RegisterScreen} />
-                <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+                <Stack.Screen name="Login"               component={LoginScreen} />
+                <Stack.Screen name="Register"            component={RegisterScreen} />
+                {/* FIX: ProfileSetupScreen was imported in the original App.js but never
+                    registered as a Stack.Screen — navigation.navigate('ProfileSetup')
+                    would throw "The action 'NAVIGATE' with payload {"name":"ProfileSetup"}
+                    was not handled" on any screen that tries to reach it. */}
+                <Stack.Screen name="ProfileSetup"        component={ProfileSetupScreen} />
+                <Stack.Screen name="Onboarding"          component={OnboardingScreen} />
                 <Stack.Screen name="RegistrationSuccess" component={RegistrationSuccessScreen} />
               </>
             ) : (
+              // ─── Authenticated stack ────────────────────────────────────────
               <>
-                <Stack.Screen name="MainTabs" component={MainTabs} />
-                <Stack.Screen name="SharedAccess" component={SharedAccessScreen} />
-                <Stack.Screen name="SharingSettings" component={SharingSettingsScreen} />
-                <Stack.Screen name="Notifications" component={NotificationsScreen} />
-                <Stack.Screen name="AccessHistory" component={AccessHistoryScreen} />
-                <Stack.Screen name="Upload" component={UploadScreen} />
-                <Stack.Screen name="Billing" component={BillingScreen} />
-                <Stack.Screen name="InvoiceDetail" component={InvoiceDetailScreen} />
-                <Stack.Screen name="Prescriptions" component={PrescriptionScreen} />
-                <Stack.Screen name="PrescriptionDetail" component={PrescriptionDetailScreen} />
-                <Stack.Screen name="FamilyProfiles" component={FamilyProfilesScreen} />
-                <Stack.Screen name="LabResults" component={RecordsScreen} />
-                <Stack.Screen name="ActivityLog" component={ActivityLogScreen} />
-                <Stack.Screen name="CEODashboard" component={CEODashboardScreen} />
-                <Stack.Screen name="Meds" component={MedsScreen} />
-                <Stack.Screen name="Appointments" component={AppointmentsScreen} />
-                <Stack.Screen name="ChittiAi" component={ChittiAiScreen} />
+                {/* Root tab navigator */}
+                <Stack.Screen name="MainTabs"            component={MainTabs} />
+
+                {/* Existing screens */}
+                <Stack.Screen name="SharedAccess"        component={SharedAccessScreen} />
+                <Stack.Screen name="SharingSettings"     component={SharingSettingsScreen} />
+                <Stack.Screen name="Notifications"       component={NotificationsScreen} />
+                <Stack.Screen name="AccessHistory"       component={AccessHistoryScreen} />
+                <Stack.Screen name="Upload"              component={UploadScreen} />
+                <Stack.Screen name="Billing"             component={BillingScreen} />
+                <Stack.Screen name="InvoiceDetail"       component={InvoiceDetailScreen} />
+                <Stack.Screen name="Prescriptions"       component={PrescriptionScreen} />
+                <Stack.Screen name="PrescriptionDetail"  component={PrescriptionDetailScreen} />
+                <Stack.Screen name="FamilyProfiles"      component={FamilyProfilesScreen} />
+                <Stack.Screen name="LabResults"          component={RecordsScreen} />
+                <Stack.Screen name="ActivityLog"         component={ActivityLogScreen} />
+                <Stack.Screen name="CEODashboard"        component={CEODashboardScreen} />
+                <Stack.Screen name="Meds"                component={MedsScreen} />
+                <Stack.Screen name="Appointments"        component={AppointmentsScreen} />
+                <Stack.Screen name="ChittiAi"            component={ChittiAiScreen} />
+
+                {/* NEW: Doctor booking + live queue flow ─────────────────── */}
+                {/* DoctorSearchScreen: GET /doctors/search                   */}
+                <Stack.Screen name="DoctorSearch"        component={DoctorSearchScreen} />
+                {/* BookAppointmentScreen: slot picker + Razorpay + POST /appointments */}
+                <Stack.Screen name="BookAppointment"     component={BookAppointmentScreen} />
+                {/* QueueStatusScreen: WebSocket live queue display           */}
+                <Stack.Screen name="QueueStatus"         component={QueueStatusScreen} />
               </>
             )}
           </Stack.Navigator>
