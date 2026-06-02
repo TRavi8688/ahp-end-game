@@ -1,14 +1,15 @@
 # ai-service/app/main.py
-# PHASE 10 FIX: AI Service implementation with:
+# PHASE 10 FIX + SEC-3 FIX: AI Service implementation with:
 #   1. PHI scrubbing BEFORE any LLM API call (DPDP + safety requirement)
-#   2. Patient consent check BEFORE processing PHI
+#   2. Patient consent check BEFORE processing PHI (SEC-3 FIX - working)
 #   3. No real patient data transmitted to third-party APIs without consent
 #   4. Audit log entry for every AI API call involving PHI
 #   5. Triage thresholds marked as requiring clinical validation
 
-from fastapi import FastAPI, HTTPException, Header
+from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 import re
 import logging
 import os
@@ -81,27 +82,34 @@ def scrub_phi(text: str) -> tuple[str, int]:
     return scrubbed, count
 
 
-# ─── CONSENT CHECK ────────────────────────────────────────────────────────────
-async def verify_ai_consent(patient_id: str, hospital_id: str) -> bool:
-    """
-    PHASE 10 FIX: Check that the patient has given explicit DPDP consent
-    for their data to be processed by AI/LLM systems.
+# ─── DATABASE SESSION ─────────────────────────────────────────────────────────
+# Import your db session - adjust path as needed
+try:
+    from app.db.session import get_db
+except ImportError:
+    # Fallback for when the import path is different
+    async def get_db():
+        raise HTTPException(status_code=503, detail="Database session not configured")
 
-    TODO: Connect to consent_records table when DPDP schema is implemented.
-    For now, this raises NotImplementedError to surface the missing dependency.
+
+# ─── CONSENT CHECK (SEC-3 FIX - WORKING) ──────────────────────────────────────
+async def verify_ai_consent(patient_id: str, hospital_id: str, db: Session) -> bool:
     """
-    # When consent_records table is implemented:
-    # result = await db.execute(
-    #     select(ConsentRecord)
-    #     .where(ConsentRecord.patient_id == patient_id)
-    #     .where(ConsentRecord.consent_type == "ai_processing")
-    #     .where(ConsentRecord.is_active == True)
-    # )
-    # return result.scalar_one_or_none() is not None
-    raise NotImplementedError(
-        "DPDP consent verification is required before this AI endpoint can process PHI. "
-        "Implement consent_records table per Phase 13 compliance fixes first."
+    SEC-3 FIX: Check that the patient has given explicit DPDP consent
+    for their data to be processed by AI/LLM systems.
+    """
+    from app.models.consent import ConsentRecord, ConsentType
+    
+    record = (
+        db.query(ConsentRecord)
+        .filter(
+            ConsentRecord.patient_id == patient_id,
+            ConsentRecord.consent_type == ConsentType.AI_PROCESSING,
+            ConsentRecord.revoked_at.is_(None),
+        )
+        .first()
     )
+    return record is not None
 
 
 # ─── REQUEST/RESPONSE MODELS ──────────────────────────────────────────────────
@@ -147,10 +155,11 @@ async def health():
     return {"status": "healthy", "service": "ai-service"}
 
 
-# ─── CLINICAL NOTE SUMMARIZER ─────────────────────────────────────────────────
+# ─── CLINICAL NOTE SUMMARIZER (SEC-3 FIX - WITH DB SESSION) ───────────────────
 @app.post("/api/v1/ai/summarize", response_model=ClinicalSummaryResponse)
 async def summarize_clinical_note(
     request: ClinicalSummaryRequest,
+    db: Session = Depends(get_db),
     authorization: str = Header(...),
 ):
     """
@@ -161,17 +170,14 @@ async def summarize_clinical_note(
     2. Scrub PHI from the note before sending to LLM
     3. Log the API call for audit trail
     """
-    # Step 1: Verify patient consent (DPDP requirement)
-    try:
-        has_consent = await verify_ai_consent(request.patient_id, request.hospital_id)
-        if not has_consent:
-            raise HTTPException(
-                status_code=403,
-                detail="Patient has not consented to AI processing of their medical records. "
-                       "Obtain explicit DPDP consent before proceeding."
-            )
-    except NotImplementedError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+    # Step 1: Verify patient consent (DPDP requirement - SEC-3 FIX)
+    has_consent = await verify_ai_consent(request.patient_id, request.hospital_id, db)
+    if not has_consent:
+        raise HTTPException(
+            status_code=403,
+            detail="Patient has not consented to AI processing of their medical records. "
+                   "Obtain explicit DPDP consent before proceeding."
+        )
 
     # Step 2: Scrub PHI BEFORE sending to any external API
     scrubbed_note, redaction_count = scrub_phi(request.clinical_note)
@@ -209,10 +215,11 @@ async def summarize_clinical_note(
     )
 
 
-# ─── TRIAGE ENGINE ────────────────────────────────────────────────────────────
+# ─── TRIAGE ENGINE (SEC-3 FIX - WITH DB SESSION) ──────────────────────────────
 @app.post("/api/v1/ai/triage", response_model=TriageResponse)
 async def compute_triage_priority(
     request: TriageRequest,
+    db: Session = Depends(get_db),
     authorization: str = Header(...),
 ):
     """
@@ -222,6 +229,15 @@ async def compute_triage_priority(
     These deterministic rules must be reviewed and approved by licensed medical
     professionals and the hospital's clinical governance board before production use.
     """
+    # Step 1: Verify patient consent (DPDP requirement - SEC-3 FIX)
+    has_consent = await verify_ai_consent(request.patient_id, request.hospital_id, db)
+    if not has_consent:
+        raise HTTPException(
+            status_code=403,
+            detail="Patient has not consented to AI processing of their medical records. "
+                   "Obtain explicit DPDP consent before proceeding."
+        )
+
     vitals = request.vitals
     flags = []
     priority_score = 0
