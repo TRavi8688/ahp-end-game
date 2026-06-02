@@ -1,98 +1,87 @@
-"""
-Pytest configuration and shared fixtures for healthcare-core integration tests.
-
-Uses an in-memory SQLite database (via aiosqlite) so tests run without a
-real Postgres instance.  The FastAPI `get_db` dependency is overridden per-test
-to point at the temporary test database.
-"""
+# backend/healthcare-core/tests/conftest.py
+# DB-7 FIX: Replace SQLite in-memory with a real PostgreSQL test database.
+# Requires: TEST_DATABASE_URL env var pointing to a PostgreSQL instance.
+# In CI: use docker-compose.test.yml (see below) to spin up postgres before pytest.
 
 import os
-import sys
-import pytest
 import asyncio
-from typing import AsyncGenerator
+import pytest
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+from alembic.config import Config
+from alembic import command
 
-import httpx
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from sqlalchemy.pool import StaticPool
+from app.db.base_class import Base  # adjust path as needed
+from app.db.session import get_db    # adjust path as needed
 
-# Ensure correct python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from app.main import app
-from app.core.database import Base, get_db
-from app.config.settings import settings
-
-# Override settings for testing
-settings.ENVIRONMENT = "testing"
-settings.REDIS_URL = "redis://localhost:6379/15"
-settings.DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-
-# ── In-memory SQLite test database ──────────────────────────────────────────
-
-TEST_DATABASE_URL = settings.DATABASE_URL
-
-test_engine = create_async_engine(
-    TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
+# ---------------------------------------------------------------------------
+# Use TEST_DATABASE_URL — NEVER sqlite:///:memory:
+# ---------------------------------------------------------------------------
+TEST_DATABASE_URL = os.getenv(
+    "TEST_DATABASE_URL",
+    "postgresql+asyncpg://test:test@localhost:5432/hospyn_test",
 )
 
-TestingSessionLocal = async_sessionmaker(
-    bind=test_engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autocommit=False,
-    autoflush=True,
-)
-
-
-# ── Fixtures ────────────────────────────────────────────────────────────────
+# Fail fast — don't let tests silently run against the wrong DB
+if "sqlite" in TEST_DATABASE_URL:
+    raise RuntimeError(
+        "TEST_DATABASE_URL must be a PostgreSQL URL. "
+        "SQLite hides PostgreSQL-specific bugs (JSONB, UUID, RETURNING, concurrency). "
+        "Set TEST_DATABASE_URL=postgresql+asyncpg://test:test@localhost:5432/hospyn_test"
+    )
 
 
 @pytest.fixture(scope="session")
 def event_loop():
+    """Single event loop for the entire test session."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
 
 
-@pytest.fixture(scope="session", autouse=True)
-async def init_db():
-    """Create all tables in the in-memory test database."""
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-    async with test_engine.begin() as conn:
+@pytest_asyncio.fixture(scope="session")
+async def test_engine():
+    """Create engine and run Alembic migrations once per test session."""
+    engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+
+    # Run migrations (equivalent to alembic upgrade head)
+    def run_migrations():
+        alembic_cfg = Config("alembic.ini")   # path relative to service root
+        alembic_cfg.set_main_option("sqlalchemy.url", TEST_DATABASE_URL.replace(
+            "postgresql+asyncpg", "postgresql"  # Alembic uses sync URL
+        ))
+        command.upgrade(alembic_cfg, "head")
+
+    await asyncio.get_event_loop().run_in_executor(None, run_migrations)
+
+    yield engine
+
+    # Teardown: drop all tables after the session
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+    await engine.dispose()
 
 
-@pytest.fixture
-async def db_session() -> AsyncGenerator[AsyncSession, None]:
-    async with TestingSessionLocal() as session:
-        yield session
-        await session.rollback()
+@pytest_asyncio.fixture
+async def db_session(test_engine):
+    """Provide a fresh transactional session per test, rolled back after."""
+    async_session = sessionmaker(
+        test_engine, class_=AsyncSession, expire_on_commit=False
+    )
+    async with async_session() as session:
+        async with session.begin():
+            yield session
+            await session.rollback()  # roll back after each test — no state leaks
 
 
-@pytest.fixture(autouse=True)
-def override_db_dependency(db_session):
-    """Override the real get_db with the test session for every test."""
+@pytest_asyncio.fixture
+async def client(db_session):
+    """FastAPI test client with DB session overridden."""
+    from httpx import AsyncClient
+    from app.main import app  # adjust path as needed
 
-    async def _get_test_db():
-        yield db_session
-
-    app.dependency_overrides[get_db] = _get_test_db
-    yield
-    app.dependency_overrides.pop(get_db, None)
-
-
-@pytest.fixture
-async def client() -> AsyncGenerator[httpx.AsyncClient, None]:
-    """
-    Provide an httpx.AsyncClient configured to talk to the FastAPI app.
-
-    httpx >= 0.28 removed the `app` kwarg — use ASGITransport instead.
-    """
-    transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as ac:
+    app.dependency_overrides[get_db] = lambda: db_session
+    async with AsyncClient(app=app, base_url="http://test") as ac:
         yield ac
+    app.dependency_overrides.clear()
