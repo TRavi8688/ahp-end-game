@@ -5,7 +5,11 @@ Business logic for nurse triage operations.
 Handles vitals storage, priority escalation, and doctor assignment.
 """
 
+# FIX: E402 — 'import uuid' was placed mid-file after function definitions (line 78).
+# All imports must be at the top of the file per PEP 8 / ruff E402.
+import uuid
 from typing import Optional
+
 from app.models.walkin import WalkInRequest, PriorityLevel
 
 # ---------------------------------------------------------------------------
@@ -60,22 +64,17 @@ def assess_priority_from_vitals(vitals: dict) -> Optional[PriorityLevel]:
     bp_sys = vitals.get("blood_pressure_systolic")
     temp = vitals.get("temperature")
 
-    # Emergency checks
     if spo2 is not None and spo2 < 90:
         return PriorityLevel.emergency
     if hr is not None and (hr > 150 or hr < 40):
         return PriorityLevel.emergency
 
-    # Urgent checks
     if bp_sys is not None and (bp_sys > 180 or bp_sys < 80):
         return PriorityLevel.urgent
     if temp is not None and temp > 104.0:
         return PriorityLevel.urgent
 
     return None
-
-
-import uuid
 
 
 def apply_triage_data(
