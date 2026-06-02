@@ -1,32 +1,38 @@
 # backend/ai-service/app/models/consent.py
-# SEC-3 FIX: ConsentRecord model for DPDP compliance
+# DB-6 FIX: ConsentRecord model for DPDP compliance.
+# Also fixes the SEC-3 security issue from the earlier audit.
 
 import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, String
+from sqlalchemy import Column, DateTime, Enum, String, Boolean
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 
-from app.db.base_class import Base  # adjust import path as needed
+from app.db.base_class import Base  # adjust path as needed
 
 
 class ConsentType(str, enum.Enum):
     AI_PROCESSING = "AI_PROCESSING"
     PHI_SHARING = "PHI_SHARING"
+    RESEARCH = "RESEARCH"
 
 
 class ConsentRecord(Base):
     __tablename__ = "consent_records"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4,
+                server_default=func.gen_random_uuid())
     patient_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     consent_type = Column(Enum(ConsentType), nullable=False)
-    granted_at = Column(DateTime, nullable=False, default=datetime.utcnow)
-    revoked_at = Column(DateTime, nullable=True, default=None)
-    granted_by = Column(UUID(as_uuid=True), nullable=True)  # user_id who granted (self or proxy)
+
+    granted = Column(Boolean, nullable=False, default=True)
+    granted_at = Column(DateTime, nullable=False, server_default=func.now())
+    revoked_at = Column(DateTime, nullable=True)
+    granted_by = Column(UUID(as_uuid=True), nullable=True)  # patient user_id (or proxy)
+    ip_address = Column(String(45), nullable=True)  # IPv4 or IPv6
 
     def is_active(self) -> bool:
-        """Return True if consent was granted and not yet revoked."""
-        return self.granted_at is not None and self.revoked_at is None
+        """True if consent was granted and has not been revoked."""
+        return self.granted and self.revoked_at is None
