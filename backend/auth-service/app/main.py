@@ -15,9 +15,10 @@ from app.config.settings import settings
 from shared.exceptions.handlers import register_exception_handlers
 from shared.logger import setup_logging
 from shared.middleware.correlation import CorrelationIdMiddleware
+from app.core.startup_check import run_startup_checks
 
+run_startup_checks()
 logger = setup_logging()
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
