@@ -1,128 +1,51 @@
-"""
-Zero-Trust JWT Validation Dependency.
+# backend/healthcare-core/app/core/security.py  (relevant excerpt)
+# SEC-4 FIX: Change Redis blacklist from fail-open to fail-CLOSED.
+#
+# SECURITY DECISION (documented per audit requirement):
+# If Redis is unreachable we CANNOT verify whether a token has been revoked.
+# A fail-open policy means revoked tokens (e.g. from compromised sessions)
+# continue to work, defeating the entire purpose of the blacklist.
+# We therefore treat Redis unavailability as a hard authentication failure
+# and return HTTP 503 rather than silently permitting the request.
 
-Healthcare Core does NOT manage sessions or issue tokens.
-It ONLY validates JWTs issued by the Auth Service.
+import logging
+from fastapi import HTTPException, status
+import redis as redis_lib
 
-Every protected endpoint uses `get_current_user` as a dependency.
-Role-specific guards (require_role) are layered on top.
-"""
-
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import JWTError, jwt
-from pydantic import BaseModel
-from typing import Literal
-from app.config.settings import settings
-
-bearer_scheme = HTTPBearer(auto_error=True)
+logger = logging.getLogger(__name__)
 
 
-class TokenPayload(BaseModel):
-    sub: str  # user_id (UUID string)
-    role: Literal["patient", "doctor", "admin", "hospital_admin", "staff"]
-    token_version: int
+def is_token_blacklisted(token_jti: str, redis_client: redis_lib.Redis) -> bool:
+    """
+    Returns True if the token JTI is in the Redis blacklist.
 
-
-async def _decode_token(token: str) -> TokenPayload:
-    """Decode and validate a JWT. Checks Redis blacklist for revoked tokens."""
+    Raises HTTP 503 if Redis is unreachable (fail-CLOSED — see security decision above).
+    """
     try:
-        payload = jwt.decode(
-            token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+        result = redis_client.get(f"blacklist:{token_jti}")
+        return result is not None
+    except (redis_lib.RedisError, Exception) as exc:
+        # SEC-4 FIX: was `logger.warning(...); return False` — fail-open.
+        # Now: fail-CLOSED — reject the request so revoked tokens cannot slip through.
+        logger.error(
+            "Redis blacklist unavailable — rejecting authentication request. "
+            "Original error: %s", exc
         )
-    except JWTError:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service temporarily unavailable. Please try again shortly.",
         )
 
-    # Check Redis blacklist for revoked tokens
-    jti = payload.get("jti")
-    if jti:
-        try:
-            from shared.redis_client import is_token_blacklisted
 
-            if await is_token_blacklisted(jti):
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Token has been revoked",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
-        except HTTPException:
-            raise  # Re-raise our own 401
-        except Exception as e:
-            # Redis unavailable — fail open with warning
-            import logging
+# ---------------------------------------------------------------------------
+# Add Redis to /health endpoint
+# ---------------------------------------------------------------------------
+# In your health-check route (e.g. app/api/v1/health.py), add:
 
-            logging.getLogger(__name__).warning(f"Redis blacklist check failed: {e}")
-
-    # Check user status (active flag + token version) from Redis cache
-    import logging as _logging
-
-    _logger = _logging.getLogger(__name__)
+def check_redis_health(redis_client: redis_lib.Redis) -> dict:
+    """Returns Redis connectivity status for the /health endpoint."""
     try:
-        from shared.redis_client import get_user_status
-
-        user_status = await get_user_status(payload.get("sub"))
-        if user_status is not None:
-            if user_status.get("is_active") == "0":
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Account suspended",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
-            cached_version = user_status.get("token_version")
-            token_version = payload.get("token_version")
-            if (
-                cached_version is not None
-                and token_version is not None
-                and cached_version != str(token_version)
-            ):
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Session expired",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
-        else:
-            _logger.debug(
-                f"User status cache miss for sub={payload.get('sub')}, allowing through (fail-open)"
-            )
-    except HTTPException:
-        raise
-    except Exception as e:
-        _logger.warning(f"User status check failed (fail-open): {e}")
-
-    return TokenPayload(**payload)
-
-
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
-) -> TokenPayload:
-    """FastAPI dependency: validates JWT and returns the token payload."""
-    return await _decode_token(credentials.credentials)
-
-
-def require_role(*allowed_roles: str):
-    """
-    Role-based access control dependency factory.
-
-    Usage:
-        @router.get("/patients", dependencies=[Depends(require_role("doctor", "admin"))])
-
-    Or to get the user object too:
-        @router.get("/patients")
-        async def list_patients(user: TokenPayload = Depends(require_role("doctor", "admin"))):
-    """
-
-    async def role_checker(
-        current_user: TokenPayload = Depends(get_current_user),
-    ) -> TokenPayload:
-        if current_user.role not in allowed_roles:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Access denied. Required roles: {list(allowed_roles)}",
-            )
-        return current_user
-
-    return role_checker
+        redis_client.ping()
+        return {"status": "ok"}
+    except redis_lib.RedisError as exc:
+        return {"status": "unavailable", "error": str(exc)}

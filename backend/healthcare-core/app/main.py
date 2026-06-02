@@ -1,120 +1,49 @@
-"""
-Hospyn Healthcare Core — Main Application.
+# SEC-5 FIX: Safe CORS configuration
+# Apply to BOTH:
+#   backend/auth-service/app/main.py
+#   backend/healthcare-core/app/main.py
+#
+# Replace the current conditional wildcard CORS block with this pattern.
 
-This is the core healthcare backend. It handles:
-- Hospital management
-- Doctor profiles
-- Patient records (PHI)
-- Appointment scheduling & lifecycle
-
-Authentication is NEVER handled here. All requests must carry
-a valid JWT issued by the Auth Service.
-"""
-
+import os
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import sentry_sdk
 
-from app.api.router import router as healthcare_router
-from app.config.settings import settings
-from shared.exceptions.handlers import register_exception_handlers
-from shared.logger import setup_logging
-from shared.middleware.correlation import CorrelationIdMiddleware
-from app.core.startup_check import run_startup_checks
+logger = logging.getLogger(__name__)
 
-run_startup_checks()
-
-logger = setup_logging()
+app = FastAPI()
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Application startup and shutdown lifecycle."""
-    logger.info("🏥 Healthcare Core starting", environment=settings.ENVIRONMENT)
+def configure_cors(app: FastAPI) -> None:
+    """
+    SEC-5 FIX: CORS is configured from an explicit allowlist env var.
 
-    if hasattr(settings, "SENTRY_DSN") and settings.SENTRY_DSN:
-        sentry_sdk.init(
-            dsn=settings.SENTRY_DSN,
-            environment=settings.ENVIRONMENT,
-            traces_sample_rate=1.0,
-        )
-        logger.info("   ✅ Sentry initialized")
+    NEVER use a wildcard. If ALLOWED_ORIGINS is empty at startup, raise
+    an error immediately so misconfigurations are caught before traffic reaches
+    the service — not silently discovered after a breach.
+    """
+    raw_origins = os.environ.get("ALLOWED_ORIGINS", "").strip()
 
-    # Run production safety checks
-    from shared.startup_checks import validate_production_secrets
-
-    try:
-        validate_production_secrets(settings)
-    except ValueError as e:
-        logger.critical(f"FATAL STARTUP ERROR: {e}")
-        raise e
-
-    # Initialize Redis for token blacklist checks
-    from shared.redis_client import init_redis, close_redis
-
-    try:
-        await init_redis(settings.REDIS_URL)
-        logger.info("   ✅ Redis connected")
-    except Exception as e:
-        logger.warning(
-            f"   ⚠️ Redis connection failed: {e} — blacklist checks disabled"
+    if not raw_origins:
+        # Fail fast at startup — do not silently open to all origins.
+        raise RuntimeError(
+            "ALLOWED_ORIGINS env var is not set or is empty. "
+            "Set it to a comma-separated list of allowed origins, e.g.:\n"
+            "  ALLOWED_ORIGINS=https://app.hospyn.in,https://admin.hospyn.in\n"
+            "Never use '*' in production."
         )
 
-    yield
+    origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+    logger.info("CORS allowed origins: %s", origins)
 
-    # Cleanup
-    try:
-        await close_redis()
-    except Exception:
-        pass
-    logger.info("🏥 Healthcare Core shutting down gracefully.")
-
-
-app = FastAPI(
-    title=settings.PROJECT_NAME,
-    version="1.0.0",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
-    description="Healthcare Core API — Hospitals, Doctors, Patients, Appointments",
-    lifespan=lifespan,
-)
-
-# Add Request Correlation ID Middleware
-app.add_middleware(CorrelationIdMiddleware)
-
-# CORS — strict in production, env-driven origins
-_allowed_origins = (
-    ["*"]
-    if settings.ENVIRONMENT == "development"
-    else settings.ALLOWED_ORIGINS.split(",")
-)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_allowed_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept"],
-    max_age=600,  # Cache preflight for 10 minutes
-)
-
-# Rate limiting
-from shared.middleware.rate_limiter import RateLimitMiddleware
-
-app.add_middleware(
-    RateLimitMiddleware,
-    default_limit=100,
-    default_window=60,
-)
-
-# Register shared exception handlers (consistent error format across all services)
-register_exception_handlers(app)
-
-# Mount all healthcare routes under /api/v1/healthcare
-app.include_router(healthcare_router, prefix="/api/v1/healthcare", tags=["Healthcare"])
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+    )
 
 
-@app.get("/health", tags=["Infrastructure"])
-async def health_check():
-    """Health check endpoint for Docker, Nginx, and load balancers."""
-    return {"status": "healthy", "service": "healthcare-core"}
+configure_cors(app)

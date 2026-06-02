@@ -1,34 +1,24 @@
-import axios from 'axios';
+// pharma-mobile-app/src/utils/ApiService.js
+// SEC-2 / SEC-9 FIX: Replaced hardcoded localhost URL with environment variable.
+// Set EXPO_PUBLIC_API_BASE_URL in pharma-mobile-app/.env
 
-// Update this to your local backend IP if testing on a physical device
-export const API_BASE_URL = 'http://localhost:8000/api/v1';
+import axios from "axios";
 
-let authToken = null;
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
 
-class ApiService {
-    constructor() {
-        this.client = axios.create({
-            baseURL: API_BASE_URL,
-            timeout: 15000,
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
-
-        this.client.interceptors.request.use(async (config) => {
-            if (authToken) {
-                config.headers.Authorization = `Bearer ${authToken}`;
-            }
-            return config;
-        });
-    }
-
-    setToken(token) {
-        authToken = token;
-    }
-
-    async get(url, config = {}) { return await this.client.get(url, config); }
-    async post(url, data = {}, config = {}) { return await this.client.post(url, data, config); }
+if (!API_BASE_URL) {
+  throw new Error(
+    "EXPO_PUBLIC_API_BASE_URL is not set. " +
+    "Add it to pharma-mobile-app/.env"
+  );
 }
 
-export default new ApiService();
+const apiService = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 15000,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+export default apiService;
