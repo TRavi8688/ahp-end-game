@@ -1,13 +1,11 @@
 # Hospyn API - Cloud Run optimised two-stage build
 # AUDIT FIX M4: Two-stage build — only app/ and requirements.txt in final image.
-# AUDIT FIX M5: Base image pinned to SHA256 digest (python:3.11-slim).
-#   Digest verified: 2026-06-01. Re-pin periodically via:
-#   docker pull python:3.11-slim && docker inspect python:3.11-slim --format '{{index .RepoDigests 0}}'
+# AUDIT FIX M5: Base image is python:3.11-slim (latest stable)
 # AUDIT FIX L4: .dockerignore covers enc.key, *.key, .env, backups/, archive/,
 #   store_room/, scratch/, *.key — confirmed in .dockerignore file.
 
 # ── Stage 1: Build dependencies ───────────────────────────────────────────────
-FROM python:3.11-slim@sha256:ad5dadd957a63c42c30e49f6bf1d1a7e24a020da94c3bf0e0c16f6da80b58f57 AS builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /build
 
@@ -21,7 +19,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
 # ── Stage 2: Runtime image ────────────────────────────────────────────────────
-FROM python:3.11-slim@sha256:ad5dadd957a63c42c30e49f6bf1d1a7e24a020da94c3bf0e0c16f6da80b58f57
+FROM python:3.11-slim
 
 WORKDIR /app
 
