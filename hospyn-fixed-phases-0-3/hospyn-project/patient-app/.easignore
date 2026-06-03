@@ -1,0 +1,16 @@
+node_modules
+.expo
+web-build
+dist
+build
+backups
+*.log
+.env
+.env.local
+.env.*.local
+.git
+.github
+*.pem
+*.key
+tmp
+temp
