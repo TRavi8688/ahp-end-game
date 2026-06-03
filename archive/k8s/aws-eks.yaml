@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ahp-api
+  namespace: ahp-prod
+  labels:
+    app: ahp-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ahp-api
+  template:
+    metadata:
+      labels:
+        app: ahp-api
+    spec:
+      containers:
+      - name: api
+        image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/ahp-api:latest
+        ports:
+        - containerPort: 8000
+        resources:
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+        envFrom:
+        - secretRef:
+            name: ahp-secrets
+        env:
+        - name: CLOUD_PROVIDER
+          value: "aws"
+        - name: ENVIRONMENT
+          value: "production"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ahp-worker
+  namespace: ahp-prod
+  labels:
+    app: ahp-worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ahp-worker
+  template:
+    metadata:
+      labels:
+        app: ahp-worker
+    spec:
+      containers:
+      - name: worker
+        image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/ahp-api:latest
+        command: ["arq", "app.workers.arq_worker.WorkerSettings"]
+        resources:
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+        envFrom:
+        - secretRef:
+            name: ahp-secrets
+        env:
+        - name: CLOUD_PROVIDER
+          value: "aws"
+        - name: ENVIRONMENT
+          value: "production"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ahp-api-svc
+  namespace: ahp-prod
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+spec:
+  selector:
+    app: ahp-api
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8000
+  type: LoadBalancer
