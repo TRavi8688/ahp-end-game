@@ -1,542 +1,880 @@
 """
-billing.py  (REPLACE the existing billing.py)
-Phase 3 Fix: Complete UPI billing system
+Billing & UPI Payment Routes
+==============================
+PHASE 2 FIX — Complete billing API ported from archive/old-monolith,
+adapted to microservice structure with UPI deep-link support.
 
-APPLY TO: backend/healthcare-core/app/api/v1/billing.py
-          (replaces the stub Razorpay file)
+Endpoints:
+  POST  /billing/invoice                        - Create invoice from appointment
+  GET   /billing/invoice/{id}                   - Get invoice details
+  GET   /billing/invoice/{id}/upi-url           - Get UPI deep-link URL
+  PATCH /billing/invoice/{id}/mark-paid         - Mark as paid with UPI ref
+  GET   /billing/invoice/{id}/receipt           - Generate PDF receipt
+  GET   /billing/patient/{patient_id}/invoices  - List patient invoices
+  GET   /billing/hospital/invoices              - List hospital invoices (owner)
 
-Routes:
-    POST   /billing/invoice                       - Create invoice from appointment
-    GET    /billing/invoice/{id}                  - Get full invoice
-    GET    /billing/invoice/{id}/upi-url          - Build UPI deep-link
-    PATCH  /billing/invoice/{id}/mark-paid        - Mark paid with UPI ref
-    GET    /billing/invoice/{id}/receipt          - Download PDF receipt
-    GET    /billing/patient/{patient_id}/invoices - All invoices for a patient
-    GET    /billing/hospital/{hospital_id}/invoices - All invoices for hospital
-
-Install requirement:
-    pip install reportlab
-    (add 'reportlab' to backend/healthcare-core/requirements.txt)
+HOW TO REGISTER:
+  In backend/healthcare-core/app/api/router.py add:
+    from app.api.v1.billing import router as billing_router
+    router.include_router(billing_router, prefix="/billing", tags=["Billing"])
 """
 
-import io
-import urllib.parse
 import uuid
-from datetime import date, datetime, timezone
-from typing import Annotated, Optional
+import io
+from datetime import datetime, timezone
+from typing import Annotated, Optional, List
+from decimal import Decimal
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
+from sqlalchemy import select, desc, func
+from sqlalchemy.orm import selectinload
+from pydantic import BaseModel, Field
 
 from app.core.database import get_db
 from app.core.security import require_role, TokenPayload
+from app.models.patient import Patient
+from app.models.appointment import Appointment, AppointmentStatus
+from app.models.hospital import Hospital
+from shared.utils.responses import success_response, error_response
+from shared.audit import log_audit_event
 
-router = APIRouter(prefix="/billing", tags=["Billing & UPI"])
-
-
-# ---------------------------------------------------------------------------
-# Schemas
-# ---------------------------------------------------------------------------
-
-class InvoiceCreatePayload(BaseModel):
-    appointment_id: str
-    hospital_id: str
-    patient_id: str
-    line_items: list[dict]  # [{description, quantity, unit_price}]
-    notes: Optional[str] = None
+router = APIRouter()
 
 
-class MarkPaidPayload(BaseModel):
-    upi_transaction_ref: str   # e.g. "GPay:3029182763812937"
-    paid_by: Optional[str] = None  # receptionist name or "patient-self"
+# ─── Pydantic Schemas ─────────────────────────────────────────────────────────
+
+class InvoiceLineItemIn(BaseModel):
+    description: str = Field(..., max_length=300)
+    category: str = Field(..., max_length=100)  # consultation, pharmacy, lab, procedure
+    quantity: float = Field(1.0, ge=0.01)
+    unit_price: float = Field(..., ge=0)
 
 
-# ---------------------------------------------------------------------------
-# Helper: build UPI deep-link URL
-# ---------------------------------------------------------------------------
-def build_upi_url(upi_vpa: str, name: str, amount: float, invoice_number: str, note: str) -> str:
+class CreateInvoiceRequest(BaseModel):
+    appointment_id: uuid.UUID
+    line_items: Optional[List[InvoiceLineItemIn]] = None  # if None, auto-generate from appointment
+    notes: Optional[str] = Field(None, max_length=1000)
+
+
+class MarkPaidRequest(BaseModel):
+    upi_transaction_ref: str = Field(..., min_length=4, max_length=100, description="UPI transaction ID from patient's GPay/PhonePe confirmation")
+
+
+# ─── Helpers ──────────────────────────────────────────────────────────────────
+
+async def _get_hospital_upi_vpa(hospital_id: uuid.UUID, db: AsyncSession) -> Optional[str]:
+    """Fetch the hospital's UPI VPA from hospital_settings table."""
+    try:
+        from sqlalchemy import text
+        result = await db.execute(
+            text("SELECT upi_vpa FROM hospital_settings WHERE hospital_id = :hid LIMIT 1"),
+            {"hid": str(hospital_id)},
+        )
+        row = result.fetchone()
+        return row.upi_vpa if row and row.upi_vpa else None
+    except Exception:
+        return None
+
+
+def _build_upi_url(vpa: str, name: str, amount: float, invoice_number: str, description: str) -> str:
     """
-    Builds an NPCI-standard UPI deep-link.
-    Opens GPay / PhonePe / Paytm / BHIM when scanned.
+    Build NPCI-compliant UPI deep-link URL.
+    When scanned, this opens GPay / PhonePe / Paytm / BHIM on the user's phone.
+
+    Format: upi://pay?pa={VPA}&pn={Name}&am={Amount}&cu=INR&tn={Note}&tr={TxRef}
     """
-    params = {
-        "pa": upi_vpa,
-        "pn": name,
-        "am": f"{amount:.2f}",
-        "cu": "INR",
-        "tn": note[:50],       # max 50 chars
-        "tr": f"HOSPYN-{invoice_number}",
-    }
-    return "upi://pay?" + urllib.parse.urlencode(params)
+    # Sanitise amount to exactly 2 decimal places
+    amount_str = f"{amount:.2f}"
+    # Sanitise description — UPI spec: max 50 chars, no special chars
+    safe_desc = description[:50].replace("&", "and").replace("=", "-")
+    # Transaction reference — your internal invoice number
+    safe_ref = invoice_number.replace(" ", "-")[:50]
+    # Payee name — max 50 chars
+    safe_name = name[:50]
+
+    upi_url = (
+        f"upi://pay"
+        f"?pa={quote(vpa)}"
+        f"&pn={quote(safe_name)}"
+        f"&am={amount_str}"
+        f"&cu=INR"
+        f"&tn={quote(safe_desc)}"
+        f"&tr={quote(safe_ref)}"
+    )
+    return upi_url
 
 
-# ---------------------------------------------------------------------------
-# POST /billing/invoice  — Create invoice
-# ---------------------------------------------------------------------------
+async def _get_or_create_invoice_model(db: AsyncSession):
+    """
+    Dynamically get the Invoice model.
+    Handles both old-monolith models.py and new microservice models.
+    """
+    try:
+        from app.models.billing import Invoice, InvoiceLineItem, InvoiceStatus
+        return Invoice, InvoiceLineItem, InvoiceStatus
+    except ImportError:
+        # Fallback: use raw SQL if model not yet migrated
+        return None, None, None
+
+
+# ─── POST /billing/invoice ────────────────────────────────────────────────────
+
 @router.post("/invoice", status_code=201)
 async def create_invoice(
-    payload: InvoiceCreatePayload,
+    payload: CreateInvoiceRequest,
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("doctor", "admin", "hospital_admin", "receptionist")),
+        Depends(require_role("doctor", "receptionist", "hospital_admin", "admin")),
     ],
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Create a billing invoice for a completed appointment.
-    Auto-populates line items from prescription + procedures if provided.
-    Falls back to the line_items array in the payload.
+    Create an invoice for an appointment.
+    - If line_items are provided, uses them directly.
+    - If not, auto-generates from the appointment's prescription and procedures.
     """
-    invoice_id = str(uuid.uuid4())
-    year = datetime.now(timezone.utc).year
-    inv_number = f"INV-{year}-{invoice_id[:8].upper()}"
-
-    total_amount = sum(
-        item.get("quantity", 1) * item.get("unit_price", 0)
-        for item in payload.line_items
+    # Verify appointment exists
+    appt_result = await db.execute(
+        select(Appointment).where(
+            Appointment.id == payload.appointment_id,
+            Appointment.deleted_at.is_(None),
+        )
     )
+    appointment = appt_result.scalars().first()
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
 
+    # Verify appointment is completed before billing
+    if appointment.status != AppointmentStatus.COMPLETED:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot create invoice for appointment with status {appointment.status.value}. "
+                   "Appointment must be COMPLETED first.",
+        )
+
+    # Check no invoice already exists for this appointment
     try:
+        from sqlalchemy import text
+        existing = await db.execute(
+            text("SELECT id FROM invoices WHERE appointment_id = :appt_id AND deleted_at IS NULL LIMIT 1"),
+            {"appt_id": str(payload.appointment_id)},
+        )
+        if existing.fetchone():
+            return error_response("INVOICE_EXISTS", "Invoice already exists for this appointment", 409)
+    except Exception:
+        pass  # Table may not exist yet — first invoice
+
+    # Build line items
+    line_items = payload.line_items or []
+    if not line_items:
+        # Auto-generate from appointment data
+        if appointment.consultation_fee and float(appointment.consultation_fee) > 0:
+            line_items.append(InvoiceLineItemIn(
+                description="Consultation Fee",
+                category="consultation",
+                quantity=1.0,
+                unit_price=float(appointment.consultation_fee),
+            ))
+        # Add prescription items if available
+        if hasattr(appointment, "prescription_items") and appointment.prescription_items:
+            for item in (appointment.prescription_items or []):
+                line_items.append(InvoiceLineItemIn(
+                    description=f"{item.get('drug_name', 'Medicine')} ({item.get('dosage', '')})",
+                    category="pharmacy",
+                    quantity=1.0,
+                    unit_price=float(item.get("unit_price", 0)),
+                ))
+
+    if not line_items:
+        # Minimum: create a zero consultation entry so invoice is not blank
+        line_items.append(InvoiceLineItemIn(
+            description="Consultation",
+            category="consultation",
+            quantity=1.0,
+            unit_price=0.0,
+        ))
+
+    total_amount = sum(item.quantity * item.unit_price for item in line_items)
+
+    # Generate invoice number: INV-YYYYMMDD-XXXX
+    date_prefix = datetime.now(timezone.utc).strftime("%Y%m%d")
+    try:
+        from sqlalchemy import text
+        count_result = await db.execute(
+            text(f"SELECT COUNT(*) FROM invoices WHERE invoice_number LIKE 'INV-{date_prefix}-%'")
+        )
+        seq = (count_result.scalar() or 0) + 1
+    except Exception:
+        seq = 1
+    invoice_number = f"INV-{date_prefix}-{seq:04d}"
+
+    # Insert invoice using raw SQL to avoid model import issues
+    invoice_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    try:
+        from sqlalchemy import text
         await db.execute(
-            text(
-                """
+            text("""
                 INSERT INTO invoices
-                    (id, invoice_number, hospital_id, patient_id, appointment_id,
-                     line_items, total_amount, status, notes, created_by, created_at)
+                  (id, invoice_number, appointment_id, patient_id, hospital_id,
+                   total_amount, status, notes, created_at, updated_at)
                 VALUES
-                    (:id, :inv_number, :hospital_id, :patient_id, :appointment_id,
-                     :line_items::jsonb, :total_amount, 'pending', :notes,
-                     :created_by, now())
-                """
-            ),
+                  (:id, :inv_num, :appt_id, :patient_id, :hospital_id,
+                   :total, 'PENDING', :notes, :now, :now)
+            """),
             {
                 "id": invoice_id,
-                "inv_number": inv_number,
-                "hospital_id": payload.hospital_id,
-                "patient_id": payload.patient_id,
-                "appointment_id": payload.appointment_id,
-                "line_items": __import__("json").dumps(payload.line_items),
-                "total_amount": total_amount,
+                "inv_num": invoice_number,
+                "appt_id": str(payload.appointment_id),
+                "patient_id": str(appointment.patient_id),
+                "hospital_id": str(appointment.hospital_id),
+                "total": float(total_amount),
                 "notes": payload.notes,
-                "created_by": str(current_user.sub),
+                "now": now,
             },
         )
-        await db.commit()
+
+        # Insert line items
+        for item in line_items:
+            await db.execute(
+                text("""
+                    INSERT INTO invoice_line_items
+                      (id, invoice_id, description, category, quantity, unit_price, line_total, created_at)
+                    VALUES
+                      (:id, :inv_id, :desc, :cat, :qty, :unit_price, :line_total, :now)
+                """),
+                {
+                    "id": str(uuid.uuid4()),
+                    "inv_id": invoice_id,
+                    "desc": item.description,
+                    "cat": item.category,
+                    "qty": item.quantity,
+                    "unit_price": item.unit_price,
+                    "line_total": item.quantity * item.unit_price,
+                    "now": now,
+                },
+            )
+        await db.flush()
+
     except Exception as e:
-        await db.rollback()
-        raise HTTPException(500, detail=f"Failed to create invoice: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to create invoice: {str(e)}")
 
-    return {
-        "invoice_id": invoice_id,
-        "invoice_number": inv_number,
-        "total_amount": total_amount,
-        "status": "pending",
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    }
+    log_audit_event(
+        action="invoice_created",
+        actor_id=current_user.sub,
+        target_id=invoice_id,
+        details={"invoice_number": invoice_number, "total_amount": float(total_amount)},
+    )
+
+    return success_response(
+        data={
+            "invoice_id": invoice_id,
+            "invoice_number": invoice_number,
+            "total_amount": float(total_amount),
+            "status": "PENDING",
+            "created_at": now.isoformat(),
+        },
+        message="Invoice created successfully",
+        status_code=201,
+    )
 
 
-# ---------------------------------------------------------------------------
-# GET /billing/invoice/{id}  — Get invoice details
-# ---------------------------------------------------------------------------
+# ─── GET /billing/invoice/{id} ────────────────────────────────────────────────
+
 @router.get("/invoice/{invoice_id}")
 async def get_invoice(
-    invoice_id: str,
-    current_user: Annotated[
-        TokenPayload,
-        Depends(require_role("patient", "doctor", "admin", "hospital_admin", "receptionist")),
-    ],
+    invoice_id: uuid.UUID,
+    current_user: Annotated[TokenPayload, Depends(require_role(
+        "patient", "doctor", "receptionist", "hospital_admin", "admin"
+    ))],
     db: AsyncSession = Depends(get_db),
 ):
-    """Return full invoice including hospital UPI VPA and line items."""
+    """Get full invoice details including line items, hospital, and patient info."""
     try:
-        result = await db.execute(
-            text(
-                """
-                SELECT i.*,
-                       h.name as hospital_name,
-                       h.address as hospital_address,
-                       hs.upi_vpa,
-                       p.full_name as patient_name,
-                       p.phone_number as patient_phone
+        from sqlalchemy import text
+
+        inv_result = await db.execute(
+            text("""
+                SELECT
+                    i.id, i.invoice_number, i.total_amount, i.status, i.notes,
+                    i.upi_transaction_ref, i.paid_at, i.created_at, i.updated_at,
+                    i.patient_id, i.hospital_id, i.appointment_id
                 FROM invoices i
-                JOIN hospitals h ON i.hospital_id = h.id
-                LEFT JOIN hospital_settings hs ON hs.hospital_id = h.id
-                JOIN patients p ON i.patient_id = p.id
-                WHERE i.id = :id
-                """
-            ),
-            {"id": invoice_id},
+                WHERE i.id = :inv_id AND i.deleted_at IS NULL
+                LIMIT 1
+            """),
+            {"inv_id": str(invoice_id)},
         )
-        row = result.mappings().first()
+        inv = inv_result.fetchone()
     except Exception as e:
-        raise HTTPException(500, detail=str(e))
-
-    if not row:
-        raise HTTPException(404, "Invoice not found")
-
-    return dict(row)
-
-
-# ---------------------------------------------------------------------------
-# GET /billing/invoice/{id}/upi-url  — Build UPI deep-link
-# ---------------------------------------------------------------------------
-@router.get("/invoice/{invoice_id}/upi-url")
-async def get_upi_url(
-    invoice_id: str,
-    current_user: Annotated[
-        TokenPayload,
-        Depends(require_role("patient", "receptionist", "admin", "hospital_admin")),
-    ],
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Build and return UPI deep-link for this invoice.
-    The frontend renders a QR code from this URL.
-    """
-    result = await db.execute(
-        text(
-            """
-            SELECT i.invoice_number, i.total_amount,
-                   h.name as hospital_name,
-                   hs.upi_vpa
-            FROM invoices i
-            JOIN hospitals h ON i.hospital_id = h.id
-            LEFT JOIN hospital_settings hs ON hs.hospital_id = h.id
-            WHERE i.id = :id AND i.status = 'pending'
-            """
-        ),
-        {"id": invoice_id},
-    )
-    row = result.mappings().first()
-
-    if not row:
-        raise HTTPException(404, "Invoice not found or already paid")
-
-    if not row["upi_vpa"]:
-        raise HTTPException(
-            422,
-            "Hospital has not configured a UPI VPA. "
-            "Ask the hospital admin to add their UPI ID in Settings.",
-        )
-
-    upi_url = build_upi_url(
-        upi_vpa=row["upi_vpa"],
-        name=row["hospital_name"],
-        amount=float(row["total_amount"]),
-        invoice_number=row["invoice_number"],
-        note=f"Hospyn Bill #{row['invoice_number']}",
-    )
-
-    return {
-        "invoice_id": invoice_id,
-        "invoice_number": row["invoice_number"],
-        "upi_url": upi_url,
-        "amount": float(row["total_amount"]),
-        "hospital_name": row["hospital_name"],
-        "upi_vpa": row["upi_vpa"],
-    }
-
-
-# ---------------------------------------------------------------------------
-# PATCH /billing/invoice/{id}/mark-paid  — Mark paid
-# ---------------------------------------------------------------------------
-@router.patch("/invoice/{invoice_id}/mark-paid")
-async def mark_invoice_paid(
-    invoice_id: str,
-    payload: MarkPaidPayload,
-    current_user: Annotated[
-        TokenPayload,
-        Depends(require_role("receptionist", "admin", "hospital_admin", "patient")),
-    ],
-    db: AsyncSession = Depends(get_db),
-):
-    """
-    Mark invoice as PAID after patient shows UPI confirmation.
-    Stores the UPI transaction reference entered by reception staff.
-    """
-    try:
-        result = await db.execute(
-            text(
-                """
-                UPDATE invoices
-                SET status = 'paid',
-                    upi_transaction_ref = :ref,
-                    paid_at = now(),
-                    paid_by = :paid_by
-                WHERE id = :id AND status = 'pending'
-                RETURNING id, invoice_number, total_amount
-                """
-            ),
-            {
-                "ref": payload.upi_transaction_ref,
-                "paid_by": payload.paid_by or str(current_user.sub),
-                "id": invoice_id,
-            },
-        )
-        await db.commit()
-        row = result.mappings().first()
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(500, detail=str(e))
-
-    if not row:
-        raise HTTPException(404, "Invoice not found or already processed")
-
-    return {
-        "status": "paid",
-        "invoice_id": str(row["id"]),
-        "invoice_number": row["invoice_number"],
-        "total_amount": float(row["total_amount"]),
-        "upi_transaction_ref": payload.upi_transaction_ref,
-        "paid_at": datetime.now(timezone.utc).isoformat(),
-    }
-
-
-# ---------------------------------------------------------------------------
-# GET /billing/invoice/{id}/receipt  — PDF receipt
-# ---------------------------------------------------------------------------
-@router.get("/invoice/{invoice_id}/receipt")
-async def download_receipt(
-    invoice_id: str,
-    current_user: Annotated[
-        TokenPayload,
-        Depends(require_role("patient", "receptionist", "admin", "hospital_admin", "doctor")),
-    ],
-    db: AsyncSession = Depends(get_db),
-):
-    """Generate and return PDF receipt using reportlab."""
-    result = await db.execute(
-        text(
-            """
-            SELECT i.*, h.name as hospital_name, h.address as hospital_address,
-                   hs.upi_vpa, p.full_name as patient_name, p.phone_number
-            FROM invoices i
-            JOIN hospitals h ON i.hospital_id = h.id
-            LEFT JOIN hospital_settings hs ON hs.hospital_id = h.id
-            JOIN patients p ON i.patient_id = p.id
-            WHERE i.id = :id
-            """
-        ),
-        {"id": invoice_id},
-    )
-    inv = result.mappings().first()
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
 
     if not inv:
-        raise HTTPException(404, "Invoice not found")
+        raise HTTPException(status_code=404, detail="Invoice not found")
 
-    pdf_bytes = _generate_receipt_pdf(dict(inv))
-
-    return StreamingResponse(
-        io.BytesIO(pdf_bytes),
-        media_type="application/pdf",
-        headers={
-            "Content-Disposition": (
-                f'attachment; filename="receipt_{inv["invoice_number"]}.pdf"'
+    # RBAC: patients can only view their own invoices
+    if current_user.role == "patient":
+        patient_result = await db.execute(
+            select(Patient).where(
+                Patient.user_id == uuid.UUID(current_user.sub),
+                Patient.id == inv.patient_id,
             )
+        )
+        if not patient_result.scalars().first():
+            raise HTTPException(status_code=403, detail="Not authorised to view this invoice")
+
+    # Get line items
+    try:
+        from sqlalchemy import text
+        items_result = await db.execute(
+            text("""
+                SELECT description, category, quantity, unit_price, line_total
+                FROM invoice_line_items
+                WHERE invoice_id = :inv_id
+                ORDER BY created_at ASC
+            """),
+            {"inv_id": str(invoice_id)},
+        )
+        line_items = [
+            {
+                "description": row.description,
+                "category": row.category,
+                "quantity": float(row.quantity),
+                "unit_price": float(row.unit_price),
+                "line_total": float(row.line_total),
+            }
+            for row in items_result.fetchall()
+        ]
+    except Exception:
+        line_items = []
+
+    # Get hospital details
+    hospital_result = await db.execute(
+        select(Hospital).where(Hospital.id == inv.hospital_id)
+    )
+    hospital = hospital_result.scalars().first()
+
+    # Get UPI VPA for this hospital
+    upi_vpa = await _get_hospital_upi_vpa(inv.hospital_id, db)
+
+    return success_response(
+        data={
+            "id": str(inv.id),
+            "invoice_number": inv.invoice_number,
+            "total_amount": float(inv.total_amount),
+            "status": inv.status,
+            "notes": inv.notes,
+            "upi_transaction_ref": inv.upi_transaction_ref,
+            "paid_at": inv.paid_at.isoformat() if inv.paid_at else None,
+            "created_at": inv.created_at.isoformat() if inv.created_at else None,
+            "line_items": line_items,
+            "hospital": {
+                "id": str(hospital.id) if hospital else None,
+                "name": hospital.name if hospital else "Hospital",
+                "upi_vpa": upi_vpa,
+                "phone": getattr(hospital, "phone", None),
+                "address": getattr(hospital, "address", None),
+            },
+            "patient_id": str(inv.patient_id),
+            "appointment_id": str(inv.appointment_id) if inv.appointment_id else None,
+        },
+        message="Invoice loaded",
+    )
+
+
+# ─── GET /billing/invoice/{id}/upi-url ───────────────────────────────────────
+
+@router.get("/invoice/{invoice_id}/upi-url")
+async def get_invoice_upi_url(
+    invoice_id: uuid.UUID,
+    current_user: Annotated[TokenPayload, Depends(require_role(
+        "patient", "doctor", "receptionist", "hospital_admin", "admin"
+    ))],
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Returns the UPI deep-link URL for this invoice.
+
+    The patient-app renders this as a QR code. When scanned, it opens
+    GPay/PhonePe/Paytm/BHIM on the user's phone pointing to the hospital's UPI VPA.
+
+    Example URL:
+      upi://pay?pa=apollo@hdfcbank&pn=Apollo+Hospitals&am=1500.00&cu=INR&tn=Hospyn+Bill&tr=INV-20260603-0001
+    """
+    try:
+        from sqlalchemy import text
+        inv_result = await db.execute(
+            text("SELECT invoice_number, total_amount, status, hospital_id FROM invoices WHERE id = :id AND deleted_at IS NULL"),
+            {"id": str(invoice_id)},
+        )
+        inv = inv_result.fetchone()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    if inv.status == "PAID":
+        return error_response("ALREADY_PAID", "This invoice has already been paid", 400)
+
+    # Get hospital UPI VPA
+    upi_vpa = await _get_hospital_upi_vpa(inv.hospital_id, db)
+    if not upi_vpa:
+        raise HTTPException(
+            status_code=422,
+            detail="Hospital has not configured a UPI VPA. Ask the hospital admin to add it in Hospital Settings.",
+        )
+
+    # Get hospital name
+    hospital_result = await db.execute(
+        select(Hospital).where(Hospital.id == inv.hospital_id)
+    )
+    hospital = hospital_result.scalars().first()
+    hospital_name = hospital.name if hospital else "Hospyn Hospital"
+
+    upi_url = _build_upi_url(
+        vpa=upi_vpa,
+        name=hospital_name,
+        amount=float(inv.total_amount),
+        invoice_number=inv.invoice_number,
+        description=f"Hospyn Bill {inv.invoice_number}",
+    )
+
+    return success_response(
+        data={
+            "upi_url": upi_url,
+            "invoice_number": inv.invoice_number,
+            "amount": float(inv.total_amount),
+            "hospital_name": hospital_name,
+            "upi_vpa": upi_vpa,
+            "instructions": "Scan the QR code with GPay, PhonePe, Paytm, or any UPI app to pay directly to the hospital.",
+        },
+        message="UPI payment URL generated",
+    )
+
+
+# ─── PATCH /billing/invoice/{id}/mark-paid ───────────────────────────────────
+
+@router.patch("/invoice/{invoice_id}/mark-paid")
+async def mark_invoice_paid(
+    invoice_id: uuid.UUID,
+    payload: MarkPaidRequest,
+    current_user: Annotated[
+        TokenPayload,
+        Depends(require_role("receptionist", "hospital_admin", "admin", "patient")),
+    ],
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Mark an invoice as paid after UPI payment.
+    The receptionist enters the UPI transaction reference from the patient's GPay/PhonePe.
+
+    Reception portal calls this after patient shows payment confirmation.
+    """
+    try:
+        from sqlalchemy import text
+
+        # Verify invoice exists
+        inv_result = await db.execute(
+            text("SELECT id, status, total_amount, invoice_number FROM invoices WHERE id = :id AND deleted_at IS NULL"),
+            {"id": str(invoice_id)},
+        )
+        inv = inv_result.fetchone()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    if inv.status == "PAID":
+        return error_response("ALREADY_PAID", "Invoice is already marked as paid", 400)
+
+    now = datetime.now(timezone.utc)
+    try:
+        from sqlalchemy import text
+        await db.execute(
+            text("""
+                UPDATE invoices
+                SET status = 'PAID',
+                    upi_transaction_ref = :ref,
+                    paid_at = :now,
+                    updated_at = :now
+                WHERE id = :id
+            """),
+            {
+                "ref": payload.upi_transaction_ref,
+                "now": now,
+                "id": str(invoice_id),
+            },
+        )
+        await db.flush()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update invoice: {e}")
+
+    log_audit_event(
+        action="invoice_marked_paid",
+        actor_id=current_user.sub,
+        target_id=str(invoice_id),
+        details={
+            "invoice_number": inv.invoice_number,
+            "upi_transaction_ref": payload.upi_transaction_ref,
+            "amount": float(inv.total_amount),
         },
     )
 
+    return success_response(
+        data={
+            "invoice_id": str(invoice_id),
+            "invoice_number": inv.invoice_number,
+            "status": "PAID",
+            "upi_transaction_ref": payload.upi_transaction_ref,
+            "paid_at": now.isoformat(),
+            "amount": float(inv.total_amount),
+        },
+        message="Payment recorded. Invoice marked as PAID.",
+    )
 
-def _generate_receipt_pdf(inv: dict) -> bytes:
+
+# ─── GET /billing/invoice/{id}/receipt ───────────────────────────────────────
+
+@router.get("/invoice/{invoice_id}/receipt")
+async def download_receipt(
+    invoice_id: uuid.UUID,
+    current_user: Annotated[TokenPayload, Depends(require_role(
+        "patient", "doctor", "receptionist", "hospital_admin", "admin"
+    ))],
+    db: AsyncSession = Depends(get_db),
+):
     """
-    Generate a PDF receipt using reportlab.
-    Falls back to plain text PDF if reportlab not installed.
+    Generate and return a PDF receipt for a paid invoice.
+    Uses reportlab. If reportlab is not installed, returns a JSON fallback.
+
+    Add to requirements.txt: reportlab>=4.0.0
     """
     try:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.units import mm
-        from reportlab.lib.styles import getSampleStyleSheet
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-        from reportlab.lib import colors
+        from sqlalchemy import text
+        inv_result = await db.execute(
+            text("""
+                SELECT i.id, i.invoice_number, i.total_amount, i.status,
+                       i.upi_transaction_ref, i.paid_at, i.created_at,
+                       i.patient_id, i.hospital_id
+                FROM invoices i
+                WHERE i.id = :id AND i.deleted_at IS NULL
+            """),
+            {"id": str(invoice_id)},
+        )
+        inv = inv_result.fetchone()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
 
-        buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4,
-                                topMargin=20*mm, bottomMargin=20*mm,
-                                leftMargin=20*mm, rightMargin=20*mm)
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    if inv.status != "PAID":
+        raise HTTPException(status_code=400, detail="Receipt only available for paid invoices")
+
+    # Get line items
+    try:
+        from sqlalchemy import text
+        items_result = await db.execute(
+            text("SELECT description, category, quantity, unit_price, line_total FROM invoice_line_items WHERE invoice_id = :id"),
+            {"id": str(invoice_id)},
+        )
+        line_items = items_result.fetchall()
+    except Exception:
+        line_items = []
+
+    # Get hospital
+    hospital_result = await db.execute(select(Hospital).where(Hospital.id == inv.hospital_id))
+    hospital = hospital_result.scalars().first()
+    hospital_name = hospital.name if hospital else "Hospital"
+
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import mm
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+        from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+
+        buf = io.BytesIO()
+        doc = SimpleDocTemplate(buf, pagesize=A4,
+                                rightMargin=20*mm, leftMargin=20*mm,
+                                topMargin=20*mm, bottomMargin=20*mm)
         styles = getSampleStyleSheet()
         story = []
 
         # Header
-        story.append(Paragraph(f"<b>{inv.get('hospital_name', 'Hospital')}</b>", styles["Heading1"]))
-        story.append(Paragraph(inv.get("hospital_address", ""), styles["Normal"]))
-        story.append(Spacer(1, 10*mm))
-
-        # Invoice info
-        story.append(Paragraph(f"<b>Receipt #{inv.get('invoice_number')}</b>", styles["Heading2"]))
-        story.append(Paragraph(f"Patient: {inv.get('patient_name')}", styles["Normal"]))
-        story.append(Paragraph(f"Phone: {inv.get('phone_number', 'N/A')}", styles["Normal"]))
-        paid_at = inv.get("paid_at") or inv.get("created_at", "")
-        story.append(Paragraph(f"Date: {str(paid_at)[:10]}", styles["Normal"]))
+        story.append(Paragraph(f"<b>{hospital_name}</b>", ParagraphStyle("h1", fontSize=20, spaceAfter=4, alignment=TA_CENTER)))
+        story.append(Paragraph("Powered by HOSPYN", ParagraphStyle("sub", fontSize=9, textColor=colors.grey, alignment=TA_CENTER)))
         story.append(Spacer(1, 8*mm))
+        story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#4F46E5")))
+        story.append(Spacer(1, 4*mm))
+
+        # Invoice meta
+        meta_data = [
+            ["Receipt / Tax Invoice", ""],
+            ["Invoice Number:", inv.invoice_number],
+            ["Date:", inv.paid_at.strftime("%d %b %Y %H:%M") if inv.paid_at else ""],
+            ["UPI Transaction Ref:", inv.upi_transaction_ref or "—"],
+            ["Status:", "PAID ✓"],
+        ]
+        meta_table = Table(meta_data, colWidths=[60*mm, 100*mm])
+        meta_table.setStyle(TableStyle([
+            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 10),
+            ("FONTSIZE", (0, 0), (-1, 0), 14),
+            ("SPAN", (0, 0), (1, 0)),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#4F46E5")),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        story.append(meta_table)
+        story.append(Spacer(1, 6*mm))
 
         # Line items table
-        import json
-        line_items = inv.get("line_items") or []
-        if isinstance(line_items, str):
-            line_items = json.loads(line_items)
-
-        table_data = [["Description", "Qty", "Unit Price", "Amount"]]
-        for item in line_items:
-            qty = item.get("quantity", 1)
-            unit = float(item.get("unit_price", 0))
-            table_data.append([
-                item.get("description", "Service"),
-                str(qty),
-                f"₹{unit:.2f}",
-                f"₹{qty * unit:.2f}",
-            ])
-
-        table_data.append(["", "", "TOTAL", f"₹{float(inv.get('total_amount', 0)):.2f}"])
-
-        t = Table(table_data, colWidths=[90*mm, 20*mm, 35*mm, 35*mm])
-        t.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a5f")),
+        story.append(Paragraph("<b>Bill Details</b>", ParagraphStyle("h3", fontSize=11, spaceAfter=4)))
+        item_headers = [["Description", "Category", "Qty", "Unit Price", "Total"]]
+        item_rows = [
+            [row.description, row.category.title(), str(row.quantity),
+             f"₹{float(row.unit_price):.2f}", f"₹{float(row.line_total):.2f}"]
+            for row in line_items
+        ]
+        items_table_data = item_headers + item_rows + [
+            ["", "", "", "TOTAL", f"₹{float(inv.total_amount):.2f}"]
+        ]
+        items_table = Table(items_table_data, colWidths=[70*mm, 35*mm, 15*mm, 25*mm, 25*mm])
+        items_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#4F46E5")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#f9fafb")]),
             ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-            ("LINEABOVE", (0, -1), (-1, -1), 1, colors.black),
-            ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#e5e7eb")),
-            ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
-            ("PADDING", (0, 0), (-1, -1), 6),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("GRID", (0, 0), (-1, -2), 0.5, colors.HexColor("#E5E7EB")),
+            ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#F0FDF4")),
+            ("TEXTCOLOR", (3, -1), (-1, -1), colors.HexColor("#16A34A")),
+            ("ALIGN", (2, 0), (-1, -1), "RIGHT"),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
         ]))
-        story.append(t)
+        story.append(items_table)
         story.append(Spacer(1, 8*mm))
 
-        # Payment info
-        story.append(Paragraph(f"<b>Status: PAID ✓</b>", styles["Normal"]))
-        upi_ref = inv.get("upi_transaction_ref", "")
-        if upi_ref:
-            story.append(Paragraph(f"UPI Ref: {upi_ref}", styles["Normal"]))
-
-        story.append(Spacer(1, 10*mm))
-        story.append(Paragraph("Thank you for choosing " + inv.get("hospital_name", "our hospital"), styles["Normal"]))
-        story.append(Paragraph("Powered by Hospyn", styles["Italic"]))
+        # Footer
+        story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#E5E7EB")))
+        story.append(Spacer(1, 3*mm))
+        story.append(Paragraph(
+            "Payment made directly to hospital via UPI. HOSPYN is not a payment intermediary.",
+            ParagraphStyle("footer", fontSize=8, textColor=colors.grey, alignment=TA_CENTER)
+        ))
+        story.append(Paragraph(
+            "This is a computer-generated receipt and does not require a signature.",
+            ParagraphStyle("footer2", fontSize=8, textColor=colors.grey, alignment=TA_CENTER)
+        ))
 
         doc.build(story)
-        return buffer.getvalue()
+        buf.seek(0)
+
+        return Response(
+            content=buf.read(),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="receipt-{inv.invoice_number}.pdf"'
+            },
+        )
 
     except ImportError:
-        # reportlab not installed — return a plain-text PDF placeholder
-        txt = (
-            f"RECEIPT\n"
-            f"Invoice: {inv.get('invoice_number')}\n"
-            f"Hospital: {inv.get('hospital_name')}\n"
-            f"Patient: {inv.get('patient_name')}\n"
-            f"Amount: INR {inv.get('total_amount')}\n"
-            f"Status: PAID\n"
-            f"UPI Ref: {inv.get('upi_transaction_ref', 'N/A')}\n"
-            f"\nPlease install reportlab: pip install reportlab"
+        # reportlab not installed — return JSON fallback
+        return success_response(
+            data={
+                "invoice_number": inv.invoice_number,
+                "status": "PAID",
+                "total_amount": float(inv.total_amount),
+                "upi_transaction_ref": inv.upi_transaction_ref,
+                "paid_at": inv.paid_at.isoformat() if inv.paid_at else None,
+                "hospital_name": hospital_name,
+                "line_items": [
+                    {
+                        "description": row.description,
+                        "category": row.category,
+                        "quantity": float(row.quantity),
+                        "unit_price": float(row.unit_price),
+                        "line_total": float(row.line_total),
+                    }
+                    for row in line_items
+                ],
+                "note": "PDF generation requires reportlab. Add 'reportlab>=4.0.0' to requirements.txt.",
+            },
+            message="Receipt data (PDF generation requires reportlab)",
         )
-        return txt.encode()
 
 
-# ---------------------------------------------------------------------------
-# GET /billing/patient/{patient_id}/invoices  — Patient invoice list
-# ---------------------------------------------------------------------------
+# ─── GET /billing/patient/{patient_id}/invoices ───────────────────────────────
+
 @router.get("/patient/{patient_id}/invoices")
 async def list_patient_invoices(
-    patient_id: str,
-    current_user: Annotated[
-        TokenPayload,
-        Depends(require_role("patient", "doctor", "admin", "hospital_admin", "receptionist")),
-    ],
+    patient_id: uuid.UUID,
+    current_user: Annotated[TokenPayload, Depends(require_role(
+        "patient", "doctor", "receptionist", "hospital_admin", "admin"
+    ))],
+    status: Optional[str] = Query(None, description="Filter by status: PENDING, PAID, CANCELLED"),
     db: AsyncSession = Depends(get_db),
-    status: Optional[str] = Query(None),
-    limit: int = Query(20, le=100),
-    offset: int = Query(0),
 ):
-    """List all invoices for a patient (used by Patient App billing screen)."""
-    params = {"patient_id": patient_id, "limit": limit, "offset": offset}
-    status_clause = "AND i.status = :status" if status else ""
-    if status:
-        params["status"] = status
+    """
+    List all invoices for a patient.
+    Patients can only view their own invoices (RBAC enforced).
+    Used by patient-app BillingScreen.js.
+    """
+    # RBAC: patients can only see their own invoices
+    if current_user.role == "patient":
+        patient_result = await db.execute(
+            select(Patient).where(
+                Patient.user_id == uuid.UUID(current_user.sub),
+                Patient.deleted_at.is_(None),
+            )
+        )
+        patient = patient_result.scalars().first()
+        if not patient or patient.id != patient_id:
+            raise HTTPException(status_code=403, detail="Not authorised to view these invoices")
 
-    result = await db.execute(
-        text(
-            f"""
-            SELECT i.id, i.invoice_number, i.total_amount,
-                   i.status, i.created_at, i.paid_at,
-                   h.name as hospital_name
-            FROM invoices i
-            JOIN hospitals h ON i.hospital_id = h.id
-            WHERE i.patient_id = :patient_id
-            {status_clause}
-            ORDER BY i.created_at DESC
-            LIMIT :limit OFFSET :offset
-            """
-        ),
-        params,
+    try:
+        from sqlalchemy import text
+        query = """
+            SELECT id, invoice_number, total_amount, status, created_at, paid_at, appointment_id
+            FROM invoices
+            WHERE patient_id = :patient_id AND deleted_at IS NULL
+        """
+        params: dict = {"patient_id": str(patient_id)}
+        if status:
+            query += " AND status = :status"
+            params["status"] = status.upper()
+        query += " ORDER BY created_at DESC"
+
+        result = await db.execute(text(query), params)
+        rows = result.fetchall()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
+    invoices = [
+        {
+            "id": str(row.id),
+            "invoice_number": row.invoice_number,
+            "total_amount": float(row.total_amount),
+            "status": row.status,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+            "paid_at": row.paid_at.isoformat() if row.paid_at else None,
+            "appointment_id": str(row.appointment_id) if row.appointment_id else None,
+        }
+        for row in rows
+    ]
+
+    return success_response(
+        data={
+            "invoices": invoices,
+            "total_count": len(invoices),
+            "pending_count": sum(1 for i in invoices if i["status"] == "PENDING"),
+            "paid_count": sum(1 for i in invoices if i["status"] == "PAID"),
+        },
+        message="Patient invoices loaded",
     )
-    rows = result.mappings().all()
-    return {"invoices": [dict(r) for r in rows], "patient_id": patient_id}
 
 
-# ---------------------------------------------------------------------------
-# GET /billing/hospital/{hospital_id}/invoices  — Hospital invoice list
-# ---------------------------------------------------------------------------
-@router.get("/hospital/{hospital_id}/invoices")
+# ─── GET /billing/hospital/invoices ──────────────────────────────────────────
+
+@router.get("/hospital/invoices")
 async def list_hospital_invoices(
-    hospital_id: str,
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("admin", "hospital_admin")),
+        Depends(require_role("hospital_admin", "admin", "receptionist")),
     ],
-    db: AsyncSession = Depends(get_db),
-    from_date: Optional[str] = Query(None, description="YYYY-MM-DD"),
-    to_date: Optional[str] = Query(None, description="YYYY-MM-DD"),
+    date_from: Optional[str] = Query(None, description="ISO date: 2026-06-01"),
+    date_to: Optional[str] = Query(None, description="ISO date: 2026-06-30"),
     status: Optional[str] = Query(None),
-    limit: int = Query(50, le=200),
-    offset: int = Query(0),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
 ):
-    """List all invoices for a hospital with optional date and status filters (owner dashboard)."""
-    where = ["i.hospital_id = :hospital_id"]
-    params: dict = {"hospital_id": hospital_id, "limit": limit, "offset": offset}
+    """
+    List all invoices for a hospital. Used by Owner Dashboard ledger view.
+    Hospital scoping is enforced via current_user's hospital_id.
+    """
+    # Get hospital_id from the staff profile of the current user
+    try:
+        from sqlalchemy import text
+        staff_result = await db.execute(
+            text("SELECT hospital_id FROM staff WHERE user_id = :uid AND deleted_at IS NULL LIMIT 1"),
+            {"uid": current_user.sub},
+        )
+        staff_row = staff_result.fetchone()
+        hospital_id = str(staff_row.hospital_id) if staff_row else None
+    except Exception:
+        hospital_id = None
 
-    if from_date:
-        where.append("i.created_at >= :from_date")
-        params["from_date"] = from_date
-    if to_date:
-        where.append("i.created_at <= :to_date::date + 1")
-        params["to_date"] = to_date
-    if status:
-        where.append("i.status = :status")
-        params["status"] = status
+    if not hospital_id:
+        raise HTTPException(status_code=403, detail="Not linked to a hospital")
 
-    where_sql = " AND ".join(where)
-
-    result = await db.execute(
-        text(
-            f"""
-            SELECT i.id, i.invoice_number, i.total_amount,
-                   i.status, i.created_at, i.paid_at,
-                   p.full_name as patient_name
+    try:
+        from sqlalchemy import text
+        query = """
+            SELECT i.id, i.invoice_number, i.total_amount, i.status,
+                   i.created_at, i.paid_at, i.patient_id, i.upi_transaction_ref
             FROM invoices i
-            JOIN patients p ON i.patient_id = p.id
-            WHERE {where_sql}
-            ORDER BY i.created_at DESC
-            LIMIT :limit OFFSET :offset
-            """
-        ),
-        params,
-    )
-    rows = result.mappings().all()
+            WHERE i.hospital_id = :hospital_id AND i.deleted_at IS NULL
+        """
+        params: dict = {"hospital_id": hospital_id}
 
-    # Quick aggregate for revenue summary
-    rev_result = await db.execute(
-        text(
-            "SELECT COALESCE(SUM(total_amount),0) as revenue "
-            "FROM invoices WHERE hospital_id = :hospital_id AND status = 'paid'"
-        ),
-        {"hospital_id": hospital_id},
-    )
-    total_revenue = float(rev_result.scalar() or 0)
+        if status:
+            query += " AND i.status = :status"
+            params["status"] = status.upper()
+        if date_from:
+            query += " AND i.created_at >= :date_from"
+            params["date_from"] = date_from
+        if date_to:
+            query += " AND i.created_at <= :date_to"
+            params["date_to"] = date_to
 
-    return {
-        "invoices": [dict(r) for r in rows],
-        "hospital_id": hospital_id,
-        "total_revenue_collected": total_revenue,
-    }
+        # Count total
+        count_result = await db.execute(text(f"SELECT COUNT(*) FROM ({query}) AS q"), params)
+        total_count = count_result.scalar() or 0
+
+        query += f" ORDER BY i.created_at DESC LIMIT :limit OFFSET :offset"
+        params["limit"] = per_page
+        params["offset"] = (page - 1) * per_page
+
+        result = await db.execute(text(query), params)
+        rows = result.fetchall()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
+    invoices = [
+        {
+            "id": str(row.id),
+            "invoice_number": row.invoice_number,
+            "total_amount": float(row.total_amount),
+            "status": row.status,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+            "paid_at": row.paid_at.isoformat() if row.paid_at else None,
+            "patient_id": str(row.patient_id),
+            "upi_transaction_ref": row.upi_transaction_ref,
+        }
+        for row in rows
+    ]
+
+    total_revenue = sum(i["total_amount"] for i in invoices if i["status"] == "PAID")
+
+    return success_response(
+        data={
+            "invoices": invoices,
+            "total_count": total_count,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": max(1, (total_count + per_page - 1) // per_page),
+            "summary": {
+                "total_revenue_filtered": total_revenue,
+                "pending_count": sum(1 for i in invoices if i["status"] == "PENDING"),
+                "paid_count": sum(1 for i in invoices if i["status"] == "PAID"),
+            },
+        },
+        message="Hospital invoices loaded",
+    )

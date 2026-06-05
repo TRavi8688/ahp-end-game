@@ -17,6 +17,11 @@ from app.api.v1.nurse import router as nurse_router
 from app.api.v1.doctor_queue import router as doctor_queue_router
 from app.api.v1.ws_endpoint import router as ws_router
 from app.api.v1.medicines import router as medicines_router
+from app.api.v1.billing import router as billing_router
+from app.api.v1.owner import router as owner_router
+from app.api.v1.doctor_stats_alerts import router as doctor_extras_router
+from app.api.v1.patient_vitals_notifications import router as patient_extras_router
+from app.api.v1.staff import router as staff_router
 
 router = APIRouter()
 
@@ -33,3 +38,8 @@ router.include_router(nurse_router, prefix="/nurse", tags=["Nurse"])
 router.include_router(doctor_queue_router, prefix="/doctor", tags=["Doctor Queue"])
 router.include_router(medicines_router, prefix="/medicines", tags=["Medicines"])
 router.include_router(ws_router)
+router.include_router(owner_router, prefix="/owner", tags=["Owner Dashboard"])
+router.include_router(doctor_extras_router, prefix="/doctor", tags=["Doctor Stats"])
+router.include_router(patient_extras_router, prefix="/patient", tags=["Patient Extras"])
+router.include_router(billing_router, prefix="/billing", tags=["Billing"])
+router.include_router(staff_router, prefix="/staff", tags=["Staff HR"])

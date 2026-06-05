@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     # Database URL — enforced PostgreSQL connection
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/hospyn"
 
-    # Redis (Required)
+    # Redis (Required — OTP brute-force lockout depends on this)
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # CORS — comma-separated origins for production
@@ -31,12 +31,20 @@ class Settings(BaseSettings):
     # Password Reset Token Configuration
     RESET_TOKEN_EXPIRE_MINUTES: int = 30
 
-    # External APIs (Optional for local dev, required for prod)
+    # ── Twilio SMS (Primary OTP delivery) ───────────────────────────────────
+    # Get these from your Twilio console: console.twilio.com
+    # These are already set as GitHub Secrets — copy them into .env for local dev.
     TWILIO_ACCOUNT_SID: Optional[str] = None
     TWILIO_AUTH_TOKEN: Optional[str] = None
-    TWILIO_FROM_NUMBER: Optional[str] = None
+    TWILIO_FROM_NUMBER: Optional[str] = None  # Must be a valid Twilio number, e.g. +14155552671
 
-    # SMTP (for email OTP delivery)
+    # ── SMTP Email (Fallback OTP delivery) ──────────────────────────────────
+    # Recommended: use Resend (resend.com) — free tier, 3000 emails/month
+    # SMTP_HOST=smtp.resend.com
+    # SMTP_PORT=587
+    # SMTP_USER=resend
+    # SMTP_PASSWORD=re_xxxxxxxxxxxx   (your Resend API key)
+    # SMTP_FROM_EMAIL=otp@hospyn.com  (domain must be verified in Resend)
     SMTP_HOST: Optional[str] = None
     SMTP_PORT: int = 587
     SMTP_USER: Optional[str] = None
