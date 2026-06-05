@@ -1,18 +1,15 @@
-# backend/healthcare-core/app/api/v1/ws_endpoint.py
-# SEC-8 FIX: Add JWT authentication and Redis-based rate limiting to WebSocket.
-
 import logging
 from collections import defaultdict
-from datetime import datetime, timedelta
-
+from datetime import datetime
 import redis as redis_lib
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
+from app.core.websockets import manager
+from app.core.security import _decode_token
+from app.services.queue_service import resolve_any_staff
+from app.core.database import get_session_factory
 
-# Re-use the same JWT verification utility used in REST routes
-from app.core.security import verify_token  # adjust import path as needed
-
-logger = logging.getLogger(__name__)
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Rate-limiting constants
@@ -20,9 +17,7 @@ router = APIRouter()
 WS_MAX_CONNECTIONS_PER_IP_PER_MINUTE = 10
 WS_MAX_CONCURRENT_PER_USER = 5
 
-# In-memory tracker for concurrent connections per user (supplement Redis rate limit)
 _user_connection_count: dict[str, int] = defaultdict(int)
-
 
 def _get_client_ip(websocket: WebSocket) -> str:
     forwarded_for = websocket.headers.get("x-forwarded-for")
@@ -30,12 +25,7 @@ def _get_client_ip(websocket: WebSocket) -> str:
         return forwarded_for.split(",")[0].strip()
     return websocket.client.host if websocket.client else "unknown"
 
-
 def _check_rate_limit(redis_client: redis_lib.Redis, ip: str) -> bool:
-    """
-    Returns True (allowed) if IP has fewer than WS_MAX_CONNECTIONS_PER_IP_PER_MINUTE
-    in the current 60-second window. Uses a Redis sliding counter.
-    """
     key = f"ws:ratelimit:{ip}:{datetime.utcnow().strftime('%Y%m%d%H%M')}"
     try:
         count = redis_client.incr(key)
@@ -43,62 +33,68 @@ def _check_rate_limit(redis_client: redis_lib.Redis, ip: str) -> bool:
             redis_client.expire(key, 60)
         return count <= WS_MAX_CONNECTIONS_PER_IP_PER_MINUTE
     except redis_lib.RedisError:
-        # Fail-closed for rate limiting too — deny if Redis is down
         logger.error("Redis unavailable for WS rate limit check — denying connection")
         return False
 
-
-@router.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket, token: str | None = None):
+@router.websocket("/ws/reception")
+async def websocket_reception(websocket: WebSocket, token: str = Query(...)):
     """
-    SEC-8 FIX:
-      1. Reject connections missing or with invalid JWT (code 1008 Policy Violation).
-      2. Rate-limit new connections: max 10/min per IP via Redis.
-      3. Limit concurrent connections per user.
-    Token is passed as query param: ws://host/ws?token=<jwt>
+    WebSocket endpoint for real-time reception dashboard updates.
+    Expects JWT token in query parameters for security verification.
     """
     client_ip = _get_client_ip(websocket)
 
-    # --- 1. JWT validation ---
-    if not token:
-        logger.warning("WS connection rejected: no token from %s", client_ip)
-        await websocket.close(code=1008)  # 1008 = Policy Violation
+    try:
+        payload = await _decode_token(token)
+    except Exception as e:
+        logger.warning(f"WebSocket authentication failed: {e}")
+        await websocket.close(code=1008)  # Policy Violation
         return
 
-    payload = verify_token(token)  # raises or returns None on invalid
-    if not payload:
-        logger.warning("WS connection rejected: invalid token from %s", client_ip)
-        await websocket.close(code=1008)
-        return
+    user_id = payload.sub
 
-    user_id: str = payload.get("sub")
-    if not user_id:
-        await websocket.close(code=1008)
-        return
+    # Rate limiting
+    try:
+        # Assuming redis is attached to app.state
+        redis_client = websocket.app.state.redis
+        if not _check_rate_limit(redis_client, client_ip):
+            logger.warning("WS rate limit exceeded for IP %s", client_ip)
+            await websocket.close(code=1008)
+            return
+    except Exception:
+        # If redis isn't attached or fails
+        logger.warning("Redis not available for WS rate limiting")
+        pass
 
-    # --- 2. IP rate limit ---
-    redis_client = websocket.app.state.redis  # assumes redis attached to app.state
-    if not _check_rate_limit(redis_client, client_ip):
-        logger.warning("WS rate limit exceeded for IP %s", client_ip)
-        await websocket.close(code=1008)
-        return
-
-    # --- 3. Max concurrent connections per user ---
     if _user_connection_count[user_id] >= WS_MAX_CONCURRENT_PER_USER:
         logger.warning("WS max concurrent connections reached for user %s", user_id)
         await websocket.close(code=1008)
         return
 
-    await websocket.accept()
+    session_factory = get_session_factory()
+    async with session_factory() as db:
+        staff = await resolve_any_staff(db, user_id)
+        if not staff:
+            logger.warning(
+                f"WebSocket auth failed: User {user_id} is not registered staff."
+            )
+            await websocket.close(code=1008)
+            return
+        hospital_id = str(staff.hospital_id)
+
+    await manager.connect(hospital_id, websocket)
     _user_connection_count[user_id] += 1
-    logger.info("WS connection accepted: user=%s ip=%s", user_id, client_ip)
 
     try:
         while True:
-            data = await websocket.receive_text()
-            # ... existing message handling logic ...
-            await websocket.send_text(f"echo: {data}")
+            # Maintain connection and listen for client messages (e.g. ping)
+            message = await websocket.receive_json()
+            if message.get("type") == "ping":
+                await websocket.send_json({"event": "pong", "data": {}})
     except WebSocketDisconnect:
-        logger.info("WS disconnected: user=%s", user_id)
+        manager.disconnect(hospital_id, websocket)
+    except Exception as e:
+        logger.error(f"WebSocket connection error: {e}")
+        manager.disconnect(hospital_id, websocket)
     finally:
         _user_connection_count[user_id] = max(0, _user_connection_count[user_id] - 1)
