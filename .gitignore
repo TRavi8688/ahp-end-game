@@ -110,5 +110,7 @@ hospyn-fixes/
 doctor-app/project_dump.txt 
 doctor-app/doctor-app-fixes/ 
 *.txt 
+!requirements.txt
+!backend/healthcare-core/requirements.txt
 ".env" 
 ".env.production" 

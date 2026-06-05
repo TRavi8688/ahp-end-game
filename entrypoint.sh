@@ -34,7 +34,7 @@ if [ -n "${DATABASE_URL:-}" ] && echo "$DATABASE_URL" | grep -q "postgresql"; th
     # Extract host and port from DATABASE_URL
     # Format: postgresql+asyncpg://user:pass@host:port/dbname
     DB_HOST=$(echo "$DATABASE_URL" | sed -E 's|.*@([^:/]+).*|\1|')
-    DB_PORT=$(echo "$DATABASE_URL" | sed -E 's|.*:([0-9]+)/.*|\1|' || echo "5432")
+    DB_PORT=$(echo "$DATABASE_URL" | sed -nE 's|.*:([0-9]+)/.*|\1|p')
     DB_PORT="${DB_PORT:-5432}"
 
     MAX_RETRIES=30
