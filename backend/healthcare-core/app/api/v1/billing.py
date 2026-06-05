@@ -455,6 +455,96 @@ async def get_invoice_upi_url(
     )
 
 
+# ─── GET /billing/invoice/{id}/upi-qr ────────────────────────────────────────
+
+@router.get("/invoice/{invoice_id}/upi-qr")
+async def get_invoice_upi_qr(
+    invoice_id: uuid.UUID,
+    current_user: Annotated[TokenPayload, Depends(require_role(
+        "patient", "doctor", "receptionist", "hospital_admin", "admin"
+    ))],
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Returns a Base64 encoded QR Code image of the UPI deep-link URL for this invoice.
+    The frontend can render this directly in an <img src="data:image/png;base64,..."> tag.
+    """
+    import base64
+    import io
+    try:
+        import qrcode
+    except ImportError:
+        raise HTTPException(status_code=500, detail="qrcode library is not installed. Add qrcode[pil] to requirements.txt.")
+
+    try:
+        from sqlalchemy import text
+        inv_result = await db.execute(
+            text("SELECT invoice_number, total_amount, status, hospital_id FROM invoices WHERE id = :id AND deleted_at IS NULL"),
+            {"id": str(invoice_id)},
+        )
+        inv = inv_result.fetchone()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database error: {e}")
+
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    if inv.status == "PAID":
+        return error_response("ALREADY_PAID", "This invoice has already been paid", 400)
+
+    # Get hospital UPI VPA
+    upi_vpa = await _get_hospital_upi_vpa(inv.hospital_id, db)
+    if not upi_vpa:
+        raise HTTPException(
+            status_code=422,
+            detail="Hospital has not configured a UPI VPA. Ask the hospital admin to add it in Hospital Settings.",
+        )
+
+    # Get hospital name
+    hospital_result = await db.execute(
+        select(Hospital).where(Hospital.id == inv.hospital_id)
+    )
+    hospital = hospital_result.scalars().first()
+    hospital_name = hospital.name if hospital else "Hospyn Hospital"
+
+    upi_url = _build_upi_url(
+        vpa=upi_vpa,
+        name=hospital_name,
+        amount=float(inv.total_amount),
+        invoice_number=inv.invoice_number,
+        description=f"Hospyn Bill {inv.invoice_number}",
+    )
+
+    # Generate QR Code
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(upi_url)
+    qr.make(fit=True)
+
+    img = qr.make_image(fill_color="black", back_color="white")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    qr_base64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+    qr_data_uri = f"data:image/png;base64,{qr_base64}"
+
+    return success_response(
+        data={
+            "upi_url": upi_url,
+            "qr_code_base64": qr_data_uri,
+            "invoice_number": inv.invoice_number,
+            "amount": float(inv.total_amount),
+            "hospital_name": hospital_name,
+            "upi_vpa": upi_vpa,
+            "instructions": "Scan this QR code with any UPI app to pay directly.",
+        },
+        message="UPI QR Code generated successfully",
+    )
+
+
 # ─── PATCH /billing/invoice/{id}/mark-paid ───────────────────────────────────
 
 @router.patch("/invoice/{invoice_id}/mark-paid")

@@ -37,6 +37,10 @@ if "sqlite" in _database_url.lower():
 if "postgresql://" in _database_url and "+asyncpg" not in _database_url:
     _database_url = _database_url.replace("postgresql://", "postgresql+asyncpg://")
 
+# asyncpg uses 'ssl' instead of 'sslmode'
+if "+asyncpg" in _database_url:
+    _database_url = _database_url.replace("sslmode=", "ssl=")
+
 config.set_main_option("sqlalchemy.url", _database_url)
 
 

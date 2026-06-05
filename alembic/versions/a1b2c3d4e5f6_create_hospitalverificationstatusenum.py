@@ -1,7 +1,7 @@
 """create_hospitalverificationstatusenum
 
 Revision ID: a1b2c3d4e5f6
-Revises: 9b1c2d3e4f5g
+Revises: ab3f9c12d047
 Create Date: 2026-05-27 17:00:00.000000
 """
 from alembic import op
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.engine.reflection import Inspector
 
 revision = "a1b2c3d4e5f6"
-down_revision = "9b1c2d3e4f5g"
+down_revision = "ab3f9c12d047"
 branch_labels = None
 depends_on = None
 
