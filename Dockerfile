@@ -34,10 +34,14 @@ COPY --from=builder /install /usr/local
 # Create a non-root user for security
 RUN groupadd -r hospyn && useradd -r -g hospyn hospyn
 
-# FIX M4: Explicit selective COPY — only app code and config.
-# No COPY . . — prevents enc.key, .env, backups/, archive/ from entering the image
-# even if .dockerignore has a gap. Defence in depth.
-COPY app/ ./app/
+# FIX: Copy the ACTUAL application code from backend/healthcare-core/app/
+# The root app/ directory is a legacy stub — real code lives under backend/
+COPY backend/healthcare-core/app/ ./app/
+
+# Copy shared modules used by the app (audit, encryption, utils, etc.)
+COPY backend/shared/ ./shared/
+
+# Copy alembic migrations and config
 COPY alembic/ ./alembic/
 COPY alembic.ini .
 
