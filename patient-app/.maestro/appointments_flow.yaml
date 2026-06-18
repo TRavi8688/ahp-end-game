@@ -1,0 +1,26 @@
+appId: com.hospyn.patientapp
+---
+# ─── Test: Appointments screen ───────────────────────────────────────────────
+- launchApp
+
+# Assumes already logged in (state persists from login_flow if run in sequence)
+- assertVisible: "Dashboard"
+
+- tapOn: "Appointments"
+
+# Either live list OR cached banner must be visible
+- assertTrue:
+    anyOf:
+      - visible: "Upcoming"
+      - visible: "Showing cached data"
+      - visible: "No appointments found"
+
+# Test pull-to-refresh exists (doesn't crash)
+- scroll:
+    direction: DOWN
+    speed: 40
+    duration: 500
+- scroll:
+    direction: UP
+    speed: 40
+    duration: 500

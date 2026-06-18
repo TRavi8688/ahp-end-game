@@ -1,0 +1,218 @@
+# infra/docker-compose.dev.yml
+#
+# FIXES:
+#   - Removed JWT_SECRET_KEY + JWT_ALGORITHM=HS256 from all services
+#     (standardized on RS256 — auth-service generates ephemeral keys in dev)
+#   - Added AUTH_JWKS_URL to healthcare-core
+#   - Added notification-service (was missing)
+#   - Added ai-service (was missing)
+#   - Added INTERNAL_SERVICE_SECRET to all services
+#   - Added SERVICE_NAME to all services
+#   - Nginx now references services by correct container names
+#   - Added Dockerfile.dev fallback note
+#
+# PLACE AT: backend/infra/docker-compose.dev.yml
+
+services:
+
+  # ── Nginx — routes directly to each service ────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: hospyn_nginx
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth-service
+      - healthcare-core
+    networks:
+      - hospyn_net
+    restart: unless-stopped
+
+  # ── Auth Service ────────────────────────────────────────────────────────────
+  auth-service:
+    build:
+      context: ../auth-service
+      dockerfile: Dockerfile.dev
+    container_name: hospyn_auth
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/hospyn_auth_db
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      # In dev, auth-service generates ephemeral RSA keys if these are not set
+      JWT_PRIVATE_KEY_PEM: ${JWT_PRIVATE_KEY_PEM:-}
+      JWT_PUBLIC_KEY_PEM: ${JWT_PUBLIC_KEY_PEM:-}
+      # Internal service auth (use any value in dev)
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret-not-for-production}
+      SERVICE_NAME: auth-service
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER:-}
+      ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:5173,http://localhost:5174,http://localhost:19006"
+    volumes:
+      - ../auth-service:/app
+      - ../shared:/app/shared
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hospyn_net
+    restart: unless-stopped
+
+  # ── Healthcare Core ─────────────────────────────────────────────────────────
+  healthcare-core:
+    build:
+      context: ../healthcare-core
+      dockerfile: Dockerfile.dev
+    container_name: hospyn_core
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/hospyn_healthcare_db
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      # RS256: fetch public key from auth-service JWKS (no shared secret needed)
+      AUTH_JWKS_URL: http://auth-service:8000/api/v1/auth/.well-known/jwks.json
+      PARTNER_JWT_SECRET: ${PARTNER_JWT_SECRET:-dev-partner-secret-change-in-production-min-32-chars}
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret-not-for-production}
+      SERVICE_NAME: healthcare-core
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:5173,http://localhost:5174,http://localhost:19006"
+    volumes:
+      - ../healthcare-core:/app
+      - ../shared:/app/shared
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      minio:
+        condition: service_started
+    networks:
+      - hospyn_net
+    restart: unless-stopped
+
+  # ── AI Service ──────────────────────────────────────────────────────────────
+  ai-service:
+    build:
+      context: ../ai-service
+      dockerfile: Dockerfile.dev
+    container_name: hospyn_ai
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/hospyn_ai_db
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret-not-for-production}
+      SERVICE_NAME: ai-service
+      HEALTHCARE_CORE_URL: http://healthcare-core:8000
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:5173"
+    volumes:
+      - ../ai-service:/app
+      - ../shared:/app/shared
+    depends_on:
+      postgres:
+        condition: service_healthy
+      healthcare-core:
+        condition: service_started
+    networks:
+      - hospyn_net
+    restart: unless-stopped
+
+  # ── Notification Service ────────────────────────────────────────────────────
+  notification-service:
+    build:
+      context: ../notification-service
+      dockerfile: Dockerfile.dev
+    container_name: hospyn_notifications
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/hospyn_notifications_db
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/2
+      INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:-dev-internal-secret-not-for-production}
+      SERVICE_NAME: notification-service
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_FROM_NUMBER: ${TWILIO_FROM_NUMBER:-}
+      ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:5173"
+    volumes:
+      - ../notification-service:/app
+      - ../shared:/app/shared
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - hospyn_net
+    restart: unless-stopped
+
+  # ── PostgreSQL ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: hospyn_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - hospyn_pg_data:/var/lib/postgresql/data
+      - ./init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hospyn_net
+    restart: unless-stopped
+
+  # ── Redis ───────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: hospyn_redis
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "6379:6379"
+    volumes:
+      - hospyn_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hospyn_net
+    restart: unless-stopped
+
+  # ── MinIO — local object storage (dev only) ─────────────────────────────────
+  minio:
+    image: minio/minio:RELEASE.2023-11-20T22-40-07Z
+    container_name: hospyn_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - hospyn_minio_data:/data
+    networks:
+      - hospyn_net
+    restart: unless-stopped
+
+volumes:
+  hospyn_pg_data:
+  hospyn_redis_data:
+  hospyn_minio_data:
+
+networks:
+  hospyn_net:
+    driver: bridge

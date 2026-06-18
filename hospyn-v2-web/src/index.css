@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;900&family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-background: #FAF9FE;
+  --color-text-primary: #0F172A;
+  --color-primary: #8B5CF6;
+  --color-secondary: #10B981;
+  --color-accent: #F59E0B;
+  --color-surface: #FFFFFF;
+  --color-glass-border: #E8E7F5;
+  
+  --font-outfit: "Outfit", sans-serif;
+  --font-inter: "Inter", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-slate-800 font-inter antialiased overflow-x-hidden;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white border border-slate-200 rounded-[24px] transition-all duration-300 shadow-sm hover:shadow-md;
+  }
+  
+  .premium-gradient-text {
+    @apply bg-gradient-to-r from-slate-900 via-primary to-secondary bg-clip-text text-transparent;
+  }
+  
+  .btn-premium {
+    @apply px-8 py-4 bg-primary text-white font-bold uppercase tracking-widest text-[10px] rounded-xl 
+           hover:bg-blue-700 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 shadow-lg shadow-blue-500/10;
+  }
+
+  .btn-outline {
+    @apply px-8 py-4 border border-slate-200 text-slate-700 bg-white font-bold uppercase tracking-widest text-[10px] rounded-xl 
+           hover:bg-slate-50 transition-all duration-200;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F8FAFC;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+.neural-grid {
+  background-image: 
+    radial-gradient(circle at 75% 30%, rgba(139, 92, 246, 0.08) 0%, transparent 60%),
+    radial-gradient(circle at 20% 70%, rgba(16, 185, 129, 0.06) 0%, transparent 60%);
+  background-size: 100% 100%;
+}
+
+.badge-futuristic {
+  @apply px-4 py-1.5 rounded-full bg-violet-50 border border-violet-200 text-[10px] font-black tracking-[0.4em] text-primary uppercase;
+}
+
+/* Light Theme overrides for lucide and visuals */
+.text-glow-emerald {
+  text-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
+}
+.text-glow-purple {
+  text-shadow: 0 0 10px rgba(139, 92, 246, 0.1);
+}

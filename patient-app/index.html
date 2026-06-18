@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>Hospyn Security Portal</title>
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background-color: #050810;
+        color: white;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        overflow: hidden;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        width: 100%;
+      }
+      #fallback-ui {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: #050810;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+      }
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(99, 102, 241, 0.1);
+        border-top: 4px solid #6366F1;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+      }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+    <script>
+      // FORCED CACHE BUSTER: Staff Engineer level fix for "White Screen" issues
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) {
+            registration.unregister();
+            console.log('[Hospyn] ServiceWorker Unregistered');
+          }
+        });
+      }
+      // Clear cache on boot if it's a dev build
+      if (window.location.hostname === 'localhost') {
+        caches.keys().then(function(names) {
+          for (let name of names) caches.delete(name);
+        });
+      }
+
+      // Catch ANY boot error and show it
+      window.onerror = function(msg, url, line, col, error) {
+        var errBox = document.getElementById('error-display');
+        if (errBox) {
+          errBox.style.display = 'block';
+          errBox.innerHTML = '<strong>RUNTIME_CRITICAL:</strong> ' + msg + '<br/><small>' + url + ':' + line + '</small>';
+        }
+        return false;
+      };
+    </script>
+  </head>
+
+  <body>
+    <div id="fallback-ui" style="background: #6366F1; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; width: 100vw; position: fixed; top:0; left:0; z-index:99999;">
+      <h1 style="font-size: 50px;">DIAGNOSTIC_MODE_ACTIVE</h1>
+      <p style="font-size: 20px;">If you can see this, the server is ALIVE.</p>
+      <p>Time: <span id="current-time"></span></p>
+      <script>document.getElementById('current-time').innerText = new Date().toLocaleTimeString();</script>
+    </div>
+
+    <div id="root"></div>
+
+    <script>
+      // Remove fallback UI once React app mounts successfully
+      var checkInterval = setInterval(function() {
+        var root = document.getElementById('root');
+        if (root && root.children.length > 0) {
+          var fb = document.getElementById('fallback-ui');
+          if (fb) {
+            fb.style.opacity = '0';
+            fb.style.pointerEvents = 'none';
+            setTimeout(function() { fb.remove(); }, 500);
+          }
+          clearInterval(checkInterval);
+        }
+      }, 500);
+      
+      // Auto-hide fallback after 15 seconds to avoid hanging on splash
+      setTimeout(function() {
+        var fb = document.getElementById('fallback-ui');
+        if (fb) fb.style.opacity = '0.5';
+      }, 15000);
+    </script>
+  </body>
+</html>
