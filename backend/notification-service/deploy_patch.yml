@@ -1,0 +1,54 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# PATCH: .github/workflows/deploy.yml
+#
+# Add the notification-service deploy step. Insert it BEFORE the auth-service
+# deploy step so the notification service is live before auth tries to call it.
+# ─────────────────────────────────────────────────────────────────────────────
+
+      # ── Notification Service ────────────────────────────────────────────────
+      - name: Build & push notification-service image
+        run: |
+          docker build \
+            -t ${{ env.REGISTRY }}/hospyn/notification-service:${{ github.sha }} \
+            -f backend/notification-service/Dockerfile \
+            backend/notification-service
+          docker push ${{ env.REGISTRY }}/hospyn/notification-service:${{ github.sha }}
+
+      - name: Deploy notification-service to Cloud Run
+        run: |
+          gcloud run deploy notification-service \
+            --image ${{ env.REGISTRY }}/hospyn/notification-service:${{ github.sha }} \
+            --region ${{ env.GCP_REGION }} \
+            --platform managed \
+            --port 8004 \
+            --no-allow-unauthenticated \
+            --set-env-vars="ENV=production" \
+            --set-env-vars="SMS_TEST_MODE=false" \
+            --set-secrets="\
+              DATABASE_URL=hospyn-notifications-db-url:latest,\
+              REDIS_URL=hospyn-redis-url:latest,\
+              SECRET_KEY=hospyn-secret-key:latest,\
+              TWILIO_ACCOUNT_SID=twilio-account-sid:latest,\
+              TWILIO_AUTH_TOKEN=twilio-auth-token:latest,\
+              TWILIO_PHONE_NUMBER=twilio-phone-number:latest,\
+              INTERNAL_SERVICE_SECRET=hospyn-internal-secret:latest" \
+            --min-instances=1 \
+            --max-instances=10 \
+            --memory=512Mi \
+            --cpu=1 \
+            --timeout=60
+
+      - name: Smoke test notification-service health
+        run: |
+          SERVICE_URL=$(gcloud run services describe notification-service \
+            --region ${{ env.GCP_REGION }} --format 'value(status.url)')
+          curl -sf "${SERVICE_URL}/api/v1/notifications/health" | \
+            python3 -c "import sys,json; d=json.load(sys.stdin); assert d['status']=='healthy', d"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Required GitHub Actions secrets (add in repo Settings → Secrets):
+#   TWILIO_ACCOUNT_SID
+#   TWILIO_AUTH_TOKEN
+#   TWILIO_PHONE_NUMBER
+#   INTERNAL_SERVICE_SECRET   (shared with auth-service)
+# ─────────────────────────────────────────────────────────────────────────────
