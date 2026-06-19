@@ -4,7 +4,7 @@ Phase 4 — Doctor App: Profile, Leave, Break, Roster & Holiday models.
 
 WHY THIS FILE EXISTS:
   The Doctor model (app/models/doctor.py) has no fields for notification
-  preferences, session timeout, or a public-facing "Hospin ID". There were
+  preferences, session timeout, or a public-facing "Hospyn ID". There were
   also no tables anywhere in the schema for doctor leave requests, break
   logs, monthly roster shifts, or hospital holidays. The frontend
   (doctor-app) calls endpoints for all of these and none existed.
@@ -19,7 +19,7 @@ blocks doctor-app's patient search/schedule features):
   path runs. This migration adds the missing column (see
   migrations/0006_doctor_schedule_system.py — the `patients.hospyn_id`
   addition is bundled into that same file since both bugs block the same
-  doctor-app feature: finding a patient by Hospin ID).
+  doctor-app feature: finding a patient by Hospyn ID).
 
 DROP-IN INSTRUCTIONS:
   1. Save this file as:
@@ -118,7 +118,7 @@ class DoctorProfileExtension(Base):
     )
 
     # Public-facing, permanently-locked identifier shown in the doctor app
-    # Settings screen ("Hospin ID"). Generated once at first profile fetch.
+    # Settings screen ("Hospyn ID"). Generated once at first profile fetch.
     hospyn_id: Mapped[str] = mapped_column(String(40), unique=True, nullable=True, index=True)
 
     # Notification preferences

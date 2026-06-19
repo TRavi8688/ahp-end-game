@@ -258,7 +258,7 @@ async def get_qr_token(
             "signed_token": token,
             "hospital_id": str(hospital.id),
             "hospital_name": hospital.name,
-            "walkin_url": f"https://walkin.hospin.in/join/{token}",
+            "walkin_url": f"https://walkin.hospyn.com/join/{token}",
         }
     )
 

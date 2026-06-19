@@ -1,18 +1,17 @@
 """
 backend/auth-service/app/models/user.py
 
-WHAT CHANGED vs existing file:
-  - RoleEnum: added nurse, pharmacist, super_admin, owner, receptionist, lab, hr
-  - User model: added full_name column (frontend reads user.name — was always None)
-  - User model: added hospital_id column (needed for ABAC scoping in JWT)
-  - Boolean mapped_column uses proper SQLAlchemy 2.x syntax
+FIXES:
+  FIX-U1: Added missing roles to RoleEnum:
+           nurse, pharmacist, super_admin, owner, receptionist, lab, hr
+           Attempting to register or login with these roles raised a DB constraint error.
+  FIX-U2: Added full_name field (frontend Login.jsx reads user.name — was always None)
 """
 
 import uuid
 import enum
 from datetime import datetime
-from sqlalchemy import String, Integer, DateTime, Enum as SQLEnum, Boolean, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import String, Integer, DateTime, Enum as SQLEnum, UUID, func, Boolean
 from sqlalchemy.orm import Mapped, mapped_column
 from shared.database.core import Base
 
@@ -23,8 +22,7 @@ class RoleEnum(str, enum.Enum):
     admin          = "admin"
     hospital_admin = "hospital_admin"
     staff          = "staff"
-    # FIXED: all of these were missing — any login attempt with these roles
-    # raised a DB constraint error and returned 500
+    # FIX-U1: Added missing roles
     nurse          = "nurse"
     pharmacist     = "pharmacist"
     super_admin    = "super_admin"
@@ -40,24 +38,16 @@ class User(Base):
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
-    # FIXED: full_name added — login response returns user.name to every frontend
+    # FIX-U2: full_name added — login response returns user.name to frontend
     full_name: Mapped[str] = mapped_column(String(255), nullable=True)
-
-    email: Mapped[str] = mapped_column(
-        String(255), unique=True, index=True, nullable=True
-    )
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=True)
     phone_number: Mapped[str] = mapped_column(
         String(20), unique=True, index=True, nullable=True
     )
     hashed_password: Mapped[str] = mapped_column(String(255))
-    role: Mapped[RoleEnum] = mapped_column(
-        SQLEnum(RoleEnum), default=RoleEnum.patient
-    )
+    role: Mapped[RoleEnum] = mapped_column(SQLEnum(RoleEnum), default=RoleEnum.patient)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     token_version: Mapped[int] = mapped_column(Integer, default=1)
-
-    # FIXED: hospital_id added — written into JWT as "hid" for ABAC scoping
-    # Null for super_admin, partner users, and patients without a hospital
     hospital_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), nullable=True, index=True
     )
@@ -68,9 +58,7 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
-    deleted_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    deleted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class OTPVerification(Base):

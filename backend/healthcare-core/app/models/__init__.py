@@ -14,6 +14,16 @@ from app.models.doctor_schedule import (
     DoctorProfileExtension, DoctorLeave, DoctorBreakLog,
     RosterShift, Holiday, LeaveStatus, BreakType, ShiftType,
 )
+# EXECUTION FIX: pharmacy models existed as a file but were never imported
+# here, so SQLAlchemy never registered them and Base.metadata.create_all()
+# (and alembic autogenerate) didn't know they existed.
+from app.models.pharmacy import (
+    Medicine, PharmacyInventory, PrescriptionDispense,
+    PharmacyTransaction, TransactionType, PrescriptionShare,
+)
+# EXECUTION FIX: billing models had the same broken-Base bug as pharmacy.py
+# and were never registered either, despite api/v1/billing.py depending on them.
+from app.models.billing import Invoice, Payment, InvoiceStatus, PaymentMethod, PaymentStatus
 
 __all__ = [
     "Hospital",
@@ -35,4 +45,15 @@ __all__ = [
     "LeaveStatus",
     "BreakType",
     "ShiftType",
+    "Medicine",
+    "PharmacyInventory",
+    "PrescriptionDispense",
+    "PharmacyTransaction",
+    "TransactionType",
+    "PrescriptionShare",
+    "Invoice",
+    "Payment",
+    "InvoiceStatus",
+    "PaymentMethod",
+    "PaymentStatus",
 ]

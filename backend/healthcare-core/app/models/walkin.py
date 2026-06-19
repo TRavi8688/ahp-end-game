@@ -96,7 +96,7 @@ class WalkInRequest(Base):
         index=True,
     )
 
-    # Patient identity — linked AFTER they have a Hospin account, nullable for walk-ins
+    # Patient identity — linked AFTER they have a Hospyn account, nullable for walk-ins
     patient_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("patients.id", ondelete="SET NULL"),

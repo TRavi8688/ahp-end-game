@@ -17,7 +17,12 @@ export const setAuthFailureCallback = (callback) => {
 
 // Inject Auth Token
 apiClient.interceptors.request.use((config) => {
-    const token = localStorage.getItem('partner_token');
+    // EXECUTION FIX: was reading 'partner_token', but Login.jsx and
+    // Dashboard.jsx both read/write 'token'. Every authenticated request was
+    // silently sent with NO Authorization header at all (token was always
+    // undefined under this key), so every call landed as 401 regardless of
+    // whether login actually succeeded.
+    const token = localStorage.getItem('token');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
@@ -34,7 +39,7 @@ apiClient.interceptors.response.use(
         
         if (response?.status === 401) {
             console.error("AUTH_FAILURE: Session expired.");
-            localStorage.removeItem('partner_token');
+            localStorage.removeItem('token');
             if (onAuthFailureCallback) onAuthFailureCallback();
         }
         

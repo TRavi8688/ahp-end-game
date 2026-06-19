@@ -53,7 +53,7 @@ class Settings(BaseSettings):
             if "sqlite" in self.DATABASE_URL.lower():
                 _fatal("DATABASE_URL points to SQLite. Use PostgreSQL: postgresql+asyncpg://...")
             if not self.ALLOWED_ORIGINS.strip():
-                _fatal("ALLOWED_ORIGINS must be set in production. Example: https://app.hospin.in")
+                _fatal("ALLOWED_ORIGINS must be set in production. Example: https://app.hospyn.com")
 
     @property
     def cors_origins(self) -> list[str]:

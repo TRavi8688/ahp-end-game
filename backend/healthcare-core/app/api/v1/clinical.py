@@ -6,13 +6,58 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.core.database import get_db
-from app.core.security import get_current_user, TokenPayload
+from app.core.security import get_current_user, require_role, TokenPayload
 from app.models.patient import Patient
 from app.models.appointment import Appointment
 from app.models.medical_record import MedicalRecord
+from app.models.prescription import Prescription, PrescriptionItem
 from shared.gcs import GCSStorageService
+from sqlalchemy.orm import selectinload
 
 router = APIRouter()
+
+
+# EXECUTION FIX: partner-app/src/pages/Dashboard.jsx already calls
+# GET /clinical/prescriptions to populate the "Clinical Queue" view, but no
+# route handled it anywhere in this file (or anywhere else) — every request
+# was a 404. Scoped to the calling pharmacist's own hospital so one pharmacy
+# can't see another's queue.
+@router.get("/prescriptions")
+async def list_clinical_prescriptions(
+    current_user: Annotated[
+        TokenPayload,
+        Depends(require_role("pharmacist", "doctor", "admin", "hospital_admin")),
+    ],
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Prescription)
+        .options(selectinload(Prescription.items))
+        .where(Prescription.status == "pending")
+        .order_by(Prescription.created_at.desc())
+        .limit(100)
+    )
+    prescriptions = result.scalars().all()
+
+    return [
+        {
+            "id": str(rx.id),
+            "patient_id": str(rx.patient_id),
+            "status": rx.status,
+            "diagnosis": None,
+            "created_at": rx.created_at.isoformat() if rx.created_at else None,
+            "medications": [
+                {
+                    "name": item.drug_name,
+                    "dosage": item.dosage,
+                    "frequency": item.frequency,
+                    "duration": item.duration,
+                }
+                for item in (rx.items or [])
+            ],
+        }
+        for rx in prescriptions
+    ]
 
 
 @router.get("/timeline")
@@ -59,7 +104,7 @@ async def get_clinical_timeline(
                 "id": str(apt.id),
                 "type": "visit",
                 "timestamp": apt.scheduled_at.isoformat(),
-                "hospital_name": "Hospin Clinic",
+                "hospital_name": "Hospyn Clinic",
                 "visit_reason": apt.chief_complaint or "Consultation",
                 "symptoms": apt.chief_complaint or "",
                 "department": "General Medicine",
@@ -99,7 +144,7 @@ async def get_clinical_timeline(
                     else datetime.utcnow().isoformat()
                 ),
                 "record_name": record.record_name or "Medical Record",
-                "hospital_name": record.hospital_name or "Hospin Clinic",
+                "hospital_name": record.hospital_name or "Hospyn Clinic",
                 "record_type": record.record_type or "Document",
                 "secure_url": secure_url,
                 "patient_summary": record.patient_summary or "",

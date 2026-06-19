@@ -15,17 +15,22 @@ export default function Login({ onLogin }) {
     setError('');
 
     try {
-      // Typically partners might authenticate via a specific portal route
-      const formData = new FormData();
-      formData.append("username", email);
-      formData.append("password", password);
-      formData.append("grant_type", "password");
-
-      const response = await apiClient.post('/auth/login', formData, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      // EXECUTION FIX: backend's POST /auth/login reads `body: dict` — i.e. a
+      // plain JSON body with email/username + password — not an OAuth2
+      // x-www-form-urlencoded form. The previous code sent form-encoded
+      // username/password/grant_type, which the backend's `body.get(...)`
+      // calls would never see, so login could never succeed regardless of
+      // credentials.
+      const response = await apiClient.post('/auth/login', {
+        email: email,
+        password: password,
       });
-      
-      localStorage.setItem('partner_token', response.data.access_token);
+
+      // EXECUTION FIX: stored under 'partner_token', but Dashboard.jsx and
+      // apiClient.js both read 'token' — the dashboard's QR code, dispense
+      // flow, and every authenticated request were silently broken even on
+      // a successful login. Standardized to 'token' everywhere.
+      localStorage.setItem('token', response.data.access_token);
       onLogin();
     } catch (err) {
       console.error(err);

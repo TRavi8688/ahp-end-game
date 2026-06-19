@@ -15,6 +15,7 @@ import {
   UserCheck,
   Clock,
   UserPlus,
+  LifeBuoy,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useWebSocket } from '../hooks/useWebSocket';
@@ -62,6 +63,7 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
     { icon: Beaker,          label: 'Diagnostic Lab',   path: '/lab',                         roles: ['lab', 'admin'] },
     { icon: Users,           label: 'Staff Roster',     path: '/owner',                       roles: ['owner'] },
     { icon: Building2,       label: 'Hospital Control', path: '/admin',                       roles: ['admin'] },
+    { icon: LifeBuoy,        label: 'Support',          path: '/support',                     roles: ['admin', 'hospital_admin', 'super_admin', 'doctor', 'nurse', 'staff', 'pharmacy', 'pharmacist', 'lab', 'owner', 'hr', 'receptionist'] },
   ];
 
   const filteredMenu = menuItems.filter((item) => item.roles.includes(userRole));

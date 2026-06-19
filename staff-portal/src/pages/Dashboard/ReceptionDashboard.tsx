@@ -122,7 +122,10 @@ const ReceptionDashboard: React.FC = () => {
   // ── WebSocket ─────────────────────────────────────────────────────────────
 
   const connectWebSocket = () => {
-    const token = localStorage.getItem('token');
+    // FIXED: app stores the JWT in sessionStorage under 'hospyn_access_token'
+    // (see AuthContext.tsx) — localStorage.getItem('token') is never written
+    // anywhere, so this always returned null and the socket never connected.
+    const token = sessionStorage.getItem('hospyn_access_token');
     if (!token) return;
     if (wsRef.current) wsRef.current.close();
 
@@ -130,7 +133,11 @@ const ReceptionDashboard: React.FC = () => {
     // Construct from VITE_API_BASE_URL by swapping protocol
     const httpBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
     const wsBase   = httpBase.replace(/^http/, 'ws');
-    const wsUrl    = `${wsBase}/api/v1/ws/reception?token=${token}`;
+    // FIXED: ws_endpoint.py registers "/ws/reception" with no router-level
+    // prefix, but main.py mounts the whole api_router (tickets, ws, etc.)
+    // under "/api/v1/healthcare" — so the real path is
+    // /api/v1/healthcare/ws/reception, not /api/v1/ws/reception.
+    const wsUrl    = `${wsBase}/api/v1/healthcare/ws/reception?token=${token}`;
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;

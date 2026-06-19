@@ -8,4 +8,4 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" <<-EOSQL
     CREATE DATABASE hospyn_healthcare_db;
 EOSQL
 
-echo "✅ Databases hospin_auth_db and hospin_healthcare_db created successfully."
+echo "✅ Databases hospyn_auth_db and hospyn_healthcare_db created successfully."

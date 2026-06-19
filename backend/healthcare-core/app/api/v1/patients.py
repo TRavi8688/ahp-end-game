@@ -224,6 +224,47 @@ async def search_doctors(
     )
 
 
+@router.get("/search")
+async def search_patients_for_pharmacy(
+    current_user: Annotated[
+        TokenPayload,
+        Depends(require_role("doctor", "admin", "hospital_admin", "staff", "pharmacist")),
+    ],
+    db: AsyncSession = Depends(get_db),
+    q: str = Query(..., min_length=2),
+):
+    """
+    EXECUTION FIX: partner-app/src/pages/Dashboard.jsx already calls
+    GET /patients/search?q=... to look up a patient before dispensing — that
+    route never existed (only GET /patients/?search=... did, and it excludes
+    the pharmacist role and returns a wrapped {data: {items: [...]}} shape
+    with a `phone` field, not the flat array with `phone_number` the frontend
+    reads). This is a separate, deliberately small endpoint rather than
+    reshaping the existing one, so other callers of GET /patients/ aren't
+    affected by a frontend-specific quirk.
+    """
+    like_pattern = f"%{q}%"
+    result = await db.execute(
+        select(Patient)
+        .where(
+            (Patient.first_name.ilike(like_pattern))
+            | (Patient.last_name.ilike(like_pattern))
+            | (Patient.phone.ilike(like_pattern))
+        )
+        .limit(20)
+    )
+    patients = result.scalars().all()
+    return [
+        {
+            "id": str(p.id),
+            "first_name": p.first_name,
+            "last_name": p.last_name,
+            "phone_number": p.phone,
+        }
+        for p in patients
+    ]
+
+
 @router.get("/")
 async def list_patients(
     current_user: Annotated[
@@ -538,7 +579,7 @@ async def upload_report(
     medications = [
         {"name": "Montelukast", "dosage": "10mg", "frequency": "Once daily at bedtime"}
     ]
-    hospital_name = "Hospin General Hospital"
+    hospital_name = "Hospyn General Hospital"
     summary = "The patient presents with symptoms consistent with seasonal allergic rhinitis. Lungs are clear on auscultation. Recommended continuous monitoring."
     findings = (
         "Nasal mucosa shows mild edema. No evidence of secondary bacterial infection."
@@ -624,7 +665,7 @@ async def confirm_and_save_report(
         patient_id=patient.id,
         record_type=payload.type,
         record_name=payload.record_name or "Medical Record",
-        hospital_name=payload.hospital_name or "Hospin Clinic",
+        hospital_name=payload.hospital_name or "Hospyn Clinic",
         file_url=payload.s3_url,  # Uses the uploaded GCS URI
         raw_text=payload.analysis.get("raw_text") or "",
         ai_extracted=ai_extracted_str,

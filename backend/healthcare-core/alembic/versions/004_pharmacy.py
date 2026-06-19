@@ -60,8 +60,13 @@ def upgrade() -> None:
         sa.Column("inventory_id", postgresql.UUID(as_uuid=True),
                   sa.ForeignKey("pharmacy_inventory.id", ondelete="RESTRICT"), nullable=False),
         sa.Column("quantity_dispensed", sa.Integer, nullable=False),
-        sa.Column("dispensed_by", postgresql.UUID(as_uuid=True),
-                  sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
+        # EXECUTION FIX: was `sa.ForeignKey("users.id")`. The `users` table
+        # lives in the auth-service's own database (hospyn_auth_db), not this
+        # one (hospyn_healthcare_db) — see infra/init-databases.sh. A foreign
+        # key across two separate Postgres databases is not possible; this
+        # migration would have failed to apply. Plain UUID column instead,
+        # matching the convention in models/staff.py and models/doctor.py.
+        sa.Column("dispensed_by", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("dispensed_at", sa.DateTime, nullable=False, server_default=sa.text("now()")),
     )
     op.create_index("ix_prescription_dispenses_prescription_id",

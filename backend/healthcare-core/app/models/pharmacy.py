@@ -1,32 +1,48 @@
 # backend/healthcare-core/app/models/pharmacy.py
-# DB-4 FIX: Pharmacy inventory models migrated from old monolith.
+#
+# EXECUTION FIX (critical):
+#   - Was `from app.db.base_class import Base` — that module does not exist
+#     anywhere in healthcare-core. These models were never registered with
+#     SQLAlchemy's metadata and importing this file raised ModuleNotFoundError,
+#     which is why app/api/router.py couldn't boot.
+#   - `PrescriptionDispense.dispensed_by` had `ForeignKey("users.id")`, but
+#     `users` lives in the auth-service's own Postgres database
+#     (hospyn_auth_db), not healthcare-core's (hospyn_healthcare_db) — see
+#     infra/init-databases.sh. A cross-database FK is impossible in Postgres;
+#     this migration would fail to apply. Fixed to a plain UUID column, same
+#     convention already used in models/staff.py and models/doctor.py for
+#     auth-service user references.
+#
+# Added in this pass (previously missing, needed by partner-app Dashboard):
+#   - PharmacyTransaction: ledger rows for the "Transactions Ledger" view.
+#   - PrescriptionShare: links a Prescription to a pharmacy's Hospital row
+#     when a patient scans the pharmacy's QR code — backs the "Network Orders"
+#     view. Without this there was no way to represent "patient shared their
+#     prescription with pharmacy X" at all.
 
+import enum
 import uuid
 from datetime import datetime, date
 from decimal import Decimal
 
 from sqlalchemy import (
-    Column, DateTime, Date, ForeignKey,
+    Column, DateTime, Date, Enum as SQLEnum, ForeignKey,
     Integer, Numeric, String,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from app.db.base_class import Base  # adjust path as needed
+from app.core.database import Base
 
 
 class Medicine(Base):
-    """
-    Master catalogue of medicines.
-    Check if this already exists in your models — if so, skip creation
-    but add any missing columns.
-    """
+    """Master catalogue of medicines, shared across all pharmacies on the platform."""
     __tablename__ = "medicines"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(200), nullable=False, index=True)
-    generic_name = Column(String(200), nullable=False)
+    generic_name = Column(String(200), nullable=False, index=True)
     manufacturer = Column(String(200), nullable=True)
     category = Column(String(100), nullable=True)   # e.g. Antibiotic, Analgesic
     unit = Column(String(20), nullable=False)        # tablet, ml, mg, capsule
@@ -54,11 +70,13 @@ class PharmacyInventory(Base):
     purchase_price = Column(Numeric(10, 2), nullable=False)
     selling_price = Column(Numeric(10, 2), nullable=False)
 
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
     updated_at = Column(DateTime, nullable=False, server_default=func.now(),
                         onupdate=func.now())
 
     medicine = relationship("Medicine", back_populates="inventory_items")
     dispenses = relationship("PrescriptionDispense", back_populates="inventory", lazy="select")
+    transactions = relationship("PharmacyTransaction", back_populates="inventory", lazy="select")
 
 
 class PrescriptionDispense(Base):
@@ -70,8 +88,60 @@ class PrescriptionDispense(Base):
     inventory_id = Column(UUID(as_uuid=True), ForeignKey("pharmacy_inventory.id", ondelete="RESTRICT"),
                           nullable=False, index=True)
     quantity_dispensed = Column(Integer, nullable=False)
-    dispensed_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"),
-                          nullable=True)
+    # EXECUTION FIX: was ForeignKey("users.id") — users live in a different
+    # service's database. Plain UUID, same as Staff.user_id / Doctor.user_id.
+    dispensed_by = Column(UUID(as_uuid=True), nullable=True)
     dispensed_at = Column(DateTime, nullable=False, server_default=func.now())
 
     inventory = relationship("PharmacyInventory", back_populates="dispenses")
+
+
+class TransactionType(str, enum.Enum):
+    purchase = "purchase"        # stock received (AI scan / CSV upload / manual add)
+    dispense = "dispense"        # stock sold/dispensed to a patient
+    adjustment = "adjustment"    # manual correction (loss, damage, recount)
+    return_ = "return"           # patient/customer return
+
+
+class PharmacyTransaction(Base):
+    """
+    Append-only ledger of every inventory movement for a pharmacy.
+    Backs the partner-app "Transactions Ledger" view.
+    """
+    __tablename__ = "pharmacy_transactions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    hospital_id = Column(UUID(as_uuid=True), ForeignKey("hospitals.id", ondelete="RESTRICT"),
+                         nullable=False, index=True)
+    inventory_item_id = Column(UUID(as_uuid=True),
+                               ForeignKey("pharmacy_inventory.id", ondelete="SET NULL"),
+                               nullable=True, index=True)
+    transaction_type = Column(SQLEnum(TransactionType), nullable=False)
+    # Positive for stock added (purchase/return), negative for stock removed (dispense).
+    quantity = Column(Integer, nullable=False)
+    unit_price = Column(Numeric(10, 2), nullable=True)
+    reference_id = Column(UUID(as_uuid=True), nullable=True)  # dispense_id / prescription_id, etc.
+    created_by = Column(UUID(as_uuid=True), nullable=True)    # auth-service user id, no cross-DB FK
+    created_at = Column(DateTime, nullable=False, server_default=func.now(), index=True)
+
+    inventory = relationship("PharmacyInventory", back_populates="transactions")
+
+
+class PrescriptionShare(Base):
+    """
+    Created when a patient scans a pharmacy's QR code and shares a prescription
+    with it. Backs the partner-app "Network Orders" view. Distinct from
+    PrescriptionDispense: a share is "patient handed us their Rx", a dispense
+    is "we fulfilled it from stock" — a share may exist with zero dispenses.
+    """
+    __tablename__ = "prescription_shares"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    prescription_id = Column(UUID(as_uuid=True), ForeignKey("prescriptions.id", ondelete="CASCADE"),
+                             nullable=False, index=True)
+    pharmacy_hospital_id = Column(UUID(as_uuid=True), ForeignKey("hospitals.id", ondelete="CASCADE"),
+                                  nullable=False, index=True)
+    status = Column(String(20), nullable=False, default="pending")  # pending | accepted | fulfilled | rejected
+    shared_at = Column(DateTime, nullable=False, server_default=func.now())
+
+    prescription = relationship("Prescription", lazy="joined")

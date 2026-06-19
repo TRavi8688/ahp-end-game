@@ -1,7 +1,7 @@
 """
 Super Admin Router — backend/healthcare-core/app/api/v1/super_admin.py
 
-Provides every endpoint the Hospin super-admin dashboard calls.
+Provides every endpoint the Hospyn super-admin dashboard calls.
 Mounted at /api/v1/admin in main.py.
 
 All endpoints require role="super_admin".

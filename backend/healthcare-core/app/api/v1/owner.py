@@ -34,7 +34,10 @@ router = APIRouter()
 async def get_owner_dashboard(
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_owner", "hospital_admin", "admin")),
+        # FIXED: RoleEnum (auth-service) issues "owner", not "hospital_owner" —
+        # require_role() does an exact string match, so every real owner was
+        # getting a 403 trying to load their own dashboard.
+        Depends(require_role("owner", "hospital_admin", "admin", "super_admin")),
     ],
     branch_id: Optional[str] = Query(None, description="Filter by specific branch UUID"),
     db: AsyncSession = Depends(get_db),

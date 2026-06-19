@@ -119,16 +119,16 @@ async def _send_rejection_notifications(
     fields_str = ", ".join(reupload_fields) if reupload_fields else "required documents"
 
     sms_body = (
-        f"[Hospin] Your hospital '{name}' registration was not approved. "
+        f"[Hospyn] Your hospital '{name}' registration was not approved. "
         f"Reason: {reason}. "
         f"Please re-upload: {fields_str}. "
-        f"Log in to hospin.in to resubmit."
+        f"Log in to hospyn.com to resubmit."
     )
 
     email_body = f"""
 Dear Owner,
 
-Thank you for registering {name} on the Hospin network.
+Thank you for registering {name} on the Hospyn network.
 
 After reviewing your registration, our verification team was unable to approve it at this time.
 
@@ -139,15 +139,15 @@ Documents that need to be re-uploaded:
 {chr(10).join(f'  • {f}' for f in reupload_fields) if reupload_fields else '  • All submitted documents'}
 
 What to do next:
-1. Log in to https://hospin.in
+1. Log in to https://hospyn.com
 2. Click "Register Hospital"
 3. Re-upload the required documents
 4. Our team will review within 24 hours
 
 If you have any questions, raise a support ticket from the registration page.
 
-Hospin Verification Team
-https://hospin.in
+Hospyn Verification Team
+https://hospyn.com
 """
 
     # ── Twilio SMS ────────────────────────────────────────────────────────────
@@ -172,7 +172,7 @@ https://hospin.in
         smtp_port = int(os.getenv("SMTP_PORT", "587"))
         smtp_user = os.getenv("SMTP_USER")
         smtp_pass = os.getenv("SMTP_PASSWORD")
-        from_email = os.getenv("SMTP_FROM_EMAIL", "noreply@hospin.in")
+        from_email = os.getenv("SMTP_FROM_EMAIL", "noreply@hospyn.com")
 
         if all([smtp_host, smtp_user, smtp_pass]) and owner_email:
             import smtplib
@@ -180,8 +180,8 @@ https://hospin.in
             from email.mime.multipart import MIMEMultipart
 
             msg = MIMEMultipart("alternative")
-            msg["Subject"] = f"[Action Required] Hospin Registration — {name}"
-            msg["From"]    = f"Hospin Verification Team <{from_email}>"
+            msg["Subject"] = f"[Action Required] Hospyn Registration — {name}"
+            msg["From"]    = f"Hospyn Verification Team <{from_email}>"
             msg["To"]      = owner_email
             msg.attach(MIMEText(email_body, "plain"))
 

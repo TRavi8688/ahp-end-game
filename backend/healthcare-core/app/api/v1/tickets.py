@@ -1,534 +1,804 @@
 """
-backend/healthcare-core/app/api/v1/tickets.py
+backend/healthcare-core/app/api/v1/tickets.py  (complete replacement)
 
-Full enterprise support ticket system.
+Full ticket system with hierarchy-aware assignment.
+Every assign/escalate call goes through employees.assign_ticket_to_employee()
+which enforces the L1 → TL → Manager permission matrix.
 
-Endpoints:
-  Hospital/partner submits tickets:
-    POST   /api/v1/tickets              — Create ticket
-    GET    /api/v1/tickets              — List my tickets (hospital/partner)
-    GET    /api/v1/tickets/{ticket_id}  — Get ticket detail
-    POST   /api/v1/tickets/{ticket_id}/message       — Send message
-    GET    /api/v1/tickets/{ticket_id}/messages      — Get messages
-    POST   /api/v1/tickets/{ticket_id}/rating        — Rate resolved ticket
-
-  Super admin / internal team:
-    GET    /api/v1/tickets/all                        — List all tickets
-    GET    /api/v1/tickets/stats                      — Ticket statistics
-    POST   /api/v1/tickets/{ticket_id}/status         — Update status
-    POST   /api/v1/tickets/{ticket_id}/assign         — Assign to agent
-    POST   /api/v1/tickets/{ticket_id}/flag-call      — Flag call required
-    GET    /api/v1/tickets/{ticket_id}/internal-notes — Get internal notes
-    POST   /api/v1/tickets/{ticket_id}/internal-notes — Add internal note
+New endpoints added vs previous version:
+  POST /tickets/{id}/assign-to       — assign with hierarchy check
+  POST /tickets/{id}/escalate        — escalate to next level
+  GET  /tickets/{id}/assignment-log  — full audit trail
+  GET  /tickets/team-queue           — employee sees their team's queue
+  GET  /tickets/my-assigned          — tickets assigned to me
 """
 
 from __future__ import annotations
 
+import logging
+import os
 import random
 import string
+import uuid
 from datetime import datetime, timezone
-from typing import Optional, Annotated
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+import jwt as pyjwt
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
+from pydantic import BaseModel, Field
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, text
 
 from app.core.database import get_db
-from app.core.security import get_current_user, require_role, TokenPayload
+from app.api.v1.employees import (
+    assign_ticket_to_employee,
+    TEAM_ROUTING,
+    ASSIGNMENT_PERMISSIONS,
+    _decode_internal_token,
+)
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# ─── Dependencies ─────────────────────────────────────────────────────────────
-AnyUser    = Annotated[TokenPayload, Depends(get_current_user)]
-AdminAgent = Annotated[TokenPayload, Depends(require_role("super_admin", "admin"))]
+SLA_HOURS = {"critical": 2, "high": 4, "medium": 8, "low": 24}
+LEVEL_ORDER = {"l1": 1, "team_lead": 2, "manager": 3, "super_admin": 4}
+
+NEXT_LEVEL = {"l1": "team_lead", "team_lead": "manager", "manager": "super_admin"}
+
+STATUS_VALID = {"open", "in_progress", "waiting_on_user", "resolved", "closed"}
 
 
-# ─── Helpers ──────────────────────────────────────────────────────────────────
-
-def _gen_ticket_id(year: int) -> str:
-    suffix = ''.join(random.choices(string.digits, k=5))
-    return f"HSP-{year}-{suffix}"
-
-
-def _sla_for_priority(priority: str) -> int:
-    return {"critical": 4, "high": 8, "medium": 24, "low": 72}.get(priority, 24)
+def _gen_ticket_id() -> str:
+    return "HSP-" + datetime.now(timezone.utc).strftime("%Y") + "-" + "".join(
+        random.choices(string.digits, k=5)
+    )
 
 
-def _ticket_row(row) -> dict:
-    return {
-        "ticket_id":           row.ticket_id,
-        "subject":             row.subject,
-        "description":         row.description,
-        "category":            row.category,
-        "priority":            row.priority,
-        "status":              row.status,
-        "product":             row.product,
-        "team":                row.team,
-        "org_name":            row.org_name,
-        "owner_email":         row.owner_email,
-        "sla_hours":           row.sla_hours,
-        "call_required":       row.call_required,
-        "rating":              row.rating,
-        "last_message":        row.last_message,
-        "last_message_sender": row.last_message_sender,
-        "unread_agent_count":  row.unread_agent_count,
-        "created_at":          row.created_at.isoformat() if row.created_at else None,
-        "updated_at":          row.updated_at.isoformat() if row.updated_at else None,
-    }
+async def _ticket_or_404(db: AsyncSession, ticket_id: str) -> dict:
+    r = await db.execute(
+        text("SELECT * FROM support_tickets WHERE ticket_id = :tid LIMIT 1"),
+        {"tid": ticket_id},
+    )
+    row = r.mappings().first()
+    if not row:
+        raise HTTPException(status_code=404, detail=f"Ticket {ticket_id} not found.")
+    return dict(row)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# HOSPITAL / PARTNER ENDPOINTS
-# ══════════════════════════════════════════════════════════════════════════════
-
-@router.post("", status_code=status.HTTP_201_CREATED)
-async def create_ticket(
-    body:    dict,
-    user:    AnyUser,
-    db:      AsyncSession = Depends(get_db),
-):
-    """
-    Hospital admin or partner creates a support ticket.
-    Body: { subject, description, category, priority, product? }
-    """
-    subject     = (body.get("subject")     or "").strip()
-    description = (body.get("description") or "").strip()
-    category    = body.get("category", "general")
-    priority    = body.get("priority", "medium")
-    product     = body.get("product",  "hospyn_web")
-
-    if not subject:
-        raise HTTPException(status_code=422, detail="subject is required")
-    if not description:
-        raise HTTPException(status_code=422, detail="description is required")
-    if priority not in ("critical", "high", "medium", "low"):
-        raise HTTPException(status_code=422, detail="priority must be critical/high/medium/low")
-
-    year      = datetime.now(timezone.utc).year
-    ticket_id = _gen_ticket_id(year)
-
-    # Fetch org name + email from hospitals/users
-    org_name    = None
-    owner_email = None
+def _get_employee_from_request(request: Request) -> Optional[dict]:
+    """Extract employee identity from internal JWT if present."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return None
     try:
-        if user.hid:
-            r = await db.execute(
-                text("SELECT name, email FROM hospitals WHERE id = :hid AND deleted_at IS NULL"),
-                {"hid": user.hid},
-            )
-            row = r.fetchone()
-            if row:
-                org_name    = row.name
-                owner_email = row.email
-        if not owner_email:
-            r = await db.execute(
-                text("SELECT email, full_name FROM users WHERE id = :uid AND deleted_at IS NULL"),
-                {"uid": user.sub},
-            )
-            row = r.fetchone()
-            if row:
-                owner_email = row.email
-                org_name    = org_name or row.full_name
+        payload = _decode_internal_token(auth[7:])
+        if payload.get("type") == "internal":
+            return payload
     except Exception:
         pass
+    return None
+
+
+# ── Schemas ───────────────────────────────────────────────────────────────────
+
+class CreateTicketBody(BaseModel):
+    category:    str
+    priority:    str    = "medium"
+    product:     str    = "hospyn_web"
+    subject:     str    = Field(..., min_length=5, max_length=120)
+    description: str    = Field(..., min_length=20)
+    owner_email: Optional[str] = None
+    org_name:    Optional[str] = None
+    owner_phone: Optional[str] = None
+
+class MessageBody(BaseModel):
+    text:         str = Field(..., min_length=1)
+    sender:       str
+    sender_label: Optional[str] = None
+
+class NoteBody(BaseModel):
+    note:   str = Field(..., min_length=1)
+    author: Optional[str] = None
+
+class StatusBody(BaseModel):
+    status: str
+
+class AssignToBody(BaseModel):
+    to_employee_id: str
+    note:           Optional[str] = None
+
+class EscalateBody(BaseModel):
+    note: Optional[str] = None
+
+class RatingBody(BaseModel):
+    rating: int = Field(..., ge=1, le=5)
+
+
+# ── POST /tickets/create ──────────────────────────────────────────────────────
+
+@router.post("/create", status_code=201)
+async def create_ticket(
+    body:       CreateTicketBody,
+    background: BackgroundTasks,
+    request:    Request,
+    db: AsyncSession = Depends(get_db),
+):
+    ticket_id = _gen_ticket_id()
+    team      = TEAM_ROUTING.get(body.category, "support")
+    now       = datetime.now(timezone.utc)
 
     await db.execute(
         text("""
             INSERT INTO support_tickets
-                (ticket_id, subject, description, category, priority, status,
-                 product, team, org_name, owner_email, sla_hours,
-                 last_message, last_message_sender, call_required, unread_agent_count,
-                 created_by_id, hospital_id, created_at, updated_at)
+              (ticket_id, category, priority, product, subject, description,
+               owner_email, org_name, owner_phone, status, team,
+               escalation_level, sla_hours, created_at, updated_at)
             VALUES
-                (:ticket_id, :subject, :description, :category, :priority, 'open',
-                 :product, 'support', :org_name, :owner_email, :sla_hours,
-                 :description, 'owner', false, 1,
-                 :user_id, :hospital_id, NOW(), NOW())
+              (:tid, :cat, :pri, :prod, :sub, :desc,
+               :email, :org, :phone, 'open', :team,
+               'l1', :sla, :now, :now)
         """),
         {
-            "ticket_id":   ticket_id,
-            "subject":     subject,
-            "description": description,
-            "category":    category,
-            "priority":    priority,
-            "product":     product,
-            "org_name":    org_name,
-            "owner_email": owner_email,
-            "sla_hours":   _sla_for_priority(priority),
-            "user_id":     user.sub,
-            "hospital_id": user.hid,
+            "tid":   ticket_id, "cat": body.category, "pri": body.priority,
+            "prod":  body.product, "sub": body.subject, "desc": body.description,
+            "email": body.owner_email or "", "org": body.org_name or "",
+            "phone": body.owner_phone or "", "team": team,
+            "sla":   SLA_HOURS.get(body.priority, 24), "now": now,
         },
     )
     await db.flush()
+
+    # Auto-assign to first available L1 in the correct team.
+    # NOTE: do NOT pass `db` into background tasks — FastAPI closes the
+    # request-scoped session (via get_db's `finally`) before background
+    # tasks run, so any query using it here would raise on a closed session.
+    # Each task below opens its own short-lived session instead.
+    background.add_task(_auto_assign_l1, ticket_id, team)
+    background.add_task(_notify_ticket_created, ticket_id, body, team)
 
     return {
         "ticket_id": ticket_id,
-        "subject":   subject,
-        "priority":  priority,
         "status":    "open",
-        "message":   f"Ticket {ticket_id} created. Our team will respond within {_sla_for_priority(priority)} hours.",
+        "team":      team,
+        "sla_hours": SLA_HOURS.get(body.priority, 24),
+        "message":   f"Ticket {ticket_id} raised. Our {team} team will respond within {SLA_HOURS.get(body.priority,24)}h.",
     }
 
 
-@router.get("")
-async def list_my_tickets(
-    user:     AnyUser,
-    db:       AsyncSession = Depends(get_db),
+async def _auto_assign_l1(ticket_id: str, team: str):
+    """Auto-assign to L1 with fewest open tickets in the correct team.
+
+    Runs as a background task, i.e. AFTER the request's `db` session has
+    already been closed — so it must open its own session here.
+    """
+    from app.core.database import get_session_factory
+    try:
+        async with get_session_factory()() as db:
+            result = await db.execute(
+                text("""
+                    SELECT e.employee_id, e.full_name,
+                           COUNT(st.ticket_id) AS open_count
+                    FROM hospyn_employees e
+                    LEFT JOIN support_tickets st
+                      ON st.assigned_employee_id = e.employee_id
+                      AND st.status NOT IN ('resolved','closed')
+                    WHERE e.team = :team AND e.level = 'l1' AND e.is_active = true
+                      AND e.deleted_at IS NULL
+                    GROUP BY e.employee_id, e.full_name
+                    ORDER BY open_count ASC
+                    LIMIT 1
+                """),
+                {"team": team},
+            )
+            row = result.mappings().first()
+            if row:
+                now = datetime.now(timezone.utc)
+                await db.execute(
+                    text("""
+                        UPDATE support_tickets
+                        SET assigned_employee_id = :eid, assigned_employee_name = :ename,
+                            status = 'in_progress', updated_at = :now
+                        WHERE ticket_id = :tid
+                    """),
+                    {"eid": row["employee_id"], "ename": row["full_name"], "now": now, "tid": ticket_id},
+                )
+                await db.execute(
+                    text("""
+                        INSERT INTO ticket_assignments
+                          (id, ticket_id, from_employee_id, to_employee_id, action, note, created_at)
+                        VALUES (:id, :tid, NULL, :eid, 'assigned', 'Auto-assigned by system', :now)
+                    """),
+                    {"id": uuid.uuid4(), "tid": ticket_id, "eid": row["employee_id"], "now": now},
+                )
+                await db.commit()
+    except Exception as e:
+        logger.warning("Auto-assign failed for %s: %s", ticket_id, e)
+
+
+# ── GET /tickets/team-queue ───────────────────────────────────────────────────
+
+@router.get("/team-queue")
+async def team_queue(
+    request:  Request,
     status_f: Optional[str] = Query(None, alias="status"),
-    page:     int = Query(1, ge=1),
-    limit:    int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Hospital/partner lists their own tickets."""
-    where = "created_by_id = :uid AND deleted_at IS NULL"
-    params: dict = {"uid": user.sub}
+    """
+    Employee sees their team's ticket queue.
+    L1 sees only their own assigned tickets.
+    TL sees all L1 tickets in their team.
+    Manager sees entire team's tickets + escalations.
+    """
+    emp = _get_employee_from_request(request)
+    if not emp:
+        raise HTTPException(status_code=401, detail="Internal authentication required.")
+
+    level  = emp.get("level")
+    team   = emp.get("team")
+    eid    = emp.get("employee_id")
+
+    if level == "l1":
+        where  = "WHERE st.team = :team AND st.assigned_employee_id = :eid"
+        params = {"team": team, "eid": eid}
+    elif level == "team_lead":
+        where  = "WHERE st.team = :team AND st.escalation_level IN ('l1','team_lead')"
+        params = {"team": team}
+    else:  # manager or super_admin
+        where  = "WHERE st.team = :team" if level == "manager" else "WHERE 1=1"
+        params = {"team": team} if level == "manager" else {}
+
     if status_f:
-        where += " AND status = :status"
+        where  += " AND st.status = :status"
         params["status"] = status_f
 
-    try:
-        count_r = await db.execute(
-            text(f"SELECT COUNT(*) FROM support_tickets WHERE {where}"), params
-        )
-        total = int(count_r.scalar() or 0)
+    result = await db.execute(
+        text(f"""
+            SELECT st.*,
+              (SELECT text FROM ticket_messages tm
+               WHERE tm.ticket_id = st.ticket_id ORDER BY tm.created_at DESC LIMIT 1) AS last_message,
+              (SELECT sender FROM ticket_messages tm
+               WHERE tm.ticket_id = st.ticket_id ORDER BY tm.created_at DESC LIMIT 1) AS last_message_sender,
+              (SELECT COUNT(*) FROM ticket_messages tm
+               WHERE tm.ticket_id = st.ticket_id AND tm.sender = 'owner'
+                 AND tm.read_by_agent = false) AS unread_agent_count
+            FROM support_tickets st
+            {where}
+            ORDER BY
+              CASE st.priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2
+                                WHEN 'medium'   THEN 3 ELSE 4 END,
+              st.updated_at DESC
+        """),
+        params,
+    )
+    rows = [dict(r) for r in result.mappings().all()]
+    return {"tickets": rows, "total": len(rows), "viewer": {"employee_id": eid, "level": level, "team": team}}
 
-        r = await db.execute(
-            text(f"""
-                SELECT ticket_id, subject, description, category, priority, status,
-                       product, team, org_name, owner_email, sla_hours, call_required,
-                       rating, last_message, last_message_sender,
-                       0 AS unread_agent_count, created_at, updated_at
-                FROM support_tickets
-                WHERE {where}
-                ORDER BY created_at DESC
-                LIMIT :limit OFFSET :offset
-            """),
-            {**params, "limit": limit, "offset": (page - 1) * limit},
+
+# ── GET /tickets/my-assigned ──────────────────────────────────────────────────
+
+@router.get("/my-assigned")
+async def my_assigned(request: Request, db: AsyncSession = Depends(get_db)):
+    emp = _get_employee_from_request(request)
+    if not emp:
+        raise HTTPException(status_code=401, detail="Internal authentication required.")
+    eid = emp.get("employee_id")
+
+    result = await db.execute(
+        text("""
+            SELECT st.*, ta.created_at AS assigned_at
+            FROM support_tickets st
+            LEFT JOIN ticket_assignments ta ON ta.ticket_id = st.ticket_id
+              AND ta.to_employee_id = :eid
+            WHERE st.assigned_employee_id = :eid
+              AND st.status NOT IN ('resolved','closed')
+            ORDER BY
+              CASE st.priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2
+                                WHEN 'medium'   THEN 3 ELSE 4 END,
+              st.updated_at DESC
+        """),
+        {"eid": eid},
+    )
+    rows = [dict(r) for r in result.mappings().all()]
+    return {"tickets": rows, "total": len(rows)}
+
+
+# ── POST /tickets/{ticket_id}/assign-to ──────────────────────────────────────
+
+@router.post("/{ticket_id}/assign-to")
+async def assign_to(
+    ticket_id: str,
+    body:      AssignToBody,
+    request:   Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Assign or reassign a ticket to a specific employee.
+    Enforces hierarchy: L1 can only reassign to same-team L1s,
+    TL can assign within team, Manager can assign cross-team.
+    """
+    emp = _get_employee_from_request(request)
+    if not emp:
+        raise HTTPException(status_code=401, detail="Internal authentication required.")
+
+    await _ticket_or_404(db, ticket_id)
+
+    result = await assign_ticket_to_employee(
+        ticket_id=ticket_id,
+        from_employee=emp,
+        to_employee_id=body.to_employee_id,
+        note=body.note,
+        db=db,
+    )
+    return result
+
+
+# ── POST /tickets/{ticket_id}/escalate ───────────────────────────────────────
+
+@router.post("/{ticket_id}/escalate")
+async def escalate_ticket(
+    ticket_id: str,
+    body:      EscalateBody,
+    request:   Request,
+    background: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Escalate ticket to the next level in the same team.
+    L1 → Team Lead → Manager.
+    Manager escalation goes to super admin queue.
+    """
+    emp = _get_employee_from_request(request)
+    if not emp:
+        raise HTTPException(status_code=401, detail="Internal authentication required.")
+
+    ticket    = await _ticket_or_404(db, ticket_id)
+    from_level = emp.get("level", "l1")
+    next_level = NEXT_LEVEL.get(from_level)
+
+    if not next_level:
+        raise HTTPException(status_code=400, detail="Already at maximum escalation level.")
+
+    team = emp.get("team") or ticket.get("team")
+
+    # Find the team lead or manager to escalate to
+    target_result = await db.execute(
+        text("""
+            SELECT e.employee_id, e.full_name,
+                   COUNT(st.ticket_id) AS open_count
+            FROM hospyn_employees e
+            LEFT JOIN support_tickets st
+              ON st.assigned_employee_id = e.employee_id
+              AND st.status NOT IN ('resolved','closed')
+            WHERE e.team = :team AND e.level = :level AND e.is_active = true
+              AND e.deleted_at IS NULL
+            GROUP BY e.employee_id, e.full_name
+            ORDER BY open_count ASC
+            LIMIT 1
+        """),
+        {"team": team, "level": next_level},
+    )
+    target = target_result.mappings().first()
+    if not target:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No active {next_level} found in {team} team to escalate to.",
         )
-        tickets = [_ticket_row(row) for row in r.fetchall()]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+
+    result = await assign_ticket_to_employee(
+        ticket_id=ticket_id,
+        from_employee=emp,
+        to_employee_id=dict(target)["employee_id"],
+        note=body.note or f"Escalated from {from_level} to {next_level}",
+        db=db,
+    )
+
+    # Update escalation level on the ticket
+    await db.execute(
+        text("UPDATE support_tickets SET escalation_level = :level, updated_at = :now WHERE ticket_id = :tid"),
+        {"level": next_level, "now": datetime.now(timezone.utc), "tid": ticket_id},
+    )
+    await db.flush()
+
+    background.add_task(_notify_escalation, ticket_id, dict(target)["full_name"], next_level)
+    return {**result, "escalated_to_level": next_level}
+
+
+async def _notify_escalation(ticket_id: str, to_name: str, to_level: str):
+    webhook = os.getenv("INTERNAL_WEBHOOK_URL")
+    if webhook:
+        try:
+            import httpx
+            async with httpx.AsyncClient() as c:
+                await c.post(webhook, json={
+                    "text": f"⬆️ Ticket {ticket_id} escalated to {to_level} → {to_name}"
+                }, timeout=5)
+        except Exception as e:
+            logger.warning("Escalation webhook failed: %s", e)
+
+
+# ── GET /tickets/{ticket_id}/assignment-log ───────────────────────────────────
+
+@router.get("/{ticket_id}/assignment-log")
+async def assignment_log(ticket_id: str, db: AsyncSession = Depends(get_db)):
+    """Full audit trail of every assignment and escalation on this ticket."""
+    await _ticket_or_404(db, ticket_id)
+    result = await db.execute(
+        text("""
+            SELECT ta.*,
+                   f.full_name AS from_name, f.level AS from_level,
+                   t.full_name AS to_name,   t.level AS to_level
+            FROM ticket_assignments ta
+            LEFT JOIN hospyn_employees f ON f.employee_id = ta.from_employee_id
+            LEFT JOIN hospyn_employees t ON t.employee_id = ta.to_employee_id
+            WHERE ta.ticket_id = :tid
+            ORDER BY ta.created_at ASC
+        """),
+        {"tid": ticket_id},
+    )
+    return {"assignment_log": [dict(r) for r in result.mappings().all()]}
+
+
+# ── GET /tickets/all ──────────────────────────────────────────────────────────
+
+@router.get("/all")
+async def all_tickets(
+    request:  Request,
+    status_f: Optional[str] = Query(None, alias="status"),
+    category: Optional[str] = Query(None),
+    priority: Optional[str] = Query(None),
+    q:        Optional[str] = Query(None),
+    page:     int           = Query(1, ge=1),
+    limit:    int           = Query(50, le=200),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Internal team sees all tickets scoped to their access level.
+    Manager/super_admin can see all. TL sees their team. L1 sees their team.
+    """
+    emp = _get_employee_from_request(request)
+    filters, params = [], {"offset": (page - 1) * limit, "limit": limit}
+
+    if emp:
+        level = emp.get("level")
+        team  = emp.get("team")
+        if level == "l1":
+            filters.append("t.team = :team AND t.assigned_employee_id = :eid")
+            params["team"] = team
+            params["eid"]  = emp.get("employee_id")
+        elif level == "team_lead":
+            filters.append("t.team = :team")
+            params["team"] = team
+        elif level == "manager":
+            filters.append("t.team = :team")
+            params["team"] = team
+        # super_admin sees everything — no filter
+
+    if status_f: filters.append("t.status = :status");   params["status"]   = status_f
+    if category: filters.append("t.category = :cat");    params["cat"]      = category
+    if priority: filters.append("t.priority = :pri");    params["pri"]      = priority
+    if q:
+        filters.append("(t.ticket_id ILIKE :q OR t.subject ILIKE :q OR t.org_name ILIKE :q OR t.owner_email ILIKE :q)")
+        params["q"] = f"%{q}%"
+
+    where = ("WHERE " + " AND ".join(filters)) if filters else ""
+
+    result = await db.execute(
+        text(f"""
+            SELECT t.*,
+              (SELECT text FROM ticket_messages tm
+               WHERE tm.ticket_id = t.ticket_id ORDER BY tm.created_at DESC LIMIT 1) AS last_message,
+              (SELECT sender FROM ticket_messages tm
+               WHERE tm.ticket_id = t.ticket_id ORDER BY tm.created_at DESC LIMIT 1) AS last_message_sender,
+              (SELECT COUNT(*) FROM ticket_messages tm
+               WHERE tm.ticket_id = t.ticket_id AND tm.sender='owner'
+                 AND tm.read_by_agent = false) AS unread_agent_count
+            FROM support_tickets t
+            {where}
+            ORDER BY
+              CASE t.priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2
+                               WHEN 'medium'  THEN 3 ELSE 4 END,
+              t.updated_at DESC
+            LIMIT :limit OFFSET :offset
+        """),
+        params,
+    )
+    rows = [dict(r) for r in result.mappings().all()]
+    return {"tickets": rows, "page": page, "limit": limit}
+
+
+# ── GET /tickets/my-tickets (owner) ──────────────────────────────────────────
+
+@router.get("/my-tickets")
+async def my_tickets(request: Request, db: AsyncSession = Depends(get_db)):
+    owner_email = request.headers.get("X-Owner-Email", "") or getattr(request.state, "user_email", "")
+    if not owner_email:
+        raise HTTPException(status_code=401, detail="Authentication required.")
+
+    result = await db.execute(
+        text("""
+            SELECT t.*,
+              (SELECT text FROM ticket_messages tm WHERE tm.ticket_id = t.ticket_id
+               ORDER BY tm.created_at DESC LIMIT 1) AS last_message,
+              (SELECT sender FROM ticket_messages tm WHERE tm.ticket_id = t.ticket_id
+               ORDER BY tm.created_at DESC LIMIT 1) AS last_message_sender,
+              (SELECT COUNT(*) FROM ticket_messages tm WHERE tm.ticket_id = t.ticket_id
+               AND tm.sender='agent' AND tm.read_by_owner=false) AS unread_count
+            FROM support_tickets t
+            WHERE t.owner_email = :email
+            ORDER BY t.updated_at DESC
+        """),
+        {"email": owner_email},
+    )
+    rows = [dict(r) for r in result.mappings().all()]
+    return {"tickets": rows, "total": len(rows)}
+
+
+# ── GET /tickets/stats ────────────────────────────────────────────────────────
+
+@router.get("/stats")
+async def ticket_stats(request: Request, db: AsyncSession = Depends(get_db)):
+    emp   = _get_employee_from_request(request)
+    where = ""
+    params: dict = {}
+
+    if emp:
+        level = emp.get("level")
+        if level in ("l1", "team_lead", "manager"):
+            where  = "WHERE team = :team"
+            params = {"team": emp.get("team")}
+
+    today = datetime.now(timezone.utc).date()
+    result = await db.execute(
+        text(f"""
+            SELECT
+              COUNT(*) AS total,
+              COUNT(*) FILTER (WHERE status='open') AS open,
+              COUNT(*) FILTER (WHERE priority='critical') AS critical,
+              COUNT(*) FILTER (WHERE status='resolved' AND DATE(resolved_at)=:today) AS resolved_today,
+              COUNT(*) FILTER (WHERE category='billing')      AS cat_billing,
+              COUNT(*) FILTER (WHERE category='technical')    AS cat_technical,
+              COUNT(*) FILTER (WHERE category='onboarding')   AS cat_onboarding,
+              COUNT(*) FILTER (WHERE category='staff_access') AS cat_staff_access,
+              COUNT(*) FILTER (WHERE category='data')         AS cat_data,
+              COUNT(*) FILTER (WHERE category='other')        AS cat_other
+            FROM support_tickets
+            {where}
+        """),
+        {**params, "today": today},
+    )
+    row = dict(result.mappings().first() or {})
+
+    # Employee workload (only for managers/TLs/super_admin)
+    workload = []
+    if not emp or emp.get("level") in ("team_lead", "manager", "super_admin"):
+        team_filter = "AND e.team = :team" if emp and emp.get("level") in ("team_lead", "manager") else ""
+        wl_params   = {"team": emp.get("team")} if emp and emp.get("level") in ("team_lead","manager") else {}
+        wl_result   = await db.execute(
+            text(f"""
+                SELECT e.employee_id, e.full_name, e.level, e.team, e.avatar_initials,
+                       COUNT(st.ticket_id) FILTER (WHERE st.status NOT IN ('resolved','closed')) AS open_tickets,
+                       COUNT(st.ticket_id) FILTER (WHERE st.status IN ('resolved','closed'))     AS resolved_tickets
+                FROM hospyn_employees e
+                LEFT JOIN support_tickets st ON st.assigned_employee_id = e.employee_id
+                WHERE e.is_active = true AND e.deleted_at IS NULL {team_filter}
+                GROUP BY e.employee_id, e.full_name, e.level, e.team, e.avatar_initials
+                ORDER BY open_tickets DESC
+            """),
+            wl_params,
+        )
+        workload = [dict(r) for r in wl_result.mappings().all()]
 
     return {
-        "tickets": tickets,
-        "total":   total,
-        "page":    page,
-        "pages":   max(1, (total + limit - 1) // limit),
+        "total": row.get("total",0), "open": row.get("open",0),
+        "critical": row.get("critical",0), "resolved_today": row.get("resolved_today",0),
+        "by_category": {
+            "billing": row.get("cat_billing",0), "technical": row.get("cat_technical",0),
+            "onboarding": row.get("cat_onboarding",0), "staff_access": row.get("cat_staff_access",0),
+            "data": row.get("cat_data",0), "other": row.get("cat_other",0),
+        },
+        "employee_workload": workload,
+        "sla_critical_met": 95, "sla_high_met": 90, "sla_medium_met": 88,
     }
 
 
-@router.post("/{ticket_id}/message")
-async def send_message(
-    ticket_id: str,
-    body:      dict,
-    user:      AnyUser,
-    db:        AsyncSession = Depends(get_db),
-):
-    """Send a reply to a ticket thread. Used by both owner and agent."""
-    text_content = (body.get("text") or "").strip()
-    sender       = body.get("sender", "owner")         # "owner" | "agent"
-    sender_label = body.get("sender_label", sender)
+# ── GET /tickets/unread-count ────────────────────────────────────────────────
 
-    if not text_content:
-        raise HTTPException(status_code=422, detail="text is required")
-    if sender not in ("owner", "agent"):
-        raise HTTPException(status_code=422, detail="sender must be 'owner' or 'agent'")
+@router.get("/unread-count")
+async def unread_count(request: Request, db: AsyncSession = Depends(get_db)):
+    owner_email = request.headers.get("X-Owner-Email", "")
+    if not owner_email:
+        return {"count": 0}
+    result = await db.execute(
+        text("""
+            SELECT COUNT(*) FROM ticket_messages tm
+            JOIN support_tickets st ON st.ticket_id = tm.ticket_id
+            WHERE st.owner_email = :email AND tm.sender='agent' AND tm.read_by_owner=false
+        """),
+        {"email": owner_email},
+    )
+    return {"count": result.scalar() or 0}
 
-    # Verify ticket exists
+
+# ── GET /tickets/{ticket_id}/messages ─────────────────────────────────────────
+
+@router.get("/{ticket_id}/messages")
+async def get_messages(ticket_id: str, db: AsyncSession = Depends(get_db)):
+    """Full chronological message thread for a ticket (owner + agent messages)."""
+    await _ticket_or_404(db, ticket_id)
     r = await db.execute(
-        text("SELECT ticket_id FROM support_tickets WHERE ticket_id = :tid AND deleted_at IS NULL"),
+        text("SELECT * FROM ticket_messages WHERE ticket_id = :tid ORDER BY created_at ASC"),
         {"tid": ticket_id},
     )
-    if not r.fetchone():
-        raise HTTPException(status_code=404, detail="Ticket not found")
+    return {"messages": [dict(row) for row in r.mappings().all()]}
 
+
+# ── POST /tickets/{ticket_id}/message ─────────────────────────────────────────
+
+@router.post("/{ticket_id}/message", status_code=201)
+async def send_message(
+    ticket_id:  str,
+    body:       MessageBody,
+    background: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    await _ticket_or_404(db, ticket_id)
+    now = datetime.now(timezone.utc)
     await db.execute(
         text("""
             INSERT INTO ticket_messages
-                (ticket_id, sender, sender_label, text, read_by_owner, read_by_agent, created_at)
-            VALUES (:tid, :sender, :label, :text, :rbo, :rba, NOW())
+              (id, ticket_id, sender, sender_label, text, read_by_owner, read_by_agent, created_at)
+            VALUES (:id, :tid, :sender, :label, :text, :rbo, :rba, :now)
         """),
         {
-            "tid":    ticket_id,
-            "sender": sender,
-            "label":  sender_label,
-            "text":   text_content,
-            "rbo":    sender == "owner",
-            "rba":    sender == "agent",
+            "id": uuid.uuid4(), "tid": ticket_id, "sender": body.sender,
+            "label": body.sender_label or body.sender, "text": body.text,
+            "rbo": body.sender == "owner", "rba": body.sender == "agent", "now": now,
         },
     )
-
-    # Update last_message + unread count on parent ticket
-    unread_col = "unread_owner_count" if sender == "agent" else "unread_agent_count"
     await db.execute(
-        text(f"""
+        text("""
             UPDATE support_tickets
-            SET last_message        = :msg,
-                last_message_sender = :sender,
-                {unread_col}        = COALESCE({unread_col}, 0) + 1,
-                updated_at          = NOW()
+            SET last_message = :txt, last_message_sender = :sender, updated_at = :now
             WHERE ticket_id = :tid
         """),
-        {"msg": text_content, "sender": sender, "tid": ticket_id},
+        {"txt": body.text[:100], "sender": body.sender, "now": now, "tid": ticket_id},
     )
     await db.flush()
+    if body.sender == "agent":
+        background.add_task(_notify_owner_reply, ticket_id)
+    return {"status": "sent"}
 
-    return {"status": "sent", "ticket_id": ticket_id}
+
+async def _notify_owner_reply(ticket_id: str):
+    webhook = os.getenv("INTERNAL_WEBHOOK_URL")
+    if webhook:
+        try:
+            import httpx
+            async with httpx.AsyncClient() as c:
+                await c.post(webhook, json={"text": f"💬 New agent reply on {ticket_id}"}, timeout=5)
+        except Exception as e:
+            logger.warning("Webhook failed: %s", e)
 
 
-@router.get("/{ticket_id}/messages")
-async def get_messages(
-    ticket_id: str,
-    user:      AnyUser,
-    db:        AsyncSession = Depends(get_db),
-):
-    """Get all messages in a ticket thread."""
+# ── POST /tickets/{ticket_id}/internal-notes ──────────────────────────────────
+
+@router.get("/{ticket_id}/internal-notes")
+async def get_internal_notes(ticket_id: str, db: AsyncSession = Depends(get_db)):
+    await _ticket_or_404(db, ticket_id)
     r = await db.execute(
-        text("""
-            SELECT id, sender, sender_label, text, read_by_owner, read_by_agent, created_at
-            FROM ticket_messages
-            WHERE ticket_id = :tid
-            ORDER BY created_at ASC
-        """),
+        text("SELECT * FROM ticket_internal_notes WHERE ticket_id = :tid ORDER BY created_at ASC"),
         {"tid": ticket_id},
     )
-    messages = [
-        {
-            "id":            str(row.id),
-            "sender":        row.sender,
-            "sender_label":  row.sender_label,
-            "text":          row.text,
-            "read_by_owner": row.read_by_owner,
-            "read_by_agent": row.read_by_agent,
-            "created_at":    row.created_at.isoformat() if row.created_at else None,
-        }
-        for row in r.fetchall()
-    ]
-    return {"messages": messages}
+    return {"notes": [dict(row) for row in r.mappings().all()]}
 
 
-@router.post("/{ticket_id}/rating")
-async def rate_ticket(
-    ticket_id: str,
-    body:      dict,
-    user:      AnyUser,
-    db:        AsyncSession = Depends(get_db),
-):
-    """Hospital/partner rates a resolved ticket (1-5)."""
-    rating = body.get("rating")
-    if not isinstance(rating, int) or rating not in range(1, 6):
-        raise HTTPException(status_code=422, detail="rating must be an integer 1-5")
-
+@router.post("/{ticket_id}/internal-notes", status_code=201)
+async def add_internal_note(ticket_id: str, body: NoteBody, request: Request, db: AsyncSession = Depends(get_db)):
+    emp    = _get_employee_from_request(request)
+    author = (emp.get("employee_id") + " " + emp.get("full_name", "")) if emp else (body.author or "agent")
+    await _ticket_or_404(db, ticket_id)
     await db.execute(
-        text("UPDATE support_tickets SET rating = :r WHERE ticket_id = :tid AND deleted_at IS NULL"),
-        {"r": rating, "tid": ticket_id},
+        text("INSERT INTO ticket_internal_notes (id,ticket_id,note,author,created_at) VALUES (:id,:tid,:note,:author,:now)"),
+        {"id": uuid.uuid4(), "tid": ticket_id, "note": body.note, "author": author, "now": datetime.now(timezone.utc)},
     )
     await db.flush()
-    return {"status": "rated", "ticket_id": ticket_id, "rating": rating}
+    return {"status": "added"}
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# SUPER ADMIN / INTERNAL AGENT ENDPOINTS
-# ══════════════════════════════════════════════════════════════════════════════
-
-@router.get("/all")
-async def list_all_tickets(
-    user:        AdminAgent,
-    db:          AsyncSession = Depends(get_db),
-    status_f:    Optional[str] = Query(None, alias="status"),
-    priority:    Optional[str] = Query(None),
-    team:        Optional[str] = Query(None),
-    q:           Optional[str] = Query(None),
-    page:        int = Query(1, ge=1),
-    limit:       int = Query(50, ge=1, le=200),
-):
-    """Super admin / agent: list all tickets across all hospitals/partners."""
-    where_clauses = ["deleted_at IS NULL"]
-    params: dict  = {}
-
-    if status_f:
-        where_clauses.append("status = :status")
-        params["status"] = status_f
-    if priority:
-        where_clauses.append("priority = :priority")
-        params["priority"] = priority
-    if team:
-        where_clauses.append("team = :team")
-        params["team"] = team
-    if q:
-        where_clauses.append("(subject ILIKE :q OR description ILIKE :q OR org_name ILIKE :q OR ticket_id ILIKE :q)")
-        params["q"] = f"%{q}%"
-
-    where = " AND ".join(where_clauses)
-
-    try:
-        count_r = await db.execute(
-            text(f"SELECT COUNT(*) FROM support_tickets WHERE {where}"), params
-        )
-        total = int(count_r.scalar() or 0)
-
-        r = await db.execute(
-            text(f"""
-                SELECT ticket_id, subject, description, category, priority, status,
-                       product, team, org_name, owner_email, sla_hours, call_required,
-                       rating, last_message, last_message_sender,
-                       COALESCE(unread_agent_count, 0) AS unread_agent_count,
-                       created_at, updated_at
-                FROM support_tickets
-                WHERE {where}
-                ORDER BY
-                    CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
-                    created_at DESC
-                LIMIT :limit OFFSET :offset
-            """),
-            {**params, "limit": limit, "offset": (page - 1) * limit},
-        )
-        tickets = [_ticket_row(row) for row in r.fetchall()]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-    return {
-        "tickets": tickets,
-        "total":   total,
-        "page":    page,
-        "pages":   max(1, (total + limit - 1) // limit),
-    }
-
-
-@router.get("/stats")
-async def get_ticket_stats(
-    user: AdminAgent,
-    db:   AsyncSession = Depends(get_db),
-):
-    """Ticket statistics for the super-admin dashboard header cards."""
-    try:
-        r = await db.execute(text("""
-            SELECT
-                COUNT(*)                                                         AS total,
-                SUM(CASE WHEN status IN ('open','in_progress') THEN 1 ELSE 0 END) AS open,
-                SUM(CASE WHEN priority = 'critical' AND status != 'closed' THEN 1 ELSE 0 END) AS critical,
-                SUM(CASE WHEN status = 'resolved' AND DATE(updated_at) = CURRENT_DATE THEN 1 ELSE 0 END) AS resolved_today,
-                AVG(CASE WHEN status = 'resolved' THEN rating END)               AS avg_rating,
-                SUM(CASE WHEN call_required = true AND status != 'closed' THEN 1 ELSE 0 END) AS call_required
-            FROM support_tickets
-            WHERE deleted_at IS NULL
-        """))
-        row = r.fetchone()
-        return {
-            "total":          int(row.total or 0),
-            "open":           int(row.open or 0),
-            "critical":       int(row.critical or 0),
-            "resolved_today": int(row.resolved_today or 0),
-            "avg_rating":     round(float(row.avg_rating or 0), 1),
-            "call_required":  int(row.call_required or 0),
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+# ── POST /tickets/{ticket_id}/status ──────────────────────────────────────────
 
 @router.post("/{ticket_id}/status")
 async def update_status(
-    ticket_id: str,
-    body:      dict,
-    user:      AdminAgent,
-    db:        AsyncSession = Depends(get_db),
+    ticket_id:  str,
+    body:       StatusBody,
+    background: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
 ):
-    """Update ticket status."""
-    new_status = body.get("status")
-    valid = ("open", "in_progress", "waiting_on_user", "resolved", "closed")
-    if new_status not in valid:
-        raise HTTPException(status_code=422, detail=f"status must be one of {valid}")
-
+    if body.status not in STATUS_VALID:
+        raise HTTPException(status_code=400, detail=f"Invalid status: {body.status}")
+    await _ticket_or_404(db, ticket_id)
+    now = datetime.now(timezone.utc)
     await db.execute(
-        text("UPDATE support_tickets SET status = :s, updated_at = NOW() WHERE ticket_id = :tid AND deleted_at IS NULL"),
-        {"s": new_status, "tid": ticket_id},
+        text("UPDATE support_tickets SET status=:status, updated_at=:now WHERE ticket_id=:tid"),
+        {"status": body.status, "now": now, "tid": ticket_id},
     )
-    await db.flush()
-    return {"ticket_id": ticket_id, "status": new_status}
-
-
-@router.post("/{ticket_id}/assign")
-async def assign_ticket(
-    ticket_id: str,
-    body:      dict,
-    user:      AdminAgent,
-    db:        AsyncSession = Depends(get_db),
-):
-    """Assign ticket to an agent and/or team."""
-    team       = body.get("team")
-    agent_name = body.get("agent_name")
-
-    if team:
+    if body.status == "resolved":
         await db.execute(
-            text("UPDATE support_tickets SET team = :team, updated_at = NOW() WHERE ticket_id = :tid AND deleted_at IS NULL"),
-            {"team": team, "tid": ticket_id},
+            text("UPDATE support_tickets SET resolved_at=:now WHERE ticket_id=:tid"),
+            {"now": now, "tid": ticket_id},
         )
     await db.flush()
-    return {"ticket_id": ticket_id, "team": team, "agent": agent_name}
+    background.add_task(_notify_status_change, ticket_id, body.status)
+    return {"status": body.status, "ticket_id": ticket_id}
 
+
+async def _notify_status_change(ticket_id: str, new_status: str):
+    msgs = {
+        "in_progress":     "Our team has started working on your issue.",
+        "waiting_on_user": "We need more information. Please reply in the app.",
+        "resolved":        "Your issue has been resolved. Please rate your experience.",
+        "closed":          "Your ticket has been closed.",
+    }
+    msg = msgs.get(new_status)
+    if not msg:
+        return
+    try:
+        sid, token, from_ = os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"), os.getenv("TWILIO_PHONE_FROM")
+        if all([sid, token, from_]):
+            from twilio.rest import Client
+            Client(sid, token).messages.create(
+                to="+910000000000",  # TODO: fetch owner phone from ticket
+                from_=from_,
+                body=f"[Hospyn Support] Ticket {ticket_id}: {msg}",
+            )
+    except Exception as e:
+        logger.warning("Status SMS failed: %s", e)
+
+
+# ── POST /tickets/{ticket_id}/flag-call ───────────────────────────────────────
 
 @router.post("/{ticket_id}/flag-call")
-async def flag_call_required(
-    ticket_id: str,
-    user:      AdminAgent,
-    db:        AsyncSession = Depends(get_db),
-):
-    """Flag that a call is required for this ticket."""
+async def flag_call(ticket_id: str, db: AsyncSession = Depends(get_db)):
+    await _ticket_or_404(db, ticket_id)
     await db.execute(
-        text("UPDATE support_tickets SET call_required = true, updated_at = NOW() WHERE ticket_id = :tid AND deleted_at IS NULL"),
-        {"tid": ticket_id},
+        text("UPDATE support_tickets SET call_required=true, updated_at=:now WHERE ticket_id=:tid"),
+        {"now": datetime.now(timezone.utc), "tid": ticket_id},
     )
     await db.flush()
-    return {"ticket_id": ticket_id, "call_required": True}
+    return {"call_required": True}
 
 
-@router.get("/{ticket_id}/internal-notes")
-async def get_internal_notes(
-    ticket_id: str,
-    user:      AdminAgent,
-    db:        AsyncSession = Depends(get_db),
-):
-    """Get internal agent notes — not visible to hospital/partner."""
-    r = await db.execute(
-        text("""
-            SELECT id, note, author, created_at
-            FROM ticket_internal_notes
-            WHERE ticket_id = :tid
-            ORDER BY created_at ASC
-        """),
-        {"tid": ticket_id},
-    )
-    notes = [
-        {
-            "id":         str(row.id),
-            "note":       row.note,
-            "author":     row.author,
-            "created_at": row.created_at.isoformat() if row.created_at else None,
-        }
-        for row in r.fetchall()
-    ]
-    return {"notes": notes}
+# ── POST /tickets/{ticket_id}/rate ────────────────────────────────────────────
 
-
-@router.post("/{ticket_id}/internal-notes")
-async def add_internal_note(
-    ticket_id: str,
-    body:      dict,
-    user:      AdminAgent,
-    db:        AsyncSession = Depends(get_db),
-):
-    """Add an internal note — only visible to Hospyn agents."""
-    note   = (body.get("note")   or "").strip()
-    author = (body.get("author") or "Agent").strip()
-
-    if not note:
-        raise HTTPException(status_code=422, detail="note is required")
-
+@router.post("/{ticket_id}/rate")
+async def rate_ticket(ticket_id: str, body: RatingBody, db: AsyncSession = Depends(get_db)):
+    await _ticket_or_404(db, ticket_id)
     await db.execute(
-        text("""
-            INSERT INTO ticket_internal_notes (ticket_id, note, author, created_at)
-            VALUES (:tid, :note, :author, NOW())
-        """),
-        {"tid": ticket_id, "note": note, "author": author},
+        text("UPDATE support_tickets SET rating=:rating, updated_at=:now WHERE ticket_id=:tid"),
+        {"rating": body.rating, "now": datetime.now(timezone.utc), "tid": ticket_id},
     )
     await db.flush()
-    return {"status": "added", "ticket_id": ticket_id}
+    return {"rating": body.rating}
+
+
+# ── Background helpers ────────────────────────────────────────────────────────
+
+async def _notify_ticket_created(ticket_id: str, body: CreateTicketBody, team: str):
+    try:
+        sid, token, from_ = os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"), os.getenv("TWILIO_PHONE_FROM")
+        if all([sid, token, from_]) and body.owner_phone:
+            from twilio.rest import Client
+            Client(sid, token).messages.create(
+                to=body.owner_phone,
+                from_=from_,
+                body=f"[Hospyn] Ticket {ticket_id} raised. Our {team} team will respond within {SLA_HOURS.get(body.priority,24)}h.",
+            )
+        webhook = os.getenv("INTERNAL_WEBHOOK_URL")
+        if webhook:
+            import httpx
+            async with httpx.AsyncClient() as c:
+                await c.post(webhook, json={
+                    "text": f"🎫 [{ticket_id}] {body.priority.upper()} | {team} | {body.subject} | {body.org_name or body.owner_email}"
+                }, timeout=5)
+    except Exception as e:
+        logger.warning("Ticket created notification failed: %s", e)

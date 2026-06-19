@@ -7,8 +7,13 @@ type WSMessage = { type: string; payload: any };
 /**
  * FIXED:
  * 1. Reconnect timer was not cleared on unmount — caused memory leaks + double connections.
- * 2. `connect` captured stale `token` via closure — now reads from localStorage directly.
- * 3. WS URL now derived from VITE_API_BASE_URL (http→ws swap) instead of separate VITE_WS_URL.
+ * 2. Token was read from localStorage.getItem('token') — that key is never written
+ *    anywhere in this app (AuthContext stores it in sessionStorage under
+ *    'hospyn_access_token'), so the socket never had a token and never connected.
+ * 3. URL was /api/v1/ws/{hospitalId} — no such backend route exists. The only
+ *    websocket endpoint is ws_endpoint.py's "/ws/reception", mounted at
+ *    /api/v1/healthcare/ws/reception, and it derives hospital_id from the
+ *    JWT server-side — it doesn't take one in the URL.
  */
 export const useWebSocket = (hospitalId: string | undefined) => {
   const { token } = useAuth();
@@ -18,14 +23,16 @@ export const useWebSocket = (hospitalId: string | undefined) => {
   const [lastMessage, setLastMessage] = useState<WSMessage | null>(null);
 
   const connect = useCallback(() => {
-    // Read token from localStorage at call time (avoids stale closure)
-    const liveToken = localStorage.getItem('token');
-    if (!hospitalId || !liveToken) return;
+    // FIXED: read from sessionStorage (the actual store) under the actual key
+    const liveToken = sessionStorage.getItem('hospyn_access_token');
+    if (!liveToken) return;
     if (socketRef.current?.readyState === WebSocket.OPEN) return;
 
     const httpBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
     const wsBase   = httpBase.replace(/^http/, 'ws');
-    const wsUrl    = `${wsBase}/api/v1/ws/${hospitalId}?token=${liveToken}`;
+    // FIXED: real route is /api/v1/healthcare/ws/reception — hospital is
+    // resolved server-side from the token, not passed in the URL.
+    const wsUrl    = `${wsBase}/api/v1/healthcare/ws/reception?token=${liveToken}`;
 
     const ws = new WebSocket(wsUrl);
 

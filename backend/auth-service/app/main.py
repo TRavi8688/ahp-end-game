@@ -72,7 +72,7 @@ async def lifespan(application: FastAPI):
 
 def create_app() -> FastAPI:
     application = FastAPI(
-        title="Hospin Auth Service",
+        title="Hospyn Auth Service",
         version="1.0.0",
         docs_url="/docs" if settings.ENV != "production" else None,
         redoc_url=None,

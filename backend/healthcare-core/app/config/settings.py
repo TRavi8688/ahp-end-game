@@ -20,7 +20,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Hospin Healthcare Core"
+    PROJECT_NAME: str = "Hospyn Healthcare Core"
 
     ENV: str = "development"
     ENVIRONMENT: str = "development"
@@ -38,12 +38,28 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = (
         "http://localhost:3000,http://localhost:5173,"
         "http://localhost:5174,http://localhost:5175,"
-        "https://hospin.in,https://www.hospin.in"
+        "https://hospyn.com,https://www.hospyn.com"
     )
 
-    # ── Auth (RS256 validation only — NO signing happens here) ────────────────
-    # URL of auth-service JWKS endpoint.
-    # healthcare-core fetches public keys from here to validate incoming JWTs.
+    # ── Auth ──────────────────────────────────────────────────────────────────
+    # EXECUTION FIX (critical): auth-service's actual /auth/login route signs
+    # tokens with HS256 via app/services/auth_service.py (NOT the RS256 path in
+    # app/core/security.py / JWKS). These two fields were previously removed
+    # from this Settings class with a comment saying "healthcare-core only
+    # validates via JWKS" — but nothing in auth-service's real login flow ever
+    # switched to RS256, so every authenticated request to healthcare-core was
+    # raising AttributeError on settings.JWT_SECRET_KEY before it could even
+    # check the token. Restored here, MUST match auth-service's JWT_SECRET_KEY
+    # exactly (same value in both services' env — it's a shared HS256 secret).
+    JWT_SECRET_KEY: str = (
+        "local_dev_secret_key_must_be_at_least_32_characters_long_for_security"
+    )
+    JWT_ALGORITHM: str = "HS256"
+
+    # Kept for future migration to RS256/JWKS (app/middleware/rbac.py implements
+    # that path already, but auth-service's login route doesn't issue RS256
+    # tokens yet, so it isn't wired into the dependency graph — see rbac.py
+    # docstring before switching to it).
     AUTH_JWKS_URL: str = (
         "http://auth-service:8001/api/v1/auth/.well-known/jwks.json"
     )
@@ -58,7 +74,7 @@ class Settings(BaseSettings):
     INTERNAL_SERVICE_SECRET: Optional[str] = None
 
     # ── Storage ───────────────────────────────────────────────────────────────
-    GCP_STORAGE_BUCKET: str = "hospin-medical-records"
+    GCP_STORAGE_BUCKET: str = "hospyn-medical-records"
 
     # ── Pagination ────────────────────────────────────────────────────────────
     DEFAULT_PAGE_SIZE: int = 20

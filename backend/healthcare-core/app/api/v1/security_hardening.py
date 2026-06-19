@@ -168,7 +168,7 @@ app.add_middleware(
 )
 
 # In .env / GitHub Secrets set:
-# ALLOWED_ORIGINS=https://hospin.in,https://doctor.hospin.in,https://admin.hospin.in,https://reception.hospin.in
+# ALLOWED_ORIGINS=https://hospyn.com,https://doctor.hospyn.com,https://admin.hospyn.com,https://reception.hospyn.com
 '''
 
 
@@ -225,7 +225,7 @@ OTP_LOG_FIX = '''
 """
 ==========================================================================
 SECTION H — mock_token_123 removal
-FILE: hospin-v2-web/src/pages/OwnerDashboard.jsx
+FILE: hospyn-v2-web/src/pages/OwnerDashboard.jsx
 Delete the block roughly lines 56-101 that reads:
 ==========================================================================
 """

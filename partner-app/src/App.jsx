@@ -58,19 +58,25 @@ function Layout({ children, onLogout }) {
 }
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  // EXECUTION FIX: was hardcoded `useState(true)` with the auth-failure
+  // callback commented out ("Disabled to bypass login") — any visitor,
+  // logged in or not, with a valid token or none at all, landed straight on
+  // the dashboard. Now reflects whatever's actually in localStorage on load,
+  // and a 401 from any API call genuinely logs the user out again.
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    () => !!localStorage.getItem('token')
+  );
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Disabled to bypass login
-    // setAuthFailureCallback(() => {
-    //   setIsAuthenticated(false);
-    //   navigate('/login');
-    // });
+    setAuthFailureCallback(() => {
+      setIsAuthenticated(false);
+      navigate('/login');
+    });
   }, [navigate]);
 
   const handleLogout = () => {
-    localStorage.removeItem('partner_token');
+    localStorage.removeItem('token');
     setIsAuthenticated(false);
   };
 

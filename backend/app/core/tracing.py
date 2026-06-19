@@ -24,7 +24,7 @@ logger = get_logger(__name__)
 
 
 def configure_tracing(
-    service_name: str = "hospin-backend",
+    service_name: str = "hospyn-backend",
     service_version: str = "1.0.0",
     environment: str = "production",
 ) -> Optional[TracerProvider]:
@@ -116,7 +116,7 @@ def instrument_app(app, engine=None) -> None:
                 services=["fastapi", "sqlalchemy", "httpx", "redis"])
 
 
-def get_tracer(name: str = "hospin") -> trace.Tracer:
+def get_tracer(name: str = "hospyn") -> trace.Tracer:
     """Get a tracer for manual span creation."""
     return trace.get_tracer(name)
 
@@ -128,7 +128,7 @@ def get_tracer(name: str = "hospin") -> trace.Tracer:
 #
 # @asynccontextmanager
 # async def lifespan(app: FastAPI):
-#     configure_tracing(service_name="hospin-backend")
+#     configure_tracing(service_name="hospyn-backend")
 #     instrument_app(app, engine=engine)
 #     yield
 #

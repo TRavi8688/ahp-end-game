@@ -188,7 +188,7 @@ def get_jwks() -> dict:
                 "kty": "RSA",
                 "use": "sig",
                 "alg": "RS256",
-                "kid": "hospin-auth-key-1",
+                "kid": "hospyn-auth-key-1",
                 "n": _int_to_base64url(pub_numbers.n),
                 "e": _int_to_base64url(pub_numbers.e),
             }

@@ -24,15 +24,15 @@ const Login: React.FC = () => {
     setError('');
     try {
       await login(email, password);
-      // After login(), AuthContext parses the JWT and sets user.role.
-      // We read from the module-level ROLE_REDIRECT_MAP — no local guessing.
-      // Note: user state updates asynchronously; we read role from token directly.
-      const token = localStorage.getItem('token');
-      if (token) {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const redirect = ROLE_REDIRECT_MAP[payload.role] || '/unauthorized';
-        navigate(redirect, { replace: true });
-      }
+      // AuthContext.login() already parses the backend response and stores
+      // the resulting role in sessionStorage under 'hospyn_user' (and the
+      // token under 'hospyn_access_token'). Read the role from there —
+      // do NOT read localStorage.getItem('token'), which is never written
+      // anywhere in this app and would always be null.
+      const storedUser = sessionStorage.getItem('hospyn_user');
+      const role = storedUser ? JSON.parse(storedUser).role : null;
+      const redirect = role ? (ROLE_REDIRECT_MAP[role] || '/unauthorized') : '/unauthorized';
+      navigate(redirect, { replace: true });
     } catch (err: any) {
       const msg =
         err?.response?.data?.detail?.message ||

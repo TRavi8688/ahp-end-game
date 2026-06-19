@@ -18,7 +18,7 @@ services:
   # ── Nginx — routes directly to each service ────────────────────────────────
   nginx:
     image: nginx:1.27-alpine
-    container_name: hospin_nginx
+    container_name: hospyn_nginx
     ports:
       - "8000:8000"
     volumes:
@@ -27,7 +27,7 @@ services:
       - auth-service
       - healthcare-core
     networks:
-      - hospin_net
+      - hospyn_net
     restart: unless-stopped
 
   # ── Auth Service ────────────────────────────────────────────────────────────
@@ -35,7 +35,7 @@ services:
     build:
       context: ../auth-service
       dockerfile: Dockerfile.dev
-    container_name: hospin_auth
+    container_name: hospyn_auth
     environment:
       ENVIRONMENT: development
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/hospyn_auth_db
@@ -59,7 +59,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - hospin_net
+      - hospyn_net
     restart: unless-stopped
 
   # ── Healthcare Core ─────────────────────────────────────────────────────────
@@ -67,7 +67,7 @@ services:
     build:
       context: ../healthcare-core
       dockerfile: Dockerfile.dev
-    container_name: hospin_core
+    container_name: hospyn_core
     environment:
       ENVIRONMENT: development
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/hospyn_healthcare_db
@@ -94,7 +94,7 @@ services:
       minio:
         condition: service_started
     networks:
-      - hospin_net
+      - hospyn_net
     restart: unless-stopped
 
   # ── AI Service ──────────────────────────────────────────────────────────────
@@ -102,7 +102,7 @@ services:
     build:
       context: ../ai-service
       dockerfile: Dockerfile.dev
-    container_name: hospin_ai
+    container_name: hospyn_ai
     environment:
       ENVIRONMENT: development
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/hospyn_ai_db
@@ -121,7 +121,7 @@ services:
       healthcare-core:
         condition: service_started
     networks:
-      - hospin_net
+      - hospyn_net
     restart: unless-stopped
 
   # ── Notification Service ────────────────────────────────────────────────────
@@ -129,7 +129,7 @@ services:
     build:
       context: ../notification-service
       dockerfile: Dockerfile.dev
-    container_name: hospin_notifications
+    container_name: hospyn_notifications
     environment:
       ENVIRONMENT: development
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/hospyn_notifications_db
@@ -149,20 +149,20 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - hospin_net
+      - hospyn_net
     restart: unless-stopped
 
   # ── PostgreSQL ──────────────────────────────────────────────────────────────
   postgres:
     image: postgres:15-alpine
-    container_name: hospin_postgres
+    container_name: hospyn_postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
-      - hospin_pg_data:/var/lib/postgresql/data
+      - hospyn_pg_data:/var/lib/postgresql/data
       - ./init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
@@ -170,31 +170,31 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - hospin_net
+      - hospyn_net
     restart: unless-stopped
 
   # ── Redis ───────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: hospin_redis
+    container_name: hospyn_redis
     command: redis-server --requirepass ${REDIS_PASSWORD}
     ports:
       - "6379:6379"
     volumes:
-      - hospin_redis_data:/data
+      - hospyn_redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
-      - hospin_net
+      - hospyn_net
     restart: unless-stopped
 
   # ── MinIO — local object storage (dev only) ─────────────────────────────────
   minio:
     image: minio/minio:RELEASE.2023-11-20T22-40-07Z
-    container_name: hospin_minio
+    container_name: hospyn_minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
@@ -203,16 +203,16 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - hospin_minio_data:/data
+      - hospyn_minio_data:/data
     networks:
-      - hospin_net
+      - hospyn_net
     restart: unless-stopped
 
 volumes:
-  hospin_pg_data:
-  hospin_redis_data:
-  hospin_minio_data:
+  hospyn_pg_data:
+  hospyn_redis_data:
+  hospyn_minio_data:
 
 networks:
-  hospin_net:
+  hospyn_net:
     driver: bridge

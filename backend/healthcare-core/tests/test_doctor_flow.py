@@ -37,7 +37,7 @@ def _make_hospital(owner_id: uuid.UUID, suffix: str = "") -> Hospital:
         name=f"Columbia Asia Bangalore{suffix}",
         registration_number=f"REG-COLUMBIA-BLR{suffix}",
         license_number=f"HOSP-COLUMBIA-BLR{suffix}",
-        email=f"columbia.blr{suffix}@hospin.in",
+        email=f"columbia.blr{suffix}@hospyn.com",
         phone="+919876543211",
         address_line1="Yeshwanthpur",
         city="Bangalore",
@@ -83,7 +83,7 @@ async def test_doctor_registration_approval_and_booking(client, db_session):
     doctor_data = {
         "first_name": "Satish",
         "last_name": "Kumar",
-        "email": "satish.kumar@hospin.in",
+        "email": "satish.kumar@hospyn.com",
         "phone": "+919876543212",
         "specialization": "Cardiology",
         "qualification": "MD Cardiology",

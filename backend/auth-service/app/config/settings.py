@@ -4,7 +4,7 @@ from typing import Optional
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Hospin Auth Service"
+    PROJECT_NAME: str = "Hospyn Auth Service"
     ENVIRONMENT: str = "development"
 
     # Database URL — enforced PostgreSQL connection
@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
 
     # CORS — comma-separated origins for production
-    ALLOWED_ORIGINS: str = "https://hospin.in,https://www.hospin.in"
+    ALLOWED_ORIGINS: str = "https://hospyn.com,https://www.hospyn.com"
 
     # JWT Configuration — default for local development, MUST override in production.
     JWT_SECRET_KEY: str = (
@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # SMTP_PORT=587
     # SMTP_USER=resend
     # SMTP_PASSWORD=re_xxxxxxxxxxxx   (your Resend API key)
-    # SMTP_FROM_EMAIL=otp@hospin.in  (domain must be verified in Resend)
+    # SMTP_FROM_EMAIL=otp@hospyn.com  (domain must be verified in Resend)
     SMTP_HOST: Optional[str] = None
     SMTP_PORT: int = 587
     SMTP_USER: Optional[str] = None

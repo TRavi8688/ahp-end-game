@@ -14,7 +14,11 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from app.db.base_class import Base  # adjust path as needed
+from app.core.database import Base  # EXECUTION FIX: was `from app.db.base_class import Base`,
+                                     # a module that doesn't exist anywhere in healthcare-core.
+                                     # This broke import of api/v1/billing.py (and therefore
+                                     # api/router.py, and therefore the whole app) before it
+                                     # ever got near boot. Same bug as found in models/pharmacy.py.
 
 
 class InvoiceStatus(str, enum.Enum):

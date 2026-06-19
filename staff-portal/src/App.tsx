@@ -28,6 +28,7 @@ const LabDashboard      = lazy(() => import('./pages/Dashboard/LabDashboard'));
 const OwnerDashboard    = lazy(() => import('./pages/Dashboard/OwnerDashboard'));
 const HRDashboard       = lazy(() => import('./pages/Dashboard/HRDashboard'));
 const ReceptionDashboard = lazy(() => import('./pages/Dashboard/ReceptionDashboard'));
+const SupportPage        = lazy(() => import('./pages/Dashboard/SupportPage'));
 
 function Loading() {
   return (
@@ -176,6 +177,16 @@ export default function App() {
               element={
                 <StaffPage roles={['receptionist']}>
                   <ReceptionDashboard />
+                </StaffPage>
+              }
+            />
+
+            {/* Support — shared across every staff role */}
+            <Route
+              path="/support"
+              element={
+                <StaffPage roles={['admin', 'hospital_admin', 'super_admin', 'doctor', 'nurse', 'staff', 'pharmacist', 'lab', 'owner', 'hr', 'receptionist']}>
+                  <SupportPage />
                 </StaffPage>
               }
             />

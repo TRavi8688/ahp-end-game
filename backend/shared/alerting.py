@@ -97,7 +97,7 @@ class AlertManager:
         self,
         summary: str,
         severity: str = "P1",
-        component: str = "hospin-backend",
+        component: str = "hospyn-backend",
         details: Optional[dict] = None,
     ) -> bool:
         routing_key = self.PRIORITY_ROUTING_KEYS.get(severity)
@@ -111,11 +111,11 @@ class AlertManager:
                 "routing_key": routing_key,
                 "event_action": "trigger",
                 "payload": {
-                    "summary": f"[{severity}] Hospin: {summary}",
+                    "summary": f"[{severity}] Hospyn: {summary}",
                     "severity": "critical" if severity == "P0" else "error",
                     "source": component,
                     "component": component,
-                    "group": "hospin-backend",
+                    "group": "hospyn-backend",
                     "class": "healthcare-platform",
                     "custom_details": details or {},
                 },

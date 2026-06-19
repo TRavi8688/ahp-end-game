@@ -52,14 +52,14 @@ def upgrade():
     op.create_table(
         'ticket_messages',
         sa.Column('id',           UUID(as_uuid=True), primary_key=True),
-        sa.Column('ticket_id',    sa.String(20),  nullable=False,
-                  sa.ForeignKeyConstraint(['ticket_id'], ['support_tickets.ticket_id'], ondelete='CASCADE')),
+        sa.Column('ticket_id',    sa.String(20),  nullable=False),
         sa.Column('sender',       sa.String(20),  nullable=False),   # owner | agent
         sa.Column('sender_label', sa.String(255), nullable=True),
         sa.Column('text',         sa.Text(),      nullable=False),
         sa.Column('read_by_owner', sa.Boolean(),  nullable=False, server_default='false'),
         sa.Column('read_by_agent', sa.Boolean(),  nullable=False, server_default='false'),
         sa.Column('created_at',   sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(['ticket_id'], ['support_tickets.ticket_id'], ondelete='CASCADE'),
     )
 
     op.create_index('ix_ticket_messages_ticket_id', 'ticket_messages', ['ticket_id'])
@@ -68,11 +68,11 @@ def upgrade():
     op.create_table(
         'ticket_internal_notes',
         sa.Column('id',        UUID(as_uuid=True), primary_key=True),
-        sa.Column('ticket_id', sa.String(20),  nullable=False,
-                  sa.ForeignKeyConstraint(['ticket_id'], ['support_tickets.ticket_id'], ondelete='CASCADE')),
+        sa.Column('ticket_id', sa.String(20),  nullable=False),
         sa.Column('note',      sa.Text(),      nullable=False),
         sa.Column('author',    sa.String(255), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(['ticket_id'], ['support_tickets.ticket_id'], ondelete='CASCADE'),
     )
 
     op.create_index('ix_ticket_notes_ticket_id', 'ticket_internal_notes', ['ticket_id'])
