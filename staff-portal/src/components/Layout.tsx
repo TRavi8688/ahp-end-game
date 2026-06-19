@@ -22,7 +22,7 @@ import { useStore } from '../store/useStore';
 
 interface LayoutProps {
   children: React.ReactNode;
-  role: string;
+  role?: string;
 }
 
 /**
@@ -37,6 +37,7 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
   const location  = useLocation();
   const { logout, user } = useAuth();
   const { setQueue, addAlert, setSystemStatus } = useStore();
+  const userRole = role || user?.role || '';
   const { isConnected, lastMessage } = useWebSocket(user?.hospital_id);
 
   React.useEffect(() => {
@@ -63,12 +64,9 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
     { icon: Building2,       label: 'Hospital Control', path: '/admin',                       roles: ['admin'] },
   ];
 
-  const filteredMenu = menuItems.filter((item) => item.roles.includes(role));
+  const filteredMenu = menuItems.filter((item) => item.roles.includes(userRole));
 
-  const displayName =
-    user?.first_name
-      ? `${user.first_name} ${user.last_name || ''}`.trim()
-      : user?.email || 'Staff';
+  const displayName = user?.name || user?.email || 'Staff';
 
   return (
     <div className="flex min-h-screen bg-[#020617] text-slate-100 font-sans">
@@ -88,7 +86,7 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
           <nav className="space-y-1">
             {filteredMenu.map((item) => {
               const isActive = location.pathname === item.path ||
-                (item.path !== `/${role}` && location.pathname.startsWith(item.path));
+                (item.path !== `/${userRole}` && location.pathname.startsWith(item.path));
               return (
                 <button
                   key={item.path}
@@ -120,7 +118,7 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
                 {displayName}
               </span>
               <span className="text-[10px] text-blue-500 font-black uppercase tracking-widest">
-                {role.replace('_', ' ')}
+                {userRole.replace('_', ' ')}
               </span>
             </div>
           </div>

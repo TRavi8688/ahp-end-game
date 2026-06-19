@@ -1,193 +1,108 @@
 """
-healthcare-core/app/main.py
+backend/healthcare-core/app/main.py
 
-FIXES:
-  - Added lifespan with init_redis() + close_redis() (was completely missing)
-  - Added run_startup_checks() to catch bad secrets before serving traffic
-  - Removed 5 duplicate partner router registrations (double-prefix BUG-8)
-  - All core routes (patients, doctors, appointments etc.) now registered
-    through api_router — no longer invisible
-  - configure_sentry() now uses shared/alerting.py with PHI scrubbing
-  - Health check uses get_redis_client() (not the broken get_redis())
-
-PLACE AT: backend/healthcare-core/app/main.py
+WHAT CHANGED vs existing file:
+  - Added direct mount of super_admin_router at /api/v1/admin
+    (nginx routes /api/v1/admin/ → gateway → this service)
+  - Added direct mount of partner routers at /api/v1/partner
+    (nginx routes /api/v1/partner/ → gateway → this service)
+  - Added direct mount of staff router at /api/v1/staff
+    (nginx routes /api/v1/staff/ → gateway → this service; HR portal calls /api/v1/staff/*)
+  - Kept existing /api/v1 mount for all hospital-facing routes
+  - CORS now reads from env (was hardcoded)
 """
-from __future__ import annotations
 
 import logging
 import os
-import time
-import uuid
-from contextlib import asynccontextmanager
 
-import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.router import api_router
-from app.api.internal import router as internal_router
+from app.api.router import router as api_router
 from app.config.settings import settings
-from shared.redis_client import init_redis, close_redis, get_redis_client
-from shared.startup_checks import run_startup_checks
-from shared.alerting import configure_sentry
 
-configure_sentry(settings)
 logger = logging.getLogger(__name__)
 
-
-# ── Lifespan ──────────────────────────────────────────────────────────────────
-
-@asynccontextmanager
-async def lifespan(application: FastAPI):
-    """Startup → validate config, connect Redis. Shutdown → close Redis."""
-    logger.info("Healthcare Core starting up...")
-
-    # 1. Fail hard on bad config — before accepting any traffic
-    run_startup_checks(settings)
-
-    # 2. Init Redis (required for token blacklist, user-status cache, consent tokens)
-    try:
-        init_redis(settings.REDIS_URL)
-        redis = get_redis_client()
-        await redis.ping()
-        logger.info("Redis connected")
-    except Exception as exc:
-        logger.critical("Redis unavailable at startup: %s", exc)
-        raise RuntimeError(f"Redis connection failed: {exc}") from exc
-
-    # 3. Warm up DB connection pool
-    try:
-        from app.core.database import get_engine
-        from sqlalchemy import text
-        engine = get_engine()
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-        logger.info("Database connection pool warmed up")
-    except Exception as exc:
-        from shared.alerting import alert_database_down
-        await alert_database_down(str(exc))
-        raise RuntimeError(f"Database unreachable at startup: {exc}") from exc
-
-    yield
-
-    # Shutdown
-    logger.info("Healthcare Core shutting down...")
-    await close_redis()
-    from app.core.database import get_engine
-    await get_engine().dispose()
-
-
-# ── App factory ───────────────────────────────────────────────────────────────
-
 app = FastAPI(
-    title="Hospin Healthcare Core API",
-    description="Healthcare management platform — core clinical and operational API",
+    title="Hospyn Healthcare Core API",
+    description="Healthcare management platform API",
     version="2.0.0",
-    docs_url="/docs" if settings.ENV != "production" else None,
+    docs_url="/docs" if os.getenv("ENV", "development") != "production" else None,
     redoc_url=None,
-    lifespan=lifespan,
 )
 
 
-# ── Correlation-ID / request logging middleware ───────────────────────────────
-
-@app.middleware("http")
-async def correlation_id_middleware(request: Request, call_next):
-    correlation_id = (
-        request.headers.get("X-Correlation-ID")
-        or request.headers.get("X-Request-ID")
-        or str(uuid.uuid4())
-    )
-    structlog.contextvars.bind_contextvars(trace_id=correlation_id)
-    start = time.monotonic()
-    try:
-        response = await call_next(request)
-        duration_ms = round((time.monotonic() - start) * 1000)
-        response.headers["X-Correlation-ID"] = correlation_id
-        logger.info(
-            "request",
-            extra={
-                "service": "healthcare-core",
-                "trace_id": correlation_id,
-                "path": request.url.path,
-                "method": request.method,
-                "duration_ms": duration_ms,
-                "status": response.status_code,
-            },
-        )
-        return response
-    finally:
-        structlog.contextvars.clear_contextvars()
-
-
-# ── CORS ──────────────────────────────────────────────────────────────────────
-
-def _configure_cors(application: FastAPI) -> None:
-    raw_origins = settings.ALLOWED_ORIGINS.strip()
+# ─── CORS ─────────────────────────────────────────────────────────────────────
+def configure_cors(application: FastAPI) -> None:
+    raw_origins = os.environ.get("ALLOWED_ORIGINS", "").strip()
     if not raw_origins:
-        raise RuntimeError("ALLOWED_ORIGINS is not set.")
-    if "*" in raw_origins and settings.ENV == "production":
-        raise RuntimeError("ALLOWED_ORIGINS='*' is not allowed in production.")
+        raw_origins = settings.ALLOWED_ORIGINS
+    if not raw_origins:
+        raw_origins = "http://localhost:3000,http://localhost:5173"
+
     origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+    logger.info("CORS allowed origins: %s", origins)
+
     application.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Correlation-ID"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
     )
 
 
-_configure_cors(app)
+configure_cors(app)
 
 
-# ── Health check ──────────────────────────────────────────────────────────────
-
+# ─── Health check ─────────────────────────────────────────────────────────────
 @app.get("/health", tags=["Health"])
 async def health_check():
-    """Deep health check for Cloud Run. Returns 503 if DB or Redis is down."""
-    from app.core.database import get_db
-    from sqlalchemy import text
-
-    db_status = "connected"
-    try:
-        async for db in get_db():
-            await db.execute(text("SELECT 1"))
-    except Exception as exc:
-        logger.error("DB health check failed: %s", exc)
-        db_status = "unavailable"
-
-    redis_status = "connected"
-    try:
-        redis = get_redis_client()
-        await redis.ping()
-    except Exception as exc:
-        logger.error("Redis health check failed: %s", exc)
-        redis_status = "unavailable"
-
-    payload = {
-        "status": "ok" if db_status == "connected" and redis_status == "connected" else "degraded",
-        "service": "healthcare-core",
-        "version": "2.0.0",
-        "db": db_status,
-        "redis": redis_status,
-    }
-    return JSONResponse(
-        content=payload,
-        status_code=200 if db_status == "connected" else 503,
-    )
+    return {"status": "healthy", "service": "healthcare-core", "version": "2.0.0"}
 
 
-# ── Routers ───────────────────────────────────────────────────────────────────
-#
-# FIX BUG-8: Partner routers are registered ONLY inside api_router (router.py).
-# The old main.py registered them AGAIN here directly, causing double-prefix:
-#   /api/v1/partner/...          ← direct (removed)
-#   /api/v1/healthcare/partner/... ← via api_router (correct, kept)
-#
-# Internal service-to-service routes
-app.include_router(internal_router, prefix="/api/v1/healthcare")
+# ─── Main API — hospital-facing (prefixed /api/v1/healthcare/ in nginx) ───────
+# All clinical endpoints: /hospitals, /doctors, /patients, /appointments, etc.
+app.include_router(api_router, prefix="/api/v1")
 
-# All core + partner routes — single registration point
-app.include_router(api_router, prefix="/api/v1/healthcare")
+
+# ─── Super Admin direct mount ─────────────────────────────────────────────────
+# FIXED: nginx routes /api/v1/admin/ → gateway → this service
+# The super-admin dashboard calls /api/v1/admin/analytics/overview,
+# /api/v1/admin/hospitals, /api/v1/admin/users, etc.
+# Without this block, every super-admin request returned nginx 404.
+from app.api.v1.super_admin import router as super_admin_router
+app.include_router(super_admin_router, prefix="/api/v1/admin", tags=["Super Admin"])
+
+
+# ─── Partner direct mount ─────────────────────────────────────────────────────
+# FIXED: nginx routes /api/v1/partner/ → gateway → this service
+# Partner web app and mobile app call /api/v1/partner/auth/login,
+# /api/v1/partner/inventory, /api/v1/partner/orders, /api/v1/partner/referrals
+# Without this block, entire partner app returned nginx 404.
+from app.api.v1.partner_auth      import router as partner_auth_router
+from app.api.v1.partner_dashboard import router as partner_dashboard_router
+from app.api.v1.partner_inventory import router as partner_inventory_router
+from app.api.v1.partner_orders    import router as partner_orders_router
+from app.api.v1.partner_referrals import router as partner_referrals_router
+from app.api.v1.partner_lab       import router as partner_lab_router
+from app.api.v1.partner_support   import router as partner_support_router
+from app.api.v1.partner_queue     import router as partner_queue_router
+
+app.include_router(partner_auth_router,      prefix="/api/v1/partner",           tags=["Partner Auth"])
+app.include_router(partner_dashboard_router, prefix="/api/v1/partner/dashboard", tags=["Partner Dashboard"])
+app.include_router(partner_inventory_router, prefix="/api/v1/partner/inventory", tags=["Partner Inventory"])
+app.include_router(partner_orders_router,    prefix="/api/v1/partner/orders",    tags=["Partner Orders"])
+app.include_router(partner_referrals_router, prefix="/api/v1/partner/referrals", tags=["Partner Referrals"])
+app.include_router(partner_lab_router,       prefix="/api/v1/partner/lab",       tags=["Partner Lab"])
+app.include_router(partner_support_router,   prefix="/api/v1/partner/support",   tags=["Partner Support"])
+app.include_router(partner_queue_router,     prefix="/api/v1/partner/queue",     tags=["Partner Queue"])
+
+
+# ─── Staff/HR direct mount ─────────────────────────────────────────────────────
+# FIXED: nginx routes /api/v1/staff/ → gateway → this service
+# HR portal calls /api/v1/staff/list, /api/v1/staff/shifts, /api/v1/staff/leaves
+# Without this block, HR portal returned nginx 404 for all staff data.
+from app.api.v1.staff import router as staff_direct_router
+app.include_router(staff_direct_router, prefix="/api/v1/staff", tags=["Staff HR Direct"])

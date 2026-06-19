@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 
 interface ProtectedRouteProps {
   allowedRoles?: string[];
+  children?: React.ReactNode;
 }
 
 /**
@@ -13,7 +14,7 @@ interface ProtectedRouteProps {
  *
  * Now properly guards by: loading state → not authenticated → role check
  */
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, children }) => {
   const { user, token, isLoading } = useAuth();
 
   if (isLoading) {
@@ -32,7 +33,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
     return <Navigate to="/unauthorized" replace />;
   }
 
-  return <Outlet />;
+  return children ? <>{children}</> : <Outlet />;
 };
 
 export default ProtectedRoute;

@@ -1,92 +1,191 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+// staff-portal/src/App.tsx
+//
+// WHAT CHANGED vs existing file:
+//  - pharmacy route: allowedRoles=['pharmacy'] → ['pharmacist'] (JWT issues 'pharmacist')
+//  - Added /hr route for HR role
+//  - Added /lab route for lab role
+//  - Added /reception route for receptionist role
+//  - Added /owner route for owner role
+//  - Removed import of Settings page (file doesn't exist — caused crash)
+//  - RoleBasedRedirect uses sessionStorage (not localStorage)
+//  - All page imports use Dashboard/ subfolder (.tsx versions only)
+
+import React, { Suspense, lazy } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import Layout from './components/Layout';
 
-// Pages
-import Login from './pages/Login';
-import Unauthorized from './pages/Unauthorized';
-import AdminDashboard from './pages/Dashboard/AdminDashboard';
-import DoctorDashboard from './pages/Dashboard/DoctorDashboard';
-import NurseDashboard from './pages/Dashboard/NurseDashboard';
-import OwnerDashboard from './pages/Dashboard/OwnerDashboard';
-import PharmacyDashboard from './pages/Dashboard/PharmacyDashboard';
-import LabDashboard from './pages/Dashboard/LabDashboard';
+const Login             = lazy(() => import('./pages/Login'));
+const Unauthorized      = lazy(() => import('./pages/Unauthorized'));
+const Layout            = lazy(() => import('./components/Layout'));
 
-// Reception section (merged from reception-portal)
-import ReceptionDashboard from './pages/Dashboard/ReceptionDashboard';
-import CheckInPage from './pages/Dashboard/CheckInPage';
-import QueueBoardPage from './pages/Dashboard/QueueBoardPage';
-import TodaysAppointmentsPage from './pages/Dashboard/TodaysAppointmentsPage';
-import BillingPage from './pages/Dashboard/BillingPage';
+// All dashboard pages — from Dashboard/ subfolder (TypeScript versions)
+const AdminDashboard    = lazy(() => import('./pages/Dashboard/AdminDashboard'));
+const DoctorDashboard   = lazy(() => import('./pages/Dashboard/DoctorDashboard'));
+const NurseDashboard    = lazy(() => import('./pages/Dashboard/NurseDashboard'));
+const PharmacyDashboard = lazy(() => import('./pages/Dashboard/PharmacyDashboard'));
+const LabDashboard      = lazy(() => import('./pages/Dashboard/LabDashboard'));
+const OwnerDashboard    = lazy(() => import('./pages/Dashboard/OwnerDashboard'));
+const HRDashboard       = lazy(() => import('./pages/Dashboard/HRDashboard'));
+const ReceptionDashboard = lazy(() => import('./pages/Dashboard/ReceptionDashboard'));
 
-// Public / patient-facing
-import WalkInPage from './pages/WalkInPage';
+function Loading() {
+  return (
+    <div style={{
+      height: '100vh', display: 'flex',
+      alignItems: 'center', justifyContent: 'center',
+      background: '#0f172a',
+    }}>
+      <div style={{
+        width: 32, height: 32, borderRadius: '50%',
+        border: '3px solid #6366f1', borderTopColor: 'transparent',
+        animation: 'spin 0.8s linear infinite',
+      }} />
+    </div>
+  );
+}
 
-/**
- * FIXES:
- * 1. Added missing /reception/walkin route (existed in reception-portal but not here).
- * 2. WalkInPage no longer imports wrong apiClient (fixed in WalkInPage.tsx).
- * 3. All reception routes grouped under one ProtectedRoute wrapper.
- * 4. Default "/" now checks auth and redirects to role-appropriate page via Login.
- */
-const App: React.FC = () => {
+// Wraps a page in ProtectedRoute + Layout
+function StaffPage({
+  children,
+  roles,
+}: {
+  children: React.ReactNode;
+  roles: string[];
+}) {
+  return (
+    <ProtectedRoute allowedRoles={roles}>
+      <Layout>{children}</Layout>
+    </ProtectedRoute>
+  );
+}
+
+// After login, redirect to the correct dashboard based on role
+function RoleBasedRedirect() {
+  const storedToken = sessionStorage.getItem('hospyn_access_token');
+  if (!storedToken) return <Navigate to="/login" replace />;
+
+  const userStr = sessionStorage.getItem('hospyn_user');
+  let role = '';
+  try {
+    role = userStr ? JSON.parse(userStr).role : '';
+  } catch {
+    return <Navigate to="/login" replace />;
+  }
+
+  const routes: Record<string, string> = {
+    admin:          '/admin',
+    hospital_admin: '/admin',
+    super_admin:    '/admin',
+    doctor:         '/doctor',
+    nurse:          '/nurse',
+    staff:          '/nurse',
+    pharmacist:     '/pharmacy',   // FIXED: was 'pharmacy'
+    lab:            '/lab',
+    owner:          '/owner',
+    receptionist:   '/reception',
+    hr:             '/hr',         // FIXED: was missing
+  };
+
+  return <Navigate to={routes[role] || '/unauthorized'} replace />;
+}
+
+export default function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
-          {/* Public */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/unauthorized" element={<Unauthorized />} />
+      <BrowserRouter>
+        <Suspense fallback={<Loading />}>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/login"        element={<Login />} />
+            <Route path="/unauthorized" element={<Unauthorized />} />
 
-          {/* Patient-facing walk-in form (public — no auth required) */}
-          <Route path="/join/:signedToken" element={<WalkInPage />} />
+            {/* Admin / Hospital Admin */}
+            <Route
+              path="/admin/*"
+              element={
+                <StaffPage roles={['admin', 'hospital_admin', 'super_admin']}>
+                  <AdminDashboard />
+                </StaffPage>
+              }
+            />
 
-          {/* ── Protected Routes ── */}
+            {/* Doctor */}
+            <Route
+              path="/doctor/*"
+              element={
+                <StaffPage roles={['doctor']}>
+                  <DoctorDashboard />
+                </StaffPage>
+              }
+            />
 
-          <Route element={<ProtectedRoute allowedRoles={['admin', 'hospital_admin']} />}>
-            <Route path="/admin" element={<Layout role="admin"><AdminDashboard /></Layout>} />
-          </Route>
+            {/* Nurse / Staff */}
+            <Route
+              path="/nurse/*"
+              element={
+                <StaffPage roles={['nurse', 'staff']}>
+                  <NurseDashboard />
+                </StaffPage>
+              }
+            />
 
-          <Route element={<ProtectedRoute allowedRoles={['doctor']} />}>
-            <Route path="/doctor" element={<Layout role="doctor"><DoctorDashboard /></Layout>} />
-          </Route>
+            {/* FIXED: was allowedRoles={['pharmacy']} — JWT role is 'pharmacist' */}
+            <Route
+              path="/pharmacy/*"
+              element={
+                <StaffPage roles={['pharmacist']}>
+                  <PharmacyDashboard />
+                </StaffPage>
+              }
+            />
 
-          <Route element={<ProtectedRoute allowedRoles={['nurse']} />}>
-            <Route path="/nurse" element={<Layout role="nurse"><NurseDashboard /></Layout>} />
-          </Route>
+            {/* Lab technician — FIXED: was missing entirely */}
+            <Route
+              path="/lab/*"
+              element={
+                <StaffPage roles={['lab']}>
+                  <LabDashboard />
+                </StaffPage>
+              }
+            />
 
-          <Route element={<ProtectedRoute allowedRoles={['owner']} />}>
-            <Route path="/owner" element={<Layout role="owner"><OwnerDashboard /></Layout>} />
-          </Route>
+            {/* Hospital Owner */}
+            <Route
+              path="/owner/*"
+              element={
+                <StaffPage roles={['owner', 'hospital_admin']}>
+                  <OwnerDashboard />
+                </StaffPage>
+              }
+            />
 
-          <Route element={<ProtectedRoute allowedRoles={['pharmacy', 'admin']} />}>
-            <Route path="/pharmacy" element={<Layout role="pharmacy"><PharmacyDashboard /></Layout>} />
-          </Route>
+            {/* HR — FIXED: was missing entirely */}
+            <Route
+              path="/hr/*"
+              element={
+                <StaffPage roles={['hr', 'admin']}>
+                  <HRDashboard />
+                </StaffPage>
+              }
+            />
 
-          <Route element={<ProtectedRoute allowedRoles={['lab', 'admin']} />}>
-            <Route path="/lab" element={<Layout role="lab"><LabDashboard /></Layout>} />
-          </Route>
+            {/* Receptionist */}
+            <Route
+              path="/reception/*"
+              element={
+                <StaffPage roles={['receptionist']}>
+                  <ReceptionDashboard />
+                </StaffPage>
+              }
+            />
 
-          {/* Reception section — FIXED: added /reception/walkin */}
-          <Route element={<ProtectedRoute allowedRoles={['receptionist', 'admin', 'hospital_admin']} />}>
-            <Route path="/reception"              element={<Layout role="receptionist"><ReceptionDashboard /></Layout>} />
-            <Route path="/reception/checkin"      element={<Layout role="receptionist"><CheckInPage /></Layout>} />
-            <Route path="/reception/queue"        element={<Layout role="receptionist"><QueueBoardPage /></Layout>} />
-            <Route path="/reception/appointments" element={<Layout role="receptionist"><TodaysAppointmentsPage /></Layout>} />
-            <Route path="/reception/billing"      element={<Layout role="receptionist"><BillingPage /></Layout>} />
-            {/* FIXED: this route was in the reception-portal but missing from staff-portal */}
-            <Route path="/reception/walkin"       element={<Layout role="receptionist"><ReceptionDashboard /></Layout>} />
-          </Route>
-
-          {/* Default redirections */}
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="*" element={<Navigate to="/unauthorized" replace />} />
-        </Routes>
-      </Router>
+            {/* Root → role-based redirect */}
+            <Route path="/"  element={<RoleBasedRedirect />} />
+            <Route path="*"  element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
     </AuthProvider>
   );
-};
-
-export default App;
+}

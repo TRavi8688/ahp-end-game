@@ -114,7 +114,7 @@ const NurseDashboard: React.FC = () => {
           </div>
           <h1 className="text-5xl font-black tracking-tighter leading-none">Nursing</h1>
           <p className="text-slate-500 text-sm font-medium">
-            Welcome back, {user?.first_name || user?.email}. Managing {stats.total_pending} pending triages.
+            Welcome back, {user?.name || user?.email}. Managing {stats.total_pending} pending triages.
           </p>
         </div>
       </header>

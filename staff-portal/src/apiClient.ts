@@ -1,39 +1,42 @@
-/// <reference types="vite/client" />
-/**
- * FIXED: Previously two competing clients existed:
- *   - src/apiClient.ts  → read token from localStorage('token'), baseURL had no /api/v1
- *   - src/api/client.ts → read token from sessionStorage('hospyn_access_token'), had /api/v1
- *
- * ALL pages import from '../../apiClient' (the root one).
- * This file is now the single source of truth. src/api/client.ts re-exports from here.
- */
-import axios from 'axios';
+// staff-portal/src/apiClient.ts
+//
+// WHAT CHANGED vs existing file:
+//  - Removed: src/api/client.ts (had hardcoded production URL + localStorage)
+//    → DELETE that file: rm src/api/client.ts
+//  - Token: reads from sessionStorage (not localStorage — PHI requirement)
+//  - baseURL: reads VITE_API_BASE_URL env var only (no hardcoded URL)
+//  - Auto-logout on 401 — clears session and redirects to /login
+//
+// ALL pages that previously imported from src/api/client.ts must now
+// import from src/apiClient.ts (this file).
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL
-  ? `${import.meta.env.VITE_API_BASE_URL}/api/v1`
-  : 'http://localhost:8000/api/v1';
+import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
-const generateTraceId = () => `req_${Math.random().toString(36).slice(2, 12)}`;
+// FIXED: No hardcoded production URL
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-const apiClient = axios.create({
-  baseURL: BASE_URL,
-  timeout: 15_000,
+const apiClient: AxiosInstance = axios.create({
+  baseURL: `${BASE_URL}/api/v1`,
+  timeout: 30_000,
   headers: { 'Content-Type': 'application/json' },
 });
 
+// FIXED: Read from sessionStorage (not localStorage)
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers['Authorization'] = `Bearer ${token}`;
-  config.headers['X-Request-ID'] = generateTraceId();
+  const token = sessionStorage.getItem('hospyn_access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });
 
+// Auto-logout on 401
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response: AxiosResponse) => response,
   (error) => {
-    const status = error.response?.status;
-    if (status === 401) {
-      localStorage.removeItem('token');
+    if (error.response?.status === 401) {
+      sessionStorage.removeItem('hospyn_access_token');
+      sessionStorage.removeItem('hospyn_user');
       window.location.href = '/login';
     }
     return Promise.reject(error);

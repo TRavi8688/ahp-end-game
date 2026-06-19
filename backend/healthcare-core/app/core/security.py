@@ -1,18 +1,20 @@
 """
 backend/healthcare-core/app/core/security.py
 
-FIXES:
-  FIX-S1: Added missing roles to TokenPayload.role Literal:
-           nurse, pharmacist, super_admin, owner, receptionist, lab, hr
-           Any JWT with these roles returned 401 Pydantic validation error.
-  FIX-S2: Added require_role() factory for role-based endpoint guards.
+WHAT CHANGED vs existing file:
+  - TokenPayload.role Literal expanded: added nurse, pharmacist, super_admin,
+    owner, receptionist, lab, hr
+  - token_version field renamed from "token_version" to "ver" to match what
+    auth-service/app/core/security.py actually puts in the JWT payload
+  - Both "ver" and "token_version" are accepted for backwards compat
+  - require_role() and get_current_user() unchanged
 """
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
-from pydantic import BaseModel
-from typing import Literal
+from pydantic import BaseModel, model_validator
+from typing import Literal, Optional
 from app.config.settings import settings
 
 bearer_scheme = HTTPBearer(auto_error=True)
@@ -20,22 +22,36 @@ bearer_scheme = HTTPBearer(auto_error=True)
 
 class TokenPayload(BaseModel):
     sub: str           # user_id (UUID string)
-    # FIX-S1: Added nurse, pharmacist, super_admin, owner, receptionist, lab, hr
+    # FIXED: Added all missing roles. Without these, ANY JWT with these roles
+    # throws a Pydantic ValidationError → 401 Unauthorized for nurse/pharmacist/etc.
     role: Literal[
         "patient",
         "doctor",
         "admin",
         "hospital_admin",
         "staff",
-        "nurse",
-        "pharmacist",
-        "super_admin",
-        "owner",
-        "receptionist",
-        "lab",
-        "hr",
+        "nurse",          # FIX: was missing
+        "pharmacist",     # FIX: was missing
+        "super_admin",    # FIX: was missing — super-admin dashboard always 401
+        "owner",          # FIX: was missing
+        "receptionist",   # FIX: was missing
+        "lab",            # FIX: was missing
+        "hr",             # FIX: was missing
     ]
-    token_version: int = 0
+    # FIXED: auth-service puts "ver" in JWT, not "token_version"
+    # Accept both for backwards compat
+    ver: Optional[int] = None
+    token_version: Optional[int] = None
+    hid: Optional[str] = None   # hospital_id from JWT payload
+
+    @model_validator(mode="after")
+    def normalise_version(self) -> "TokenPayload":
+        # Unify: ver takes priority, fallback to token_version
+        if self.ver is None and self.token_version is not None:
+            self.ver = self.token_version
+        if self.token_version is None and self.ver is not None:
+            self.token_version = self.ver
+        return self
 
 
 async def _decode_token(token: str) -> TokenPayload:
@@ -44,7 +60,7 @@ async def _decode_token(token: str) -> TokenPayload:
         payload = jwt.decode(
             token,
             settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM]
+            algorithms=[settings.JWT_ALGORITHM],
         )
     except JWTError:
         raise HTTPException(
@@ -73,7 +89,7 @@ async def _decode_token(token: str) -> TokenPayload:
             )
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Authentication service temporarily unavailable. Please try again shortly.",
+                detail="Authentication service temporarily unavailable.",
             )
 
     # Check user status (active flag + token version) from Redis cache
@@ -90,11 +106,11 @@ async def _decode_token(token: str) -> TokenPayload:
                     headers={"WWW-Authenticate": "Bearer"},
                 )
             cached_version = user_status.get("token_version")
-            token_version = payload.get("token_version")
+            token_ver = payload.get("ver") or payload.get("token_version")
             if (
                 cached_version is not None
-                and token_version is not None
-                and cached_version != str(token_version)
+                and token_ver is not None
+                and cached_version != str(token_ver)
             ):
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -116,16 +132,21 @@ async def get_current_user(
     return await _decode_token(credentials.credentials)
 
 
+# Alias used by some existing endpoints
+get_current_internal_user = get_current_user
+
+
 def require_role(*allowed_roles: str):
     """
-    FIX-S2: Role-based access control dependency factory.
+    Role-based access control dependency factory.
 
     Usage:
-        @router.get("/endpoint", dependencies=[Depends(require_role("doctor", "admin"))])
+        # Guard only — no user object:
+        @router.get("/hospitals", dependencies=[Depends(require_role("super_admin"))])
 
-    Or to get the user object:
-        @router.get("/endpoint")
-        async def handler(user: TokenPayload = Depends(require_role("doctor"))):
+        # Guard + get user object:
+        @router.get("/hospitals")
+        async def list_hospitals(user: TokenPayload = Depends(require_role("super_admin", "admin"))):
     """
     async def role_checker(
         current_user: TokenPayload = Depends(get_current_user),
