@@ -12,7 +12,7 @@ from unittest.mock import patch, MagicMock
 from jose import jwt, JWTError
 
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "test-secret-key-must-be-32-chars-long!!")
+SECRET_KEY = os.environ.get("SECRET_KEY", "test-signing-key-must-be-32-chars-long!!")
 ALGORITHM = "HS256"
 
 

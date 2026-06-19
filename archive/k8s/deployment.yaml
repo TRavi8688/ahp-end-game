@@ -1,0 +1,115 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hospyn-api
+  namespace: hospyn-prod
+  labels:
+    app: hospyn-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: hospyn-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: hospyn-api
+    spec:
+      # --- ENTERPRISE SECURITY CONTEXT ---
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+      
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: "topology.kubernetes.io/zone"
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app: hospyn-api
+
+      containers:
+      - name: api
+        image: hospyn-api:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+        
+        # --- RESOURCE HARDENING ---
+        resources:
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+
+        # --- PRODUCTION PROBES ---
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 5
+        
+        envFrom:
+        - secretRef:
+            name: hospyn-secrets # Mandatory secrets from Vault/ExternalSecrets
+        
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: hospyn-db-secrets
+              key: url
+        - name: REDIS_URL
+          value: "redis://redis-master.hospyn-prod.svc.cluster.local:6379/0"
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hospyn-api-hpa
+  namespace: hospyn-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hospyn-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hospyn-api-svc
+  namespace: hospyn-prod
+spec:
+  selector:
+    app: hospyn-api
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8000
+  type: ClusterIP

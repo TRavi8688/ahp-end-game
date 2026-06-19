@@ -1,0 +1,83 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: hospyn-default-deny
+  namespace: hospyn-prod
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-allow-ingress
+  namespace: hospyn-prod
+spec:
+  podSelector:
+    matchLabels:
+      app: hospyn-api
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: ingress-nginx # Only allow from Ingress Controller
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-allow-egress
+  namespace: hospyn-prod
+spec:
+  podSelector:
+    matchLabels:
+      app: hospyn-api
+  policyTypes:
+  - Egress
+  egress:
+  - to: # Allow API to DB
+    - podSelector:
+        matchLabels:
+          app: postgres
+  - to: # Allow API to Redis
+    - podSelector:
+        matchLabels:
+          app: redis
+  - to: # Allow API to External (S3, AI, Twilio)
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: worker-allow-egress
+  namespace: hospyn-prod
+spec:
+  podSelector:
+    matchLabels:
+      app: worker
+  policyTypes:
+  - Egress
+  egress:
+  - to: # Worker only needs Redis and DB
+    - podSelector:
+        matchLabels:
+          app: redis
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+  - to: # Allow worker to External (AI, S3)
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16

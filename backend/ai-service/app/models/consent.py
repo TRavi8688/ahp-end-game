@@ -10,7 +10,7 @@ from sqlalchemy import Column, DateTime, Enum, String, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 
-from app.db.base_class import Base  # adjust path as needed
+from shared.database.core import Base  # adjust path as needed
 
 
 class ConsentType(str, enum.Enum):

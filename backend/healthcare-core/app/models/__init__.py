@@ -10,6 +10,10 @@ from app.models.staff import Staff
 from app.models.queue_event import QueueEvent
 from app.models.payment_transaction import PaymentTransaction
 from app.models.prescription import Prescription, PrescriptionItem
+from app.models.doctor_schedule import (
+    DoctorProfileExtension, DoctorLeave, DoctorBreakLog,
+    RosterShift, Holiday, LeaveStatus, BreakType, ShiftType,
+)
 
 __all__ = [
     "Hospital",
@@ -23,4 +27,12 @@ __all__ = [
     "PaymentTransaction",
     "Prescription",
     "PrescriptionItem",
+    "DoctorProfileExtension",
+    "DoctorLeave",
+    "DoctorBreakLog",
+    "RosterShift",
+    "Holiday",
+    "LeaveStatus",
+    "BreakType",
+    "ShiftType",
 ]

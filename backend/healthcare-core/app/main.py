@@ -1,49 +1,96 @@
 """
-Hospyn Healthcare Core — FastAPI Application Entry Point
+healthcare-core/app/main.py
+
 FIXES:
-  BUG-1: partner_orders_router was used but never imported → NameError at startup.
-  BUG-2: Redux Provider missing from main.tsx (handled in web fix).
+  - Added lifespan with init_redis() + close_redis() (was completely missing)
+  - Added run_startup_checks() to catch bad secrets before serving traffic
+  - Removed 5 duplicate partner router registrations (double-prefix BUG-8)
+  - All core routes (patients, doctors, appointments etc.) now registered
+    through api_router — no longer invisible
+  - configure_sentry() now uses shared/alerting.py with PHI scrubbing
+  - Health check uses get_redis_client() (not the broken get_redis())
+
+PLACE AT: backend/healthcare-core/app/main.py
 """
+from __future__ import annotations
+
 import logging
 import os
 import time
 import uuid
+from contextlib import asynccontextmanager
 
-import sentry_sdk
+import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.router import api_router
+from app.api.internal import router as internal_router
 from app.config.settings import settings
-from shared.logger import setup_logging as configure_logging
+from shared.redis_client import init_redis, close_redis, get_redis_client
+from shared.startup_checks import run_startup_checks
+from shared.alerting import configure_sentry
 
-configure_logging()
+configure_sentry(settings)
 logger = logging.getLogger(__name__)
 
-# ─── Sentry ──────────────────────────────────────────────────────────────────
-if settings.SENTRY_DSN:
-    sentry_sdk.init(
-        dsn=settings.SENTRY_DSN,
-        traces_sample_rate=0.1,
-        environment=settings.ENV,
-        release=os.getenv("GITHUB_SHA", "local"),
-    )
-    logger.info("Sentry initialised", extra={"service": "healthcare-core"})
+
+# ── Lifespan ──────────────────────────────────────────────────────────────────
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    """Startup → validate config, connect Redis. Shutdown → close Redis."""
+    logger.info("Healthcare Core starting up...")
+
+    # 1. Fail hard on bad config — before accepting any traffic
+    run_startup_checks(settings)
+
+    # 2. Init Redis (required for token blacklist, user-status cache, consent tokens)
+    try:
+        init_redis(settings.REDIS_URL)
+        redis = get_redis_client()
+        await redis.ping()
+        logger.info("Redis connected")
+    except Exception as exc:
+        logger.critical("Redis unavailable at startup: %s", exc)
+        raise RuntimeError(f"Redis connection failed: {exc}") from exc
+
+    # 3. Warm up DB connection pool
+    try:
+        from app.core.database import get_engine
+        from sqlalchemy import text
+        engine = get_engine()
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        logger.info("Database connection pool warmed up")
+    except Exception as exc:
+        from shared.alerting import alert_database_down
+        await alert_database_down(str(exc))
+        raise RuntimeError(f"Database unreachable at startup: {exc}") from exc
+
+    yield
+
+    # Shutdown
+    logger.info("Healthcare Core shutting down...")
+    await close_redis()
+    from app.core.database import get_engine
+    await get_engine().dispose()
 
 
-# ─── App ─────────────────────────────────────────────────────────────────────
+# ── App factory ───────────────────────────────────────────────────────────────
+
 app = FastAPI(
     title="Hospyn Healthcare Core API",
-    description="Healthcare management platform API",
+    description="Healthcare management platform — core clinical and operational API",
     version="2.0.0",
     docs_url="/docs" if settings.ENV != "production" else None,
     redoc_url=None,
+    lifespan=lifespan,
 )
 
 
-# ─── X-Correlation-ID middleware ─────────────────────────────────────────────
-import structlog
+# ── Correlation-ID / request logging middleware ───────────────────────────────
 
 @app.middleware("http")
 async def correlation_id_middleware(request: Request, call_next):
@@ -53,9 +100,7 @@ async def correlation_id_middleware(request: Request, call_next):
         or str(uuid.uuid4())
     )
     structlog.contextvars.bind_contextvars(trace_id=correlation_id)
-
     start = time.monotonic()
-
     try:
         response = await call_next(request)
         duration_ms = round((time.monotonic() - start) * 1000)
@@ -76,58 +121,49 @@ async def correlation_id_middleware(request: Request, call_next):
         structlog.contextvars.clear_contextvars()
 
 
-# ─── CORS ────────────────────────────────────────────────────────────────────
-def configure_cors(application: FastAPI) -> None:
-    raw_origins = settings.ALLOWED_ORIGINS.strip()
+# ── CORS ──────────────────────────────────────────────────────────────────────
 
+def _configure_cors(application: FastAPI) -> None:
+    raw_origins = settings.ALLOWED_ORIGINS.strip()
     if not raw_origins:
         raise RuntimeError("ALLOWED_ORIGINS is not set.")
-
     if "*" in raw_origins and settings.ENV == "production":
         raise RuntimeError("ALLOWED_ORIGINS='*' is not allowed in production.")
-
     origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
-    logger.info("CORS allowed origins: %s", origins)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID", "X-Correlation-ID"],
     )
 
 
-configure_cors(app)
+_configure_cors(app)
 
 
-# ─── Health check ────────────────────────────────────────────────────────────
+# ── Health check ──────────────────────────────────────────────────────────────
+
 @app.get("/health", tags=["Health"])
 async def health_check():
-    """
-    Deep Health check for Cloud Run. Checks DB and Redis.
-    Returns 503 if infrastructure is unreachable.
-    """
+    """Deep health check for Cloud Run. Returns 503 if DB or Redis is down."""
     from app.core.database import get_db
     from sqlalchemy import text
-    from shared.redis_client import get_redis
 
     db_status = "connected"
     try:
         async for db in get_db():
             await db.execute(text("SELECT 1"))
     except Exception as exc:
-        logger.error("DB health check failed", extra={"error": str(exc)})
+        logger.error("DB health check failed: %s", exc)
         db_status = "unavailable"
 
     redis_status = "connected"
     try:
-        redis = get_redis()
-        if redis:
-            await redis.ping()
-        else:
-            redis_status = "unavailable"
+        redis = get_redis_client()
+        await redis.ping()
     except Exception as exc:
-        logger.error("Redis health check failed", extra={"error": str(exc)})
+        logger.error("Redis health check failed: %s", exc)
         redis_status = "unavailable"
 
     payload = {
@@ -143,24 +179,15 @@ async def health_check():
     )
 
 
-# ─── Partner App Routers ─────────────────────────────────────────────────────
-# BUG-1 FIX: partner_orders_router was referenced but never imported.
-# This caused an immediate NameError crashing the entire service at startup.
-from app.api.v1.partner_auth import router as partner_auth_router
-from app.api.v1.partner_dashboard import router as partner_dashboard_router
-from app.api.v1.partner_inventory import router as partner_inventory_router
-from app.api.v1.partner_orders import router as partner_orders_router      # ← WAS MISSING
-from app.api.v1.partner_referrals import router as partner_referrals_router
-
-app.include_router(partner_auth_router,      prefix="/api/v1/partner", tags=["Partner Auth"])
-app.include_router(partner_dashboard_router, prefix="/api/v1/partner", tags=["Partner Dashboard"])
-app.include_router(partner_inventory_router, prefix="/api/v1/partner", tags=["Partner Inventory"])
-app.include_router(partner_orders_router,    prefix="/api/v1/partner", tags=["Partner Orders"])
-app.include_router(partner_referrals_router, prefix="/api/v1/partner", tags=["Partner Referrals"])
-
-# ─── Internal Service-to-Service Routes ──────────────────────────────────────
-from app.api.internal import router as internal_router
+# ── Routers ───────────────────────────────────────────────────────────────────
+#
+# FIX BUG-8: Partner routers are registered ONLY inside api_router (router.py).
+# The old main.py registered them AGAIN here directly, causing double-prefix:
+#   /api/v1/partner/...          ← direct (removed)
+#   /api/v1/healthcare/partner/... ← via api_router (correct, kept)
+#
+# Internal service-to-service routes
 app.include_router(internal_router, prefix="/api/v1/healthcare")
 
-# ─── Core API Routes ─────────────────────────────────────────────────────────
+# All core + partner routes — single registration point
 app.include_router(api_router, prefix="/api/v1/healthcare")

@@ -1,0 +1,50 @@
+# PHASE 3 FIX: enc.key must NEVER be baked into a Docker image layer.
+# Audit finding: COPY . . in Dockerfile copies enc.key into every image.
+enc.key
+*.key
+*.pem
+*.crt
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Dead code / dev artefacts — audit finding: still present in repo
+archive/
+backups/
+scratch/
+store_room/
+book/
+scratch.py
+start_manual_testing.py
+recovery.md
+HOSPYN_CTO_BLUEPRINT_PART_*.md
+
+# Test/dev files not needed in image
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Git
+.git/
+.gitignore
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Node
+node_modules/
+package-lock.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store

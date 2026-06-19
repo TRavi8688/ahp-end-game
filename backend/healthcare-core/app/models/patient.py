@@ -61,6 +61,8 @@ class Patient(Base):
         UUID(as_uuid=True), unique=True, nullable=False, index=True
     )
 
+    hospyn_id: Mapped[str] = mapped_column(String(40), unique=True, nullable=True, index=True)
+
     # Hospital association
     hospital_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

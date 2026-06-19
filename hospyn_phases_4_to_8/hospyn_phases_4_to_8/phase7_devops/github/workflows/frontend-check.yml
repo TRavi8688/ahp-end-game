@@ -1,0 +1,122 @@
+##############################################################################
+# frontend-check.yml
+# Phase 7 Fix: Add frontend build verification to CI pipeline
+#
+# APPLY TO: .github/workflows/frontend-check.yml (CREATE NEW FILE)
+#
+# This workflow runs on every PR and push to main/develop.
+# It builds all 6 web apps to catch JS errors and missing dependencies
+# before they reach production.
+##############################################################################
+
+name: Frontend Build Check
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "doctor-app/**"
+      - "staff-portal/**"
+      - "reception-portal/**"
+      - "hospyn-v2-web/**"
+      - "partner-app/**"
+      - "hr-portal/**"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "doctor-app/**"
+      - "staff-portal/**"
+      - "reception-portal/**"
+      - "hospyn-v2-web/**"
+      - "partner-app/**"
+      - "hr-portal/**"
+
+jobs:
+  build:
+    name: Build ${{ matrix.app }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false  # Don't cancel other apps if one fails
+      matrix:
+        app:
+          - doctor-app
+          - staff-portal
+          - reception-portal
+          - hospyn-v2-web
+          - partner-app
+          - hr-portal
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "${{ matrix.app }}/package-lock.json"
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.app }}
+        run: npm ci
+
+      - name: Lint (if eslint configured)
+        working-directory: ${{ matrix.app }}
+        run: npm run lint --if-present
+        env:
+          VITE_API_BASE_URL: https://api.hospyn.com
+
+      - name: Run tests (if configured)
+        working-directory: ${{ matrix.app }}
+        run: npm run test:run --if-present
+        env:
+          VITE_API_BASE_URL: https://api.hospyn.com
+
+      - name: Build production bundle
+        working-directory: ${{ matrix.app }}
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: https://api.hospyn.com
+          VITE_SENTRY_ENVIRONMENT: production
+          NODE_ENV: production
+
+      - name: Check bundle size (warn if > 2MB)
+        working-directory: ${{ matrix.app }}
+        run: |
+          if [ -d "dist" ]; then
+            SIZE=$(du -sk dist | cut -f1)
+            echo "Bundle size: ${SIZE}KB"
+            if [ $SIZE -gt 2048 ]; then
+              echo "::warning::Bundle size ${SIZE}KB exceeds 2MB — consider code splitting"
+            fi
+          fi
+
+  # -------------------------------------------------------------------------
+  # Doctor App — also run Vitest tests (once set up per Phase 5)
+  # -------------------------------------------------------------------------
+  test-doctor-app:
+    name: Test doctor-app
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "doctor-app/package-lock.json"
+      - name: Install
+        working-directory: doctor-app
+        run: npm ci
+      - name: Test with coverage
+        working-directory: doctor-app
+        run: npm run test:coverage --if-present
+        env:
+          VITE_API_BASE_URL: http://localhost:8000
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          directory: doctor-app/coverage
+          flags: frontend-doctor-app
+          fail_ci_if_error: false
