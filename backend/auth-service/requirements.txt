@@ -1,56 +1,18 @@
-# auth-service/requirements.txt
-# FIXES:
-#   - Added twilio>=9.0.0 (was missing, OTP SMS crashes on import)
-#   - Added sentry-sdk[fastapi] (was in pyproject.toml but not here)
-#   - Added opentelemetry packages for tracing
-#   - Pinned all versions for reproducible builds
-#   - Removed python-jose (standardizing on PyJWT for RS256)
-
-# Web framework
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-python-multipart==0.0.9
-
-# Auth & tokens — RS256 via PyJWT (NOT python-jose, see audit BUG-9)
-PyJWT[crypto]==2.9.0
-cryptography==43.0.1
-passlib[bcrypt]==1.7.4
-bcrypt==4.2.0
-
-# Database
-sqlalchemy[asyncio]==2.0.35
+fastapi==0.111.0
+uvicorn[standard]==0.30.1
+pydantic==2.7.4
+pydantic-settings==2.3.4
+sqlalchemy==2.0.31
 asyncpg==0.29.0
-alembic==1.13.3
-
-# Redis (for OTP, blacklist, rate limiting)
-redis[hiredis]==5.1.0
-
-# Rate limiting
-slowapi==0.1.9
-
-# HTTP client (for service-to-service calls)
-httpx==0.27.2
-
-# SMS OTP — FIXED: was missing entirely
-twilio>=9.0.0,<10.0.0
-
-# Validation & settings
-pydantic==2.9.2
-pydantic-settings==2.5.2
-python-dotenv==1.0.1
-email-validator==2.2.0
-
-# Observability — error tracking
-sentry-sdk[fastapi]==2.16.0
-
-# Observability — distributed tracing
-opentelemetry-sdk==1.27.0
-opentelemetry-instrumentation-fastapi==0.48b0
-opentelemetry-instrumentation-sqlalchemy==0.48b0
-opentelemetry-instrumentation-redis==0.48b0
-opentelemetry-instrumentation-httpx==0.48b0
-opentelemetry-exporter-otlp-proto-grpc==1.27.0
-
-# Utilities
-python-dateutil==2.9.0
-phonenumbers==8.13.46
+alembic==1.13.1
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+redis==5.0.7
+python-multipart==0.0.9
+email-validator==2.1.1
+pytz==2024.1
+structlog==24.1.0
+sentry-sdk[fastapi]
+google-cloud-storage
+python-magic==0.4.27
+cryptography>=42.0.0

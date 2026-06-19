@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "003_billing"
-down_revision = "002_previous_head"   # UPDATE THIS
+down_revision = "003_hospyn_employees_ticket_hierarchy"   # UPDATE THIS
 branch_labels = None
 depends_on = None
 

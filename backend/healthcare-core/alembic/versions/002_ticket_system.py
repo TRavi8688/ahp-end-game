@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
 revision = '002_ticket_system'
-down_revision = '001_initial'
+down_revision = 'a5f82bb547d2'
 branch_labels = None
 depends_on = None
 

@@ -1,0 +1,90 @@
+# .dockerignore — PHASE 07 FIX
+# CRITICAL: enc.key and all secrets are excluded first.
+# Without this, COPY . . would bake the encryption key into every image layer.
+
+# ─── SECRETS (CRITICAL — must be first) ─────────────────────────
+enc.key
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+
+# ─── DEV / SCRATCH FILES ─────────────────────────────────────────
+scratch.py
+scratch/
+archive/
+backups/
+store_room/
+start_manual_testing.py
+start.bat
+start_all.ps1
+start_all.py
+create_admin.py
+
+# ─── DOCUMENTATION (not needed in image) ─────────────────────────
+*.md
+!README.md
+book/
+docs/
+
+# ─── FRONTEND APPS (separate deployment) ─────────────────────────
+patient-app/
+doctor-app/
+hospyn-v2-web/
+hr-portal/
+partner-app/
+pharma-mobile-app/
+staff-portal/
+super-admin-dashboard/
+
+# ─── PYTHON CACHE ─────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ─── TESTS ────────────────────────────────────────────────────────
+tests/
+pytest.ini
+.coverage
+htmlcov/
+.pytest_cache/
+
+# ─── GIT ──────────────────────────────────────────────────────────
+.git/
+.gitignore
+.gitattributes
+
+# ─── NODE ─────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log
+package-lock.json
+
+# ─── FIREBASE (not part of backend build) ────────────────────────
+.firebase/
+.firebaserc
+firebase.json
+
+# ─── TERRAFORM ────────────────────────────────────────────────────
+terraform/
+
+# ─── IDE / OS ─────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ─── STATIC / NGINX (separate containers) ────────────────────────
+static/
+nginx/
+nginx.conf

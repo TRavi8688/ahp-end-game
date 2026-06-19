@@ -194,3 +194,9 @@ def get_jwks() -> dict:
             }
         ]
     }
+
+
+def get_public_key_pem() -> str:
+    """Return the public key in PEM format (decoded as string)."""
+    return PUBLIC_KEY_PEM.decode("utf-8")
+

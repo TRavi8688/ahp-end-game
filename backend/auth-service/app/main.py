@@ -27,7 +27,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.api.v1 import auth as auth_v1
-from app.api.v1 import jwks as jwks_v1
+from app.api import jwks as jwks_v1
 from app.api import router as legacy_router   # full router with reset/refresh/blacklist
 from app.core.config import get_settings
 from app.core.limiter import limiter

@@ -1,0 +1,10 @@
+/* ERP Global Layout Overrides */
+#root {
+  width: 100%;
+}
+
+.erp-main-container {
+  min-height: 100vh;
+  background-color: #020617;
+  color: #f8fafc;
+}

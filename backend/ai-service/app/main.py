@@ -9,7 +9,8 @@
 from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 import re
 import logging
 import os
@@ -93,22 +94,20 @@ except ImportError:
 
 
 # ─── CONSENT CHECK (SEC-3 FIX - WORKING) ──────────────────────────────────────
-async def verify_ai_consent(patient_id: str, hospital_id: str, db: Session) -> bool:
+async def verify_ai_consent(patient_id: str, hospital_id: str, db: AsyncSession) -> bool:
     """
     SEC-3 FIX: Check that the patient has given explicit DPDP consent
     for their data to be processed by AI/LLM systems.
     """
     from app.models.consent import ConsentRecord, ConsentType
     
-    record = (
-        db.query(ConsentRecord)
-        .filter(
-            ConsentRecord.patient_id == patient_id,
-            ConsentRecord.consent_type == ConsentType.AI_PROCESSING,
-            ConsentRecord.revoked_at.is_(None),
-        )
-        .first()
+    stmt = select(ConsentRecord).filter(
+        ConsentRecord.patient_id == patient_id,
+        ConsentRecord.consent_type == ConsentType.AI_PROCESSING,
+        ConsentRecord.revoked_at.is_(None),
     )
+    result = await db.execute(stmt)
+    record = result.scalars().first()
     return record is not None
 
 
@@ -159,7 +158,7 @@ async def health():
 @app.post("/api/v1/ai/summarize", response_model=ClinicalSummaryResponse)
 async def summarize_clinical_note(
     request: ClinicalSummaryRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     authorization: str = Header(...),
 ):
     """
@@ -219,7 +218,7 @@ async def summarize_clinical_note(
 @app.post("/api/v1/ai/triage", response_model=TriageResponse)
 async def compute_triage_priority(
     request: TriageRequest,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     authorization: str = Header(...),
 ):
     """

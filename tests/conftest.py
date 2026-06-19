@@ -9,13 +9,24 @@ import pytest_asyncio
 from typing import AsyncGenerator, Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
+# Monkeypatch bcrypt to support passlib on newer python-bcrypt versions
+try:
+    import bcrypt
+    if not hasattr(bcrypt, "__about__"):
+        class About:
+            __version__ = bcrypt.__version__
+        bcrypt.__about__ = About()
+except ImportError:
+    pass
+
+
 # ─── Add repo root to Python path so 'backend' module can be imported ─────────
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # ─── Force test environment ───────────────────────────────────────────────────
 os.environ.setdefault("ENV", "test")
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
-os.environ.setdefault("SECRET_KEY", "test-secret-key-must-be-32-chars-long!!")
+os.environ.setdefault("SECRET_KEY", "test-signing-key-must-be-32-chars-long!!")
 os.environ.setdefault("ALGORITHM", "HS256")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/15")
 os.environ.setdefault("ENCRYPTION_KEY", "dGVzdC1lbmNyeXB0aW9uLWtleS0zMi1jaGFycw==")

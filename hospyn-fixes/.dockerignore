@@ -1,0 +1,54 @@
+# SECURITY: Never copy secrets or dev artefacts into production images
+enc.key
+.env
+.env.*
+!.env.example
+
+# Dead code / dev artefacts
+scratch.py
+scratch/
+archive/
+backups/
+store_room/
+start_manual_testing.py
+start.bat
+start_all.ps1
+
+# Docs
+*.md
+!README.md
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Tests
+tests/
+pytest.ini
+.coverage
+htmlcov/
+
+# Git
+.git/
+.gitignore
+
+# Node
+node_modules/
+npm-debug.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

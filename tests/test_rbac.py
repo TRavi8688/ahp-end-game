@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from jose import jwt
 
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "test-secret-key-must-be-32-chars-long!!")
+SECRET_KEY = os.environ.get("SECRET_KEY", "test-signing-key-must-be-32-chars-long!!")
 ALGORITHM = "HS256"
 
 

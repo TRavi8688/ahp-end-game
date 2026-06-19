@@ -22,7 +22,7 @@ IMPORTANT — YOUR MIGRATION CHAIN HAS A BUG, READ THIS FIRST:
   continues from it.
 
   FIX REQUIRED (one line, in 20260605_add_performance_indexes.py):
-      down_revision = 'a7f3e9c21b84'
+      down_revision = '005_lab'
   change to:
       down_revision = 'd3e4f5a6b7c8'
 
@@ -30,7 +30,7 @@ IMPORTANT — YOUR MIGRATION CHAIN HAS A BUG, READ THIS FIRST:
       ... -> d3e4f5a6b7c8 -> c3d5f7a9b2e4 -> b2c4e6f8a1d3 -> a7f3e9c21b84
 
   THIS FILE's down_revision below already assumes that fix has been made
-  (down_revision = 'a7f3e9c21b84', which becomes the true head once the
+  (down_revision = '005_lab', which becomes the true head once the
   cycle is broken).
 """
 
@@ -40,7 +40,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision: str = "0006_doctor_schedule"
-down_revision: Union[str, None] = "a7f3e9c21b84"
+down_revision: Union[str, None] = "005_lab"
 branch_labels = None
 depends_on = None
 
