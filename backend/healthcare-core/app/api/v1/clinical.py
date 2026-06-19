@@ -59,7 +59,7 @@ async def get_clinical_timeline(
                 "id": str(apt.id),
                 "type": "visit",
                 "timestamp": apt.scheduled_at.isoformat(),
-                "hospital_name": "Hospyn Clinic",
+                "hospital_name": "Hospin Clinic",
                 "visit_reason": apt.chief_complaint or "Consultation",
                 "symptoms": apt.chief_complaint or "",
                 "department": "General Medicine",
@@ -99,7 +99,7 @@ async def get_clinical_timeline(
                     else datetime.utcnow().isoformat()
                 ),
                 "record_name": record.record_name or "Medical Record",
-                "hospital_name": record.hospital_name or "Hospyn Clinic",
+                "hospital_name": record.hospital_name or "Hospin Clinic",
                 "record_type": record.record_type or "Document",
                 "secure_url": secure_url,
                 "patient_summary": record.patient_summary or "",

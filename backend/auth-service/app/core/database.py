@@ -2,7 +2,7 @@
 Auth Service Database Engine & Session Factory.
 
 Each service owns its database connection independently.
-Auth Service connects to hospyn_auth_db.
+Auth Service connects to hospin_auth_db.
 """
 
 from __future__ import annotations

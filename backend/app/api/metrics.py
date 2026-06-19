@@ -172,7 +172,7 @@ async def health_check() -> Dict[str, Any]:
         content=__import__("json").dumps({
             "status": status,
             "checks": checks,
-            "service": "hospyn-backend",
+            "service": "hospin-backend",
             "environment": os.environ.get("ENV", "unknown"),
         }),
         status_code=http_status,

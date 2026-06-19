@@ -148,7 +148,7 @@ def send_otp_sms(phone_number: str, otp_code: str) -> bool:
         masked_phone = phone_number[:4] + "****" + phone_number[-2:] if len(phone_number) > 6 else "****"
         client.messages.create(
             body=(
-                f"Your Hospyn verification code is: {otp_code}\n"
+                f"Your Hospin verification code is: {otp_code}\n"
                 f"Valid for {settings.OTP_EXPIRE_MINUTES} minutes.\n"
                 f"Do NOT share this with anyone."
             ),
@@ -184,12 +184,12 @@ def send_otp_email(email_address: str, otp_code: str) -> bool:
     try:
         msg = EmailMessage()
         msg.set_content(
-            f"Your Hospyn verification code is: {otp_code}\n\n"
+            f"Your Hospin verification code is: {otp_code}\n\n"
             f"It expires in {settings.OTP_EXPIRE_MINUTES} minutes.\n"
             f"Do NOT share this code with anyone."
         )
-        msg["Subject"] = "Hospyn OTP Verification"
-        msg["From"] = settings.SMTP_FROM_EMAIL or "noreply@hospyn.com"
+        msg["Subject"] = "Hospin OTP Verification"
+        msg["From"] = settings.SMTP_FROM_EMAIL or "noreply@hospin.in"
         msg["To"] = email_address
 
         with smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT) as server:

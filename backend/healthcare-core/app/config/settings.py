@@ -20,7 +20,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Hospyn Healthcare Core"
+    PROJECT_NAME: str = "Hospin Healthcare Core"
 
     ENV: str = "development"
     ENVIRONMENT: str = "development"
@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = (
         "http://localhost:3000,http://localhost:5173,"
         "http://localhost:5174,http://localhost:5175,"
-        "https://hospyn.com,https://www.hospyn.com"
+        "https://hospin.in,https://www.hospin.in"
     )
 
     # ── Auth (RS256 validation only — NO signing happens here) ────────────────
@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     INTERNAL_SERVICE_SECRET: Optional[str] = None
 
     # ── Storage ───────────────────────────────────────────────────────────────
-    GCP_STORAGE_BUCKET: str = "hospyn-medical-records"
+    GCP_STORAGE_BUCKET: str = "hospin-medical-records"
 
     # ── Pagination ────────────────────────────────────────────────────────────
     DEFAULT_PAGE_SIZE: int = 20

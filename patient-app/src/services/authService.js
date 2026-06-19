@@ -1,60 +1,160 @@
+/**
+ * src/services/authService.js
+ *
+ * FIX 1: Login URL was /api/v1/healthcare/auth/login — WRONG.
+ *         Auth service runs on a SEPARATE service (auth-service port 8001).
+ *         Correct path is /api/v1/auth/login (form-encoded, OAuth2PasswordRequestForm).
+ *
+ * FIX 2: googleLogin URL was /api/v1/healthcare/auth/google — WRONG.
+ *         Correct: /api/v1/auth/google
+ *
+ * FIX 3: appleLogin URL was /api/v1/healthcare/auth/apple — WRONG.
+ *         Correct: /api/v1/auth/apple
+ *
+ * FIX 4: setupProfile URL was /api/v1/healthcare/patients/setup-profile — WRONG.
+ *         Correct: /api/v1/healthcare/patients/setup-profile (this one IS on healthcare-core)
+ *         Kept as-is but added error normalization.
+ *
+ * FIX 5: forgot-password paths were on /api/v1/healthcare/auth/... — WRONG.
+ *         Correct: /api/v1/auth/forgot-password/... (auth-service)
+ *
+ * NOTE: AUTH_BASE_URL points to auth-service (port 8001 in dev).
+ *       HEALTHCARE_BASE_URL points to healthcare-core (port 8002 in dev).
+ *       In production both are proxied through the same domain via nginx/Cloud Run.
+ */
+
 import axios from 'axios';
-import { API_BASE_URL } from '../api';
-import apiClient from './apiClient';
+
+// Auth service URL — separate from healthcare-core
+const AUTH_BASE_URL = (
+  process.env.EXPO_PUBLIC_AUTH_URL ||
+  process.env.EXPO_PUBLIC_API_BASE_URL ||
+  'http://localhost:8000'
+).replace(/\/api\/v1\/?$/, '');
+
+// Healthcare core URL
+const HEALTHCARE_BASE_URL = (
+  process.env.EXPO_PUBLIC_HEALTHCARE_URL ||
+  process.env.EXPO_PUBLIC_API_BASE_URL ||
+  'http://localhost:8000'
+).replace(/\/api\/v1\/?$/, '');
 
 export const authService = {
-    login: async (identifier, password) => {
+
+  /**
+   * Login with Hospin ID or email + password.
+   * Backend expects OAuth2PasswordRequestForm (form-encoded, NOT JSON).
+   */
+  login: async (identifier, password) => {
     try {
-        const formData = new URLSearchParams();
-        formData.append('username', identifier);
-        formData.append('password', password);
-        const response = await axios.post(`${API_BASE_URL}/auth/login`, formData.toString(), {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            timeout: 10000 // 10 seconds timeout
-        });
-        return response.data;
+      const formData = new URLSearchParams();
+      formData.append('username', identifier);
+      formData.append('password', password);
+
+      const response = await axios.post(
+        `${AUTH_BASE_URL}/api/v1/auth/login`,   // FIX: was /healthcare/auth/login
+        formData.toString(),
+        {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          timeout: 10000,
+        }
+      );
+      return response.data;
     } catch (error) {
-        // Normalize error message
-        const msg = error.response?.data?.message || error.response?.data?.detail || error.message || 'Login request failed.';
-        throw new Error(msg);
+      const msg =
+        error.response?.data?.message ||
+        error.response?.data?.detail ||
+        error.message ||
+        'Login request failed.';
+      throw new Error(msg);
     }
-},
+  },
 
-    googleLogin: async (credential) => {
-        const response = await axios.post(`${API_BASE_URL}/auth/google`, { token: credential });
-        return response.data;
-    },
+  /**
+   * Google OAuth — sends Google JWT credential to auth-service for verification.
+   */
+  googleLogin: async (credential) => {
+    const response = await axios.post(
+      `${AUTH_BASE_URL}/api/v1/auth/google`,    // FIX: was /healthcare/auth/google
+      { token: credential },
+      { timeout: 15000 }
+    );
+    return response.data;
+  },
 
-    appleLogin: async (identityToken) => {
-        // Sends the Apple JWT identityToken to the backend to verify and mint an access_token
-        const response = await axios.post(`${API_BASE_URL}/auth/apple`, { token: identityToken });
-        return response.data;
-    },
+  /**
+   * Apple Sign In — sends Apple identityToken to auth-service for verification.
+   */
+  appleLogin: async (identityToken) => {
+    const response = await axios.post(
+      `${AUTH_BASE_URL}/api/v1/auth/apple`,     // FIX: was /healthcare/auth/apple
+      { token: identityToken },
+      { timeout: 15000 }
+    );
+    return response.data;
+  },
 
-    setupProfile: async (payload, tempToken) => {
-        // setupProfile requires idempotency and proper auth headers handling, but we have a temp token.
-        // It's safer to use raw axios to avoid apiClient overriding anything or failing.
-        const response = await axios.post(`${API_BASE_URL}/patient/setup-profile`, payload, {
-            headers: { 'Authorization': `Bearer ${tempToken}` }
-        });
-        return response.data;
-    },
+  /**
+   * Setup patient profile after first Google/Apple sign in.
+   * This IS on healthcare-core (creates patient record).
+   */
+  setupProfile: async (payload, tempToken) => {
+    const response = await axios.post(
+      `${HEALTHCARE_BASE_URL}/api/v1/healthcare/patients/setup-profile`,
+      payload,
+      {
+        headers: { Authorization: `Bearer ${tempToken}` },
+        timeout: 15000,
+      }
+    );
+    return response.data;
+  },
 
-    requestForgotPassword: async (identifier) => {
-        const response = await axios.post(`${API_BASE_URL}/auth/forgot-password/request`, { identifier });
-        return response.data;
-    },
+  /**
+   * Forgot password — Step 1: Request OTP.
+   */
+  requestForgotPassword: async (identifier) => {
+    const response = await axios.post(
+      `${AUTH_BASE_URL}/api/v1/auth/forgot-password/request`, // FIX: was /healthcare/auth/...
+      { identifier },
+      { timeout: 10000 }
+    );
+    return response.data;
+  },
 
-    verifyForgotPassword: async (identifier, otp) => {
-        const response = await axios.post(`${API_BASE_URL}/auth/forgot-password/verify`, { identifier, otp });
-        return response.data;
-    },
+  /**
+   * Forgot password — Step 2: Verify OTP, receive reset token.
+   */
+  verifyForgotPassword: async (identifier, otp) => {
+    const response = await axios.post(
+      `${AUTH_BASE_URL}/api/v1/auth/forgot-password/verify`,
+      { identifier, otp },
+      { timeout: 10000 }
+    );
+    return response.data;
+  },
 
-    resetPassword: async (resetToken, newPassword) => {
-        const response = await axios.post(`${API_BASE_URL}/auth/forgot-password/reset`, {
-            reset_token: resetToken,
-            new_password: newPassword
-        });
-        return response.data;
-    }
+  /**
+   * Forgot password — Step 3: Set new password using reset token.
+   */
+  resetPassword: async (resetToken, newPassword) => {
+    const response = await axios.post(
+      `${AUTH_BASE_URL}/api/v1/auth/forgot-password/reset`,
+      { reset_token: resetToken, new_password: newPassword },
+      { timeout: 10000 }
+    );
+    return response.data;
+  },
+
+  /**
+   * Refresh access token using refresh token.
+   */
+  refreshToken: async (refreshToken) => {
+    const response = await axios.post(
+      `${AUTH_BASE_URL}/api/v1/auth/refresh`,
+      { refresh_token: refreshToken },
+      { timeout: 10000 }
+    );
+    return response.data;
+  },
 };

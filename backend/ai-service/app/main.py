@@ -15,10 +15,10 @@ import re
 import logging
 import os
 
-logger = logging.getLogger("hospyn.ai")
+logger = logging.getLogger("hospin.ai")
 
 app = FastAPI(
-    title="Hospyn AI Service",
+    title="Hospin AI Service",
     version="1.0.0",
     description="AI microservice — Phase 10 compliant with PHI scrubbing",
 )

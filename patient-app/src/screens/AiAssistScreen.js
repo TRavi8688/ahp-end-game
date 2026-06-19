@@ -218,8 +218,8 @@ export default function AiAssistScreen({ navigation, route }) {
         const conditionNames = healthContext?.conditions?.slice(0, 3).map(c => c.name || c).join(', ');
         
         const greeting = conditionNames
-            ? `Namaste ${patientName}! 🙏 I'm Chitti, your Hospyn clinical companion. I've synced with your dashboard and see your profile includes: **${conditionNames}**. Is there anything specific you'd like to discuss or a report you'd like me to analyze?`
-            : `Namaste ${patientName}! 🙏 I'm Chitti, your Hospyn clinical companion. I'm ready to help! Upload your first health report or clinical visit details so I can build your health story with you.`;
+            ? `Namaste ${patientName}! 🙏 I'm Chitti, your Hospin clinical companion. I've synced with your dashboard and see your profile includes: **${conditionNames}**. Is there anything specific you'd like to discuss or a report you'd like me to analyze?`
+            : `Namaste ${patientName}! 🙏 I'm Chitti, your Hospin clinical companion. I'm ready to help! Upload your first health report or clinical visit details so I can build your health story with you.`;
         
         setMessages([{ id: 'greeting_new', sender: 'ai', text: greeting, records: [] }]);
         setCurrentSessionId(null);
@@ -289,8 +289,8 @@ export default function AiAssistScreen({ navigation, route }) {
             const conditionNames = ctxData?.conditions?.slice(0, 3).map(c => c.name || c).join(', ');
             
             const greeting = conditionNames
-                ? `Namaste ${patientName}! 🙏 I'm Chitti, your Hospyn clinical companion. I've synced with your dashboard and see your profile includes: **${conditionNames}**. Is there anything specific you'd like to discuss or a report you'd like me to analyze?`
-                : `Namaste ${patientName}! 🙏 I'm Chitti, your Hospyn clinical companion. I'm ready to help! Upload your first health report or clinical visit details so I can build your health story with you.`;
+                ? `Namaste ${patientName}! 🙏 I'm Chitti, your Hospin clinical companion. I've synced with your dashboard and see your profile includes: **${conditionNames}**. Is there anything specific you'd like to discuss or a report you'd like me to analyze?`
+                : `Namaste ${patientName}! 🙏 I'm Chitti, your Hospin clinical companion. I'm ready to help! Upload your first health report or clinical visit details so I can build your health story with you.`;
             
             setMessages([{ id: 'greeting_0', sender: 'ai', text: greeting, records: [] }]);
             setCurrentSessionId(null);

@@ -8,7 +8,7 @@ import { API_BASE_URL } from '../api';
 const SessionMemoryCache = new Map();
 
 /**
- * Hospyn 2.0 Enterprise API Service (Patient App)
+ * Hospin 2.0 Enterprise API Service (Patient App)
  * Centralized handler for all production clinical endpoints.
  */
 class ApiService {
@@ -131,7 +131,7 @@ class ApiService {
         await new Promise(resolve => setTimeout(resolve, 2000));
         const profile = await this.getProfile();
         return {
-            filename: `Hospyn_Export_${profile.hospyn_id}.json`,
+            filename: `Hospin_Export_${profile.hospyn_id}.json`,
             timestamp: new Date().toISOString(),
             status: 'ready'
         };

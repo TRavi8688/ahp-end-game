@@ -21,7 +21,7 @@ services:
     image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: hospyn_admin
+      POSTGRES_USER: hospin_admin
       POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD}
       POSTGRES_DB: postgres
     volumes:
@@ -30,7 +30,7 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U hospyn_admin"]
+      test: ["CMD-SHELL", "pg_isready -U hospin_admin"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -121,7 +121,7 @@ services:
       # Partner JWT
       PARTNER_JWT_SECRET: ${PARTNER_JWT_SECRET}
       # Storage
-      GCP_STORAGE_BUCKET: ${GCP_STORAGE_BUCKET:-hospyn-medical-records}
+      GCP_STORAGE_BUCKET: ${GCP_STORAGE_BUCKET:-hospin-medical-records}
       # Observability
       SENTRY_DSN: ${SENTRY_DSN:-}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}

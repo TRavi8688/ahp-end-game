@@ -538,7 +538,7 @@ async def upload_report(
     medications = [
         {"name": "Montelukast", "dosage": "10mg", "frequency": "Once daily at bedtime"}
     ]
-    hospital_name = "Hospyn General Hospital"
+    hospital_name = "Hospin General Hospital"
     summary = "The patient presents with symptoms consistent with seasonal allergic rhinitis. Lungs are clear on auscultation. Recommended continuous monitoring."
     findings = (
         "Nasal mucosa shows mild edema. No evidence of secondary bacterial infection."
@@ -624,7 +624,7 @@ async def confirm_and_save_report(
         patient_id=patient.id,
         record_type=payload.type,
         record_name=payload.record_name or "Medical Record",
-        hospital_name=payload.hospital_name or "Hospyn Clinic",
+        hospital_name=payload.hospital_name or "Hospin Clinic",
         file_url=payload.s3_url,  # Uses the uploaded GCS URI
         raw_text=payload.analysis.get("raw_text") or "",
         ai_extracted=ai_extracted_str,

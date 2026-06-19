@@ -401,7 +401,7 @@ async def get_invoice_upi_url(
     GPay/PhonePe/Paytm/BHIM on the user's phone pointing to the hospital's UPI VPA.
 
     Example URL:
-      upi://pay?pa=apollo@hdfcbank&pn=Apollo+Hospitals&am=1500.00&cu=INR&tn=Hospyn+Bill&tr=INV-20260603-0001
+      upi://pay?pa=apollo@hdfcbank&pn=Apollo+Hospitals&am=1500.00&cu=INR&tn=Hospin+Bill&tr=INV-20260603-0001
     """
     try:
         from sqlalchemy import text
@@ -432,14 +432,14 @@ async def get_invoice_upi_url(
         select(Hospital).where(Hospital.id == inv.hospital_id)
     )
     hospital = hospital_result.scalars().first()
-    hospital_name = hospital.name if hospital else "Hospyn Hospital"
+    hospital_name = hospital.name if hospital else "Hospin Hospital"
 
     upi_url = _build_upi_url(
         vpa=upi_vpa,
         name=hospital_name,
         amount=float(inv.total_amount),
         invoice_number=inv.invoice_number,
-        description=f"Hospyn Bill {inv.invoice_number}",
+        description=f"Hospin Bill {inv.invoice_number}",
     )
 
     return success_response(
@@ -505,14 +505,14 @@ async def get_invoice_upi_qr(
         select(Hospital).where(Hospital.id == inv.hospital_id)
     )
     hospital = hospital_result.scalars().first()
-    hospital_name = hospital.name if hospital else "Hospyn Hospital"
+    hospital_name = hospital.name if hospital else "Hospin Hospital"
 
     upi_url = _build_upi_url(
         vpa=upi_vpa,
         name=hospital_name,
         amount=float(inv.total_amount),
         invoice_number=inv.invoice_number,
-        description=f"Hospyn Bill {inv.invoice_number}",
+        description=f"Hospin Bill {inv.invoice_number}",
     )
 
     # Generate QR Code
@@ -698,7 +698,7 @@ async def download_receipt(
 
         # Header
         story.append(Paragraph(f"<b>{hospital_name}</b>", ParagraphStyle("h1", fontSize=20, spaceAfter=4, alignment=TA_CENTER)))
-        story.append(Paragraph("Powered by HOSPYN", ParagraphStyle("sub", fontSize=9, textColor=colors.grey, alignment=TA_CENTER)))
+        story.append(Paragraph("Powered by HOSPIN", ParagraphStyle("sub", fontSize=9, textColor=colors.grey, alignment=TA_CENTER)))
         story.append(Spacer(1, 8*mm))
         story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#4F46E5")))
         story.append(Spacer(1, 4*mm))
@@ -755,7 +755,7 @@ async def download_receipt(
         story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#E5E7EB")))
         story.append(Spacer(1, 3*mm))
         story.append(Paragraph(
-            "Payment made directly to hospital via UPI. HOSPYN is not a payment intermediary.",
+            "Payment made directly to hospital via UPI. HOSPIN is not a payment intermediary.",
             ParagraphStyle("footer", fontSize=8, textColor=colors.grey, alignment=TA_CENTER)
         ))
         story.append(Paragraph(

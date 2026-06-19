@@ -38,7 +38,7 @@ class ReceptionService:
         Manually checks in a patient, logs the event, and broadcasts the update.
         If hospyn_id is provided, automatically links the WalkInRequest to the Patient.
         """
-        # 0. Check Hospyn ID if provided
+        # 0. Check Hospin ID if provided
         patient_id = None
         if hospyn_id:
             from app.models.patient import Patient
@@ -48,7 +48,7 @@ class ReceptionService:
             )
             patient = result.scalars().first()
             if not patient:
-                raise ValueError(f"No patient found with Hospyn ID: {hospyn_id}")
+                raise ValueError(f"No patient found with Hospin ID: {hospyn_id}")
             patient_id = patient.id
             # Optionally override form with patient details if they were blank, but we'll just link the ID for now.
 

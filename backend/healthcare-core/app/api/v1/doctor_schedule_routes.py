@@ -356,7 +356,7 @@ async def provision_slot(
     current_user: Annotated[TokenPayload, Depends(require_role("doctor"))],
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a new appointment slot for a patient identified by Hospyn ID."""
+    """Create a new appointment slot for a patient identified by Hospin ID."""
     doctor = await _get_doctor(db, current_user.sub)
 
     patient_result = await db.execute(
@@ -367,7 +367,7 @@ async def provision_slot(
     if not patient_row:
         return error_response(
             error_code="PATIENT_NOT_FOUND",
-            message="No patient found with that Hospyn ID. Please check and try again.",
+            message="No patient found with that Hospin ID. Please check and try again.",
             status_code=404,
         )
 

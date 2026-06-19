@@ -81,7 +81,7 @@ export default function UploadScreen({ navigation }) {
         try {
             const formData = new FormData();
             const fileUri = file.uri;
-            const fileName = file.name || `Hospyn_${Date.now()}.jpg`;
+            const fileName = file.name || `Hospin_${Date.now()}.jpg`;
             const fileType = file.mimeType || 'image/jpeg';
 
             if (Platform.OS === 'web') {

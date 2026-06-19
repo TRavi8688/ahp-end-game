@@ -31,7 +31,7 @@ class GCSStorageService:
         from app.config.settings import settings
 
         self.bucket_name = bucket_name or getattr(
-            settings, "GCP_STORAGE_BUCKET", "hospyn-medical-records"
+            settings, "GCP_STORAGE_BUCKET", "hospin-medical-records"
         )
         self.client = None
         self.local_fallback = False

@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const AuthContext = createContext();
 
 /**
- * Hospyn Enterprise Authentication Provider
+ * Hospin Enterprise Authentication Provider
  * Manages the global authentication lifecycle, token persistence, and session restoration.
  */
 export const AuthProvider = ({ children }) => {

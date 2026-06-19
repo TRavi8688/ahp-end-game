@@ -78,7 +78,7 @@ export default function OnboardingScreen({ navigation }) {
                 setLoading(false);
                 return Alert.alert(
                     'Already Registered',
-                    'This phone number is already registered with Hospyn. Would you like to log in now?',
+                    'This phone number is already registered with Hospin. Would you like to log in now?',
                     [
                         { text: 'Yes, Log In', onPress: () => navigation.navigate('Login') },
                         { text: 'Cancel', style: 'cancel' }
@@ -578,7 +578,7 @@ export default function OnboardingScreen({ navigation }) {
                 <Text style={styles.label}>ELITE CARE CIRCLE</Text>
                 <TouchableOpacity 
                     style={[styles.actionCard, GlobalStyles.glass, { borderStyle: 'dashed', borderWidth: 1, borderColor: '#6366F1' }]} 
-                    onPress={() => Alert.alert("Care Circle", "You can link family accounts instantly using their Hospyn ID after launching your passport.")}
+                    onPress={() => Alert.alert("Care Circle", "You can link family accounts instantly using their Hospin ID after launching your passport.")}
                 >
                     <View style={styles.actionIconWrapper}>
                         <Ionicons name="person-add" size={24} color="#6366F1" />

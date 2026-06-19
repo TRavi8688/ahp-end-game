@@ -123,7 +123,7 @@ function AppContent() {
       if (fontsLoaded && !isLoading && !isUpdating) {
         if (isAuthenticated) {
           const { SecurityService } = require('./src/utils/SecurityService');
-          const success = await SecurityService.authenticate('Unlock Hospyn Clinical Vault');
+          const success = await SecurityService.authenticate('Unlock Hospin Clinical Vault');
           if (success) {
             setIsUnlocked(true);
           } else {
@@ -147,7 +147,7 @@ function AppContent() {
         justifyContent: 'center', alignItems: 'center', padding: 40
       }}>
         <Text style={{ color: '#6366F1', fontSize: 32, fontWeight: '900', letterSpacing: -1 }}>
-          HOSPYN <Text style={{ color: theme === 'light' ? '#0F172A' : '#fff' }}>CORE</Text>
+          HOSPIN <Text style={{ color: theme === 'light' ? '#0F172A' : '#fff' }}>CORE</Text>
         </Text>
         <View style={{ marginTop: 40, alignItems: 'center' }}>
           <ActivityIndicator size="large" color="#6366F1" />

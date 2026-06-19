@@ -35,7 +35,7 @@ export class SecurityService {
             if (!isEnrolled) {
                 Alert.alert(
                     "Security Setup Required",
-                    "To protect your clinical records, Hospyn requires you to enable a screen lock (PIN, Pattern, or Biometrics) on your device.",
+                    "To protect your clinical records, Hospin requires you to enable a screen lock (PIN, Pattern, or Biometrics) on your device.",
                     [{ text: "OK" }]
                 );
                 return false;

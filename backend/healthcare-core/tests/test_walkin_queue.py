@@ -41,10 +41,10 @@ def generate_token(user_id: str, role: str) -> str:
 @pytest.fixture
 async def test_hospital(db_session):
     hospital = Hospital(
-        name="Hospyn General Hospital",
-        registration_number="REG-HOSPYN-GEN",
-        license_number="HOSP-HOSPYN-GEN",
-        email="info@hospyn.com",
+        name="Hospin General Hospital",
+        registration_number="REG-HOSPIN-GEN",
+        license_number="HOSP-HOSPIN-GEN",
+        email="info@hospin.in",
         phone="+919876543210",
         address_line1="Outer Ring Road",
         city="Bangalore",
@@ -101,7 +101,7 @@ async def test_doctor(db_session, test_hospital):
         hospital_id=test_hospital.id,
         first_name="Carol",
         last_name="Doc",
-        email="carol.doc@hospyn.com",
+        email="carol.doc@hospin.in",
         phone="+919000000003",
         specialization="General Medicine",
         qualification="MBBS, MD",

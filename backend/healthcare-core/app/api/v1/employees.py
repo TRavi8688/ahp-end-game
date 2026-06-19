@@ -1,10 +1,10 @@
 """
 backend/healthcare-core/app/api/v1/employees.py
 
-Hospyn Internal Employee Management — Super Admin only.
+Hospin Internal Employee Management — Super Admin only.
 
 Endpoints:
-  POST  /employees/create          — super admin creates a Hospyn employee
+  POST  /employees/create          — super admin creates a Hospin employee
   GET   /employees/list            — list all employees (filterable by team/level)
   GET   /employees/{employee_id}   — get one employee's profile + workload
   PATCH /employees/{employee_id}/deactivate  — deactivate employee
@@ -19,7 +19,7 @@ Employee ID Format: HPN-{TEAM}-{LEVEL}-{SEQ}
 
 Register in router.py:
   from app.api.v1.employees import router as employees_router
-  api_router.include_router(employees_router, prefix="/employees", tags=["Hospyn Employees"])
+  api_router.include_router(employees_router, prefix="/employees", tags=["Hospin Employees"])
 """
 
 from __future__ import annotations
@@ -155,7 +155,7 @@ async def create_employee(
     authorization: str = "",
     db: AsyncSession = Depends(get_db),
 ):
-    """Super admin creates a new Hospyn internal employee."""
+    """Super admin creates a new Hospin internal employee."""
     # Validate teams and levels
     if body.team not in TEAM_CODES:
         raise HTTPException(status_code=400, detail=f"Invalid team. Must be one of: {list(TEAM_CODES)}")
@@ -209,7 +209,7 @@ async def create_employee(
     )
     await db.flush()
 
-    logger.info("Hospyn employee created: %s (%s)", employee_id, body.email)
+    logger.info("Hospin employee created: %s (%s)", employee_id, body.email)
 
     return {
         "employee_id":    employee_id,

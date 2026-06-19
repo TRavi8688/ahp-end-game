@@ -114,7 +114,7 @@ export const SocketProvider = ({ children }) => {
             const ws = new WebSocket(`${WS_BASE_URL}/ws`);
 
             ws.onopen = () => {
-                console.log('[Socket] Hospyn WebSocket Connected ✅. Performing handshake...');
+                console.log('[Socket] Hospin WebSocket Connected ✅. Performing handshake...');
                 ws.send(JSON.stringify({ type: 'auth', token: latestToken }));
                 setSocket(ws);
                 setRetryCount(0);
@@ -235,7 +235,7 @@ export const SocketProvider = ({ children }) => {
                             <View style={styles.card}>
                                 <Text style={styles.doctorLabel}>Requesting Clinician</Text>
                                 <Text style={styles.doctorName}>{consentData.doctor_name || 'Proctor Clinician'}</Text>
-                                <Text style={styles.clinicName}>{consentData.clinic_name || 'Hospyn Medical Network'}</Text>
+                                <Text style={styles.clinicName}>{consentData.clinic_name || 'Hospin Medical Network'}</Text>
                                 <Text style={styles.timestamp}>
                                     Received: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </Text>

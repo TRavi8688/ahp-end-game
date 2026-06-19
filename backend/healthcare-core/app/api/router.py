@@ -46,8 +46,8 @@ api_router.include_router(walkin_public_router,    prefix="/walkin",     tags=["
 # ── Ticket System ─────────────────────────────────────────────────────────────
 api_router.include_router(tickets_router,   prefix="/tickets",   tags=["Support Tickets"])
 
-# ── Hospyn Internal Employees ─────────────────────────────────────────────────
-api_router.include_router(employees_router, prefix="/employees", tags=["Hospyn Employees"])
+# ── Hospin Internal Employees ─────────────────────────────────────────────────
+api_router.include_router(employees_router, prefix="/employees", tags=["Hospin Employees"])
 
 # ── Core Clinical ─────────────────────────────────────────────────────────────
 api_router.include_router(auth_router,          prefix="/auth",         tags=["Auth"])

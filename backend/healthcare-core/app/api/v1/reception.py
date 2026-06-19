@@ -44,7 +44,7 @@ router = APIRouter()
 
 class ManualIntakeForm(BaseModel):
     hospyn_id: Optional[str] = Field(
-        None, description="Optional Hospyn ID of an existing patient (e.g. PAT-999999)"
+        None, description="Optional Hospin ID of an existing patient (e.g. PAT-999999)"
     )
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)

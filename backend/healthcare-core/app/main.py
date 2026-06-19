@@ -81,7 +81,7 @@ async def lifespan(application: FastAPI):
 # ── App factory ───────────────────────────────────────────────────────────────
 
 app = FastAPI(
-    title="Hospyn Healthcare Core API",
+    title="Hospin Healthcare Core API",
     description="Healthcare management platform — core clinical and operational API",
     version="2.0.0",
     docs_url="/docs" if settings.ENV != "production" else None,

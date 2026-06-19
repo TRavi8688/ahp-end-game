@@ -2,7 +2,7 @@
 backend/healthcare-core/alembic/versions/003_hospyn_employees_ticket_hierarchy.py
 
 Creates:
-  - hospyn_employees      : Hospyn internal staff with Employee IDs (HPN-FIN-L1-001)
+  - hospyn_employees      : Hospin internal staff with Employee IDs (HPN-FIN-L1-001)
   - ticket_assignments    : Full audit trail of every assignment/escalation
   - Updates support_tickets: adds assigned_employee_id, team, level columns
 """

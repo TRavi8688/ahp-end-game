@@ -340,7 +340,7 @@ export default function RegisterScreen({ navigation }) {
                         </View>
                     </View>
 
-                    <Text style={styles.footerText}>Secure • Private • Hospyn</Text>
+                    <Text style={styles.footerText}>Secure • Private • Hospin</Text>
                 </ScrollView>
             </KeyboardAvoidingView>
         </LinearGradient>

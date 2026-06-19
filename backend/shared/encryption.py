@@ -54,7 +54,7 @@ def _load_fernet_keys() -> list[Fernet]:
         "⚠️  ENCRYPTION_KEY is not set — using a deterministic DEV-ONLY key. "
         "DO NOT use this in production!"
     )
-    dev_seed = b"hospyn-dev-only-encryption-seed-do-not-use-in-prod"
+    dev_seed = b"hospin-dev-only-encryption-seed-do-not-use-in-prod"
     dev_key = base64.urlsafe_b64encode(hashlib.sha256(dev_seed).digest())
     return [Fernet(dev_key)]
 

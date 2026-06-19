@@ -63,7 +63,7 @@ export default function AccessHistoryScreen({ navigation }) {
                         </View>
                         <View>
                             <Text style={styles.doctorName}>Dr. {item.doctor_name}</Text>
-                            <Text style={styles.clinicName}>{item.clinic_name || 'Hospyn Network'}</Text>
+                            <Text style={styles.clinicName}>{item.clinic_name || 'Hospin Network'}</Text>
                         </View>
                     </View>
                     <View style={[styles.badge, { backgroundColor: statusColor + '15' }]}>

@@ -189,7 +189,7 @@ async def send_government_pan_otp(
     _otp_store[hospital_id] = {**_otp_store.get(hospital_id, {}), "govt_otp": otp}
 
     # Production: Twilio SMS
-    await _send_sms(hospital.phone, f"[Hospyn] Your PAN verification OTP is {otp}. Valid for 10 minutes.")
+    await _send_sms(hospital.phone, f"[Hospin] Your PAN verification OTP is {otp}. Valid for 10 minutes.")
 
     logger.info("Govt OTP sent for hospital %s (phone ending %s)", hospital_id, hospital.phone[-2:])
     return {
@@ -223,8 +223,8 @@ async def generate_razorpay_qr(
 ):
     await _hospital_or_404(db, hospital_id)
     ref     = secrets.token_hex(8).upper()
-    vpa     = os.getenv("HOSPYN_UPI_VPA", "hospyn@razorpay")
-    uri     = f"upi://pay?pa={vpa}&pn=Hospyn&am=2.00&cu=INR&tn=SecurityHold-{ref}"
+    vpa     = os.getenv("HOSPYN_UPI_VPA", "hospin@razorpay")
+    uri     = f"upi://pay?pa={vpa}&pn=Hospin&am=2.00&cu=INR&tn=SecurityHold-{ref}"
 
     # Production: use Razorpay QR Code API to get a real scannable QR
     logger.info("UPI QR generated for hospital %s ref=%s", hospital_id, ref)
@@ -336,7 +336,7 @@ async def hospital_public_info(
     """Minimal info for patient walk-in QR page — no auth required."""
     hospital = await _hospital_or_404(db, hospital_id)
     if hospital.status != HospitalStatus.active:
-        raise HTTPException(status_code=403, detail="This hospital is not yet active on Hospyn.")
+        raise HTTPException(status_code=403, detail="This hospital is not yet active on Hospin.")
     return {
         "hospital_name": hospital.name,
         "city":          hospital.city,

@@ -5,7 +5,7 @@ const TOKEN_KEY = 'hospyn_auth_token';
 const ID_KEY = 'hospyn_id';
 
 /**
- * Hospyn Secure Storage Utility
+ * Hospin Secure Storage Utility
  * Ensures medical session tokens are stored in the hardware-backed Secure Enclave/Keystore.
  */
 const HospynSecurity = {
@@ -123,7 +123,7 @@ const HospynSecurity = {
     try {
       const LocalAuthentication = require('expo-local-authentication');
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Authenticate to access Hospyn Secure Records',
+        promptMessage: 'Authenticate to access Hospin Secure Records',
         fallbackLabel: 'Use Passcode',
         cancelLabel: 'Cancel',
         disableDeviceFallback: false,

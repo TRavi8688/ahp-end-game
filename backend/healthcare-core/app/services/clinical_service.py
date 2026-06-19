@@ -73,7 +73,7 @@ class ClinicalService:
         medical_record = MedicalRecord(
             patient_id=walkin.patient_id,
             record_name=f"Consultation Summary - {datetime.now().strftime('%d %b %Y')}",
-            hospital_name=walkin.hospital.name if walkin.hospital else "Hospyn Clinics",
+            hospital_name=walkin.hospital.name if walkin.hospital else "Hospin Clinics",
             record_type="prescription",
             raw_text=record_text,
             ai_summary=diagnosis,

@@ -36,7 +36,7 @@ def _get_database_url() -> str:
             return "sqlite+aiosqlite:///:memory:"
         raise RuntimeError(
             "DATABASE_URL environment variable is not set. "
-            "Set it to: postgresql+asyncpg://user:pass@localhost:5432/hospyn"
+            "Set it to: postgresql+asyncpg://user:pass@localhost:5432/hospin"
         )
 
     # Enforce PostgreSQL in production/staging

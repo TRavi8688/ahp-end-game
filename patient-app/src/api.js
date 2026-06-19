@@ -4,7 +4,9 @@
 
 import axios from "axios";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
+export const WS_BASE_URL = API_BASE_URL ? API_BASE_URL.replace(/^http/, "ws") : "";
+export const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || "mock-google-client-id";
 
 if (!API_BASE_URL) {
   throw new Error(

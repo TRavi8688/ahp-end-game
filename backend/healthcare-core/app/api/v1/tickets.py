@@ -726,7 +726,7 @@ async def _notify_status_change(ticket_id: str, new_status: str):
             Client(sid, token).messages.create(
                 to="+910000000000",  # TODO: fetch owner phone from ticket
                 from_=from_,
-                body=f"[Hospyn Support] Ticket {ticket_id}: {msg}",
+                body=f"[Hospin Support] Ticket {ticket_id}: {msg}",
             )
     except Exception as e:
         logger.warning("Status SMS failed: %s", e)
@@ -768,7 +768,7 @@ async def _notify_ticket_created(ticket_id: str, body: CreateTicketBody, team: s
             Client(sid, token).messages.create(
                 to=body.owner_phone,
                 from_=from_,
-                body=f"[Hospyn] Ticket {ticket_id} raised. Our {team} team will respond within {SLA_HOURS.get(body.priority,24)}h.",
+                body=f"[Hospin] Ticket {ticket_id} raised. Our {team} team will respond within {SLA_HOURS.get(body.priority,24)}h.",
             )
         webhook = os.getenv("INTERNAL_WEBHOOK_URL")
         if webhook:

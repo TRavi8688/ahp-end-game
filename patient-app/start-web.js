@@ -9,6 +9,28 @@
  * This script runs Webpack directly, bypassing Metro entirely for web.
  */
 const path = require('path');
+const fs = require('fs');
+
+// Load environment variables from .env file since Webpack Dev Server is run directly
+const envPath = path.join(__dirname, '.env');
+if (fs.existsSync(envPath)) {
+  console.log('[start-web] Loading environment variables from .env...');
+  const envConfig = fs.readFileSync(envPath, 'utf8');
+  envConfig.split(/\r?\n/).forEach(line => {
+    const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+    if (match) {
+      const key = match[1];
+      let value = match[2] || '';
+      value = value.trim();
+      if (value.length > 0 && value.charAt(0) === '"' && value.charAt(value.length - 1) === '"') {
+        value = value.substring(1, value.length - 1);
+      } else if (value.length > 0 && value.charAt(0) === "'" && value.charAt(value.length - 1) === "'") {
+        value = value.substring(1, value.length - 1);
+      }
+      process.env[key] = value;
+    }
+  });
+}
 
 process.env.NODE_ENV = 'development';
 process.env.EXPO_WEBPACK_FAST_REFRESH = 'false';
@@ -69,6 +91,16 @@ async function start() {
       return rule;
     });
   }
+
+  // Inject environment variables explicitly into the browser bundle using DefinePlugin
+  config.plugins = config.plugins || [];
+  config.plugins.push(
+    new Webpack.DefinePlugin({
+      'process.env.EXPO_PUBLIC_API_BASE_URL': JSON.stringify(process.env.EXPO_PUBLIC_API_BASE_URL || "https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1"),
+      'process.env.EXPO_PUBLIC_ENVIRONMENT': JSON.stringify(process.env.EXPO_PUBLIC_ENVIRONMENT || "production"),
+      'process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID': JSON.stringify(process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || "625745217419-cq76tvb0mlt0bkmg8bd4r0csj4vmqmr8.apps.googleusercontent.com"),
+    })
+  );
 
   const compiler = Webpack(config);
 

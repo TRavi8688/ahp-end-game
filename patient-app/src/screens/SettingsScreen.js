@@ -65,7 +65,7 @@ export default function SettingsScreen({ navigation }) {
 
     const handleLogout = async () => {
         HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Heavy);
-        const msg = 'Are you sure you want to logout from your Hospyn Shield?';
+        const msg = 'Are you sure you want to logout from your Hospin Shield?';
         if (Platform.OS === 'web') {
             const confirmed = window.confirm(msg);
             if (confirmed) {
@@ -241,7 +241,7 @@ export default function SettingsScreen({ navigation }) {
                         )}
                         <View style={[styles.onlineDot, { borderColor: Theme.colors.background }]} />
                     </View>
-                    <Text style={styles.profileName}>{profile?.full_name || 'Hospyn Member'}</Text>
+                    <Text style={styles.profileName}>{profile?.full_name || 'Hospin Member'}</Text>
                     <Text style={styles.hospynIdText}>{profile?.hospyn_id || hospynId || 'SYNCHRONIZING...'}</Text>
                     <TouchableOpacity style={styles.editBtn} onPress={() => setShowEditModal(true)}>
                         <Text style={styles.editBtnText}>EDIT PROFILE</Text>
@@ -310,12 +310,12 @@ export default function SettingsScreen({ navigation }) {
                 <Text style={[styles.sectionTitle, { marginTop: 30 }]}>SUPPORT</Text>
                 <SettingItem 
                     icon="help-circle-outline" 
-                    label="Hospyn Help Center" 
+                    label="Hospin Help Center" 
                     onPress={() => {
                         HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Light);
-                        const helpMsg = "Accessing Hospyn Clinical Support Vault... Our medical assistance desk has been alerted.";
+                        const helpMsg = "Accessing Hospin Clinical Support Vault... Our medical assistance desk has been alerted.";
                         if (Platform.OS === 'web') window.alert(helpMsg);
-                        else Alert.alert("Hospyn Help Center", helpMsg);
+                        else Alert.alert("Hospin Help Center", helpMsg);
                     }} 
                 />
                 <SettingItem 
@@ -325,17 +325,17 @@ export default function SettingsScreen({ navigation }) {
                     onPress={() => {
                         HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Light);
                         const { Linking } = require('react-native');
-                        Linking.openURL('https://hospyn.com/privacy');
+                        Linking.openURL('https://hospin.in/privacy');
                     }} 
                 />
                 <SettingItem 
                     icon="information-circle-outline" 
-                    label="About Hospyn 4.0" 
+                    label="About Hospin 4.0" 
                     onPress={() => {
                         HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Light);
-                        const aboutMsg = "Hospyn Clinical Ecosystem v4.0.1\nSecured by Advanced AI.\nISO 27001 Certified medical-grade decentralized infrastructure.";
+                        const aboutMsg = "Hospin Clinical Ecosystem v4.0.1\nSecured by Advanced AI.\nISO 27001 Certified medical-grade decentralized infrastructure.";
                         if (Platform.OS === 'web') window.alert(aboutMsg);
-                        else Alert.alert("About Hospyn 4.0", aboutMsg);
+                        else Alert.alert("About Hospin 4.0", aboutMsg);
                     }} 
                 />
 
@@ -349,7 +349,7 @@ export default function SettingsScreen({ navigation }) {
                     <Text style={[styles.logoutText, { color: '#64748B', fontSize: 11 }]}>DELETE ACCOUNT</Text>
                 </TouchableOpacity>
 
-                <Text style={styles.versionText}>SECURED BY HOSPYN QUANTUM SHIELD</Text>
+                <Text style={styles.versionText}>SECURED BY HOSPIN QUANTUM SHIELD</Text>
             </View>
 
             {/* Edit Profile Modal */}
@@ -459,7 +459,7 @@ export default function SettingsScreen({ navigation }) {
                 <View style={styles.modalOverlay}>
                     <View style={[styles.modalBox, GlobalStyles.glass, { alignItems: 'center' }]}>
                         <View style={[styles.modalHeader, { width: '100%' }]}>
-                            <Text style={styles.modalTitle}>HOSPYN SHIELD SECURITY</Text>
+                            <Text style={styles.modalTitle}>HOSPIN SHIELD SECURITY</Text>
                             <TouchableOpacity onPress={() => { HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Light); setShowSecurityModal(false); }}>
                                 <Ionicons name="close" size={24} color="#fff" />
                             </TouchableOpacity>
@@ -487,7 +487,7 @@ export default function SettingsScreen({ navigation }) {
                         </View>
 
                         <Text style={styles.encryptionInfo}>
-                            Your device holds a unique hardware-backed private key registered in the Hospyn ledger. Tapping below validates your enrollment.
+                            Your device holds a unique hardware-backed private key registered in the Hospin ledger. Tapping below validates your enrollment.
                         </Text>
 
                         <TouchableOpacity 

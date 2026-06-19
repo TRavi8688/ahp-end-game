@@ -94,7 +94,7 @@ export default function SharedAccessScreen({ navigation }) {
                 </View>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.doctorNameLarge}>{item.doctor_name}</Text>
-                    <Text style={styles.clinicName}>{item.clinic_name || 'Hospyn Network'}</Text>
+                    <Text style={styles.clinicName}>{item.clinic_name || 'Hospin Network'}</Text>
                     <Text style={styles.accessLevel}>Requesting: {item.access_level?.toUpperCase()} ACCESS</Text>
                 </View>
             </View>
@@ -116,7 +116,7 @@ export default function SharedAccessScreen({ navigation }) {
             </View>
             <View style={{ flex: 1 }}>
                 <Text style={styles.doctorNameSmall}>{item.doctor_name}</Text>
-                <Text style={styles.activeSub}>{item.clinic_name || 'Hospyn Network'}</Text>
+                <Text style={styles.activeSub}>{item.clinic_name || 'Hospin Network'}</Text>
             </View>
             <TouchableOpacity style={styles.revokeIcon} onPress={() => handleRevoke(item.id, item.doctor_name)}>
                 <Ionicons name="trash-outline" size={20} color="#ef4444" />
@@ -130,7 +130,7 @@ export default function SharedAccessScreen({ navigation }) {
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Hospyn Sync & Consent</Text>
+                <Text style={styles.headerTitle}>Hospin Sync & Consent</Text>
             </LinearGradient>
 
             {loading ? (
