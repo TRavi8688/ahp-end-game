@@ -25,8 +25,68 @@ export default function OwnerDashboard({ onLogout }) {
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState(null);
 
+  // Modular OS states
+  const [enabledModules, setEnabledModules] = useState([
+    "reception", "nurse", "doctor", "pharmacy", "laboratory", "billing", "ward", "emergency", "telemedicine", "admin"
+  ]);
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
   // Filter state
   const [activityFilterDate, setActivityFilterDate] = useState('');
+
+  const fetchModules = async () => {
+    const token = localStorage.getItem('hospyn_owner_token');
+    if (!token || token === 'mock_token_123') return;
+    try {
+      const res = await fetch(`${API_BASE}/owner/modules`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setEnabledModules(json.data.enabled_modules || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch modules", err);
+    }
+  };
+
+  const handleSaveModules = async (updatedModules) => {
+    const token = localStorage.getItem('hospyn_owner_token');
+    if (!token) return;
+    setSaveLoading(true);
+    setSaveSuccess(false);
+    try {
+      if (token === 'mock_token_123') {
+        setEnabledModules(updatedModules);
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+        return;
+      }
+      const res = await fetch(`${API_BASE}/owner/modules`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ enabled_modules: updatedModules })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setEnabledModules(json.data.enabled_modules || []);
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+        // Refresh dashboard to reflect changes
+        fetchDashboard(selectedBranch);
+      } else {
+        alert("Failed to update modules");
+      }
+    } catch (err) {
+      alert("Error saving modules: " + err.message);
+    } finally {
+      setSaveLoading(false);
+    }
+  };
 
   // Custom Staff provisioning state
   const [staffRole, setStaffRole] = useState('doctor');
@@ -104,6 +164,7 @@ export default function OwnerDashboard({ onLogout }) {
 
   useEffect(() => {
     fetchDashboard(selectedBranch);
+    fetchModules();
     const interval = setInterval(() => fetchDashboard(selectedBranch), 8000);
     return () => clearInterval(interval);
   }, [selectedBranch]);
@@ -233,10 +294,11 @@ export default function OwnerDashboard({ onLogout }) {
               { id: 'branch-manager', label: 'Branch Analytics', icon: Layers },
               { id: 'staff', label: 'Staff Provisioner (IAM)', icon: Users },
               { id: 'ehr', label: 'EHR Passports', icon: Database },
-              { id: 'lab', label: 'LOINC Laboratory', icon: Activity },
-              { id: 'opd', label: 'OPD & Bed Scheduler', icon: Server },
+              { id: 'lab', label: 'LOINC Laboratory', icon: Activity, module: 'laboratory' },
+              { id: 'opd', label: 'OPD & Bed Scheduler', icon: Server, module: 'ward' },
+              { id: 'settings', label: 'Module Settings', icon: Cpu },
               { id: 'ai-governance', label: 'AI Safety Governance', icon: Brain }
-            ].map((item) => (
+            ].filter(item => !item.module || enabledModules.includes(item.module)).map((item) => (
               <button
                 key={item.id}
                 onClick={() => {
@@ -325,81 +387,101 @@ export default function OwnerDashboard({ onLogout }) {
                   <div className="space-y-8">
                     
                     {/* Live Grid Metrics Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                      
-                      {/* Financial Telemetry */}
-                      <div className="p-6 bg-gradient-to-br from-[#121A30] to-[#0F1424] border border-slate-800 rounded-3xl relative overflow-hidden shadow-xl group">
-                        <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-emerald-500/5 blur-2xl group-hover:bg-emerald-500/10 transition-all pointer-events-none" />
-                        <div className="flex justify-between items-start mb-4">
-                          <span className="text-[9px] font-black uppercase text-emerald-400 tracking-wider">Financial Splits Flow</span>
-                          <span className="text-slate-500">💰</span>
-                        </div>
-                        <h2 className="text-3xl font-black text-white font-outfit">
-                          ₹{dashboardData.telemetry.income_today.toLocaleString()}
-                        </h2>
-                        <button 
-                          onClick={() => setDashboardDrilldown('ledger')}
-                          className="mt-4 text-[10px] font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-all"
-                        >
-                          View Ledger splits <ChevronRight size={12}/>
-                        </button>
-                      </div>
+                    {(() => {
+                      const showBilling = enabledModules.includes('billing');
+                      const showWard = enabledModules.includes('ward');
+                      const showPharmacy = enabledModules.includes('pharmacy');
+                      const activeCardCount = [showBilling, true, showWard, showPharmacy].filter(Boolean).length;
+                      const gridColsClass = 
+                        activeCardCount === 4 ? 'md:grid-cols-4' :
+                        activeCardCount === 3 ? 'md:grid-cols-3' :
+                        activeCardCount === 2 ? 'md:grid-cols-2' :
+                        'md:grid-cols-1';
 
-                      {/* Active Staff Registry */}
-                      <div className="p-6 bg-gradient-to-br from-[#121A30] to-[#0F1424] border border-slate-800 rounded-3xl relative overflow-hidden shadow-xl group">
-                        <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-violet-500/5 blur-2xl group-hover:bg-violet-500/10 transition-all pointer-events-none" />
-                        <div className="flex justify-between items-start mb-4">
-                          <span className="text-[9px] font-black uppercase text-violet-400 tracking-wider">Workforce Roster</span>
-                          <span className="text-slate-500">👥</span>
-                        </div>
-                        <h2 className="text-3xl font-black text-white font-outfit">
-                          {(dashboardData.staff || []).length}
-                        </h2>
-                        <button 
-                          onClick={() => setDashboardDrilldown('staff')}
-                          className="mt-4 text-[10px] font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-all"
-                        >
-                          Workforce list <ChevronRight size={12}/>
-                        </button>
-                      </div>
+                      return (
+                        <div className={`grid grid-cols-1 ${gridColsClass} gap-6`}>
+                          
+                          {/* Financial Telemetry */}
+                          {showBilling && (
+                            <div className="p-6 bg-gradient-to-br from-[#121A30] to-[#0F1424] border border-slate-800 rounded-3xl relative overflow-hidden shadow-xl group">
+                              <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-emerald-500/5 blur-2xl group-hover:bg-emerald-500/10 transition-all pointer-events-none" />
+                              <div className="flex justify-between items-start mb-4">
+                                <span className="text-[9px] font-black uppercase text-emerald-400 tracking-wider">Financial Splits Flow</span>
+                                <span className="text-slate-500">💰</span>
+                              </div>
+                              <h2 className="text-3xl font-black text-white font-outfit">
+                                ₹{dashboardData.telemetry.income_today.toLocaleString()}
+                              </h2>
+                              <button 
+                                onClick={() => setDashboardDrilldown('ledger')}
+                                className="mt-4 text-[10px] font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-all"
+                              >
+                                View Ledger splits <ChevronRight size={12}/>
+                              </button>
+                            </div>
+                          )}
 
-                      {/* Bed Matrix Capacity */}
-                      <div className="p-6 bg-gradient-to-br from-[#121A30] to-[#0F1424] border border-slate-800 rounded-3xl relative overflow-hidden shadow-xl group">
-                        <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-blue-500/5 blur-2xl group-hover:bg-blue-500/10 transition-all pointer-events-none" />
-                        <div className="flex justify-between items-start mb-4">
-                          <span className="text-[9px] font-black uppercase text-blue-400 tracking-wider">Active Capacity Scheduler</span>
-                          <span className="text-slate-500">🏥</span>
-                        </div>
-                        <h2 className="text-3xl font-black text-white font-outfit">
-                          {dashboardData.telemetry.beds_occupied} <span className="text-sm font-semibold text-slate-500">/ {dashboardData.telemetry.beds_total} Beds</span>
-                        </h2>
-                        <button 
-                          onClick={() => setDashboardDrilldown('beds')}
-                          className="mt-4 text-[10px] font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-all"
-                        >
-                          Ward layout chart <ChevronRight size={12}/>
-                        </button>
-                      </div>
+                          {/* Active Staff Registry */}
+                          <div className="p-6 bg-gradient-to-br from-[#121A30] to-[#0F1424] border border-slate-800 rounded-3xl relative overflow-hidden shadow-xl group">
+                            <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-violet-500/5 blur-2xl group-hover:bg-violet-500/10 transition-all pointer-events-none" />
+                            <div className="flex justify-between items-start mb-4">
+                              <span className="text-[9px] font-black uppercase text-violet-400 tracking-wider">Workforce Roster</span>
+                              <span className="text-slate-500">👥</span>
+                            </div>
+                            <h2 className="text-3xl font-black text-white font-outfit">
+                              {(dashboardData.staff || []).length}
+                            </h2>
+                            <button 
+                              onClick={() => setDashboardDrilldown('staff')}
+                              className="mt-4 text-[10px] font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-all"
+                            >
+                              Workforce list <ChevronRight size={12}/>
+                            </button>
+                          </div>
 
-                      {/* Pharmacy Alert Stock */}
-                      <div className="p-6 bg-gradient-to-br from-[#121A30] to-[#0F1424] border border-slate-800 rounded-3xl relative overflow-hidden shadow-xl group">
-                        <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-amber-500/5 blur-2xl group-hover:bg-amber-500/10 transition-all pointer-events-none" />
-                        <div className="flex justify-between items-start mb-4">
-                          <span className="text-[9px] font-black uppercase text-amber-400 tracking-wider">Pharmacy Alerts</span>
-                          <span className="text-slate-500">💊</span>
-                        </div>
-                        <h2 className="text-3xl font-black text-white font-outfit">
-                          {dashboardData.telemetry.low_stock_count} <span className="text-sm font-semibold text-slate-500">Low Stock</span>
-                        </h2>
-                        <button 
-                          onClick={() => setDashboardDrilldown('pharmacy')}
-                          className="mt-4 text-[10px] font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-all"
-                        >
-                          Stock records A-Z <ChevronRight size={12}/>
-                        </button>
-                      </div>
+                          {/* Bed Matrix Capacity */}
+                          {showWard && (
+                            <div className="p-6 bg-gradient-to-br from-[#121A30] to-[#0F1424] border border-slate-800 rounded-3xl relative overflow-hidden shadow-xl group">
+                              <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-blue-500/5 blur-2xl group-hover:bg-blue-500/10 transition-all pointer-events-none" />
+                              <div className="flex justify-between items-start mb-4">
+                                <span className="text-[9px] font-black uppercase text-blue-400 tracking-wider">Active Capacity Scheduler</span>
+                                <span className="text-slate-500">🏥</span>
+                              </div>
+                              <h2 className="text-3xl font-black text-white font-outfit">
+                                {dashboardData.telemetry.beds_occupied} <span className="text-sm font-semibold text-slate-500">/ {dashboardData.telemetry.beds_total} Beds</span>
+                              </h2>
+                              <button 
+                                onClick={() => setDashboardDrilldown('beds')}
+                                className="mt-4 text-[10px] font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-all"
+                              >
+                                Ward layout chart <ChevronRight size={12}/>
+                              </button>
+                            </div>
+                          )}
 
-                    </div>
+                          {/* Pharmacy Alert Stock */}
+                          {showPharmacy && (
+                            <div className="p-6 bg-gradient-to-br from-[#121A30] to-[#0F1424] border border-slate-800 rounded-3xl relative overflow-hidden shadow-xl group">
+                              <div className="absolute top-0 right-0 w-24 h-24 rounded-full bg-amber-500/5 blur-2xl group-hover:bg-amber-500/10 transition-all pointer-events-none" />
+                              <div className="flex justify-between items-start mb-4">
+                                <span className="text-[9px] font-black uppercase text-amber-400 tracking-wider">Pharmacy Alerts</span>
+                                <span className="text-slate-500">💊</span>
+                              </div>
+                              <h2 className="text-3xl font-black text-white font-outfit">
+                                {dashboardData.telemetry.low_stock_count} <span className="text-sm font-semibold text-slate-500">Low Stock</span>
+                              </h2>
+                              <button 
+                                onClick={() => setDashboardDrilldown('pharmacy')}
+                                className="mt-4 text-[10px] font-bold text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-all"
+                              >
+                                Stock records A-Z <ChevronRight size={12}/>
+                              </button>
+                            </div>
+                          )}
+
+                        </div>
+                      );
+                    })()}
 
                     {/* Dashboard Split Sections */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1022,6 +1104,82 @@ export default function OwnerDashboard({ onLogout }) {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* SETTINGS TAB */}
+            {consoleTab === 'settings' && (
+              <div className="space-y-6 max-w-4xl mx-auto">
+                <div className="p-6 bg-gradient-to-br from-[#121A30] to-[#0F1424] border border-slate-800 rounded-3xl relative overflow-hidden shadow-xl">
+                  <h3 className="font-extrabold text-white text-base mb-2 uppercase tracking-wide">Modular Hospital Operating System</h3>
+                  <p className="text-slate-400 text-xs mb-6">
+                    Enable or disable specific hospital departments dynamically. This dynamically adjusts staff portals, queues, sidebar menus, and API routes.
+                  </p>
+                  
+                  {saveSuccess && (
+                    <div className="mb-6 p-4 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-2xl text-xs font-bold flex items-center gap-2">
+                      <CheckCircle size={16} />
+                      MODULE CONFIGURATION UPDATED AND DEPLOYED SUCCESSFULLY
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                      { key: 'reception', label: 'Reception & Queue Intake', desc: 'Allows walk-in/QR patient check-ins and receptionist control.', icon: Users },
+                      { key: 'nurse', label: 'Nurse Triage / Vitals', desc: 'Enables nursing staff to record vitals and prioritize patient care.', icon: Heart },
+                      { key: 'doctor', label: 'Doctor Consultations', desc: 'Independent doctor queues, prescribing systems, and diagnosis logging.', icon: Activity },
+                      { key: 'laboratory', label: 'LOINC Laboratory', desc: 'Enables lab orders, diagnostic queue and results tracking.', icon: Layers },
+                      { key: 'pharmacy', label: 'Pharmacy ERP', desc: 'Manage dispensing, pharmacy inventory, and stock levels.', icon: ShoppingBag },
+                      { key: 'billing', label: 'Billing & Invoicing', desc: 'Escrow payment splitting, patient billing, and finance collection.', icon: CreditCard },
+                      { key: 'ward', label: 'Ward / Bed Management', desc: 'Track bed occupancy, ward layout, and inpatient admissions.', icon: Server },
+                      { key: 'emergency', label: 'Emergency Workflow', desc: 'Priority routing and triage for critical trauma patients.', icon: AlertTriangle },
+                      { key: 'telemedicine', label: 'Telemedicine Grid', desc: 'Enables remote consult bookings and video check-ins.', icon: Globe },
+                      { key: 'admin', label: 'Node Administration', desc: 'Audit log ledger and global permission configurations.', icon: Shield }
+                    ].map((mod) => {
+                      const isEnabled = enabledModules.includes(mod.key);
+                      const IconComponent = mod.icon;
+                      return (
+                        <div 
+                          key={mod.key}
+                          onClick={() => {
+                            const next = isEnabled 
+                              ? enabledModules.filter(k => k !== mod.key)
+                              : [...enabledModules, mod.key];
+                            setEnabledModules(next);
+                          }}
+                          className={`p-4 rounded-2xl border transition-all cursor-pointer flex gap-4 items-start ${
+                            isEnabled 
+                              ? 'bg-violet-950/20 border-violet-500/50 shadow-md shadow-violet-500/5' 
+                              : 'bg-[#131A30] border-slate-800/80 hover:border-slate-700/80'
+                          }`}
+                        >
+                          <div className={`p-2 rounded-xl ${isEnabled ? 'bg-violet-500/20 text-violet-400' : 'bg-slate-800 text-slate-500'}`}>
+                            <IconComponent size={18} />
+                          </div>
+                          <div className="flex-grow">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xs font-bold text-slate-100">{mod.label}</span>
+                              <div className={`w-8 h-4 rounded-full p-0.5 transition-colors ${isEnabled ? 'bg-violet-500' : 'bg-slate-800'}`}>
+                                <div className={`w-3 h-3 rounded-full bg-white transition-transform ${isEnabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                              </div>
+                            </div>
+                            <p className="text-[10px] text-slate-400 mt-1 font-semibold leading-relaxed">{mod.desc}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-8 pt-6 border-t border-slate-800 flex justify-end">
+                    <button
+                      onClick={() => handleSaveModules(enabledModules)}
+                      disabled={saveLoading}
+                      className="px-6 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:from-slate-800 disabled:to-slate-800 text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-md transition-all active:scale-[0.98]"
+                    >
+                      {saveLoading ? 'Saving changes...' : 'Save Configuration'}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 

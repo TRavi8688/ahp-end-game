@@ -272,6 +272,18 @@ async def _resolve_nurse(db: AsyncSession, user_id: str) -> Staff:
         staff = await resolve_any_staff(db, user_id)
     if not staff:
         raise HTTPException(status_code=403, detail="Nurse staff profile not found.")
+
+    # Guard: verify nurse triage module is enabled
+    from app.models.hospital import Hospital
+    h_result = await db.execute(
+        select(Hospital.enabled_modules).where(Hospital.id == staff.hospital_id, Hospital.deleted_at.is_(None))
+    )
+    enabled_modules = h_result.scalar() or []
+    if "nurse" not in enabled_modules:
+        raise HTTPException(
+            status_code=403,
+            detail="Nurse triage module is not enabled for this facility."
+        )
     return staff
 
 

@@ -20,19 +20,13 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useStore } from '../store/useStore';
+import apiClient from '../apiClient';
 
 interface LayoutProps {
   children: React.ReactNode;
   role?: string;
 }
 
-/**
- * FIXES:
- * 1. Added 'Walk-In Register' nav item for receptionist (/reception/walkin)
- * 2. Removed /staff and /infra from nav — those routes don't exist in App.tsx (were dead links)
- * 3. Settings link removed from nav (no /settings route defined)
- * 4. WebSocket handler safely checks lastMessage before switching
- */
 const Layout: React.FC<LayoutProps> = ({ children, role }) => {
   const navigate  = useNavigate();
   const location  = useLocation();
@@ -40,6 +34,23 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
   const { setQueue, addAlert, setSystemStatus } = useStore();
   const userRole = role || user?.role || '';
   const { isConnected, lastMessage } = useWebSocket(user?.hospital_id);
+
+  const [enabledModules, setEnabledModules] = React.useState<string[]>([
+    'reception', 'nurse', 'doctor', 'laboratory', 'pharmacy', 'billing', 'ward', 'admin'
+  ]);
+
+  React.useEffect(() => {
+    if (!user?.hospital_id) return;
+    apiClient.get(`/hospitals/${user.hospital_id}`)
+      .then((res) => {
+        if (res.data && res.data.data && res.data.data.enabled_modules) {
+          setEnabledModules(res.data.data.enabled_modules);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch hospital modules config', err);
+      });
+  }, [user?.hospital_id]);
 
   React.useEffect(() => {
     if (!lastMessage) return;
@@ -53,20 +64,23 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard',        path: `/${role}`,                    roles: ['admin', 'doctor', 'nurse', 'owner', 'pharmacy', 'lab', 'receptionist'] },
     // Reception
-    { icon: UserCheck,       label: 'Check-In',         path: '/reception/checkin',           roles: ['receptionist', 'admin'] },
-    { icon: UserPlus,        label: 'Walk-In Register', path: '/reception/walkin',            roles: ['receptionist', 'admin'] },
-    { icon: Clock,           label: 'Queue Board',      path: '/reception/queue',             roles: ['receptionist', 'admin'] },
-    { icon: Calendar,        label: 'Appointments',     path: '/reception/appointments',      roles: ['receptionist', 'admin'] },
-    { icon: CreditCard,      label: 'Billing',          path: '/reception/billing',           roles: ['receptionist', 'admin'] },
+    { icon: UserCheck,       label: 'Check-In',         path: '/reception/checkin',           roles: ['receptionist', 'admin'], module: 'reception' },
+    { icon: UserPlus,        label: 'Walk-In Register', path: '/reception/walkin',            roles: ['receptionist', 'admin'], module: 'reception' },
+    { icon: Clock,           label: 'Queue Board',      path: '/reception/queue',             roles: ['receptionist', 'admin'], module: 'reception' },
+    { icon: Calendar,        label: 'Appointments',     path: '/reception/appointments',      roles: ['receptionist', 'admin'], module: 'reception' },
+    { icon: CreditCard,      label: 'Billing',          path: '/reception/billing',           roles: ['receptionist', 'admin'], module: 'billing' },
     // Other staff
-    { icon: Package,         label: 'Pharmacy',         path: '/pharmacy',                    roles: ['pharmacy', 'admin'] },
-    { icon: Beaker,          label: 'Diagnostic Lab',   path: '/lab',                         roles: ['lab', 'admin'] },
+    { icon: Package,         label: 'Pharmacy',         path: '/pharmacy',                    roles: ['pharmacy', 'admin'], module: 'pharmacy' },
+    { icon: Beaker,          label: 'Diagnostic Lab',   path: '/lab',                         roles: ['lab', 'admin'], module: 'laboratory' },
     { icon: Users,           label: 'Staff Roster',     path: '/owner',                       roles: ['owner'] },
     { icon: Building2,       label: 'Hospital Control', path: '/admin',                       roles: ['admin'] },
     { icon: LifeBuoy,        label: 'Support',          path: '/support',                     roles: ['admin', 'hospital_admin', 'super_admin', 'doctor', 'nurse', 'staff', 'pharmacy', 'pharmacist', 'lab', 'owner', 'hr', 'receptionist'] },
   ];
 
-  const filteredMenu = menuItems.filter((item) => item.roles.includes(userRole));
+  const filteredMenu = menuItems.filter((item) => 
+    item.roles.includes(userRole) && 
+    (!item.module || enabledModules.includes(item.module))
+  );
 
   const displayName = user?.name || user?.email || 'Staff';
 

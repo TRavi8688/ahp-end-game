@@ -279,11 +279,15 @@ async def get_owner_dashboard(
     elif len(staff_list) > 20 or beds_total > 30:
         scale = "Mid"
 
+    # Include enabled_modules in telemetry
+    enabled_modules = hospital.enabled_modules if hospital else []
+
     return success_response(
         data={
             "hospital_name": hospital_name,
             "hospital_id": hospital_id,
             "scale": scale,
+            "enabled_modules": enabled_modules,
             "telemetry": {
                 "income_today": income_today,
                 "beds_occupied": beds_occupied,
@@ -299,3 +303,79 @@ async def get_owner_dashboard(
         },
         message="Dashboard data loaded",
     )
+
+
+# ─── Modular OS settings endpoints ───────────────────────────────────────────
+
+from pydantic import BaseModel
+from typing import List
+
+class UpdateModulesRequest(BaseModel):
+    enabled_modules: List[str]
+
+@router.get("/modules")
+async def get_hospital_modules(
+    current_user: Annotated[
+        TokenPayload,
+        Depends(require_role("owner", "hospital_admin", "admin", "super_admin")),
+    ],
+    db: AsyncSession = Depends(get_db),
+):
+    # Find owner's hospital_id
+    hospital_id = None
+    try:
+        hosp_result = await db.execute(
+            text("SELECT id FROM hospitals WHERE owner_user_id = :uid AND deleted_at IS NULL LIMIT 1"),
+            {"uid": current_user.sub},
+        )
+        hosp_row = hosp_result.fetchone()
+        hospital_id = str(hosp_row.id) if hosp_row else None
+    except Exception:
+        pass
+
+    if not hospital_id:
+        raise HTTPException(status_code=403, detail="No hospital linked to this account")
+
+    hosp_result = await db.execute(
+        select(Hospital.enabled_modules).where(Hospital.id == uuid.UUID(hospital_id))
+    )
+    enabled_modules = hosp_result.scalar() or []
+    return success_response(data={"enabled_modules": enabled_modules})
+
+
+@router.put("/modules")
+async def update_hospital_modules(
+    payload: UpdateModulesRequest,
+    current_user: Annotated[
+        TokenPayload,
+        Depends(require_role("owner", "hospital_admin", "admin")),
+    ],
+    db: AsyncSession = Depends(get_db),
+):
+    # Find owner's hospital_id
+    hospital_id = None
+    try:
+        hosp_result = await db.execute(
+            text("SELECT id FROM hospitals WHERE owner_user_id = :uid AND deleted_at IS NULL LIMIT 1"),
+            {"uid": current_user.sub},
+        )
+        hosp_row = hosp_result.fetchone()
+        hospital_id = str(hosp_row.id) if hosp_row else None
+    except Exception:
+        pass
+
+    if not hospital_id:
+        raise HTTPException(status_code=403, detail="No hospital linked to this account")
+
+    hosp_result = await db.execute(
+        select(Hospital).where(Hospital.id == uuid.UUID(hospital_id))
+    )
+    hospital = hosp_result.scalars().first()
+    if not hospital:
+        raise HTTPException(status_code=404, detail="Hospital not found")
+
+    hospital.enabled_modules = payload.enabled_modules
+    db.add(hospital)
+    await db.flush()
+    return success_response(data={"enabled_modules": hospital.enabled_modules}, message="Modules updated successfully")
+

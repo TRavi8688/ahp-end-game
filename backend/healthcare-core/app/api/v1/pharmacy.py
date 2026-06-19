@@ -63,25 +63,42 @@ async def _resolve_pharmacy_hospital_id(
     is normally a single, cheap path. Falls back to the staff-table lookup used
     elsewhere in this codebase (see owner.py) for accounts where it's missing.
     """
+    h_id = None
     if current_user.hospital_id:
         try:
-            return uuid.UUID(current_user.hospital_id)
+            h_id = uuid.UUID(current_user.hospital_id)
         except ValueError:
             pass
 
-    from sqlalchemy import text
-    result = await db.execute(
-        text("SELECT hospital_id FROM staff WHERE user_id = :uid AND deleted_at IS NULL LIMIT 1"),
-        {"uid": current_user.sub},
-    )
-    row = result.fetchone()
-    if row and row.hospital_id:
-        return row.hospital_id
+    if not h_id:
+        from sqlalchemy import text
+        result = await db.execute(
+            text("SELECT hospital_id FROM staff WHERE user_id = :uid AND deleted_at IS NULL LIMIT 1"),
+            {"uid": current_user.sub},
+        )
+        row = result.fetchone()
+        if row and row.hospital_id:
+            h_id = row.hospital_id
 
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="No pharmacy/hospital is linked to this account.",
+    if not h_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No pharmacy/hospital is linked to this account.",
+        )
+
+    # Modular OS guard check: verify pharmacy module is enabled for this hospital
+    from app.models.hospital import Hospital
+    h_result = await db.execute(
+        select(Hospital.enabled_modules).where(Hospital.id == h_id, Hospital.deleted_at.is_(None))
     )
+    enabled_modules = h_result.scalar() or []
+    if "pharmacy" not in enabled_modules:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Pharmacy module is not enabled for this facility.",
+        )
+
+    return h_id
 
 
 def _inventory_to_dict(inv: PharmacyInventory) -> dict:
