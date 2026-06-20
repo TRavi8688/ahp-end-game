@@ -16,10 +16,10 @@
  *    of rejecting as duplicate — see onboarding.py register-enterprise fix).
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle, Check, AlertCircle, RefreshCw, MapPin, Eye, EyeOff, Clock } from 'lucide-react';
-import { post, postForm, get } from '../lib/api';
+import { post, postForm } from '../lib/api';
 import logoImg from '../assets/logo.png';
 
 const V = {

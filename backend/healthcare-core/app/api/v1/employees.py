@@ -32,7 +32,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from passlib.context import CryptContext
 from pydantic import BaseModel, Field
 from sqlalchemy import text
@@ -130,8 +130,7 @@ async def _require_super_admin(db: AsyncSession, token: str) -> dict:
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid internal token")
 
-    employee_id = payload.get("employee_id")
-    level       = payload.get("level")
+    level = payload.get("level")
     if level != "super_admin":
         raise HTTPException(status_code=403, detail="Super Admin access required")
     return payload
@@ -152,15 +151,20 @@ async def _decode_internal_token(db: AsyncSession, token: str) -> dict:
 @router.post("/create", status_code=201)
 async def create_employee(
     body:          CreateEmployeeBody,
-    authorization: str = "",
+    authorization: str = Header(default=""),
     db: AsyncSession = Depends(get_db),
 ):
-    """Super admin creates a new Hospyn internal employee."""
+    """Super admin creates a new Hospyn internal employee. Requires a valid super_admin JWT."""
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header.")
+    token = authorization[7:]
+    await _require_super_admin(db, token)
+
     # Validate teams and levels
     if body.team not in TEAM_CODES:
         raise HTTPException(status_code=400, detail=f"Invalid team. Must be one of: {list(TEAM_CODES)}")
     if body.level not in LEVEL_CODES or body.level == "super_admin":
-        raise HTTPException(status_code=400, detail=f"Invalid level. Must be: l1, team_lead, manager")
+        raise HTTPException(status_code=400, detail="Invalid level. Must be: l1, team_lead, manager")
 
     # Check email not already used
     dup = await db.execute(

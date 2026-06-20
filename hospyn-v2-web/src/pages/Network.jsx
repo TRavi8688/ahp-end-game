@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ShieldCheck, XCircle, Zap, Users, Globe, Activity, Heart, ArrowRight } from 'lucide-react';
+import { ShieldCheck, XCircle, Users, Globe, Activity, Heart } from 'lucide-react';
 
 const Network = () => {
   return (
@@ -17,7 +17,7 @@ const Network = () => {
           The Living Network.
         </h2>
         <p className="text-slate-400 text-lg max-w-2xl mx-auto font-medium">
-          Hospyn creates a living healthcare network where every participant is synchronized via a forensic clinical grid.
+          Hospin creates a living healthcare network where every participant is synchronized via a forensic clinical grid.
         </p>
       </header>
 
@@ -77,7 +77,7 @@ const Network = () => {
             </div>
          </div>
          <div className="glass-card p-12 bg-primary/[0.02] border-primary/10">
-            <h3 className="text-3xl font-black outfit text-primary mb-8 tracking-tighter">Hospyn Sovereign Grid</h3>
+            <h3 className="text-3xl font-black outfit text-primary mb-8 tracking-tighter">Hospin Sovereign Grid</h3>
             <div className="space-y-6">
                {[
                  'Unified healthcare intelligence',

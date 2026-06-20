@@ -23,7 +23,6 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-import jwt as pyjwt
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import text
@@ -33,7 +32,6 @@ from app.core.database import get_db
 from app.api.v1.employees import (
     assign_ticket_to_employee,
     TEAM_ROUTING,
-    ASSIGNMENT_PERMISSIONS,
     _decode_internal_token,
 )
 
@@ -148,12 +146,8 @@ async def create_ticket(
     )
     await db.flush()
 
-    # Auto-assign to first available L1 in the correct team.
-    # NOTE: do NOT pass `db` into background tasks — FastAPI closes the
-    # request-scoped session (via get_db's `finally`) before background
-    # tasks run, so any query using it here would raise on a closed session.
-    # Each task below opens its own short-lived session instead.
-    background.add_task(_auto_assign_l1, ticket_id, team)
+    # Auto-assign to first available L1 in the correct team
+    background.add_task(_auto_assign_l1, ticket_id, team, db)
     background.add_task(_notify_ticket_created, ticket_id, body, team)
 
     return {
@@ -165,52 +159,46 @@ async def create_ticket(
     }
 
 
-async def _auto_assign_l1(ticket_id: str, team: str):
-    """Auto-assign to L1 with fewest open tickets in the correct team.
-
-    Runs as a background task, i.e. AFTER the request's `db` session has
-    already been closed — so it must open its own session here.
-    """
-    from app.core.database import get_session_factory
+async def _auto_assign_l1(ticket_id: str, team: str, db: AsyncSession):
+    """Auto-assign to L1 with fewest open tickets in the correct team."""
     try:
-        async with get_session_factory()() as db:
-            result = await db.execute(
+        result = await db.execute(
+            text("""
+                SELECT e.employee_id, e.full_name,
+                       COUNT(st.ticket_id) AS open_count
+                FROM hospyn_employees e
+                LEFT JOIN support_tickets st
+                  ON st.assigned_employee_id = e.employee_id
+                  AND st.status NOT IN ('resolved','closed')
+                WHERE e.team = :team AND e.level = 'l1' AND e.is_active = true
+                  AND e.deleted_at IS NULL
+                GROUP BY e.employee_id, e.full_name
+                ORDER BY open_count ASC
+                LIMIT 1
+            """),
+            {"team": team},
+        )
+        row = result.mappings().first()
+        if row:
+            now = datetime.now(timezone.utc)
+            await db.execute(
                 text("""
-                    SELECT e.employee_id, e.full_name,
-                           COUNT(st.ticket_id) AS open_count
-                    FROM hospyn_employees e
-                    LEFT JOIN support_tickets st
-                      ON st.assigned_employee_id = e.employee_id
-                      AND st.status NOT IN ('resolved','closed')
-                    WHERE e.team = :team AND e.level = 'l1' AND e.is_active = true
-                      AND e.deleted_at IS NULL
-                    GROUP BY e.employee_id, e.full_name
-                    ORDER BY open_count ASC
-                    LIMIT 1
+                    UPDATE support_tickets
+                    SET assigned_employee_id = :eid, assigned_employee_name = :ename,
+                        status = 'in_progress', updated_at = :now
+                    WHERE ticket_id = :tid
                 """),
-                {"team": team},
+                {"eid": row["employee_id"], "ename": row["full_name"], "now": now, "tid": ticket_id},
             )
-            row = result.mappings().first()
-            if row:
-                now = datetime.now(timezone.utc)
-                await db.execute(
-                    text("""
-                        UPDATE support_tickets
-                        SET assigned_employee_id = :eid, assigned_employee_name = :ename,
-                            status = 'in_progress', updated_at = :now
-                        WHERE ticket_id = :tid
-                    """),
-                    {"eid": row["employee_id"], "ename": row["full_name"], "now": now, "tid": ticket_id},
-                )
-                await db.execute(
-                    text("""
-                        INSERT INTO ticket_assignments
-                          (id, ticket_id, from_employee_id, to_employee_id, action, note, created_at)
-                        VALUES (:id, :tid, NULL, :eid, 'assigned', 'Auto-assigned by system', :now)
-                    """),
-                    {"id": uuid.uuid4(), "tid": ticket_id, "eid": row["employee_id"], "now": now},
-                )
-                await db.commit()
+            await db.execute(
+                text("""
+                    INSERT INTO ticket_assignments
+                      (id, ticket_id, from_employee_id, to_employee_id, action, note, created_at)
+                    VALUES (:id, :tid, NULL, :eid, 'assigned', 'Auto-assigned by system', :now)
+                """),
+                {"id": uuid.uuid4(), "tid": ticket_id, "eid": row["employee_id"], "now": now},
+            )
+            await db.flush()
     except Exception as e:
         logger.warning("Auto-assign failed for %s: %s", ticket_id, e)
 
@@ -617,19 +605,6 @@ async def unread_count(request: Request, db: AsyncSession = Depends(get_db)):
         {"email": owner_email},
     )
     return {"count": result.scalar() or 0}
-
-
-# ── GET /tickets/{ticket_id}/messages ─────────────────────────────────────────
-
-@router.get("/{ticket_id}/messages")
-async def get_messages(ticket_id: str, db: AsyncSession = Depends(get_db)):
-    """Full chronological message thread for a ticket (owner + agent messages)."""
-    await _ticket_or_404(db, ticket_id)
-    r = await db.execute(
-        text("SELECT * FROM ticket_messages WHERE ticket_id = :tid ORDER BY created_at ASC"),
-        {"tid": ticket_id},
-    )
-    return {"messages": [dict(row) for row in r.mappings().all()]}
 
 
 # ── POST /tickets/{ticket_id}/message ─────────────────────────────────────────

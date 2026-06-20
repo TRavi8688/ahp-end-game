@@ -14,9 +14,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Users, Activity, Brain, Lock, CheckCircle,
-  ArrowRight, Zap, Globe, BarChart3, Heart, Clock,
-  TrendingUp, AlertCircle, Server, Star, ChevronRight,
-  Phone, Mail, Building2, Award, Eye, Layers, Cpu, Database
+  ArrowRight, Globe, BarChart3, Heart,
+  TrendingUp, AlertCircle, Cpu, Database
 } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 import chittiImg from '../assets/chitti_landing.jpg';

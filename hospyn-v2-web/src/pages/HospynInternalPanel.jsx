@@ -17,11 +17,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Shield, LogOut, Search, ChevronRight, MessageSquare,
-  Phone, Clock, AlertCircle, CheckCircle, ArrowLeft,
-  Send, StickyNote, BarChart3, LifeBuoy, Star, X,
-  RefreshCw, ArrowUp, User, Users, Plus, Eye, Filter,
-  ChevronDown, Hash, Layers
+  Shield, LogOut, Search, MessageSquare,
+  Phone, CheckCircle, ArrowLeft,
+  Send, StickyNote, LifeBuoy, X,
+  RefreshCw, ArrowUp, User, Users, Plus,
+  ChevronDown
 } from 'lucide-react';
 import { post, get, postForm } from '../lib/api';
 

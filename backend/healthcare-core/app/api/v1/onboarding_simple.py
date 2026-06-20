@@ -25,7 +25,6 @@ Register in router.py:
 from __future__ import annotations
 
 import logging
-import os
 import random
 import uuid
 from typing import Optional
@@ -53,7 +52,7 @@ class RegisterSimpleBody(BaseModel):
     phone_number:         str
     physical_address:     str
     staff_count:          str = "1"
-    latitude:             Optional[str] = None
+    latitude:              Optional[str] = None
     longitude:             Optional[str] = None
     branches:             Optional[str] = None
     branch_locations:     Optional[str] = None

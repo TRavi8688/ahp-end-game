@@ -44,7 +44,7 @@ export default function PrivacyPolicy() {
           href="/"
           className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-primary transition-colors"
         >
-          <ChevronRight size={12} className="rotate-180" /> Back to Hospyn
+          <ChevronRight size={12} className="rotate-180" /> Back to Hospin
         </a>
       </div>
 
@@ -73,7 +73,7 @@ export default function PrivacyPolicy() {
 
         {/* Sections */}
         <Section icon={Database} title="1. Data We Collect" delay={0.05}>
-          <p>We collect the following categories of personal and health data when you use Hospyn:</p>
+          <p>We collect the following categories of personal and health data when you use Hospin:</p>
           <div className="mt-4 rounded-xl border border-white/5 overflow-hidden bg-white/2">
             <div className="grid grid-cols-2 gap-4 px-4 py-2 bg-white/5 text-[10px] font-black uppercase tracking-widest text-slate-500">
               <span>Data Category</span>
@@ -232,7 +232,7 @@ export default function PrivacyPolicy() {
 
         <Section icon={Shield} title="8. Changes to This Policy" delay={0.4}>
           <p>
-            We may update this Privacy Policy periodically to reflect changes in law or our practices. Material changes will be communicated via in-app notification at least 15 days before they take effect. Continued use of Hospyn after the effective date constitutes acceptance of the revised policy.
+            We may update this Privacy Policy periodically to reflect changes in law or our practices. Material changes will be communicated via in-app notification at least 15 days before they take effect. Continued use of Hospin after the effective date constitutes acceptance of the revised policy.
           </p>
           <p className="mt-3">
             For questions not covered here, contact us at <a href="mailto:privacy@hospyn.in" className="text-primary hover:underline">privacy@hospyn.in</a>.

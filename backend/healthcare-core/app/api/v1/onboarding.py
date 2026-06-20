@@ -211,7 +211,7 @@ async def verify_government_pan_otp(
     if not stored or otp_code.strip() != stored:
         raise HTTPException(status_code=400, detail="Invalid or expired OTP. Request a new one.")
     logger.info("Govt OTP verified for hospital %s", hospital_id)
-    return {"message": "OTP verified. Proceed to payment setup."}
+    return {"message": "OTP verified successfully."}
 
 
 # ── 4a. Generate Razorpay UPI QR ─────────────────────────────────────────────

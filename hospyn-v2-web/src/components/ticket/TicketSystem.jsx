@@ -11,9 +11,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  LifeBuoy, X, Send, Paperclip, ChevronDown, ChevronRight,
+  LifeBuoy, X, Send, Paperclip, ChevronRight,
   Clock, CheckCircle, AlertCircle, MessageSquare, Phone,
-  RefreshCw, Plus, ArrowLeft, Circle, UploadCloud, Star
+  RefreshCw, Plus, ArrowLeft, Star
 } from 'lucide-react';
 import { post, get, postMultipart } from '../../lib/api';
 
@@ -82,11 +82,11 @@ const PRIORITIES = [
 ];
 
 const PRODUCTS = [
-  { value: 'hospyn_web',    label: 'Hospyn Web (Owner Dashboard)' },
-  { value: 'hospyn_doctor', label: 'Hospyn Doctor App' },
-  { value: 'hospyn_erp',    label: 'Hospyn ERP Portal' },
-  { value: 'hospyn_nurse',  label: 'Hospyn Nurse Console' },
-  { value: 'other',         label: 'Other Hospyn Product' },
+  { value: 'hospyn_web',    label: 'Hospin Web (Owner Dashboard)' },
+  { value: 'hospyn_doctor', label: 'Hospin Doctor App' },
+  { value: 'hospyn_erp',    label: 'Hospin ERP Portal' },
+  { value: 'hospyn_nurse',  label: 'Hospin Nurse Console' },
+  { value: 'other',         label: 'Other Hospin Product' },
 ];
 
 const STATUS_CONFIG = {
@@ -361,7 +361,7 @@ function TicketChat({ ticket, onBack }) {
             <div key={msg.id} className={`flex ${isOwner ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[78%] space-y-1 ${isOwner ? 'items-end' : 'items-start'} flex flex-col`}>
                 <p className={`text-[10px] font-bold ${isOwner ? 'text-slate-400 text-right' : 'text-violet-600'}`}>
-                  {isOwner ? 'You' : (msg.sender_label || 'Hospyn Support')}
+                  {isOwner ? 'You' : (msg.sender_label || 'Hospin Support')}
                 </p>
                 <div className={`px-4 py-3 rounded-2xl text-sm font-medium leading-relaxed ${isOwner ? 'bg-violet-600 text-white rounded-tr-sm' : 'bg-slate-100 text-slate-800 rounded-tl-sm'}`}>
                   {msg.text}

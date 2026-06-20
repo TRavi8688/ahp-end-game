@@ -23,12 +23,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Shield, Activity, Users, BedDouble, FileText, ShieldAlert,
-  RefreshCw, CheckCircle, X, AlertCircle, Plus, ArrowRight,
-  Clock, Building2, Phone, Mail, Eye, XCircle, ChevronDown,
-  Hash, User, LogOut
+  Activity, Users, BedDouble, FileText, ShieldAlert,
+  RefreshCw, CheckCircle, X, Plus,
+  Clock, Building2, Phone, Mail, Eye, XCircle,
+  Hash, LogOut
 } from 'lucide-react';
-import { get, post, postForm } from '../lib/api';
+import { post } from '../lib/api';
 import logoImg from '../assets/logo.png';
 
 const API_BASE = '/api/v1';
@@ -47,18 +47,6 @@ function token() {
 
 function authHeaders(extra = {}) {
   return { Authorization: `Bearer ${token()}`, ...extra };
-}
-
-async function apiFetch(path, opts = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...opts,
-    headers: { ...authHeaders(), ...(opts.headers || {}) },
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `HTTP ${res.status}`);
-  }
-  return res.status === 204 ? null : res.json();
 }
 
 // ── Reject Modal ──────────────────────────────────────────────────────────────
