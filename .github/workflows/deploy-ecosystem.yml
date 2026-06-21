@@ -152,6 +152,7 @@ jobs:
             --platform managed \
             --no-allow-unauthenticated \
             --port 8080 \
+            --remove-secrets "SECRET_KEY,REDIS_URL,ALLOWED_ORIGINS,INTERNAL_SERVICE_SECRET,ENCRYPTION_KEY" \
             --set-env-vars "^|^ENVIRONMENT=production|SECRET_KEY=${{ secrets.SECRET_KEY }}|REDIS_URL=${{ secrets.REDIS_URL }}|ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }}|INTERNAL_SERVICE_SECRET=${{ secrets.SECRET_KEY }}|ENCRYPTION_KEY=${{ secrets.FERNET_KEY }}" \
             --update-secrets "DATABASE_URL=DATABASE_URL:latest"
           
@@ -169,6 +170,7 @@ jobs:
             --platform managed \
             --no-allow-unauthenticated \
             --port 8080 \
+            --remove-secrets "JWT_SECRET_KEY,REDIS_URL,FERNET_KEY,ALLOWED_ORIGINS,INTERNAL_SERVICE_SECRET,ENCRYPTION_KEY" \
             --set-env-vars "^|^ENVIRONMENT=production|JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}|REDIS_URL=${{ secrets.REDIS_URL }}|FERNET_KEY=${{ secrets.FERNET_KEY }}|ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }}|INTERNAL_SERVICE_SECRET=${{ secrets.SECRET_KEY }}|ENCRYPTION_KEY=${{ secrets.FERNET_KEY }}" \
             --update-secrets "DATABASE_URL=DATABASE_URL:latest"
             
