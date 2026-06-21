@@ -54,12 +54,11 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://hospyn:ci_test_password_not_real@localhost:5432/hospyn_test
           REDIS_URL: redis://localhost:6379/0
-          # FIXED: Use a test-only secret that passes validation (64 chars, not default)
           SECRET_KEY: ci_test_secret_key_that_is_definitely_not_the_default_value_and_is_64chars_long
           ENVIRONMENT: test
           SENTRY_DSN: ""
         run: |
-          pytest \
+          python -m pytest \
             --cov=app \
             --cov-report=term-missing \
             --cov-report=xml \
@@ -88,8 +87,6 @@ jobs:
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
           extra_args: --only-verified
 
   # ── Docker Build Validation ─────────────────────────────────────────────────

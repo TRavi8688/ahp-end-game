@@ -92,11 +92,11 @@ jobs:
         run: |
           pip install poetry
           poetry install --with dev --no-interaction
+        working-directory: backend/healthcare-core
 
       - name: Run tests
-        run: |
-          poetry install --with dev --no-interaction
-          poetry run pytest tests/ -v --tb=short --timeout=30 || true
+        run: poetry run pytest tests/ -v --tb=short --timeout=30
+        working-directory: backend/healthcare-core
         continue-on-error: true
 
   # ── 3. Build Docker Image ────────────────────────────────────────────────
