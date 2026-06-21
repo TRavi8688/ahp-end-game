@@ -1,0 +1,23 @@
+- [x] Initialize git branch for fixes
+- [x] Merge Shared library fixes
+- [x] Merge Auth Service fixes
+- [x] Merge Healthcare Core fixes
+- [x] Merge AI Service fixes and dependency overrides
+- [x] Merge Infrastructure & Gateway configurations
+- [x] Replace Staff Portal files
+- [x] Replace Super Admin Dashboard files
+- [x] Implement dynamic queue logic in `api/v1/walkin.py` based on enabled modules
+- [x] Add module validation guards in pharmacy, clinical, and billing endpoints
+- [x] Modify Owner Dashboard settings to include module switcher and dynamic cards
+- [x] Update staff-portal sidebar and routing to respect active module list
+- [x] Verify builds and write automated tests for modular queue progression
+- [x] Restore missing screens and services for patient-app
+- [x] Configure environment variables and API exports for patient-app
+- [x] Launch patient-app dev server on port 19006
+- [x] Fix double `/api/v1` prefix mapping bug in `authService.js`
+- [x] Verify builds and login functionality on patient-app
+- [x] Audit pharmacist onboarding and role linkage
+- [x] Fix staff recruitment role mapping mismatch in backend `/staff/invites`
+- [x] Stage, commit, and push all final rebrand integration files to git
+- [x] Implement Staff Portal Developer Quick Access buttons and offline mock API interceptors
+

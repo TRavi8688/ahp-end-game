@@ -1,0 +1,27 @@
+{
+  "projects": {
+    "default": "hospyn-495906-96438"
+  },
+  "targets": {
+    "hospyn-495906-96438": {
+      "hosting": {
+        "patient": [
+          "hospyn-patient-app"
+        ],
+        "doctor": [
+          "hospyn-doctor-pro"
+        ],
+        "erp": [
+          "hospyn-erp-portal"
+        ],
+        "landing": [
+          "hospyn-gateway"
+        ],
+        "admin": [
+          "hospyn-495906-96438"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

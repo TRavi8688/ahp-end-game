@@ -1,0 +1,32 @@
+{
+  "name": "hospyn-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Hospyn monorepo — Phase 09 fix: Turborepo setup to manage 8 frontend apps + shared packages",
+  "workspaces": [
+    "packages/*",
+    "patient-app",
+    "doctor-app",
+    "hospyn-v2-web",
+    "hr-portal",
+    "partner-app",
+    "pharma-mobile-app",
+    "staff-portal",
+    "super-admin-dashboard"
+  ],
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "typecheck": "turbo typecheck",
+    "clean": "turbo clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "^1.13.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
