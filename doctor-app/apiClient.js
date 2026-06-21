@@ -44,6 +44,9 @@ apiClient.interceptors.request.use(
         // DO NOT read token from localStorage — that was XSS-vulnerable.
         // With withCredentials: true, the browser automatically sends the
         // httpOnly access_token cookie. Nothing extra needed here.
+        if (config.url && config.url.startsWith('/')) {
+            config.url = config.url.substring(1);
+        }
         return config;
     },
     (error) => Promise.reject(error)

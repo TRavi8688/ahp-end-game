@@ -20,6 +20,9 @@ apiClient.interceptors.request.use(
         if (token) {
             config.headers['Authorization'] = `Bearer ${token}`;
         }
+        if (config.url && config.url.startsWith('/')) {
+            config.url = config.url.substring(1);
+        }
         return config;
     },
     (error) => {
