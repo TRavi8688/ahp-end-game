@@ -40,10 +40,9 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.security import require_role, TokenPayload
 from app.models.pharmacy import (
-    Medicine, PharmacyInventory, PrescriptionDispense,
-    PharmacyTransaction, TransactionType, PrescriptionShare,
+    Medicine, PharmacyInventory, PharmacyTransaction, TransactionType, PrescriptionShare,
 )
-from app.models.prescription import Prescription, PrescriptionItem
+from app.models.prescription import Prescription
 from app.models.patient import Patient
 
 logger = logging.getLogger(__name__)

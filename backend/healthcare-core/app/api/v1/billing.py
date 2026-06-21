@@ -23,13 +23,11 @@ import uuid
 import io
 from datetime import datetime, timezone
 from typing import Annotated, Optional, List
-from decimal import Decimal
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc, func
-from sqlalchemy.orm import selectinload
+from sqlalchemy import select
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
@@ -928,7 +926,7 @@ async def list_hospital_invoices(
         count_result = await db.execute(text(f"SELECT COUNT(*) FROM ({query}) AS q"), params)
         total_count = count_result.scalar() or 0
 
-        query += f" ORDER BY i.created_at DESC LIMIT :limit OFFSET :offset"
+        query += " ORDER BY i.created_at DESC LIMIT :limit OFFSET :offset"
         params["limit"] = per_page
         params["offset"] = (page - 1) * per_page
 

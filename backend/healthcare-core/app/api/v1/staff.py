@@ -26,12 +26,11 @@ from datetime import datetime, timezone, date
 from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text
-from pydantic import BaseModel, Field, EmailStr
+from sqlalchemy import text
+from pydantic import BaseModel, Field
 
 from app.core.database import get_db
 from app.core.security import require_role, TokenPayload
-from app.models.hospital import Hospital
 from shared.utils.responses import success_response, error_response
 from shared.audit import log_audit_event
 

@@ -17,7 +17,7 @@ HOW TO REGISTER:
 
 import uuid
 from datetime import datetime, timezone, timedelta
-from typing import Annotated, Optional
+from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc

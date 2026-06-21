@@ -10,7 +10,7 @@ from app.core.security import get_current_user, require_role, TokenPayload
 from app.models.patient import Patient
 from app.models.appointment import Appointment
 from app.models.medical_record import MedicalRecord
-from app.models.prescription import Prescription, PrescriptionItem
+from app.models.prescription import Prescription
 from shared.gcs import GCSStorageService
 from sqlalchemy.orm import selectinload
 

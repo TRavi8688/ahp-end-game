@@ -6,7 +6,6 @@
 
 import enum
 import uuid
-from datetime import datetime
 
 from sqlalchemy import (
     Column, DateTime, Enum as SQLEnum, ForeignKey, Integer, Numeric, String, Text,

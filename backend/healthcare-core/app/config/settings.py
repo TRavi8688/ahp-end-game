@@ -12,7 +12,6 @@ PLACE AT: backend/healthcare-core/app/config/settings.py
 """
 from __future__ import annotations
 
-import os
 from typing import Optional
 
 from pydantic import field_validator

@@ -5,7 +5,6 @@ from jose import jwt
 from app.config.settings import settings
 from app.models.hospital import Hospital
 from app.models.staff import Staff, StaffRole, ShiftStatus
-from app.models.walkin import WalkInRequest, QueueState
 from app.services.queue_service import generate_walkin_token
 
 def generate_token(user_id: str, role: str) -> str:

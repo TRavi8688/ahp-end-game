@@ -15,7 +15,6 @@ REGISTER IN router.py:
     router.include_router(patient_ext_router, prefix="/patient", tags=["Patient Extensions"])
 """
 
-from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -23,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 
 from app.core.database import get_db
-from app.core.security import get_current_user, require_role, TokenPayload
+from app.core.security import require_role, TokenPayload
 from app.models.patient import Patient
 
 router = APIRouter()

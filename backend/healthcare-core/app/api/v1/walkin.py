@@ -9,7 +9,7 @@ Endpoints:
 
 import uuid
 from typing import Annotated, Optional
-from datetime import datetime, timezone
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +17,7 @@ from sqlalchemy import select, func
 from pydantic import BaseModel, Field, field_validator
 
 from app.core.database import get_db
-from app.core.security import get_current_user, require_role, TokenPayload
+from app.core.security import require_role, TokenPayload
 from app.models.walkin import (
     WalkInRequest,
     QueueState,
@@ -32,7 +32,7 @@ from app.services.queue_service import (
     check_duplicate_walkin,
     generate_queue_number,
 )
-from shared.utils.responses import success_response, error_response
+from shared.utils.responses import success_response
 from shared.audit import log_audit_event
 
 router = APIRouter()

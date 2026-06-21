@@ -3,12 +3,11 @@
 
 import enum
 import uuid
-from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
     Column, DateTime, Date, Enum, ForeignKey,
-    Numeric, String, UniqueConstraint,
+    Numeric, String,
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship

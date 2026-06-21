@@ -160,7 +160,7 @@ async def create_employee(
     if body.team not in TEAM_CODES:
         raise HTTPException(status_code=400, detail=f"Invalid team. Must be one of: {list(TEAM_CODES)}")
     if body.level not in LEVEL_CODES or body.level == "super_admin":
-        raise HTTPException(status_code=400, detail=f"Invalid level. Must be: l1, team_lead, manager")
+        raise HTTPException(status_code=400, detail="Invalid level. Must be: l1, team_lead, manager")
 
     # Check email not already used
     dup = await db.execute(

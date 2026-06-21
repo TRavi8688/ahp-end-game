@@ -27,10 +27,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, text
 
 from app.core.database import get_db
-from app.core.security import get_current_user, require_role, TokenPayload
-from app.models.doctor import Doctor, DoctorStatus
+from app.core.security import require_role, TokenPayload
+from app.models.doctor import Doctor
 from app.models.appointment import Appointment
-from app.models.patient import Patient
 from shared.audit import log_audit_event
 
 router = APIRouter()

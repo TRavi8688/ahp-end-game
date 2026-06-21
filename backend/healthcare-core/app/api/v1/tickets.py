@@ -23,7 +23,6 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-import jwt as pyjwt
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import text
@@ -33,7 +32,6 @@ from app.core.database import get_db
 from app.api.v1.employees import (
     assign_ticket_to_employee,
     TEAM_ROUTING,
-    ASSIGNMENT_PERMISSIONS,
     _decode_internal_token,
 )
 

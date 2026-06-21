@@ -42,8 +42,8 @@ COPY backend/healthcare-core/app/ ./app/
 COPY backend/shared/ ./shared/
 
 # Copy alembic migrations and config
-COPY alembic/ ./alembic/
-COPY alembic.ini .
+COPY backend/healthcare-core/alembic/ ./alembic/
+COPY backend/healthcare-core/alembic.ini .
 
 # Copy entrypoint and strip Windows CRLF if present
 COPY entrypoint.sh /entrypoint.sh

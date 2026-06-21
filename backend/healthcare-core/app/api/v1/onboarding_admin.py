@@ -23,11 +23,10 @@ from typing import List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.models.hospital import Hospital, HospitalStatus
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

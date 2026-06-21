@@ -33,10 +33,9 @@ from app.core.database import get_db
 from app.core.security import require_role, TokenPayload
 from app.models.pharmacy_ops import Supplier, PurchaseOrder, PurchaseOrderItem, Expense, ExpenseCategory
 from app.models.pharmacy import (
-    PharmacyInventory, PharmacyTransaction, TransactionType, PharmacySale, PharmacySaleItem,
-    WalkInCustomer,
+    PharmacyInventory, PharmacyTransaction, TransactionType, PharmacySale,
 )
-from app.api.v1.pharmacy import _resolve_pharmacy_hospital_id, PHARMACY_ROLES, _parse_date, _to_decimal
+from app.api.v1.pharmacy import _resolve_pharmacy_hospital_id, PHARMACY_ROLES, _to_decimal
 
 router = APIRouter()
 

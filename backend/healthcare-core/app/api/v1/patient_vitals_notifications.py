@@ -14,17 +14,15 @@ HOW TO REGISTER:
 """
 
 import uuid
-from datetime import datetime, timezone, timedelta
-from typing import Annotated, Optional, List
+from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
-from pydantic import BaseModel
+from sqlalchemy import select
 
 from app.core.database import get_db
-from app.core.security import require_role, get_current_user, TokenPayload
+from app.core.security import require_role, TokenPayload
 from app.models.patient import Patient
-from shared.utils.responses import success_response, error_response
+from shared.utils.responses import success_response
 
 router = APIRouter()
 
@@ -238,7 +236,7 @@ async def mark_notification_read(
             {"notif_id": str(notification_id), "patient_id": str(patient.id)},
         )
         await db.flush()
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=500, detail="Could not mark notification as read")
 
     return success_response(message="Notification marked as read")

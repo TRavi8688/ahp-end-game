@@ -48,7 +48,7 @@ DROP-IN INSTRUCTIONS:
 import uuid
 import random
 from datetime import datetime, timezone, timedelta
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
