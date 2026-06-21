@@ -147,15 +147,15 @@ jobs:
           AUTH_IMAGE="us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-auth:${{ github.sha }}"
           gcloud run deploy hospyn-495906-auth \
             --image $AUTH_IMAGE \
-            --region us-central1 \
+            --region asia-south1 \
             --project hospyn-495906 \
             --platform managed \
             --no-allow-unauthenticated \
             --port 8080 \
-            --set-env-vars "ENVIRONMENT=production" \
-            --update-secrets "DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,REDIS_URL=REDIS_URL:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest,INTERNAL_SERVICE_SECRET=SECRET_KEY:latest,ENCRYPTION_KEY=FERNET_KEY:latest"
+            --set-env-vars "ENVIRONMENT=production,SECRET_KEY=${{ secrets.SECRET_KEY }},REDIS_URL=${{ secrets.REDIS_URL }},ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }},INTERNAL_SERVICE_SECRET=${{ secrets.SECRET_KEY }},ENCRYPTION_KEY=${{ secrets.FERNET_KEY }}" \
+            --update-secrets "DATABASE_URL=DATABASE_URL:latest"
           
-          AUTH_URL=$(gcloud run services describe hospyn-495906-auth --region us-central1 --format 'value(status.url)')
+          AUTH_URL=$(gcloud run services describe hospyn-495906-auth --region asia-south1 --format 'value(status.url)')
           echo "AUTH_URL=$AUTH_URL" >> $GITHUB_ENV
 
       - name: Deploy Healthcare Service
@@ -164,15 +164,15 @@ jobs:
           HEALTHCARE_IMAGE="us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-healthcare:${{ github.sha }}"
           gcloud run deploy hospyn-495906-healthcare \
             --image $HEALTHCARE_IMAGE \
-            --region us-central1 \
+            --region asia-south1 \
             --project hospyn-495906 \
             --platform managed \
             --no-allow-unauthenticated \
             --port 8080 \
-            --set-env-vars "ENVIRONMENT=production" \
-            --update-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_SECRET_KEY=JWT_SECRET_KEY:latest,REDIS_URL=REDIS_URL:latest,FERNET_KEY=FERNET_KEY:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest,INTERNAL_SERVICE_SECRET=SECRET_KEY:latest,ENCRYPTION_KEY=FERNET_KEY:latest"
+            --set-env-vars "ENVIRONMENT=production,JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }},REDIS_URL=${{ secrets.REDIS_URL }},FERNET_KEY=${{ secrets.FERNET_KEY }},ALLOWED_ORIGINS=${{ secrets.ALLOWED_ORIGINS }},INTERNAL_SERVICE_SECRET=${{ secrets.SECRET_KEY }},ENCRYPTION_KEY=${{ secrets.FERNET_KEY }}" \
+            --update-secrets "DATABASE_URL=DATABASE_URL:latest"
             
-          HEALTH_URL=$(gcloud run services describe hospyn-495906-healthcare --region us-central1 --format 'value(status.url)')
+          HEALTH_URL=$(gcloud run services describe hospyn-495906-healthcare --region asia-south1 --format 'value(status.url)')
           echo "HEALTH_URL=$HEALTH_URL" >> $GITHUB_ENV
 
       - name: Deploy API Gateway
@@ -180,7 +180,7 @@ jobs:
           GATEWAY_IMAGE="us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-gateway:${{ github.sha }}"
           gcloud run deploy hospyn-495906-api \
             --image $GATEWAY_IMAGE \
-            --region us-central1 \
+            --region asia-south1 \
             --project hospyn-495906 \
             --platform managed \
             --allow-unauthenticated \
@@ -212,7 +212,7 @@ jobs:
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'patient' || (github.event_name == 'push' && needs.check-changes.outputs.patient == 'true')
         run: |
           cd patient-app
-          echo "EXPO_PUBLIC_API_BASE_URL=https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1" > .env
+          echo "EXPO_PUBLIC_API_BASE_URL=https://hospyn-495906-api-625745217419.asia-south1.run.app/api/v1" > .env
           echo "EXPO_PUBLIC_ENVIRONMENT=production" >> .env
           npm install --legacy-peer-deps
           npm run build
@@ -221,7 +221,7 @@ jobs:
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'doctor' || (github.event_name == 'push' && needs.check-changes.outputs.doctor == 'true')
         run: |
           cd doctor-app
-          echo "VITE_API_URL=https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1" > .env
+          echo "VITE_API_URL=https://hospyn-495906-api-625745217419.asia-south1.run.app/api/v1" > .env
           npm install --legacy-peer-deps
           npm run build
 
@@ -229,7 +229,7 @@ jobs:
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'erp' || (github.event_name == 'push' && needs.check-changes.outputs.erp == 'true')
         run: |
           cd staff-portal
-          echo "VITE_API_URL=https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1" > .env
+          echo "VITE_API_URL=https://hospyn-495906-api-625745217419.asia-south1.run.app/api/v1" > .env
           npm install --legacy-peer-deps
           npm run build
 
