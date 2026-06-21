@@ -25,8 +25,6 @@ from email.message import EmailMessage
 
 logger = logging.getLogger(__name__)
 
-import bcrypt
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
@@ -36,20 +34,15 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plaintext password against a bcrypt hash."""
     try:
-        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+        return pwd_context.verify(plain_password, hashed_password)
     except Exception as e:
-        logger.error(f"Bcrypt verification error: {e}")
-        try:
-            return pwd_context.verify(plain_password, hashed_password)
-        except Exception as pe:
-            logger.error(f"Fallback verification error: {pe}")
-            return False
+        logger.error(f"Password verification error: {e}")
+        return False
 
 
 def get_password_hash(password: str) -> str:
     """Hash a password with bcrypt."""
-    salt = bcrypt.gensalt(rounds=12)
-    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+    return pwd_context.hash(password)
 
 
 # ─── JWT Token Creation ──────────────────────────────────────────

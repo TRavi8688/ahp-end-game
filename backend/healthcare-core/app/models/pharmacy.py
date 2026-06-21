@@ -127,12 +127,82 @@ class PharmacyTransaction(Base):
     inventory = relationship("PharmacyInventory", back_populates="transactions")
 
 
+class WalkInCustomer(Base):
+    """
+    A counter customer with no Hospin account — name + phone only (see
+    Patient.user_id being NOT NULL, which makes a bare Patient row impossible
+    for someone with no login). Kept separate until they sign up for real;
+    POST /patients/ links matching WalkInCustomer rows by phone at that point
+    (sets merged_patient_id) so their counter-sale history carries over.
+    """
+    __tablename__ = "walkin_customers"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    hospital_id = Column(UUID(as_uuid=True), ForeignKey("hospitals.id", ondelete="RESTRICT"),
+                         nullable=False, index=True)
+    name = Column(String(200), nullable=False)
+    phone = Column(String(30), nullable=False, index=True)
+    merged_patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id", ondelete="SET NULL"),
+                               nullable=True, index=True)
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+
+
+class PaymentMethod(str, enum.Enum):
+    cash = "cash"
+    upi = "upi"
+    card = "card"
+
+
+class PharmacySale(Base):
+    """
+    A completed bill — walk-in counter sale OR a fulfilled Hospin order.
+    Exactly one of patient_id / walkin_customer_id is set. This is the
+    invoice-level record (Bill Success screen); stock movement is still
+    tracked per-item in PharmacyTransaction as before.
+    """
+    __tablename__ = "pharmacy_sales"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    hospital_id = Column(UUID(as_uuid=True), ForeignKey("hospitals.id", ondelete="RESTRICT"),
+                         nullable=False, index=True)
+    invoice_number = Column(String(40), nullable=False, unique=True, index=True)
+
+    patient_id = Column(UUID(as_uuid=True), ForeignKey("patients.id", ondelete="SET NULL"), nullable=True)
+    walkin_customer_id = Column(UUID(as_uuid=True), ForeignKey("walkin_customers.id", ondelete="SET NULL"), nullable=True)
+    prescription_share_id = Column(UUID(as_uuid=True), ForeignKey("prescription_shares.id", ondelete="SET NULL"), nullable=True)
+
+    subtotal = Column(Numeric(10, 2), nullable=False, default=0)
+    gst_amount = Column(Numeric(10, 2), nullable=False, default=0)
+    total = Column(Numeric(10, 2), nullable=False, default=0)
+    payment_method = Column(SQLEnum(PaymentMethod), nullable=True)
+
+    created_by = Column(UUID(as_uuid=True), nullable=True)
+    created_at = Column(DateTime, nullable=False, server_default=func.now(), index=True)
+
+    items = relationship("PharmacySaleItem", back_populates="sale", lazy="selectin")
+
+
+class PharmacySaleItem(Base):
+    __tablename__ = "pharmacy_sale_items"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    sale_id = Column(UUID(as_uuid=True), ForeignKey("pharmacy_sales.id", ondelete="CASCADE"), nullable=False, index=True)
+    inventory_item_id = Column(UUID(as_uuid=True), ForeignKey("pharmacy_inventory.id", ondelete="RESTRICT"), nullable=False)
+    medicine_name = Column(String(200), nullable=False)  # denormalized snapshot for invoice history
+    quantity = Column(Integer, nullable=False)
+    unit_price = Column(Numeric(10, 2), nullable=False)
+
+    sale = relationship("PharmacySale", back_populates="items")
+
+
 class PrescriptionShare(Base):
     """
     Created when a patient scans a pharmacy's QR code and shares a prescription
-    with it. Backs the partner-app "Network Orders" view. Distinct from
-    PrescriptionDispense: a share is "patient handed us their Rx", a dispense
-    is "we fulfilled it from stock" — a share may exist with zero dispenses.
+    with it. Backs the partner-app Orders tab pipeline.
+
+    status values: pending -> accepted -> preparing -> ready -> delivered
+                                       \\-> rejected
+    token_number is assigned when status becomes "ready" (counter pickup token).
     """
     __tablename__ = "prescription_shares"
 
@@ -141,7 +211,9 @@ class PrescriptionShare(Base):
                              nullable=False, index=True)
     pharmacy_hospital_id = Column(UUID(as_uuid=True), ForeignKey("hospitals.id", ondelete="CASCADE"),
                                   nullable=False, index=True)
-    status = Column(String(20), nullable=False, default="pending")  # pending | accepted | fulfilled | rejected
+    status = Column(String(20), nullable=False, default="pending")
+    token_number = Column(Integer, nullable=True)
     shared_at = Column(DateTime, nullable=False, server_default=func.now())
+    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now())
 
     prescription = relationship("Prescription", lazy="joined")

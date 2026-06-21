@@ -27,13 +27,16 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+import httpx
 
 from app.core.database import get_db
+from app.config.settings import settings
 from app.models.hospital import Hospital, HospitalStatus
+from shared.utils.service_auth import generate_internal_token
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +67,28 @@ async def _hospital_or_404(db: AsyncSession, hospital_id: str) -> Hospital:
     if not h:
         raise HTTPException(status_code=404, detail=f"Hospital {hospital_id} not found")
     return h
+
+
+async def _call_auth_internal(path: str, json_body: dict | None = None) -> dict:
+    """
+    Calls auth-service's internal-only endpoints (app/api/internal.py) with a
+    short-lived signed service token. Used to actually create/activate the
+    pharmacy owner's login account — see register_enterprise and
+    admin_approve_hospital below.
+    """
+    token = generate_internal_token(service_name="healthcare-core", audience="auth-service")
+    url = f"{settings.AUTH_SERVICE_INTERNAL_URL}{path}"
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.post(
+            url, json=json_body or {}, headers={"Authorization": f"Bearer {token}"}
+        )
+    if response.status_code >= 400:
+        logger.error("auth-service internal call failed: %s %s -> %s", path, response.status_code, response.text)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Could not create/activate the partner login account. Try again or contact support.",
+        )
+    return response.json()
 
 
 # ── 1. Register enterprise ────────────────────────────────────────────────────
@@ -111,6 +136,23 @@ async def register_enterprise(
     hospital_id = uuid.uuid4()
     hospyn_id   = _hospyn_id(name)
 
+    # EXECUTION FIX: owner_user_id used to be `uuid.uuid4()` with a comment
+    # saying "replaced once auth-service creates the user" — nothing ever
+    # replaced it, so an approved hospital's owner had no way to log in at
+    # all. Now actually creates the account (inactive/pending — login is
+    # blocked until admin_approve_hospital activates it below).
+    auth_result = await _call_auth_internal(
+        "/internal/create-partner-user",
+        {
+            "email": owner_email,
+            "password": owner_password,
+            "hospital_id": str(hospital_id),
+            "role": "owner",
+            "full_name": name,
+        },
+    )
+    owner_user_id = uuid.UUID(auth_result["user_id"])
+
     hospital = Hospital(
         id=hospital_id,
         name=name,
@@ -123,7 +165,7 @@ async def register_enterprise(
         country="India",
         pin_code=pin_code,
         status=HospitalStatus.pending_verification,
-        owner_user_id=uuid.uuid4(),  # replaced once auth-service creates the user
+        owner_user_id=owner_user_id,
     )
     db.add(hospital)
 
@@ -189,7 +231,7 @@ async def send_government_pan_otp(
     _otp_store[hospital_id] = {**_otp_store.get(hospital_id, {}), "govt_otp": otp}
 
     # Production: Twilio SMS
-    await _send_sms(hospital.phone, f"[Hospin] Your PAN verification OTP is {otp}. Valid for 10 minutes.")
+    await _send_sms(hospital.phone, f"[Hospyn] Your PAN verification OTP is {otp}. Valid for 10 minutes.")
 
     logger.info("Govt OTP sent for hospital %s (phone ending %s)", hospital_id, hospital.phone[-2:])
     return {
@@ -211,7 +253,7 @@ async def verify_government_pan_otp(
     if not stored or otp_code.strip() != stored:
         raise HTTPException(status_code=400, detail="Invalid or expired OTP. Request a new one.")
     logger.info("Govt OTP verified for hospital %s", hospital_id)
-    return {"message": "OTP verified successfully."}
+    return {"message": "OTP verified. Proceed to payment setup."}
 
 
 # ── 4a. Generate Razorpay UPI QR ─────────────────────────────────────────────
@@ -223,8 +265,8 @@ async def generate_razorpay_qr(
 ):
     await _hospital_or_404(db, hospital_id)
     ref     = secrets.token_hex(8).upper()
-    vpa     = os.getenv("HOSPYN_UPI_VPA", "hospin@razorpay")
-    uri     = f"upi://pay?pa={vpa}&pn=Hospin&am=2.00&cu=INR&tn=SecurityHold-{ref}"
+    vpa     = os.getenv("HOSPYN_UPI_VPA", "hospyn@razorpay")
+    uri     = f"upi://pay?pa={vpa}&pn=Hospyn&am=2.00&cu=INR&tn=SecurityHold-{ref}"
 
     # Production: use Razorpay QR Code API to get a real scannable QR
     logger.info("UPI QR generated for hospital %s ref=%s", hospital_id, ref)
@@ -297,11 +339,18 @@ async def admin_approve_hospital(
     hospital_id: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """Dev/superadmin bypass — sets hospital to active."""
+    """Dev/superadmin bypass — sets hospital to active and unblocks the owner's login."""
     hospital = await _hospital_or_404(db, hospital_id)
     hospital.status = HospitalStatus.active
     db.add(hospital)
     await db.flush()
+
+    # EXECUTION FIX: this used to only flip the hospital's status. The owner's
+    # account (created inactive at registration — see register_enterprise)
+    # was never activated, so approval didn't actually grant login access.
+    if hospital.owner_user_id:
+        await _call_auth_internal(f"/internal/activate-user/{hospital.owner_user_id}")
+
     logger.info("Hospital %s force-approved by admin", hospital_id)
     return {"message": "Hospital approved and activated.", "status": "active"}
 
@@ -336,7 +385,7 @@ async def hospital_public_info(
     """Minimal info for patient walk-in QR page — no auth required."""
     hospital = await _hospital_or_404(db, hospital_id)
     if hospital.status != HospitalStatus.active:
-        raise HTTPException(status_code=403, detail="This hospital is not yet active on Hospin.")
+        raise HTTPException(status_code=403, detail="This hospital is not yet active on Hospyn.")
     return {
         "hospital_name": hospital.name,
         "city":          hospital.city,

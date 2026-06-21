@@ -76,6 +76,21 @@ async def create_patient(
     await db.flush()
     await db.refresh(patient)
 
+    # EXECUTION: per your answer — when someone signs up for real, any walk-in
+    # counter-sale history recorded against the same phone number (no Hospin
+    # account at the time) gets linked to their new real Patient record.
+    if patient.phone:
+        from app.models.pharmacy import WalkInCustomer
+        walkin_result = await db.execute(
+            select(WalkInCustomer).where(
+                WalkInCustomer.phone == patient.phone,
+                WalkInCustomer.merged_patient_id.is_(None),
+            )
+        )
+        for walkin in walkin_result.scalars().all():
+            walkin.merged_patient_id = patient.id
+        await db.flush()
+
     log_audit_event(
         action="patient_created", actor_id=current_user.sub, target_id=str(patient.id)
     )

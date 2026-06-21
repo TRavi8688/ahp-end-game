@@ -28,9 +28,8 @@ from slowapi.errors import RateLimitExceeded
 
 from app.api.v1 import auth as auth_v1
 from app.api import jwks as jwks_v1
-from app.api import router as legacy_router         # full router with reset/refresh/blacklist
+from app.api import router as legacy_router   # full router with reset/refresh/blacklist
 from app.api import internal as internal_router
-from app.api.v1 import internal_auth as internal_auth_router  # employee login for /hospyn-internal
 from app.core.config import get_settings
 from app.core.limiter import limiter
 from app.core.logging_config import configure_logging
@@ -193,12 +192,6 @@ def _register_routers(application: FastAPI) -> None:
     # reachable within the Docker/Cloud Run network. Lets healthcare-core's
     # onboarding flow actually create/activate the partner's login account.
     application.include_router(internal_router.router, prefix="/api/v1")
-
-    # Hospyn Internal Employee Auth — powers /hospyn-internal panel login
-    # POST /api/v1/auth/internal/login  → employee email + password → JWT
-    # GET  /api/v1/auth/internal/me     → own profile + open/resolved ticket counts
-    # POST /api/v1/auth/internal/change-password
-    application.include_router(internal_auth_router.router, prefix="/api/v1/auth", tags=["Internal Employee Auth"])
 
 
 app = create_app()

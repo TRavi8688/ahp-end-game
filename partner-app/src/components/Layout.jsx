@@ -1,14 +1,16 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home as HomeIcon, ClipboardList, Package, BarChart3, User, Bell, LogOut } from 'lucide-react';
+import { Home as HomeIcon, ClipboardList, ShoppingBag, Package, Menu, Bell, LogOut } from 'lucide-react';
 import Logo from './Logo';
 
+// EXECUTION: nav restructured per the 32-screen spec — Walk-In is now its own
+// tab (your most-used screen), Analytics/Profile content moved into More.
 const NAV_ITEMS = [
   { path: '/home', label: 'Home', icon: HomeIcon },
   { path: '/orders', label: 'Orders', icon: ClipboardList },
+  { path: '/walkin', label: 'Walk-In', icon: ShoppingBag },
   { path: '/inventory', label: 'Inventory', icon: Package },
-  { path: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { path: '/profile', label: 'Profile', icon: User },
+  { path: '/more', label: 'More', icon: Menu },
 ];
 
 export default function Layout({ children, pharmacyName, onLogout }) {
@@ -25,9 +27,9 @@ export default function Layout({ children, pharmacyName, onLogout }) {
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <button className="p-2 text-gray-400 hover:text-primary-600 transition-colors relative">
+          <Link to="/notifications" className="p-2 text-gray-400 hover:text-primary-600 transition-colors relative">
             <Bell className="w-5 h-5" />
-          </button>
+          </Link>
           <button
             onClick={onLogout}
             className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"

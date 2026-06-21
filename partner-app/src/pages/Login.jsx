@@ -1,46 +1,49 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import apiClient from '../services/apiClient';
-import { Mail, Lock, AlertCircle, Zap } from 'lucide-react';
+import { Mail, Lock, AlertCircle } from 'lucide-react';
 import Logo from '../components/Logo';
 
-// Demo credentials that work against the live cloud backend
-const DEMO_EMAIL    = 'doctor@hospyn.com';
-const DEMO_PASSWORD = 'Hospyn123!';
-
 export default function Login({ onLogin }) {
-  const [email,    setEmail]    = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error,    setError]    = useState('');
-  const [loading,  setLoading]  = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const doLogin = async (usr, pwd) => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setLoading(true);
     setError('');
+
     try {
-      // Cloud API uses OAuth2 x-www-form-urlencoded with 'username' field.
-      const formData = new URLSearchParams();
-      formData.append('username', usr);
-      formData.append('password', pwd);
-      const response = await apiClient.post('/auth/login', formData, {
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      // EXECUTION FIX: backend's POST /auth/login reads `body: dict` — i.e. a
+      // plain JSON body with email/username + password — not an OAuth2
+      // x-www-form-urlencoded form. The previous code sent form-encoded
+      // username/password/grant_type, which the backend's `body.get(...)`
+      // calls would never see, so login could never succeed regardless of
+      // credentials.
+      const response = await apiClient.post('/auth/login', {
+        email: email,
+        password: password,
       });
+
+      // EXECUTION FIX: stored under 'partner_token', but Dashboard.jsx and
+      // apiClient.js both read 'token' — the dashboard's QR code, dispense
+      // flow, and every authenticated request were silently broken even on
+      // a successful login. Standardized to 'token' everywhere.
       localStorage.setItem('token', response.data.access_token);
       onLogin();
     } catch (err) {
       console.error(err);
       if (err.response?.status === 403) {
-        setError('Account still pending verification.');
+        setError('Your account is still pending verification. Check your status to see what\'s left.');
       } else {
-        setError('Invalid credentials or unauthorized account.');
+        setError('Invalid credentials or unauthorized partner account.');
       }
     } finally {
       setLoading(false);
     }
   };
-
-  const handleSubmit = (e) => { e.preventDefault(); doLogin(email, password); };
-  const handleDemo   = ()  => { setEmail(DEMO_EMAIL); setPassword(DEMO_PASSWORD); doLogin(DEMO_EMAIL, DEMO_PASSWORD); };
 
   return (
     <div className="min-h-screen bg-lavender-50 flex flex-col items-center justify-center p-6">
@@ -53,23 +56,6 @@ export default function Login({ onLogin }) {
         <div className="bg-white p-7 rounded-3xl shadow-card border border-lavender-100">
           <h2 className="text-2xl font-bold text-ink-900 mb-1">Sign In</h2>
           <p className="text-gray-500 text-sm mb-6">Access your partner account to manage pharmacy operations.</p>
-
-          {/* One-click Demo Login */}
-          <button
-            type="button"
-            onClick={handleDemo}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 font-semibold py-3 rounded-2xl hover:bg-amber-100 transition-all mb-5 disabled:opacity-60"
-          >
-            <Zap className="w-4 h-4" />
-            {loading ? 'Signing in...' : '⚡ Quick Demo Login'}
-          </button>
-
-          <div className="flex items-center gap-3 mb-5">
-            <div className="flex-1 h-px bg-gray-100" />
-            <span className="text-xs text-gray-400 font-medium">or sign in manually</span>
-            <div className="flex-1 h-px bg-gray-100" />
-          </div>
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-5 flex items-start gap-3">
@@ -129,13 +115,6 @@ export default function Login({ onLogin }) {
               Sign Up
             </Link>
           </p>
-        </div>
-
-        {/* Demo credentials hint card */}
-        <div className="mt-4 bg-primary-50 border border-primary-100 rounded-2xl p-4">
-          <p className="text-xs font-semibold text-primary-700 mb-1.5">📋 Demo Credentials</p>
-          <p className="text-xs text-primary-600 font-mono">Email: {DEMO_EMAIL}</p>
-          <p className="text-xs text-primary-600 font-mono">Password: {DEMO_PASSWORD}</p>
         </div>
       </div>
     </div>

@@ -30,6 +30,12 @@ class Prescription(Base):
         index=True,
     )
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
+    # Backs the partner-app Order Details "Prescription Image" screen. Nullable
+    # because nothing in this repo populates it yet — the Patient App (a
+    # separate codebase, not included in what you've shared) is presumably
+    # where a photo would be uploaded and this URL set. Until then this is
+    # honestly null rather than a fabricated placeholder image.
+    image_url: Mapped[str] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )

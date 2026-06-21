@@ -1,3 +1,7 @@
+// NOTE: superseded, no longer routed — see App.jsx. Replaced by
+// src/pages/more/MoreSettings.jsx (same QR code + account info, plus the
+// printer/notification toggles and staff-roles link the 32-screen spec
+// asked for). Kept per your no-file-loss instruction.
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG as QRCode } from 'qrcode.react';
 import { User, Mail, ShieldCheck, LogOut } from 'lucide-react';

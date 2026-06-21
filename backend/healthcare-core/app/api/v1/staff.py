@@ -112,7 +112,7 @@ def _generate_temp_password(length: int = 12) -> str:
 async def list_staff(
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager")),
+        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager", "owner")),
     ],
     department: Optional[str] = Query(None),
     role: Optional[str] = Query(None),
@@ -131,13 +131,19 @@ async def list_staff(
         raise HTTPException(status_code=403, detail="Not linked to a hospital")
 
     try:
+        # EXECUTION FIX: this used to `JOIN users u ON u.id = s.user_id` — the
+        # users table lives in auth-service's own database
+        # (hospyn_auth_db), not this one, so the join could never resolve.
+        # It also referenced s.specialty / s.job_title / s.status, none of
+        # which exist on the Staff model (see app/models/staff.py — only
+        # first_name, last_name, phone, role, department, is_active are
+        # real columns). Rewritten against the actual schema. Email isn't
+        # available here (it lives in auth-service); not fabricated.
         query = """
             SELECT
-                s.id, u.full_name, s.role, s.department, s.specialty,
-                s.status, s.job_title, u.email, u.phone_number,
-                s.created_at AS joined_at
+                s.id, s.first_name, s.last_name, s.role, s.department,
+                s.phone, s.is_active, s.created_at AS joined_at
             FROM staff s
-            JOIN users u ON u.id = s.user_id
             WHERE s.hospital_id = :hid AND s.deleted_at IS NULL
         """
         params: dict = {"hid": hospital_id}
@@ -149,10 +155,11 @@ async def list_staff(
             query += " AND s.role = :role"
             params["role"] = role
         if status:
-            query += " AND s.status = :status"
-            params["status"] = status.upper()
+            is_active = status.upper() == "ACTIVE"
+            query += " AND s.is_active = :is_active"
+            params["is_active"] = is_active
         if search:
-            query += " AND (u.full_name ILIKE :search OR u.email ILIKE :search)"
+            query += " AND (s.first_name ILIKE :search OR s.last_name ILIKE :search)"
             params["search"] = f"%{search}%"
 
         count_result = await db.execute(
@@ -160,7 +167,7 @@ async def list_staff(
         )
         total = count_result.scalar() or 0
 
-        query += " ORDER BY u.full_name ASC LIMIT :limit OFFSET :offset"
+        query += " ORDER BY s.first_name ASC LIMIT :limit OFFSET :offset"
         params["limit"] = per_page
         params["offset"] = (page - 1) * per_page
 
@@ -172,14 +179,11 @@ async def list_staff(
     staff_list = [
         {
             "id": str(row.id),
-            "full_name": row.full_name or "Unknown",
+            "full_name": f"{row.first_name} {row.last_name}".strip() or "Unknown",
             "role": row.role,
             "department": row.department,
-            "specialty": row.specialty,
-            "job_title": row.job_title,
-            "status": row.status or "ACTIVE",
-            "email": row.email,
-            "phone_number": row.phone_number,
+            "status": "ACTIVE" if row.is_active else "INACTIVE",
+            "phone_number": row.phone,
             "joined_at": row.joined_at.strftime("%d %b %Y") if row.joined_at else None,
         }
         for row in rows
@@ -203,7 +207,7 @@ async def list_staff(
 async def get_shift_roster(
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager")),
+        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager", "owner")),
     ],
     week_start: Optional[str] = Query(None, description="ISO date for week start, e.g. 2026-06-02"),
     department: Optional[str] = Query(None),
@@ -291,7 +295,7 @@ async def assign_shift(
     payload: ShiftAssignPayload,
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager")),
+        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager", "owner")),
     ],
     db: AsyncSession = Depends(get_db),
 ):
@@ -347,7 +351,7 @@ async def assign_shift(
 async def list_leave_requests(
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager")),
+        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager", "owner")),
     ],
     status: Optional[str] = Query(None, description="PENDING | APPROVED | REJECTED"),
     db: AsyncSession = Depends(get_db),
@@ -417,7 +421,7 @@ async def approve_leave(
     payload: LeaveReviewPayload,
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager")),
+        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager", "owner")),
     ],
     db: AsyncSession = Depends(get_db),
 ):
@@ -457,7 +461,7 @@ async def reject_leave(
     payload: LeaveReviewPayload,
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager")),
+        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager", "owner")),
     ],
     db: AsyncSession = Depends(get_db),
 ):
@@ -496,7 +500,7 @@ async def invite_staff_member(
     payload: StaffInvitePayload,
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager")),
+        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager", "owner")),
     ],
     db: AsyncSession = Depends(get_db),
 ):

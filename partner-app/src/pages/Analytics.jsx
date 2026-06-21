@@ -1,3 +1,8 @@
+// NOTE: superseded, no longer routed — see App.jsx. The 32-screen "More" tab
+// spec replaced the standalone Analytics tab with src/pages/more/MoreReports.jsx
+// (richer: sales/inventory/customer reports, not just revenue). Kept per your
+// no-file-loss instruction; safe to delete once you've confirmed MoreReports
+// covers everything you need from this.
 import React, { useState, useEffect, useCallback } from 'react';
 import { AreaChart, Area, XAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { TrendingUp, AlertTriangle, Clock, Package } from 'lucide-react';

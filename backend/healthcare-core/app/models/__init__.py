@@ -20,13 +20,14 @@ from app.models.doctor_schedule import (
 from app.models.pharmacy import (
     Medicine, PharmacyInventory, PrescriptionDispense,
     PharmacyTransaction, TransactionType, PrescriptionShare,
+    WalkInCustomer, PharmacySale, PharmacySaleItem, PaymentMethod,
+)
+from app.models.pharmacy_ops import (
+    Supplier, PurchaseOrder, PurchaseOrderItem, Expense, ExpenseCategory,
 )
 # EXECUTION FIX: billing models had the same broken-Base bug as pharmacy.py
 # and were never registered either, despite api/v1/billing.py depending on them.
-from app.models.billing import Invoice, Payment, InvoiceStatus, PaymentMethod, PaymentStatus
-
-# EXECUTION FIX: import DPDP consent and lab result stub models
-from app.models.consent_stub import ConsentRecord, DataDeletionRequest, LabResult
+from app.models.billing import Invoice, Payment, InvoiceStatus, PaymentMethod as InvoicePaymentMethod, PaymentStatus
 
 __all__ = [
     "Hospital",
@@ -54,12 +55,18 @@ __all__ = [
     "PharmacyTransaction",
     "TransactionType",
     "PrescriptionShare",
+    "WalkInCustomer",
+    "PharmacySale",
+    "PharmacySaleItem",
+    "PaymentMethod",
+    "Supplier",
+    "PurchaseOrder",
+    "PurchaseOrderItem",
+    "Expense",
+    "ExpenseCategory",
     "Invoice",
     "Payment",
     "InvoiceStatus",
-    "PaymentMethod",
+    "InvoicePaymentMethod",
     "PaymentStatus",
-    "ConsentRecord",
-    "DataDeletionRequest",
-    "LabResult",
 ]

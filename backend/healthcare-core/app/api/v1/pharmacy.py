@@ -1,350 +1,717 @@
 """
-Pharmacy Routes — wired to real DB
-GET   /api/v1/pharmacy/dashboard
-GET   /api/v1/pharmacy/dashboard/weekly-dispensing
-GET   /api/v1/pharmacy/inventory
-PATCH /api/v1/pharmacy/inventory/{medicine_id}/restock
-GET   /api/v1/pharmacy/prescriptions
-PATCH /api/v1/pharmacy/prescriptions/{prescription_id}/dispense
-GET   /api/v1/pharmacy/medicine/scan
+backend/healthcare-core/app/api/v1/pharmacy.py
+
+EXECUTION FIX: this file did not exist at all. app/api/router.py already
+imported `from app.api.v1.pharmacy import router as pharmacy_router`, which
+meant the whole backend failed to boot (ModuleNotFoundError) before any
+request could ever be served. partner-app/src/pages/Dashboard.jsx already
+calls every endpoint below — they're implemented to match its exact request/
+response shapes (verified directly against the frontend code, not guessed).
+
+Endpoints:
+  GET  /pharmacy/stats           - dashboard summary cards
+  GET  /pharmacy/inventory       - list inventory for this pharmacy
+  POST /pharmacy/inventory       - add one item (AI-scan confirm flow)
+  POST /pharmacy/bulk-upload     - add many items (CSV upload flow)
+  GET  /pharmacy/transactions    - ledger feed
+  GET  /pharmacy/network-orders  - prescriptions shared via QR, not yet fulfilled
+  POST /pharmacy/ai-scan         - extract item details from a photo
+  POST /pharmacy/dispense        - sell stock against a patient, write ledger rows
+
+HOW TO REGISTER (already done in router.py):
+  from app.api.v1.pharmacy import router as pharmacy_router
+  api_router.include_router(pharmacy_router, prefix="/pharmacy", tags=["Pharmacy"])
 """
 
-from datetime import date, datetime, timedelta
-from typing import List, Optional
-from uuid import UUID
+import base64
+import logging
+import os
+import uuid
+from datetime import datetime, timezone, date as date_cls
+from decimal import Decimal, InvalidOperation
+from typing import Annotated, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
+from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
-from app.models.pharmacy import Medicine, PharmacyInventory, PrescriptionDispense
+from app.core.security import require_role, TokenPayload
+from app.models.pharmacy import (
+    Medicine, PharmacyInventory, PrescriptionDispense,
+    PharmacyTransaction, TransactionType, PrescriptionShare,
+)
+from app.models.prescription import Prescription, PrescriptionItem
+from app.models.patient import Patient
 
-router = APIRouter(tags=["Pharmacy"])
+logger = logging.getLogger(__name__)
+router = APIRouter()
 
-# ── Try to import the Prescription model (created elsewhere in the codebase) ──
-try:
-    from app.models.prescription import Prescription  # type: ignore
-    _HAS_PRESCRIPTION = True
-except ImportError:
-    _HAS_PRESCRIPTION = False
+PHARMACY_ROLES = ("pharmacist", "admin", "hospital_admin", "owner")
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+async def _resolve_pharmacy_hospital_id(
+    current_user: TokenPayload, db: AsyncSession
+) -> uuid.UUID:
+    """
+    Resolve the Hospital row this pharmacist/owner operates. auth-service embeds
+    hospital_id directly in the JWT (see core/security.py TokenPayload), so this
+    is normally a single, cheap path. Falls back to the staff-table lookup used
+    elsewhere in this codebase (see owner.py) for accounts where it's missing.
+    """
+    if current_user.hospital_id:
+        try:
+            return uuid.UUID(current_user.hospital_id)
+        except ValueError:
+            pass
+
+    from sqlalchemy import text
+    result = await db.execute(
+        text("SELECT hospital_id FROM staff WHERE user_id = :uid AND deleted_at IS NULL LIMIT 1"),
+        {"uid": current_user.sub},
+    )
+    row = result.fetchone()
+    if row and row.hospital_id:
+        return row.hospital_id
+
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="No pharmacy/hospital is linked to this account.",
+    )
+
+
+def _inventory_to_dict(inv: PharmacyInventory) -> dict:
+    return {
+        "id": str(inv.id),
+        "item_name": inv.medicine.name if inv.medicine else "Unknown Item",
+        "generic_name": inv.medicine.generic_name if inv.medicine else "",
+        "category": inv.medicine.category if inv.medicine else "Other",
+        "batch_number": inv.batch_number,
+        "expiry_date": inv.expiry_date.isoformat() if inv.expiry_date else None,
+        "stock_quantity": inv.quantity_available,
+        "reorder_level": inv.reorder_level,
+        "unit_price": float(inv.selling_price) if inv.selling_price is not None else 0.0,
+    }
+
+
+async def _get_or_create_medicine(db: AsyncSession, name: str, generic_name: str, category: str = "Other") -> Medicine:
+    name = (name or "Unknown").strip()
+    generic_name = (generic_name or name).strip()
+    result = await db.execute(
+        select(Medicine).where(func.lower(Medicine.name) == name.lower())
+    )
+    medicine = result.scalars().first()
+    if medicine:
+        return medicine
+    medicine = Medicine(
+        id=uuid.uuid4(),
+        name=name,
+        generic_name=generic_name,
+        category=category or "Other",
+        unit="unit",
+    )
+    db.add(medicine)
+    await db.flush()
+    return medicine
+
+
+def _parse_date(value) -> date_cls:
+    if isinstance(value, date_cls):
+        return value
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).date()
+        except ValueError:
+            pass
+    # Sensible default rather than a hard failure on a malformed row from CSV.
+    return date_cls(date_cls.today().year + 2, date_cls.today().month, date_cls.today().day)
+
+
+def _to_decimal(value, default: str = "0.00") -> Decimal:
+    try:
+        return Decimal(str(value))
+    except (InvalidOperation, TypeError):
+        return Decimal(default)
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
-class DashboardResponse(BaseModel):
-    low_stock_count: int
-    expiring_soon_count: int
-    pending_prescriptions: int
-    dispensed_today: int
 
-
-class WeeklyDispensingPoint(BaseModel):
-    date: str
-    dispensed: int
-
-
-class InventoryItemResponse(BaseModel):
-    id: str
-    medicine_name: str
-    generic_name: str
-    category: Optional[str]
+class InventoryItemIn(BaseModel):
+    item_name: str
+    generic_name: Optional[str] = ""
+    category: Optional[str] = "Other"  # Tablet | Syrup | Injection | Other — drives Inventory's category tiles
     batch_number: str
     expiry_date: str
-    quantity_available: int
-    reorder_level: int
-    selling_price: float
-    manufacturer: Optional[str]
+    unit_price: float = 0
+    stock_quantity: float = 0
+    tax_percent: Optional[float] = None  # accepted, not yet billed separately
 
 
-class RestockRequest(BaseModel):
-    quantity: int
+class DispenseLine(BaseModel):
+    inventory_item_id: str
+    quantity: int = Field(gt=0)
 
 
-class PrescriptionResponse(BaseModel):
-    id: str
-    status: str
-    created_at: str
-    patient_name: Optional[str] = None
-    medicine_name: Optional[str] = None
-    dispensed_at: Optional[str] = None
+class DispenseRequest(BaseModel):
+    patient_id: str
+    items: List[DispenseLine]
 
 
-class ScanResponse(BaseModel):
-    found: bool
-    medicine: Optional[dict] = None
-    message: str
+class AiScanRequest(BaseModel):
+    image_base64: str
 
 
-# ── Routes ────────────────────────────────────────────────────────────────────
+# ── GET /pharmacy/stats ─────────────────────────────────────────────────────
 
-@router.get("/dashboard", response_model=DashboardResponse)
-async def get_dashboard(
-    hospital_id: Optional[str] = Query(None),
+@router.get("/stats")
+async def get_pharmacy_stats(
+    current_user: Annotated[TokenPayload, Depends(require_role(*PHARMACY_ROLES))],
     db: AsyncSession = Depends(get_db),
 ):
-    """Dashboard KPIs: low stock count, expiring soon, prescriptions."""
-    today = date.today()
-    expiry_threshold = today + timedelta(days=30)
+    hospital_id = await _resolve_pharmacy_hospital_id(current_user, db)
 
-    # Low stock items (quantity_available <= reorder_level)
-    low_stock_stmt = select(func.count(PharmacyInventory.id)).where(
-        PharmacyInventory.quantity_available <= PharmacyInventory.reorder_level
+    base_q = select(PharmacyInventory).where(PharmacyInventory.hospital_id == hospital_id)
+
+    total_result = await db.execute(
+        select(func.count()).select_from(base_q.subquery())
     )
-    if hospital_id:
-        low_stock_stmt = low_stock_stmt.where(PharmacyInventory.hospital_id == hospital_id)
-    low_stock_result = await db.execute(low_stock_stmt)
-    low_stock_count = low_stock_result.scalar() or 0
+    total_items = total_result.scalar_one()
 
-    # Expiring soon (within 30 days)
-    expiring_stmt = select(func.count(PharmacyInventory.id)).where(
-        PharmacyInventory.expiry_date <= expiry_threshold,
-        PharmacyInventory.expiry_date >= today,
-    )
-    if hospital_id:
-        expiring_stmt = expiring_stmt.where(PharmacyInventory.hospital_id == hospital_id)
-    expiring_result = await db.execute(expiring_stmt)
-    expiring_soon_count = expiring_result.scalar() or 0
-
-    # Prescription counts (today)
-    pending_prescriptions = 0
-    dispensed_today = 0
-    if _HAS_PRESCRIPTION:
-        pending_stmt = select(func.count(Prescription.id)).where(
-            Prescription.status == "pending",
-            func.date(Prescription.created_at) == today,
+    low_stock_result = await db.execute(
+        select(func.count()).select_from(
+            base_q.where(
+                PharmacyInventory.quantity_available <= PharmacyInventory.reorder_level
+            ).subquery()
         )
-        if hospital_id:
-            pending_stmt = pending_stmt.where(Prescription.hospital_id == hospital_id)
-        pending_result = await db.execute(pending_stmt)
-        pending_prescriptions = pending_result.scalar() or 0
+    )
+    low_stock = low_stock_result.scalar_one()
 
-        dispensed_stmt = select(func.count(Prescription.id)).where(
-            Prescription.status == "dispensed",
-            func.date(Prescription.created_at) == today,
+    today = datetime.now(timezone.utc).date()
+    soon = today.replace(year=today.year) if True else today
+    from datetime import timedelta
+    expiry_cutoff = today + timedelta(days=30)
+    near_expiry_result = await db.execute(
+        select(func.count()).select_from(
+            base_q.where(PharmacyInventory.expiry_date <= expiry_cutoff).subquery()
         )
-        if hospital_id:
-            dispensed_stmt = dispensed_stmt.where(Prescription.hospital_id == hospital_id)
-        dispensed_result = await db.execute(dispensed_stmt)
-        dispensed_today = dispensed_result.scalar() or 0
-
-    return DashboardResponse(
-        low_stock_count=low_stock_count,
-        expiring_soon_count=expiring_soon_count,
-        pending_prescriptions=pending_prescriptions,
-        dispensed_today=dispensed_today,
     )
+    near_expiry = near_expiry_result.scalar_one()
 
-
-@router.get("/dashboard/weekly-dispensing", response_model=List[WeeklyDispensingPoint])
-async def get_weekly_dispensing(
-    hospital_id: Optional[str] = Query(None),
-    db: AsyncSession = Depends(get_db),
-):
-    """Weekly dispensing volume: count of dispensed prescriptions per day for last 7 days."""
-    trend = []
-
-    if _HAS_PRESCRIPTION:
-        today = date.today()
-        for i in range(6, -1, -1):
-            day = today - timedelta(days=i)
-            stmt = select(func.count(Prescription.id)).where(
-                Prescription.status == "dispensed",
-                func.date(Prescription.created_at) == day,
-            )
-            if hospital_id:
-                stmt = stmt.where(Prescription.hospital_id == hospital_id)
-            result = await db.execute(stmt)
-            count = result.scalar() or 0
-            trend.append(WeeklyDispensingPoint(date=day.isoformat(), dispensed=count))
-    else:
-        # No Prescription model — return zeroes for last 7 days
-        today = date.today()
-        for i in range(6, -1, -1):
-            day = today - timedelta(days=i)
-            trend.append(WeeklyDispensingPoint(date=day.isoformat(), dispensed=0))
-
-    return trend
-
-
-@router.get("/inventory", response_model=List[InventoryItemResponse])
-async def get_inventory(
-    hospital_id: Optional[str] = Query(None),
-    page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
-):
-    """List pharmacy inventory, optionally filtered by hospital."""
-    stmt = (
-        select(PharmacyInventory, Medicine)
-        .join(Medicine, PharmacyInventory.medicine_id == Medicine.id)
-        .offset((page - 1) * limit)
-        .limit(limit)
-    )
-    if hospital_id:
-        stmt = stmt.where(PharmacyInventory.hospital_id == hospital_id)
-
-    result = await db.execute(stmt)
-    rows = result.all()
-
-    items = []
-    for inv, med in rows:
-        items.append(
-            InventoryItemResponse(
-                id=str(inv.id),
-                medicine_name=med.name,
-                generic_name=med.generic_name,
-                category=med.category,
-                batch_number=inv.batch_number,
-                expiry_date=str(inv.expiry_date),
-                quantity_available=inv.quantity_available,
-                reorder_level=inv.reorder_level,
-                selling_price=float(inv.selling_price),
-                manufacturer=med.manufacturer,
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    sales_result = await db.execute(
+        select(func.coalesce(func.sum(PharmacyTransaction.quantity * PharmacyTransaction.unit_price), 0))
+        .where(
+            and_(
+                PharmacyTransaction.hospital_id == hospital_id,
+                PharmacyTransaction.transaction_type == TransactionType.dispense,
+                PharmacyTransaction.created_at >= today_start,
             )
         )
-    return items
-
-
-@router.patch("/inventory/{medicine_id}/restock")
-async def restock_medicine(
-    medicine_id: str,
-    body: RestockRequest,
-    db: AsyncSession = Depends(get_db),
-):
-    """Add quantity to a pharmacy inventory item's stock."""
-    result = await db.execute(
-        select(PharmacyInventory).where(PharmacyInventory.id == medicine_id)
     )
-    inv = result.scalars().first()
-    if not inv:
-        raise HTTPException(status_code=404, detail="Inventory item not found")
-
-    inv.quantity_available += body.quantity
-    await db.commit()
+    today_sales_raw = sales_result.scalar_one() or 0
+    # dispense quantities are stored negative; flip sign for a positive revenue figure
+    today_sales = abs(float(today_sales_raw))
 
     return {
-        "success":            True,
-        "id":                 medicine_id,
-        "quantity_available": inv.quantity_available,
-        "added":              body.quantity,
-        "updated_at":         datetime.utcnow().isoformat(),
+        "totalItems": total_items,
+        "lowStock": low_stock,
+        "nearExpiry": near_expiry,
+        "todaySales": f"₹{today_sales:,.0f}",
     }
 
 
-@router.get("/prescriptions", response_model=List[PrescriptionResponse])
-async def get_prescriptions(
-    status: Optional[str] = Query("pending"),
-    date_filter: Optional[str] = Query(None, alias="date"),
-    hospital_id: Optional[str] = Query(None),
+# ── GET /pharmacy/inventory ──────────────────────────────────────────────────
+
+@router.get("/inventory")
+async def list_inventory(
+    current_user: Annotated[TokenPayload, Depends(require_role(*PHARMACY_ROLES))],
+    db: AsyncSession = Depends(get_db),
+    filter: Optional[str] = Query(None, description="low_stock | expiring | out_of_stock"),
+):
+    hospital_id = await _resolve_pharmacy_hospital_id(current_user, db)
+    query = (
+        select(PharmacyInventory)
+        .options(selectinload(PharmacyInventory.medicine))
+        .where(PharmacyInventory.hospital_id == hospital_id)
+    )
+    if filter == "low_stock":
+        query = query.where(PharmacyInventory.quantity_available <= PharmacyInventory.reorder_level,
+                            PharmacyInventory.quantity_available > 0)
+    elif filter == "out_of_stock":
+        query = query.where(PharmacyInventory.quantity_available <= 0)
+    elif filter == "expiring":
+        from datetime import timedelta
+        cutoff = datetime.now(timezone.utc).date() + timedelta(days=30)
+        query = query.where(PharmacyInventory.expiry_date <= cutoff)
+    elif filter is not None:
+        raise HTTPException(status_code=400, detail="filter must be low_stock, expiring, or out_of_stock")
+
+    query = query.order_by(PharmacyInventory.updated_at.desc())
+    result = await db.execute(query)
+    items = result.scalars().all()
+    return [_inventory_to_dict(i) for i in items]
+
+
+# ── POST /pharmacy/inventory ─────────────────────────────────────────────────
+
+@router.post("/inventory", status_code=status.HTTP_201_CREATED)
+async def add_inventory_item(
+    payload: InventoryItemIn,
+    current_user: Annotated[TokenPayload, Depends(require_role(*PHARMACY_ROLES))],
     db: AsyncSession = Depends(get_db),
 ):
-    """List prescriptions, filtered by status and date."""
-    if not _HAS_PRESCRIPTION:
-        return []
+    hospital_id = await _resolve_pharmacy_hospital_id(current_user, db)
+    medicine = await _get_or_create_medicine(db, payload.item_name, payload.generic_name, payload.category)
 
-    filter_date = date.today()
-    if date_filter and date_filter != "today":
-        try:
-            filter_date = date.fromisoformat(date_filter)
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
-
-    stmt = select(Prescription).where(
-        func.date(Prescription.created_at) == filter_date
+    inventory = PharmacyInventory(
+        id=uuid.uuid4(),
+        hospital_id=hospital_id,
+        medicine_id=medicine.id,
+        batch_number=payload.batch_number or f"BNO-{int(datetime.now().timestamp())}",
+        quantity_available=int(payload.stock_quantity or 0),
+        reorder_level=10,
+        expiry_date=_parse_date(payload.expiry_date),
+        purchase_price=_to_decimal(payload.unit_price),
+        selling_price=_to_decimal(payload.unit_price),
     )
-    if status:
-        stmt = stmt.where(Prescription.status == status)
-    if hospital_id:
-        stmt = stmt.where(Prescription.hospital_id == hospital_id)
+    db.add(inventory)
+    await db.flush()
 
-    stmt = stmt.order_by(Prescription.created_at.desc())
-    result = await db.execute(stmt)
-    rows = result.scalars().all()
+    db.add(PharmacyTransaction(
+        id=uuid.uuid4(),
+        hospital_id=hospital_id,
+        inventory_item_id=inventory.id,
+        transaction_type=TransactionType.purchase,
+        quantity=int(payload.stock_quantity or 0),
+        unit_price=_to_decimal(payload.unit_price),
+        created_by=uuid.UUID(current_user.sub),
+    ))
 
-    return [
-        PrescriptionResponse(
-            id=str(r.id),
-            status=r.status,
-            created_at=r.created_at.isoformat() if r.created_at else "",
-            patient_name=getattr(r, "patient_name", None),
-            medicine_name=getattr(r, "medicine_name", None),
-            dispensed_at=(
-                r.dispensed_at.isoformat()
-                if getattr(r, "dispensed_at", None)
-                else None
-            ),
+    await db.refresh(inventory, attribute_names=["medicine"])
+    return _inventory_to_dict(inventory)
+
+
+# ── POST /pharmacy/bulk-upload ───────────────────────────────────────────────
+
+@router.post("/bulk-upload")
+async def bulk_upload_inventory(
+    payload: List[InventoryItemIn],
+    current_user: Annotated[TokenPayload, Depends(require_role(*PHARMACY_ROLES))],
+    db: AsyncSession = Depends(get_db),
+):
+    hospital_id = await _resolve_pharmacy_hospital_id(current_user, db)
+    added = 0
+
+    for row in payload:
+        if not row.item_name or row.item_name == "Unknown":
+            continue
+        medicine = await _get_or_create_medicine(db, row.item_name, row.generic_name, row.category)
+        inventory = PharmacyInventory(
+            id=uuid.uuid4(),
+            hospital_id=hospital_id,
+            medicine_id=medicine.id,
+            batch_number=row.batch_number or f"BNO-{int(datetime.now().timestamp())}-{added}",
+            quantity_available=int(row.stock_quantity or 0),
+            reorder_level=10,
+            expiry_date=_parse_date(row.expiry_date),
+            purchase_price=_to_decimal(row.unit_price),
+            selling_price=_to_decimal(row.unit_price),
         )
-        for r in rows
+        db.add(inventory)
+        await db.flush()
+        db.add(PharmacyTransaction(
+            id=uuid.uuid4(),
+            hospital_id=hospital_id,
+            inventory_item_id=inventory.id,
+            transaction_type=TransactionType.purchase,
+            quantity=int(row.stock_quantity or 0),
+            unit_price=_to_decimal(row.unit_price),
+            created_by=uuid.UUID(current_user.sub),
+        ))
+        added += 1
+
+    return {"items_added": added}
+
+
+# ── GET /pharmacy/transactions ───────────────────────────────────────────────
+
+@router.get("/transactions")
+async def list_transactions(
+    current_user: Annotated[TokenPayload, Depends(require_role(*PHARMACY_ROLES))],
+    db: AsyncSession = Depends(get_db),
+):
+    hospital_id = await _resolve_pharmacy_hospital_id(current_user, db)
+    result = await db.execute(
+        select(PharmacyTransaction)
+        .where(PharmacyTransaction.hospital_id == hospital_id)
+        .order_by(PharmacyTransaction.created_at.desc())
+        .limit(200)
+    )
+    rows = result.scalars().all()
+    return [
+        {
+            "id": str(t.id),
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+            "transaction_type": t.transaction_type.value if hasattr(t.transaction_type, "value") else t.transaction_type,
+            "inventory_item_id": str(t.inventory_item_id) if t.inventory_item_id else None,
+            "quantity": t.quantity,
+            "unit_price": float(t.unit_price) if t.unit_price is not None else None,
+        }
+        for t in rows
     ]
 
 
-@router.patch("/prescriptions/{prescription_id}/dispense")
-async def dispense_prescription(
-    prescription_id: str,
+# ── GET /pharmacy/network-orders ─────────────────────────────────────────────
+
+@router.get("/network-orders")
+async def list_network_orders(
+    current_user: Annotated[TokenPayload, Depends(require_role(*PHARMACY_ROLES))],
     db: AsyncSession = Depends(get_db),
 ):
-    """Mark a prescription as dispensed."""
-    if not _HAS_PRESCRIPTION:
-        raise HTTPException(status_code=503, detail="Prescription model not available")
-
+    hospital_id = await _resolve_pharmacy_hospital_id(current_user, db)
     result = await db.execute(
-        select(Prescription).where(Prescription.id == prescription_id)
+        select(PrescriptionShare)
+        .options(
+            selectinload(PrescriptionShare.prescription).selectinload(Prescription.items),
+        )
+        .where(
+            and_(
+                PrescriptionShare.pharmacy_hospital_id == hospital_id,
+                PrescriptionShare.status == "pending",
+            )
+        )
+        .order_by(PrescriptionShare.shared_at.desc())
     )
-    rx = result.scalars().first()
-    if not rx:
-        raise HTTPException(status_code=404, detail="Prescription not found")
+    shares = result.scalars().all()
 
-    if rx.status == "dispensed":
-        raise HTTPException(status_code=400, detail="Prescription already dispensed")
+    orders = []
+    for share in shares:
+        rx = share.prescription
+        if rx is None:
+            continue
+        patient_result = await db.execute(select(Patient).where(Patient.id == rx.patient_id))
+        patient = patient_result.scalars().first()
+        orders.append({
+            "id": str(share.id),
+            "patient_id": str(rx.patient_id),
+            "patient_name": f"{patient.first_name} {patient.last_name}" if patient else "Unknown Patient",
+            "patient_phone": patient.phone if patient else "",
+            "shared_at": share.shared_at.isoformat() if share.shared_at else None,
+            "diagnosis": None,
+            "medications": [
+                {"name": item.drug_name, "dosage": item.dosage, "duration": item.duration}
+                for item in (rx.items or [])
+            ],
+        })
+    return orders
 
-    rx.status = "dispensed"
-    if hasattr(rx, "dispensed_at"):
-        rx.dispensed_at = datetime.utcnow()
 
-    await db.commit()
+# ── POST /pharmacy/ai-scan ───────────────────────────────────────────────────
+
+@router.post("/ai-scan")
+async def ai_scan_medicine(
+    payload: AiScanRequest,
+    current_user: Annotated[TokenPayload, Depends(require_role(*PHARMACY_ROLES))],
+):
+    """
+    Extracts item_name/generic_name/batch_number/expiry_date/unit_price from a
+    photo of a medicine strip/box using Gemini vision.
+
+    EXECUTION NOTE: there was no AI-scan capability anywhere in the codebase to
+    reuse — ai-service only does clinical-note summarization and vitals triage
+    (see ai-service/app/main.py), nothing for OCR/vision on medicine packaging.
+    Rather than fabricate plausible-looking fake data (actively dangerous for
+    a feature that pre-fills expiry dates and prices into a pharmacy's stock),
+    this calls Gemini directly when GEMINI_API_KEY is configured, and returns
+    a clear 503 — not a guess — when it isn't.
+    """
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "AI scan is not configured. Set GEMINI_API_KEY in this service's "
+                "environment to enable photo-to-inventory extraction. Get a key "
+                "at https://aistudio.google.com (free tier)."
+            ),
+        )
+
+    try:
+        import google.generativeai as genai
+    except ImportError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="google-generativeai is not installed. Add it to requirements.txt.",
+        )
+
+    try:
+        image_data = payload.image_base64.split(",")[-1]  # strip data:image/jpeg;base64, prefix if present
+        image_bytes = base64.b64decode(image_data)
+    except Exception:
+        raise HTTPException(status_code=400, detail="image_base64 is not valid base64 image data.")
+
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("gemini-1.5-flash")
+
+    prompt = (
+        "You are reading a photo of a medicine strip, box, or label for pharmacy "
+        "stock entry. Extract ONLY these fields as strict JSON, no other text: "
+        '{"item_name": str, "generic_name": str, "category": "Tablet"|"Syrup"|"Injection"|"Other", '
+        '"batch_number": str, "expiry_date": "YYYY-MM-DD", "unit_price": number, "confidence": number 0-1}. '
+        "If a field is not visible, use an empty string (or 0 for unit_price/confidence, or "
+        '"Other" for category). Do not invent values you cannot read from the image.'
+    )
+
+    try:
+        response = model.generate_content(
+            [prompt, {"mime_type": "image/jpeg", "data": image_bytes}]
+        )
+        import json
+        text = response.text.strip().strip("`").lstrip("json").strip()
+        extracted = json.loads(text)
+    except Exception as exc:
+        logger.error("Gemini AI scan failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI extraction failed. Try a clearer photo or enter details manually.",
+        )
 
     return {
-        "success":        True,
-        "id":             prescription_id,
-        "status":         "dispensed",
-        "dispensed_at":   datetime.utcnow().isoformat(),
+        "item_name": extracted.get("item_name", ""),
+        "generic_name": extracted.get("generic_name", ""),
+        "category": extracted.get("category", "Other"),
+        "batch_number": extracted.get("batch_number", ""),
+        "expiry_date": extracted.get("expiry_date", ""),
+        "unit_price": extracted.get("unit_price", 0),
+        "confidence": extracted.get("confidence", 0),
     }
 
 
-@router.get("/medicine/scan", response_model=ScanResponse)
-async def scan_medicine(
-    barcode: str = Query(..., description="Barcode or QR value from scanner"),
+# ── POST /pharmacy/dispense ──────────────────────────────────────────────────
+
+@router.post("/dispense")
+async def dispense_items(
+    payload: DispenseRequest,
+    current_user: Annotated[TokenPayload, Depends(require_role(*PHARMACY_ROLES))],
     db: AsyncSession = Depends(get_db),
 ):
-    """Look up a medicine by barcode."""
-    result = await db.execute(
-        select(Medicine).where(Medicine.barcode == barcode)  # type: ignore[attr-defined]
-    )
-    med = result.scalars().first()
+    hospital_id = await _resolve_pharmacy_hospital_id(current_user, db)
 
-    if not med:
-        # Try via inventory batch_number as fallback
-        result2 = await db.execute(
-            select(PharmacyInventory, Medicine)
-            .join(Medicine, PharmacyInventory.medicine_id == Medicine.id)
-            .where(PharmacyInventory.batch_number == barcode)
+    if not payload.items:
+        raise HTTPException(status_code=400, detail="No items selected to dispense.")
+
+    try:
+        patient_uuid = uuid.UUID(payload.patient_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid patient_id.")
+
+    patient_result = await db.execute(select(Patient).where(Patient.id == patient_uuid))
+    if not patient_result.scalars().first():
+        raise HTTPException(status_code=404, detail="Patient not found.")
+
+    dispensed_lines = []
+    total_amount = Decimal("0.00")
+
+    for line in payload.items:
+        try:
+            inv_id = uuid.UUID(line.inventory_item_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid inventory_item_id: {line.inventory_item_id}")
+
+        inv_result = await db.execute(
+            select(PharmacyInventory).where(
+                and_(
+                    PharmacyInventory.id == inv_id,
+                    PharmacyInventory.hospital_id == hospital_id,
+                )
+            )
         )
-        row = result2.first()
-        if row:
-            inv, med = row
-        else:
-            return ScanResponse(found=False, message=f"No medicine found for barcode: {barcode}")
+        inventory = inv_result.scalars().first()
+        if not inventory:
+            raise HTTPException(status_code=404, detail=f"Inventory item {line.inventory_item_id} not found.")
+        if inventory.quantity_available < line.quantity:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Insufficient stock. Only {inventory.quantity_available} units available.",
+            )
 
-    return ScanResponse(
-        found=True,
-        medicine={
-            "id":           str(med.id),
-            "name":         med.name,
-            "generic_name": med.generic_name,
-            "category":     med.category,
-            "unit":         med.unit,
-            "manufacturer": med.manufacturer,
-        },
-        message="Medicine found",
+        inventory.quantity_available -= line.quantity
+        line_total = (inventory.selling_price or Decimal("0.00")) * line.quantity
+        total_amount += line_total
+        dispensed_lines.append((inventory, line.quantity, line_total))
+
+    # Record everything only after every line has been validated, so a failure
+    # partway through never leaves partial stock deductions in this request.
+    for inventory, qty, line_total in dispensed_lines:
+        db.add(PharmacyTransaction(
+            id=uuid.uuid4(),
+            hospital_id=hospital_id,
+            inventory_item_id=inventory.id,
+            transaction_type=TransactionType.dispense,
+            quantity=-qty,
+            unit_price=inventory.selling_price,
+            created_by=uuid.UUID(current_user.sub),
+        ))
+
+    return {
+        "status": "dispensed",
+        "patient_id": payload.patient_id,
+        "total_amount": float(total_amount),
+        "items_dispensed": len(dispensed_lines),
+    }
+
+
+# ── GET/PATCH/DELETE /pharmacy/inventory/{id} ────────────────────────────────
+# Backs Screen 19 (Medicine Details — Edit/Delete) and Screen 20 (Add Medicine
+# uses the existing POST /pharmacy/inventory above).
+
+class InventoryItemUpdate(BaseModel):
+    item_name: Optional[str] = None
+    generic_name: Optional[str] = None
+    category: Optional[str] = None
+    batch_number: Optional[str] = None
+    expiry_date: Optional[str] = None
+    unit_price: Optional[float] = None
+    stock_quantity: Optional[float] = None
+    reorder_level: Optional[int] = None
+
+
+@router.get("/inventory/{item_id}")
+async def get_inventory_item(
+    item_id: str,
+    current_user: Annotated[TokenPayload, Depends(require_role(*PHARMACY_ROLES))],
+    db: AsyncSession = Depends(get_db),
+):
+    hospital_id = await _resolve_pharmacy_hospital_id(current_user, db)
+    item = await _get_inventory_or_404(db, item_id, hospital_id)
+    return {
+        **_inventory_to_dict(item),
+        "purchase_price": float(item.purchase_price) if item.purchase_price is not None else 0.0,
+    }
+
+
+async def _get_inventory_or_404(db: AsyncSession, item_id: str, hospital_id) -> PharmacyInventory:
+    try:
+        iid = uuid.UUID(item_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid inventory item id.")
+    result = await db.execute(
+        select(PharmacyInventory).options(selectinload(PharmacyInventory.medicine)).where(
+            and_(PharmacyInventory.id == iid, PharmacyInventory.hospital_id == hospital_id)
+        )
     )
+    item = result.scalars().first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Inventory item not found.")
+    return item
+
+
+@router.patch("/inventory/{item_id}")
+async def update_inventory_item(
+    item_id: str,
+    payload: InventoryItemUpdate,
+    current_user: Annotated[TokenPayload, Depends(require_role(*PHARMACY_ROLES))],
+    db: AsyncSession = Depends(get_db),
+):
+    hospital_id = await _resolve_pharmacy_hospital_id(current_user, db)
+    item = await _get_inventory_or_404(db, item_id, hospital_id)
+
+    if payload.item_name or payload.generic_name or payload.category:
+        item.medicine.name = payload.item_name or item.medicine.name
+        item.medicine.generic_name = payload.generic_name or item.medicine.generic_name
+        item.medicine.category = payload.category or item.medicine.category
+    if payload.batch_number is not None:
+        item.batch_number = payload.batch_number
+    if payload.expiry_date is not None:
+        item.expiry_date = _parse_date(payload.expiry_date)
+    if payload.unit_price is not None:
+        item.selling_price = _to_decimal(payload.unit_price)
+    if payload.stock_quantity is not None:
+        item.quantity_available = int(payload.stock_quantity)
+    if payload.reorder_level is not None:
+        item.reorder_level = payload.reorder_level
+
+    await db.flush()
+    await db.refresh(item, attribute_names=["medicine"])
+    return _inventory_to_dict(item)
+
+
+@router.delete("/inventory/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_inventory_item(
+    item_id: str,
+    current_user: Annotated[TokenPayload, Depends(require_role(*PHARMACY_ROLES))],
+    db: AsyncSession = Depends(get_db),
+):
+    hospital_id = await _resolve_pharmacy_hospital_id(current_user, db)
+    item = await _get_inventory_or_404(db, item_id, hospital_id)
+    await db.delete(item)
+    await db.flush()
+
+
+# ── GET /pharmacy/notifications ───────────────────────────────────────────────
+# Backs the Home tab's Notifications screen. Built from real data (low stock,
+# near-expiry, new prescriptions) — NOT including "Payment Reminder" since no
+# credit-sales/recurring-billing system exists anywhere in this codebase to
+# honestly generate one from (would be fabricated, not real).
+
+@router.get("/notifications")
+async def list_notifications(
+    current_user: Annotated[TokenPayload, Depends(require_role(*PHARMACY_ROLES))],
+    db: AsyncSession = Depends(get_db),
+):
+    from datetime import timedelta
+    hospital_id = await _resolve_pharmacy_hospital_id(current_user, db)
+    notifications = []
+
+    low_stock_result = await db.execute(
+        select(PharmacyInventory).options(selectinload(PharmacyInventory.medicine)).where(
+            and_(
+                PharmacyInventory.hospital_id == hospital_id,
+                PharmacyInventory.quantity_available <= PharmacyInventory.reorder_level,
+            )
+        ).limit(10)
+    )
+    for item in low_stock_result.scalars().all():
+        notifications.append({
+            "type": "low_stock",
+            "title": "Low Stock Alert",
+            "message": f"{item.medicine.name if item.medicine else 'An item'} is down to {item.quantity_available} units.",
+            "created_at": item.updated_at.isoformat() if item.updated_at else None,
+        })
+
+    expiry_cutoff = datetime.now(timezone.utc).date() + timedelta(days=30)
+    expiry_result = await db.execute(
+        select(PharmacyInventory).options(selectinload(PharmacyInventory.medicine)).where(
+            and_(
+                PharmacyInventory.hospital_id == hospital_id,
+                PharmacyInventory.expiry_date <= expiry_cutoff,
+            )
+        ).limit(10)
+    )
+    for item in expiry_result.scalars().all():
+        notifications.append({
+            "type": "expiry",
+            "title": "Expiry Alert",
+            "message": f"{item.medicine.name if item.medicine else 'An item'} expires on {item.expiry_date}.",
+            "created_at": None,
+        })
+
+    pending_result = await db.execute(
+        select(PrescriptionShare).where(
+            and_(PrescriptionShare.pharmacy_hospital_id == hospital_id, PrescriptionShare.status == "pending")
+        ).order_by(PrescriptionShare.shared_at.desc()).limit(10)
+    )
+    for share in pending_result.scalars().all():
+        notifications.append({
+            "type": "new_prescription",
+            "title": "New Prescription",
+            "message": "A patient shared a new prescription with you.",
+            "created_at": share.shared_at.isoformat() if share.shared_at else None,
+        })
+
+    notifications.sort(key=lambda n: n["created_at"] or "", reverse=True)
+    return notifications

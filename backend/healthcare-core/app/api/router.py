@@ -20,7 +20,8 @@ from app.api.v1.ws_endpoint     import router as ws_router
 from app.api.v1.medicines       import router as medicines_router
 from app.api.v1.billing         import router as billing_router
 from app.api.v1.owner           import router as owner_router
-from app.api.v1.doctor_stats_alerts          import router as doctor_extras_router
+from app.api.v1.doctor_schedule_routes import router as doctor_schedule_router
+from app.api.v1.doctor_notifications_routes import router as doctor_notif_router
 from app.api.v1.patient_vitals_notifications import router as patient_extras_router
 from app.api.v1.staff           import router as staff_router
 from app.api.v1.prescriptions   import router as prescriptions_router
@@ -30,29 +31,26 @@ from app.api.v1.surgery         import router as surgery_router
 from app.api.v1.doctor_extensions  import router as doctor_ext_router
 from app.api.v1.patient_extensions import router as patient_ext_router
 from app.api.v1.pharmacy        import router as pharmacy_router
+from app.api.v1.pharmacy_walkin import router as pharmacy_walkin_router
+from app.api.v1.pharmacy_orders import router as pharmacy_orders_router
+from app.api.v1.pharmacy_ops    import router as pharmacy_ops_router
 from app.api.v1.onboarding      import router as onboarding_router, walkin_public_router
 from app.api.v1.onboarding_admin import router as onboarding_admin_router
-from app.api.v1.onboarding_simple import router as onboarding_simple_router
 from app.api.v1.tickets         import router as tickets_router
 from app.api.v1.employees       import router as employees_router
-from app.api.v1.matrix_router   import matrix_router
 
 api_router = APIRouter()
 
 # ── Public: Onboarding ────────────────────────────────────────────────────────
-api_router.include_router(onboarding_router,        prefix="/onboarding", tags=["Onboarding"])
-api_router.include_router(onboarding_admin_router,  prefix="/onboarding", tags=["Onboarding Admin"])
-api_router.include_router(onboarding_simple_router, prefix="/onboarding", tags=["Onboarding Simple (No Payment)"])
-api_router.include_router(walkin_public_router,     prefix="/walkin",     tags=["Walk-In Public"])
+api_router.include_router(onboarding_router,       prefix="/onboarding", tags=["Onboarding"])
+api_router.include_router(onboarding_admin_router, prefix="/onboarding", tags=["Onboarding Admin"])
+api_router.include_router(walkin_public_router,    prefix="/walkin",     tags=["Walk-In Public"])
 
 # ── Ticket System ─────────────────────────────────────────────────────────────
 api_router.include_router(tickets_router,   prefix="/tickets",   tags=["Support Tickets"])
 
-# ── Hospin Internal Employees ─────────────────────────────────────────────────
+# ── Hospyn Internal Employees ─────────────────────────────────────────────────
 api_router.include_router(employees_router, prefix="/employees", tags=["Hospyn Employees"])
-
-# ── Hospin Matrix 3.0 ─────────────────────────────────────────────────────────
-api_router.include_router(matrix_router,    prefix="/matrix",    tags=["Hospin Matrix 3.0"])
 
 # ── Core Clinical ─────────────────────────────────────────────────────────────
 api_router.include_router(auth_router,          prefix="/auth",         tags=["Auth"])
@@ -75,7 +73,8 @@ api_router.include_router(ws_router)
 
 # ── Owner Dashboard + HR ──────────────────────────────────────────────────────
 api_router.include_router(owner_router,          prefix="/owner",   tags=["Owner Dashboard"])
-api_router.include_router(doctor_extras_router,  prefix="/doctor",  tags=["Doctor Stats"])
+api_router.include_router(doctor_schedule_router, prefix="/doctor", tags=["Doctor Schedule"])
+api_router.include_router(doctor_notif_router, prefix="/doctor", tags=["Doctor Notifications"])
 api_router.include_router(patient_extras_router, prefix="/patient", tags=["Patient Extras"])
 api_router.include_router(billing_router,        prefix="/billing", tags=["Billing"])
 api_router.include_router(staff_router,          prefix="/staff",   tags=["Staff HR"])
@@ -87,3 +86,6 @@ api_router.include_router(consent_router,        prefix="/consent", tags=["DPDP 
 api_router.include_router(doctor_ext_router,     prefix="/doctor",   tags=["Doctor Ext"])
 api_router.include_router(patient_ext_router,    prefix="/patients", tags=["Patient Ext"])
 api_router.include_router(pharmacy_router,       prefix="/pharmacy", tags=["Pharmacy"])
+api_router.include_router(pharmacy_walkin_router, prefix="/pharmacy", tags=["Pharmacy Walk-In POS"])
+api_router.include_router(pharmacy_orders_router, prefix="/pharmacy", tags=["Pharmacy Order Pipeline"])
+api_router.include_router(pharmacy_ops_router,    prefix="/pharmacy", tags=["Pharmacy Ops (Suppliers/Purchases/Expenses/Reports)"])
