@@ -211,7 +211,7 @@ async def alert_database_down(error: str) -> None:
 async def alert_encryption_key_missing() -> None:
     """P0: Encryption key missing — PHI at risk."""
     await alert_manager.trigger(
-        summary="ENCRYPTION_KEY not set — PHI may be stored unencrypted",
+        summary="APP_ENCRYPTION_KEY / ENCRYPTION_KEY not set — PHI may be stored unencrypted",
         severity="P0",
         component="encryption",
         details={"impact": "CRITICAL: Patient data security compromised"},

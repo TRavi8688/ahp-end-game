@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 def _load_fernet_keys() -> list[Fernet]:
     """Return a list of Fernet instances from ENCRYPTION_KEY env var."""
-    raw = os.environ.get("ENCRYPTION_KEY", "").strip()
+    raw = (os.environ.get("APP_ENCRYPTION_KEY") or os.environ.get("ENCRYPTION_KEY", "")).strip()
 
     if raw:
         keys: list[Fernet] = []

@@ -157,7 +157,7 @@ async def health_check() -> Dict[str, Any]:
         logger.error("health_check_redis_failed", error=str(e))
 
     # ── Encryption key check ───────────────────────────────────────────────
-    enc_key = os.environ.get("ENCRYPTION_KEY")
+    enc_key = os.environ.get("APP_ENCRYPTION_KEY") or os.environ.get("ENCRYPTION_KEY")
     if enc_key and len(enc_key) >= 44:
         checks["encryption_key"] = {"status": "present"}
     else:

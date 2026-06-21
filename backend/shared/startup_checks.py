@@ -82,7 +82,7 @@ def _check_internal_service_secret() -> None:
 
 def _check_encryption_key() -> None:
     env = os.environ.get("ENVIRONMENT", "development").lower()
-    enc_key = os.environ.get("ENCRYPTION_KEY", "")
+    enc_key = os.environ.get("APP_ENCRYPTION_KEY") or os.environ.get("ENCRYPTION_KEY", "")
 
     if env == "production" and not enc_key:
         raise ValueError(
