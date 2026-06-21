@@ -7,7 +7,7 @@
 #   Digest verified: 2026-06-01. Re-pin periodically via:
 #   docker pull python:3.11-slim && docker inspect python:3.11-slim --format '{{index .RepoDigests 0}}'
 
-FROM python:3.11-slim@sha256:ad5dadd957a63c42c30e49f6bf1d1a7e24a020da94c3bf0e0c16f6da80b58f57
+FROM python:3.11-slim
 
 WORKDIR /app
 
