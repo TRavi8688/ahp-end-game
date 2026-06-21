@@ -47,8 +47,11 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - name: Install dependencies via poetry
+        run: |
+          pip install poetry
+          poetry install --with dev --no-interaction
+        working-directory: backend/healthcare-core
 
       - name: Run tests with coverage
         env:
@@ -57,20 +60,22 @@ jobs:
           SECRET_KEY: ci_test_secret_key_that_is_definitely_not_the_default_value_and_is_64chars_long
           ENVIRONMENT: test
           SENTRY_DSN: ""
+          PYTHONPATH: "."
         run: |
-          python -m pytest \
+          poetry run pytest \
             --cov=app \
             --cov-report=term-missing \
             --cov-report=xml \
             --cov-fail-under=50 \
             -v \
             tests/
+        working-directory: backend/healthcare-core
 
       - name: Upload coverage report
         uses: codecov/codecov-action@v4
         if: always()
         with:
-          file: ./coverage.xml
+          file: backend/healthcare-core/coverage.xml
           fail_ci_if_error: false
 
   # ── Secret Scanning ─────────────────────────────────────────────────────────
