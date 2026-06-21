@@ -17,6 +17,9 @@ class ApiService {
             if (['post', 'put', 'patch'].includes(config.method?.toLowerCase())) {
                 config.headers['X-Idempotency-Key'] = `doc_${Date.now()}_${Math.random().toString(36).substring(7)}`;
             }
+            if (config.url && config.url.startsWith('/')) {
+                config.url = config.url.substring(1);
+            }
             return config;
         });
 
