@@ -9,7 +9,6 @@ import uuid
 import enum
 from datetime import datetime
 from sqlalchemy import String, Boolean, DateTime, Enum as SQLEnum, UUID, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import TYPE_CHECKING
 from app.core.database import Base
@@ -59,11 +58,6 @@ class Hospital(Base):
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     description: Mapped[str] = mapped_column(Text, nullable=True)
-    enabled_modules: Mapped[list[str]] = mapped_column(
-        JSONB,
-        nullable=False,
-        server_default='["reception", "nurse", "doctor", "pharmacy", "laboratory", "billing", "ward", "admin"]'
-    )
 
     # The user_id of the hospital admin in the auth-service
     owner_user_id: Mapped[uuid.UUID] = mapped_column(

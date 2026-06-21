@@ -1,3 +1,11 @@
+// NOTE: this file is kept but no longer routed anywhere (see App.jsx).
+// It was the old dark "Command Center" desktop dashboard you flagged as not
+// matching the approved mobile mockups. Its functionality has been split
+// across the new pages: src/pages/Home.jsx (stats/chart), Inventory.jsx
+// (stock + AI scan), Orders.jsx (network orders + dispense), Analytics.jsx,
+// and Profile.jsx (QR code). Left in place rather than deleted, per your
+// instruction not to lose any file — safe to delete once you've confirmed
+// the new pages cover everything you need from it.
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Package, AlertTriangle, TrendingUp, Clock, Search, Plus, Filter, Download,

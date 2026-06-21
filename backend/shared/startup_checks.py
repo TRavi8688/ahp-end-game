@@ -43,7 +43,7 @@ def run_startup_checks(settings) -> None:
     _check_database_url(settings)
     _check_redis_url(settings)
     _warn_sentry(settings)
-    logger.info("startup_checks_passed", service=getattr(settings, "PROJECT_NAME", "unknown"))
+    logger.info(f"startup_checks_passed for service: {getattr(settings, 'PROJECT_NAME', 'unknown')}")
 
 
 def _check_jwt_secret(settings) -> None:

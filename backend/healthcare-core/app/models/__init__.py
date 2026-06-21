@@ -25,6 +25,9 @@ from app.models.pharmacy import (
 # and were never registered either, despite api/v1/billing.py depending on them.
 from app.models.billing import Invoice, Payment, InvoiceStatus, PaymentMethod, PaymentStatus
 
+# EXECUTION FIX: import DPDP consent and lab result stub models
+from app.models.consent_stub import ConsentRecord, DataDeletionRequest, LabResult
+
 __all__ = [
     "Hospital",
     "Doctor",
@@ -56,4 +59,7 @@ __all__ = [
     "InvoiceStatus",
     "PaymentMethod",
     "PaymentStatus",
+    "ConsentRecord",
+    "DataDeletionRequest",
+    "LabResult",
 ]

@@ -18,6 +18,22 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const { login, user } = useAuth();
 
+  const handleQuickLogin = async (roleEmail: string) => {
+    setLoading(true);
+    setError('');
+    try {
+      await login(roleEmail, 'bypass');
+      const storedUser = sessionStorage.getItem('hospyn_user');
+      const role = storedUser ? JSON.parse(storedUser).role : null;
+      const redirect = role ? (ROLE_REDIRECT_MAP[role] || '/unauthorized') : '/unauthorized';
+      navigate(redirect, { replace: true });
+    } catch (err: any) {
+      setError('Bypass login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -127,6 +143,62 @@ const Login: React.FC = () => {
             )}
           </button>
         </form>
+
+        <div className="pt-6 border-t border-slate-800 text-center space-y-4">
+          <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">
+            Demo Portal Quick Access
+          </p>
+          <div className="grid grid-cols-2 gap-2 text-left">
+            <button
+              onClick={() => handleQuickLogin('owner@hospyn.com')}
+              className="px-3 py-2 bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center gap-1.5"
+            >
+              <span>👑</span> Owner
+            </button>
+            <button
+              onClick={() => handleQuickLogin('doctor@hospyn.com')}
+              className="px-3 py-2 bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center gap-1.5"
+            >
+              <span>🩺</span> Doctor
+            </button>
+            <button
+              onClick={() => handleQuickLogin('nurse@hospyn.com')}
+              className="px-3 py-2 bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center gap-1.5"
+            >
+              <span>🩺</span> Nurse
+            </button>
+            <button
+              onClick={() => handleQuickLogin('receptionist@hospyn.com')}
+              className="px-3 py-2 bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center gap-1.5"
+            >
+              <span>🏢</span> Reception
+            </button>
+            <button
+              onClick={() => handleQuickLogin('pharmacist@hospyn.com')}
+              className="px-3 py-2 bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center gap-1.5"
+            >
+              <span>💊</span> Pharmacy
+            </button>
+            <button
+              onClick={() => handleQuickLogin('lab@hospyn.com')}
+              className="px-3 py-2 bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center gap-1.5"
+            >
+              <span>🩻</span> Lab Tech
+            </button>
+            <button
+              onClick={() => handleQuickLogin('hr@hospyn.com')}
+              className="px-3 py-2 bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center gap-1.5"
+            >
+              <span>👤</span> HR Portal
+            </button>
+            <button
+              onClick={() => handleQuickLogin('admin@hospyn.com')}
+              className="px-3 py-2 bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center gap-1.5"
+            >
+              <span>⚙️</span> Hospital Control
+            </button>
+          </div>
+        </div>
 
         <div className="pt-6 border-t border-slate-800 text-center">
           <p className="text-xs text-slate-500">

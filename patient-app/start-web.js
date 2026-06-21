@@ -112,6 +112,13 @@ async function start() {
     },
     hot: false, // Disable HMR for stability
     historyApiFallback: true,
+    proxy: {
+      '/api': {
+        target: 'https://hospyn-495906-api-625745217419.us-central1.run.app',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   };
 
   const server = new WebpackDevServer(serverConfig, compiler);

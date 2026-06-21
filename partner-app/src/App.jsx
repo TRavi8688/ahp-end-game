@@ -1,68 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate, Link, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { setAuthFailureCallback } from './services/apiClient';
-import { Activity, Home, ListOrdered, Package, LogOut } from 'lucide-react';
 
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
+import Register from './pages/Register';
+import VerificationPending from './pages/VerificationPending';
+import Home from './pages/Home';
 import Orders from './pages/Orders';
 import Inventory from './pages/Inventory';
+import Analytics from './pages/Analytics';
+import Profile from './pages/Profile';
+import Layout from './components/Layout';
 
-function Layout({ children, onLogout }) {
-  const location = useLocation();
-  
-  const navItems = [
-    { path: '/dashboard', label: 'Home', icon: Home },
-    { path: '/orders', label: 'Orders', icon: ListOrdered },
-    { path: '/inventory', label: 'Inventory', icon: Package }
-  ];
-
-  return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
-      <header className="bg-white shadow-sm border-b px-6 py-4 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-          <div className="bg-primary-600 p-2 rounded-xl">
-            <Activity className="w-5 h-5 text-white" />
-          </div>
-          <h1 className="text-xl font-bold text-gray-900 tracking-tight">Partner</h1>
-        </div>
-        <button 
-          onClick={onLogout}
-          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
-        >
-          <LogOut className="w-5 h-5" />
-        </button>
-      </header>
-
-      <main className="flex-1 overflow-auto pb-20">
-        {children}
-      </main>
-
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-6 py-3 flex justify-around pb-safe z-10">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          return (
-            <Link 
-              key={item.path} 
-              to={item.path}
-              className={`flex flex-col items-center gap-1 ${isActive ? 'text-primary-600' : 'text-gray-400 hover:text-gray-600'}`}
-            >
-              <item.icon className={`w-6 h-6 ${isActive ? 'fill-primary-50' : ''}`} />
-              <span className="text-[10px] font-semibold">{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-    </div>
-  );
+function PrivateLayout({ isAuthenticated, onLogout, children }) {
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <Layout onLogout={onLogout}>{children}</Layout>;
 }
 
 function App() {
-  // EXECUTION FIX: was hardcoded `useState(true)` with the auth-failure
-  // callback commented out ("Disabled to bypass login") — any visitor,
-  // logged in or not, with a valid token or none at all, landed straight on
-  // the dashboard. Now reflects whatever's actually in localStorage on load,
-  // and a 401 from any API call genuinely logs the user out again.
+  // EXECUTION FIX (carried over): was hardcoded `useState(true)` with the
+  // auth-failure callback commented out — anyone, logged in or not, landed
+  // straight on the dashboard. Reflects real token presence on load, and a
+  // 401 from any API call genuinely logs the user out.
   const [isAuthenticated, setIsAuthenticated] = useState(
     () => !!localStorage.getItem('token')
   );
@@ -75,30 +34,30 @@ function App() {
     });
   }, [navigate]);
 
+  const handleLogin = () => {
+    setIsAuthenticated(true);
+    navigate('/home');
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     setIsAuthenticated(false);
+    navigate('/login');
   };
 
   return (
     <Routes>
-      <Route 
-        path="/login" 
-        element={!isAuthenticated ? <Login onLogin={() => setIsAuthenticated(true)} /> : <Navigate to="/dashboard" />} 
-      />
-      <Route 
-        path="/dashboard" 
-        element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />} 
-      />
-      <Route 
-        path="/orders" 
-        element={isAuthenticated ? <Layout onLogout={handleLogout}><Orders /></Layout> : <Navigate to="/login" />} 
-      />
-      <Route 
-        path="/inventory" 
-        element={isAuthenticated ? <Layout onLogout={handleLogout}><Inventory /></Layout> : <Navigate to="/login" />} 
-      />
-      <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} />
+      <Route path="/login" element={isAuthenticated ? <Navigate to="/home" replace /> : <Login onLogin={handleLogin} />} />
+      <Route path="/register" element={isAuthenticated ? <Navigate to="/home" replace /> : <Register />} />
+      <Route path="/verification-pending" element={<VerificationPending />} />
+
+      <Route path="/home" element={<PrivateLayout isAuthenticated={isAuthenticated} onLogout={handleLogout}><Home /></PrivateLayout>} />
+      <Route path="/orders" element={<PrivateLayout isAuthenticated={isAuthenticated} onLogout={handleLogout}><Orders /></PrivateLayout>} />
+      <Route path="/inventory" element={<PrivateLayout isAuthenticated={isAuthenticated} onLogout={handleLogout}><Inventory /></PrivateLayout>} />
+      <Route path="/analytics" element={<PrivateLayout isAuthenticated={isAuthenticated} onLogout={handleLogout}><Analytics /></PrivateLayout>} />
+      <Route path="/profile" element={<PrivateLayout isAuthenticated={isAuthenticated} onLogout={handleLogout}><Profile onLogout={handleLogout} /></PrivateLayout>} />
+
+      <Route path="*" element={<Navigate to={isAuthenticated ? '/home' : '/login'} replace />} />
     </Routes>
   );
 }

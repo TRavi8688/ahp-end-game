@@ -112,7 +112,7 @@ def _generate_temp_password(length: int = 12) -> str:
 async def list_staff(
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "owner", "admin", "hr", "super_admin")),
+        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager")),
     ],
     department: Optional[str] = Query(None),
     role: Optional[str] = Query(None),
@@ -203,7 +203,7 @@ async def list_staff(
 async def get_shift_roster(
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "owner", "admin", "hr", "super_admin")),
+        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager")),
     ],
     week_start: Optional[str] = Query(None, description="ISO date for week start, e.g. 2026-06-02"),
     department: Optional[str] = Query(None),
@@ -291,7 +291,7 @@ async def assign_shift(
     payload: ShiftAssignPayload,
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "owner", "admin", "hr", "super_admin")),
+        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager")),
     ],
     db: AsyncSession = Depends(get_db),
 ):
@@ -347,7 +347,7 @@ async def assign_shift(
 async def list_leave_requests(
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "owner", "admin", "hr", "super_admin")),
+        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager")),
     ],
     status: Optional[str] = Query(None, description="PENDING | APPROVED | REJECTED"),
     db: AsyncSession = Depends(get_db),
@@ -417,7 +417,7 @@ async def approve_leave(
     payload: LeaveReviewPayload,
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "owner", "admin", "hr", "super_admin")),
+        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager")),
     ],
     db: AsyncSession = Depends(get_db),
 ):
@@ -457,7 +457,7 @@ async def reject_leave(
     payload: LeaveReviewPayload,
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "owner", "admin", "hr", "super_admin")),
+        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager")),
     ],
     db: AsyncSession = Depends(get_db),
 ):
@@ -496,7 +496,7 @@ async def invite_staff_member(
     payload: StaffInvitePayload,
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "owner", "admin", "hr", "super_admin")),
+        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager")),
     ],
     db: AsyncSession = Depends(get_db),
 ):
@@ -520,44 +520,10 @@ async def invite_staff_member(
     except Exception:
         pass
 
-    # Map frontend roles to backend enum roles
-    role_str = payload.role.strip().lower()
-    
-    # User database role mapping
-    user_role_map = {
-        "pharmacy": "pharmacist",
-        "pharmacist": "pharmacist",
-        "lab": "lab",
-        "lab_technician": "lab",
-        "hr_manager": "hr",
-        "hr": "hr",
-        "hospital_admin": "hospital_admin",
-        "admin": "admin",
-        "receptionist": "receptionist",
-        "nurse": "nurse",
-        "doctor": "doctor"
-    }
-    user_role = user_role_map.get(role_str, "staff")
-
-    # Staff database role mapping (if not doctor)
-    staff_role_map = {
-        "pharmacy": "pharmacist",
-        "pharmacist": "pharmacist",
-        "lab": "lab_technician",
-        "lab_technician": "lab_technician",
-        "hr_manager": "admin",
-        "hr": "admin",
-        "hospital_admin": "admin",
-        "admin": "admin",
-        "receptionist": "receptionist",
-        "nurse": "nurse"
-    }
-    staff_role = staff_role_map.get(role_str)
-
     temp_password = _generate_temp_password()
     now = datetime.now(timezone.utc)
     new_user_id = str(uuid.uuid4())
-    new_profile_id = str(uuid.uuid4())
+    new_staff_id = str(uuid.uuid4())
 
     try:
         from passlib.context import CryptContext
@@ -577,64 +543,34 @@ async def invite_staff_member(
                 "email": payload.email,
                 "phone": payload.phone_number,
                 "name": payload.full_name,
-                "role": user_role,
+                "role": payload.role,
                 "pwd": hashed_pwd,
                 "now": now,
             },
         )
 
-        if user_role == "doctor":
-            # For doctor invitations, create a doctor profile in the doctors table
-            parts = payload.full_name.strip().split(" ", 1)
-            first_name = parts[0]
-            last_name = parts[1] if len(parts) > 1 else "Doctor"
-            temp_license = f"TEMP-LIC-{uuid.uuid4().hex[:8].upper()}"
-
-            await db.execute(
-                text("""
-                    INSERT INTO doctors (id, user_id, hospital_id, first_name, last_name, email, phone,
-                                         specialization, qualification, medical_license_number, status,
-                                         is_active, created_at, updated_at)
-                    VALUES (:id, :user_id, :hospital_id, :fn, :ln, :email, :phone,
-                            :specialty, 'MBBS', :license, 'active',
-                            TRUE, :now, :now)
-                """),
-                {
-                    "id": new_profile_id,
-                    "user_id": new_user_id,
-                    "hospital_id": hospital_id,
-                    "fn": first_name,
-                    "ln": last_name,
-                    "email": payload.email,
-                    "phone": payload.phone_number,
-                    "specialty": payload.specialty or "General Medicine",
-                    "license": temp_license,
-                    "now": now,
-                }
-            )
-        else:
-            # Create standard staff profile
-            await db.execute(
-                text("""
-                    INSERT INTO staff (id, user_id, hospital_id, role, specialty, job_title,
-                                       status, created_at, updated_at)
-                    VALUES (:id, :user_id, :hospital_id, :role, :specialty, :job_title,
-                            'ACTIVE', :now, :now)
-                """),
-                {
-                    "id": new_profile_id,
-                    "user_id": new_user_id,
-                    "hospital_id": hospital_id,
-                    "role": staff_role or "admin",
-                    "specialty": payload.specialty,
-                    "job_title": payload.job_title,
-                    "now": now,
-                },
-            )
+        # Create staff profile
+        await db.execute(
+            text("""
+                INSERT INTO staff (id, user_id, hospital_id, role, specialty, job_title,
+                                   status, created_at, updated_at)
+                VALUES (:id, :user_id, :hospital_id, :role, :specialty, :job_title,
+                        'ACTIVE', :now, :now)
+            """),
+            {
+                "id": new_staff_id,
+                "user_id": new_user_id,
+                "hospital_id": hospital_id,
+                "role": payload.role,
+                "specialty": payload.specialty,
+                "job_title": payload.job_title,
+                "now": now,
+            },
+        )
         await db.flush()
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create user/profile account: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create staff account: {e}")
 
     log_audit_event(
         action="staff_invited",
@@ -642,21 +578,22 @@ async def invite_staff_member(
         target_id=new_user_id,
         details={
             "email": payload.email,
-            "role": user_role,
+            "role": payload.role,
             "hospital_id": hospital_id,
         },
     )
 
+    # In production: send temp_password via email (Twilio SendGrid / Resend)
+    # For now: returned in response (the OwnerDashboard modal shows it)
     return success_response(
         data={
-            "staff_id": new_profile_id,
+            "staff_id": new_staff_id,
             "user_id": new_user_id,
             "email": payload.email,
-            "temp_password": temp_password,
-            "role": user_role,
+            "temp_password": temp_password,  # Shown in credentials modal; backend will email it
+            "role": payload.role,
             "must_change_password": True,
         },
-        message="Invitation successful. Credentials ready to dispatch.",
+        message="Staff member invited successfully. Credentials ready to dispatch.",
         status_code=201,
     )
-

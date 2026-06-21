@@ -49,7 +49,7 @@ export default function Login() {
       const user = data.user || {};
       const role = user.role || data.role;
 
-      if (role !== 'super_admin') {
+      if (role !== 'super_admin' && role !== 'admin') {
         setError(
           'This portal is restricted to Hospyn internal team only. ' +
           'Your account role is: ' + (role || 'unknown')

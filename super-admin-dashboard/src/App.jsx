@@ -19,7 +19,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BrowserRouter, Routes, Route, Navigate,
-  useNavigate, useLocation, useParams
+  useNavigate, useLocation, useParams, Outlet
 } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { lazy, Suspense } from 'react';
@@ -310,7 +310,7 @@ export default function App() {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route element={<AdminShell><Suspense fallback={<PageLoader />}><React.Outlet /></Suspense></AdminShell>}>
+            <Route element={<AdminShell><Suspense fallback={<PageLoader />}><Outlet /></Suspense></AdminShell>}>
               <Route path="/"                  element={<OverviewDashboard />} />
               <Route path="/hospitals"         element={<HospitalNetwork />} />
               <Route path="/hospitals/:id"     element={<HospitalDetail />} />

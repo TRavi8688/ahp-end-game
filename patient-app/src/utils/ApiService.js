@@ -304,6 +304,45 @@ class ApiService {
         const response = await this.client.get(`/lab/orders/${orderId}/results`);
         return response.data;
     }
+
+    // ── Support Tickets ──────────────────────────────────────────────────────
+    async createSupportTicket({ category, subject, description, priority = 'medium', owner_email, owner_phone }) {
+        const response = await this.client.post('/tickets/create', {
+            category,
+            subject,
+            description,
+            priority,
+            product: 'hospin_patient_app',
+            owner_email: owner_email || undefined,
+            owner_phone: owner_phone || undefined,
+        });
+        return response.data;
+    }
+
+    async getMyTickets() {
+        const token  = await SecurityUtils.getToken();
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const response = await this.client.get('/tickets/my-tickets', { headers });
+        return response.data;
+    }
+
+    // ── Phone Number OTP Update ───────────────────────────────────────────────
+    async sendPhoneUpdateOtp(newPhone) {
+        const response = await this.client.post('/auth/send-otp', {
+            phone: newPhone,
+            purpose: 'phone_update',
+        });
+        return response.data;
+    }
+
+    async verifyPhoneUpdateOtp(newPhone, otp) {
+        const response = await this.client.post('/auth/verify-otp', {
+            phone: newPhone,
+            otp,
+            purpose: 'phone_update',
+        });
+        return response.data;
+    }
 }
 
 export default new ApiService();

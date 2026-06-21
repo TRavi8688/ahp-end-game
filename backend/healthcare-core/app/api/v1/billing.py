@@ -33,47 +33,14 @@ from sqlalchemy.orm import selectinload
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
-from app.core.security import get_current_user, require_role, TokenPayload
+from app.core.security import require_role, TokenPayload
 from app.models.patient import Patient
 from app.models.appointment import Appointment, AppointmentStatus
 from app.models.hospital import Hospital
 from shared.utils.responses import success_response, error_response
 from shared.audit import log_audit_event
 
-async def check_billing_enabled(
-    current_user: Annotated[TokenPayload, Depends(get_current_user)],
-    db: AsyncSession = Depends(get_db),
-):
-    hospital_id = None
-    if current_user.role == "owner":
-        result = await db.execute(
-            select(Hospital.id).where(Hospital.owner_user_id == uuid.UUID(current_user.sub), Hospital.deleted_at.is_(None))
-        )
-        hospital_id = result.scalar()
-    elif current_user.role == "patient":
-        result = await db.execute(
-            select(Patient.hospital_id).where(Patient.user_id == uuid.UUID(current_user.sub), Patient.deleted_at.is_(None))
-        )
-        hospital_id = result.scalar()
-    else:
-        from app.models.staff import Staff
-        result = await db.execute(
-            select(Staff.hospital_id).where(Staff.user_id == uuid.UUID(current_user.sub), Staff.deleted_at.is_(None))
-        )
-        hospital_id = result.scalar()
-
-    if hospital_id:
-        result = await db.execute(
-            select(Hospital.enabled_modules).where(Hospital.id == hospital_id, Hospital.deleted_at.is_(None))
-        )
-        enabled_modules = result.scalar() or []
-        if "billing" not in enabled_modules:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Billing module is not enabled for this facility."
-            )
-
-router = APIRouter(dependencies=[Depends(check_billing_enabled)])
+router = APIRouter()
 
 
 # ─── Pydantic Schemas ─────────────────────────────────────────────────────────

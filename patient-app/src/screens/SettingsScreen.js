@@ -313,9 +313,7 @@ export default function SettingsScreen({ navigation }) {
                     label="Hospin Help Center" 
                     onPress={() => {
                         HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Light);
-                        const helpMsg = "Accessing Hospin Clinical Support Vault... Our medical assistance desk has been alerted.";
-                        if (Platform.OS === 'web') window.alert(helpMsg);
-                        else Alert.alert("Hospin Help Center", helpMsg);
+                        navigation.navigate('Support');
                     }} 
                 />
                 <SettingItem 
@@ -422,7 +420,19 @@ export default function SettingsScreen({ navigation }) {
                                     placeholder="Enter new number"
                                     placeholderTextColor="#475569" 
                                 />
-                                <TouchableOpacity style={[styles.saveBtn, { backgroundColor: Theme.colors.primary }]} onPress={() => { setPhoneLoading(true); setTimeout(() => { setPhoneLoading(false); setOtpStep(2); }, 1000); }} disabled={!newPhone || phoneLoading}>
+                                <TouchableOpacity style={[styles.saveBtn, { backgroundColor: Theme.colors.primary }]} onPress={async () => {
+                                            setPhoneLoading(true);
+                                            try {
+                                                await ApiService.sendPhoneUpdateOtp(newPhone);
+                                                setOtpStep(2);
+                                            } catch (e) {
+                                                const msg = e?.response?.data?.detail || 'Failed to send OTP. Please try again.';
+                                                if (Platform.OS === 'web') window.alert(msg);
+                                                else Alert.alert('Error', msg);
+                                            } finally {
+                                                setPhoneLoading(false);
+                                            }
+                                        }} disabled={!newPhone || phoneLoading}>
                                     {phoneLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>SEND OTP</Text>}
                                 </TouchableOpacity>
                             </>
@@ -437,14 +447,25 @@ export default function SettingsScreen({ navigation }) {
                                     placeholder="Enter 6-digit OTP"
                                     placeholderTextColor="#475569" 
                                 />
-                                <TouchableOpacity style={[styles.saveBtn, { backgroundColor: Theme.colors.primary }]} onPress={() => { 
-                                    setPhoneLoading(true); 
-                                    setTimeout(() => { 
-                                        setPhoneLoading(false); 
+                                <TouchableOpacity style={[styles.saveBtn, { backgroundColor: Theme.colors.primary }]} onPress={async () => { 
+                                    setPhoneLoading(true);
+                                    try {
+                                        await ApiService.verifyPhoneUpdateOtp(newPhone, phoneOtp);
+                                        await ApiService.updateProfile({ phone_number: newPhone });
                                         setProfile({...profile, phone_number: newPhone});
                                         setEditPhone(newPhone);
-                                        setShowPhoneModal(false); 
-                                    }, 1000); 
+                                        setShowPhoneModal(false);
+                                        setOtpStep(1);
+                                        setPhoneOtp('');
+                                        setNewPhone('');
+                                        if (Platform.OS !== 'web') Alert.alert('Success', 'Phone number updated successfully.');
+                                    } catch (e) {
+                                        const msg = e?.response?.data?.detail || 'Invalid OTP or update failed. Please try again.';
+                                        if (Platform.OS === 'web') window.alert(msg);
+                                        else Alert.alert('Error', msg);
+                                    } finally {
+                                        setPhoneLoading(false);
+                                    }
                                 }} disabled={!phoneOtp || phoneLoading}>
                                     {phoneLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>VERIFY & UPDATE</Text>}
                                 </TouchableOpacity>

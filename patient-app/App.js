@@ -71,6 +71,7 @@ import ChittiAiScreen         from './src/screens/ChittiAiScreen';
 import DoctorSearchScreen     from './src/screens/DoctorSearchScreen';
 import BookAppointmentScreen  from './src/screens/BookAppointmentScreen';
 import QueueStatusScreen      from './src/screens/QueueStatusScreen';
+import SupportScreen          from './src/screens/SupportScreen';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const Stack = createNativeStackNavigator();
@@ -218,6 +219,7 @@ function AppContent() {
                 <Stack.Screen name="BookAppointment"     component={BookAppointmentScreen} />
                 {/* QueueStatusScreen: WebSocket live queue display           */}
                 <Stack.Screen name="QueueStatus"         component={QueueStatusScreen} />
+                <Stack.Screen name="Support"             component={SupportScreen} />
               </>
             )}
           </Stack.Navigator>

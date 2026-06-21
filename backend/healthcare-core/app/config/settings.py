@@ -64,6 +64,10 @@ class Settings(BaseSettings):
         "http://auth-service:8001/api/v1/auth/.well-known/jwks.json"
     )
 
+    # EXECUTION: used by onboarding.py to call auth-service's internal
+    # create-partner-user / activate-user endpoints (see auth-service/app/api/internal.py).
+    AUTH_SERVICE_INTERNAL_URL: str = "http://auth-service:8001/api/v1"
+
     # Partner JWT secret (for partner-app specific tokens — HS256)
     PARTNER_JWT_SECRET: str = (
         "partner_local_dev_secret_change_in_production_min_32_chars"

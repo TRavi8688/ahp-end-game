@@ -26,7 +26,6 @@ class HospitalCreate(BaseModel):
     country: str = "India"
     pin_code: str
     description: Optional[str] = None
-    enabled_modules: Optional[list[str]] = None
 
     @field_validator("phone")
     @classmethod
@@ -55,7 +54,6 @@ class HospitalUpdate(BaseModel):
     state: Optional[str] = None
     pin_code: Optional[str] = None
     description: Optional[str] = None
-    enabled_modules: Optional[list[str]] = None
 
 
 class HospitalResponse(BaseModel):
@@ -75,7 +73,6 @@ class HospitalResponse(BaseModel):
     is_active: bool
     description: Optional[str]
     owner_user_id: uuid.UUID
-    enabled_modules: list[str] = []
     created_at: datetime
     updated_at: datetime
 

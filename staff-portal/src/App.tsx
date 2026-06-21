@@ -30,6 +30,12 @@ const HRDashboard       = lazy(() => import('./pages/Dashboard/HRDashboard'));
 const ReceptionDashboard = lazy(() => import('./pages/Dashboard/ReceptionDashboard'));
 const SupportPage        = lazy(() => import('./pages/Dashboard/SupportPage'));
 
+const CheckInPage           = lazy(() => import('./pages/Dashboard/CheckInPage'));
+const WalkInPage            = lazy(() => import('./pages/WalkInPage'));
+const QueueBoardPage        = lazy(() => import('./pages/Dashboard/QueueBoardPage'));
+const TodaysAppointmentsPage = lazy(() => import('./pages/Dashboard/TodaysAppointmentsPage'));
+const BillingPage           = lazy(() => import('./pages/Dashboard/BillingPage'));
+
 function Loading() {
   return (
     <div style={{
@@ -175,8 +181,15 @@ export default function App() {
             <Route
               path="/reception/*"
               element={
-                <StaffPage roles={['receptionist']}>
-                  <ReceptionDashboard />
+                <StaffPage roles={['receptionist', 'admin']}>
+                  <Routes>
+                    <Route path="" element={<ReceptionDashboard />} />
+                    <Route path="checkin" element={<CheckInPage />} />
+                    <Route path="walkin" element={<WalkInPage />} />
+                    <Route path="queue" element={<QueueBoardPage />} />
+                    <Route path="appointments" element={<TodaysAppointmentsPage />} />
+                    <Route path="billing" element={<BillingPage />} />
+                  </Routes>
                 </StaffPage>
               }
             />

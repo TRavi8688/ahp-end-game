@@ -216,16 +216,6 @@ class ReceptionService:
                 f"Cannot route: current state is '{walkin.queue_state.value}', expected 'waiting_reception'."
             )
 
-        # Fetch hospital enabled_modules
-        from app.models.hospital import Hospital
-        hospital_result = await db.execute(
-            select(Hospital.enabled_modules).where(Hospital.id == hospital_id)
-        )
-        enabled_modules = hospital_result.scalar() or []
-
-        if "nurse" not in enabled_modules:
-            route_to = "doctor"
-
         target_state = (
             QueueState.waiting_doctor
             if route_to == "doctor"
