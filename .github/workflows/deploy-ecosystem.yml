@@ -153,7 +153,7 @@ jobs:
             --no-allow-unauthenticated \
             --port 8080 \
             --set-env-vars "ENVIRONMENT=production" \
-            --update-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_SECRET_KEY=JWT_SECRET_KEY:latest"
+            --update-secrets "DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,REDIS_URL=REDIS_URL:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest"
           
           AUTH_URL=$(gcloud run services describe hospyn-495906-auth --region us-central1 --format 'value(status.url)')
           echo "AUTH_URL=$AUTH_URL" >> $GITHUB_ENV
@@ -170,7 +170,7 @@ jobs:
             --no-allow-unauthenticated \
             --port 8080 \
             --set-env-vars "ENVIRONMENT=production" \
-            --update-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_SECRET_KEY=JWT_SECRET_KEY:latest"
+            --update-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_SECRET_KEY=JWT_SECRET_KEY:latest,REDIS_URL=REDIS_URL:latest,FERNET_KEY=FERNET_KEY:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest"
             
           HEALTH_URL=$(gcloud run services describe hospyn-495906-healthcare --region us-central1 --format 'value(status.url)')
           echo "HEALTH_URL=$HEALTH_URL" >> $GITHUB_ENV
