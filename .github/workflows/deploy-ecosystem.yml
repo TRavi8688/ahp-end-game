@@ -152,8 +152,8 @@ jobs:
             --platform managed \
             --no-allow-unauthenticated \
             --port 8080 \
-            --set-env-vars "ENVIRONMENT=production,ENCRYPTION_KEY=${{ secrets.FERNET_KEY }}" \
-            --update-secrets "DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_SECRET_KEY=SECRET_KEY:latest,REDIS_URL=REDIS_URL:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest,INTERNAL_SERVICE_SECRET=SECRET_KEY:latest"
+            --set-env-vars "ENVIRONMENT=production" \
+            --update-secrets "DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_SECRET_KEY=SECRET_KEY:latest,REDIS_URL=REDIS_URL:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest,INTERNAL_SERVICE_SECRET=SECRET_KEY:latest,ENCRYPTION_KEY=FERNET_KEY:latest"
           
           AUTH_URL=$(gcloud run services describe hospyn-495906-auth --region asia-south1 --format 'value(status.url)')
           echo "AUTH_URL=$AUTH_URL" >> $GITHUB_ENV
@@ -169,8 +169,8 @@ jobs:
             --platform managed \
             --no-allow-unauthenticated \
             --port 8080 \
-            --set-env-vars "ENVIRONMENT=production,ENCRYPTION_KEY=${{ secrets.FERNET_KEY }},FERNET_KEY=${{ secrets.FERNET_KEY }}" \
-            --update-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_SECRET_KEY=JWT_SECRET_KEY:latest,REDIS_URL=REDIS_URL:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest,INTERNAL_SERVICE_SECRET=SECRET_KEY:latest"
+            --set-env-vars "ENVIRONMENT=production" \
+            --update-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_SECRET_KEY=JWT_SECRET_KEY:latest,REDIS_URL=REDIS_URL:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest,INTERNAL_SERVICE_SECRET=SECRET_KEY:latest,ENCRYPTION_KEY=FERNET_KEY:latest,FERNET_KEY=FERNET_KEY:latest"
             
           HEALTH_URL=$(gcloud run services describe hospyn-495906-healthcare --region asia-south1 --format 'value(status.url)')
           echo "HEALTH_URL=$HEALTH_URL" >> $GITHUB_ENV
