@@ -35,6 +35,7 @@ from app.api.v1.onboarding_admin import router as onboarding_admin_router
 from app.api.v1.onboarding_simple import router as onboarding_simple_router
 from app.api.v1.tickets         import router as tickets_router
 from app.api.v1.employees       import router as employees_router
+from app.api.v1.matrix_router   import matrix_router
 
 api_router = APIRouter()
 
@@ -49,6 +50,9 @@ api_router.include_router(tickets_router,   prefix="/tickets",   tags=["Support 
 
 # ── Hospin Internal Employees ─────────────────────────────────────────────────
 api_router.include_router(employees_router, prefix="/employees", tags=["Hospyn Employees"])
+
+# ── Hospin Matrix 3.0 ─────────────────────────────────────────────────────────
+api_router.include_router(matrix_router,    prefix="/matrix",    tags=["Hospin Matrix 3.0"])
 
 # ── Core Clinical ─────────────────────────────────────────────────────────────
 api_router.include_router(auth_router,          prefix="/auth",         tags=["Auth"])

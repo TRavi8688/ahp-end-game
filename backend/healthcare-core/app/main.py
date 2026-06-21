@@ -69,6 +69,12 @@ async def lifespan(application: FastAPI):
         await alert_database_down(str(exc))
         raise RuntimeError(f"Database unreachable at startup: {exc}") from exc
 
+    # 4. Start the SLA Worker (runs every 60 seconds in the background)
+    import asyncio
+    from app.services.matrix_sla_engine import run_sla_worker
+    asyncio.create_task(run_sla_worker())
+    logger.info("SLA worker background task started")
+
     yield
 
     # Shutdown
