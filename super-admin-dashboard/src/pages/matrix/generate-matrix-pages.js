@@ -14,7 +14,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const OUT = path.join(__dirname, "src/pages/matrix");
+const OUT = __dirname;
 fs.mkdirSync(OUT, { recursive: true });
 
 // ─── Shared header for all pages ─────────────────────────────────────────────
@@ -553,7 +553,7 @@ export default function IncidentWarRoom() {
 `,
 
 // ────────────────────────────────────────────────────────────────────────────
-"AICopilot.jsx": `${header("import { useRef } from \\"react\\"")}
+"AICopilot.jsx": `${header('import { useRef } from "react"')}
 
 const SUGGESTIONS = [
   "Show all hospitals with increasing complaints in the last 7 days",
