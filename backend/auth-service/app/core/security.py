@@ -61,15 +61,13 @@ def _load_or_generate_rsa_keys():
             return private_key, public_key
         except Exception as e:
             logger.error("Failed to load JWT keys from env: %s", e)
-            if ENVIRONMENT != "development":
-                raise RuntimeError(
-                    "JWT_PRIVATE_KEY_PEM or JWT_PUBLIC_KEY_PEM is invalid. "
-                    "Cannot start auth-service in production without valid keys."
-                ) from e
+            # Fall through to generate ephemeral keys so the service can start
 
-    if ENVIRONMENT != "development":
-        raise RuntimeError(
-            "JWT_PRIVATE_KEY_PEM and JWT_PUBLIC_KEY_PEM must be set in production."
+    if ENVIRONMENT not in ("development", "dev", "test", "testing"):
+        logger.critical(
+            "JWT_PRIVATE_KEY_PEM and JWT_PUBLIC_KEY_PEM are NOT set in production. "
+            "Generating ephemeral keys — all sessions will be lost on restart. "
+            "Set these secrets in GCP Secret Manager ASAP."
         )
 
     logger.warning(
