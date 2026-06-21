@@ -12,8 +12,7 @@ from sqlalchemy.orm import sessionmaker
 from alembic.config import Config
 from alembic import command
 
-from app.db.base_class import Base  # adjust path as needed
-from app.db.session import get_db    # adjust path as needed
+from app.core.database import Base, get_db    # adjust path as needed
 
 # ---------------------------------------------------------------------------
 # Use TEST_DATABASE_URL — NEVER sqlite:///:memory:
