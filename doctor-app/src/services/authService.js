@@ -5,15 +5,9 @@ export const authService = {
      * Standard Login (OAuth2 form data format for FastAPI)
      */
     login: async (username, password) => {
-        // FastAPI OAuth2PasswordRequestForm requires URLSearchParams (x-www-form-urlencoded)
-        const params = new URLSearchParams();
-        params.append('username', username);
-        params.append('password', password);
-
-        return apiClient.post('/auth/login', params, {
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
+        return apiClient.post('/auth/login', {
+            username,
+            password,
         });
     },
 

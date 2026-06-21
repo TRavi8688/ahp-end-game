@@ -75,7 +75,13 @@ apiClient.interceptors.response.use(
                 break;
             default:
                 // General fallback
-                error.message = data?.detail || 'An unexpected error occurred.';
+                if (Array.isArray(data?.detail)) {
+                    error.message = data.detail.map(err => `${err.loc ? err.loc.join('.') : 'error'}: ${err.msg}`).join(', ');
+                } else if (typeof data?.detail === 'object') {
+                    error.message = JSON.stringify(data.detail);
+                } else {
+                    error.message = data?.detail || 'An unexpected error occurred.';
+                }
                 break;
         }
 
