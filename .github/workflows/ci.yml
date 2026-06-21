@@ -107,8 +107,8 @@ jobs:
 
       - name: Verify enc.key not in image
         run: |
-          # FIXED: This would have PASSED before because enc.key was in the image
-          result=$(docker run --rm hospyn-api-test find /app -name "enc.key" 2>/dev/null || true)
+          # FIXED: Override entrypoint to avoid execution of entrypoint.sh which prints startup text/fails
+          result=$(docker run --rm --entrypoint "" hospyn-api-test find /app -name "enc.key" 2>/dev/null || true)
           if [ -n "$result" ]; then
             echo "CRITICAL: enc.key found inside Docker image!"
             exit 1
@@ -117,7 +117,7 @@ jobs:
 
       - name: Verify archive directory not in image
         run: |
-          result=$(docker run --rm hospyn-api-test ls /app/archive 2>/dev/null || true)
+          result=$(docker run --rm --entrypoint "" hospyn-api-test ls /app/archive 2>/dev/null || true)
           if [ -n "$result" ]; then
             echo "FAIL: archive/ directory found in Docker image"
             exit 1
