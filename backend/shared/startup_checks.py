@@ -51,15 +51,18 @@ def _check_jwt_secret(settings) -> None:
     if env != "production":
         return
 
-    jwt_key = getattr(settings, "JWT_SECRET_KEY", "")
+    # Auth service uses SECRET_KEY; healthcare-core uses JWT_SECRET_KEY.
+    # Accept whichever the calling service provides.
+    jwt_key = getattr(settings, "JWT_SECRET_KEY", "") or getattr(settings, "SECRET_KEY", "")
     if jwt_key in _KNOWN_UNSAFE_SECRETS:
         raise ValueError(
-            "FATAL: JWT_SECRET_KEY is set to a known default value in production. "
+            "FATAL: JWT/secret key is set to a known default value in production. "
             'Generate: python -c "import secrets; print(secrets.token_urlsafe(64))"'
         )
     if len(jwt_key) < 32:
         raise ValueError(
-            "FATAL: JWT_SECRET_KEY is too short. Must be at least 32 characters."
+            "FATAL: JWT/secret key is too short. Must be at least 32 characters. "
+            "Set JWT_SECRET_KEY or SECRET_KEY in your environment."
         )
 
 
