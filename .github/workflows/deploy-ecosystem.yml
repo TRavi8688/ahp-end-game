@@ -46,17 +46,24 @@ jobs:
               - '.github/workflows/deploy-ecosystem.yml'
             patient:
               - 'patient-app/**'
+              - '.github/workflows/deploy-ecosystem.yml'
             doctor:
               - 'doctor-app/**'
+              - '.github/workflows/deploy-ecosystem.yml'
             erp:
               - 'staff-portal/**'
+              - '.github/workflows/deploy-ecosystem.yml'
             admin:
               - 'super-admin-dashboard/**'
+              - '.github/workflows/deploy-ecosystem.yml'
             landing:
               - 'hospyn-v2-web/**'
               - 'firebase.json'
+              - '.github/workflows/deploy-ecosystem.yml'
             partner:
               - 'partner-app/**'
+              - '.github/workflows/deploy-ecosystem.yml'
+
 
   run-tests:
     name: Run Automated Quality Gates
