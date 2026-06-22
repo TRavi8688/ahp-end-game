@@ -94,7 +94,9 @@ class Settings(BaseSettings):
     @classmethod
     def validate_database_url(cls, v: str) -> str:
         if v.startswith("postgresql://"):
-            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+            v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if "sslmode=" in v:
+            v = v.replace("sslmode=require", "ssl=require").replace("sslmode=disable", "")
         return v
 
     @field_validator("PARTNER_JWT_SECRET")
