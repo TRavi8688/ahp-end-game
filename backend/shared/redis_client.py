@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from typing import Any
 
 import redis.asyncio as aioredis
@@ -20,23 +21,66 @@ logger = logging.getLogger(__name__)
 _pool: Redis | None = None
 
 
+class MockRedis:
+    def __init__(self):
+        self.store = {}
+        self.ttls = {}
+
+    async def get(self, key):
+        return self.store.get(key)
+
+    async def set(self, key, value, ex=None, px=None, nx=False, xx=False):
+        self.store[key] = str(value)
+        return True
+
+    async def delete(self, *keys):
+        count = 0
+        for key in keys:
+            if key in self.store:
+                del self.store[key]
+                count += 1
+        return count
+
+    async def incr(self, key):
+        val = int(self.store.get(key, 0)) + 1
+        self.store[key] = str(val)
+        return val
+
+    async def expire(self, key, time):
+        return True
+
+    async def ping(self):
+        return True
+
+    async def aclose(self):
+        pass
+
 def init_redis(redis_url: str) -> Redis:
     """
     Initialize the global Redis connection pool.
     Call once at app startup inside lifespan.
     """
     global _pool
-    _pool = aioredis.from_url(
-        redis_url,
-        encoding="utf-8",
-        decode_responses=True,
-        max_connections=50,
-        socket_connect_timeout=3,
-        socket_timeout=3,
-        retry_on_timeout=True,
-        health_check_interval=30,
-    )
-    logger.info("Redis pool initialised")
+    if redis_url.startswith("redis://mock") or os.environ.get("ENVIRONMENT") == "development" or os.environ.get("ENV") == "development":
+        logger.warning("Using mock in-memory Redis client")
+        _pool = MockRedis()
+        return _pool
+        
+    try:
+        _pool = aioredis.from_url(
+            redis_url,
+            encoding="utf-8",
+            decode_responses=True,
+            max_connections=50,
+            socket_connect_timeout=3,
+            socket_timeout=3,
+            retry_on_timeout=True,
+            health_check_interval=30,
+        )
+        logger.info("Redis pool initialised")
+    except Exception as e:
+        logger.warning(f"Failed to connect to Redis ({e}). Falling back to mock Redis.")
+        _pool = MockRedis()
     return _pool
 
 

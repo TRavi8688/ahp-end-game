@@ -12,7 +12,7 @@ class ErrorBoundary extends React.Component {
     }
 
     componentDidCatch(error, errorInfo) {
-        console.error("Hospin Patient Error Boundary Caught:", error, errorInfo);
+        console.error("Hospyn Patient Error Boundary Caught:", error, errorInfo);
         this.setState({ error, errorInfo });
     }
 

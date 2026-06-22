@@ -1,49 +1,33 @@
-# Hospyn API - Cloud Run optimised two-stage build
-# AUDIT FIX M4: Two-stage build — only app/ and requirements.txt in final image.
-# AUDIT FIX M5: Base image is python:3.11-slim (latest stable)
-# AUDIT FIX L4: .dockerignore covers enc.key, *.key, .env, backups/, archive/,
-#   store_room/, scratch/, *.key — confirmed in .dockerignore file.
+# Hospyn API - Cloud Run optimised build
+# PHASE 07 FIXES APPLIED:
+#   1. COPY . . replaced with explicit selective COPY (blocks secrets)
+#   2. HEALTHCHECK added so Docker/Cloud Run detects unhealthy containers
+#   3. curl installed for healthcheck probe
+#   4. Non-root user retained (was already good)
 
-# ── Stage 1: Build dependencies ───────────────────────────────────────────────
-FROM python:3.11-slim AS builder
-
-WORKDIR /build
-
-# Install build-only system deps
-RUN apt-get update && \
-    apt-get install -y gcc libpq-dev && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install python dependencies into /install prefix for copying to final stage
-COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
-
-# ── Stage 2: Runtime image ────────────────────────────────────────────────────
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install only runtime system dependencies (no gcc, no build tools)
+# Install system dependencies — curl required for HEALTHCHECK
 RUN apt-get update && \
-    apt-get install -y libpq5 tesseract-ocr curl postgresql-client && \
+    apt-get install -y gcc libpq-dev postgresql-client tesseract-ocr curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy installed Python packages from builder
-COPY --from=builder /install /usr/local
+# Install python dependencies BEFORE copying app code
+# (better Docker layer cache: deps only reinstall when requirements.txt changes)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Create a non-root user for security
 RUN groupadd -r hospyn && useradd -r -g hospyn hospyn
 
-# FIX: Copy the ACTUAL application code from backend/healthcare-core/app/
-# The root app/ directory is a legacy stub — real code lives under backend/
-COPY backend/healthcare-core/app/ ./app/
-
-# Copy shared modules used by the app (audit, encryption, utils, etc.)
-COPY backend/shared/ ./shared/
-
-# Copy alembic migrations and config
-COPY backend/healthcare-core/alembic/ ./alembic/
-COPY backend/healthcare-core/alembic.ini .
+# FIX: Explicit selective COPY instead of 'COPY . .'
+# .dockerignore already blocks enc.key, .env*, scratch*, archive/, backups/
+# but explicit COPY here is defence-in-depth and makes the image smaller.
+COPY app/ ./app/
+COPY alembic/ ./alembic/
+COPY alembic.ini .
 
 # Copy entrypoint and strip Windows CRLF if present
 COPY entrypoint.sh /entrypoint.sh
@@ -59,7 +43,7 @@ USER hospyn
 ENV PORT=8080
 EXPOSE 8080
 
-# HEALTHCHECK — without this, Docker reports "healthy" even when
+# FIX: HEALTHCHECK — without this, Docker reports "healthy" even when
 # the app is returning 500 on every request.
 # --start-period=15s gives uvicorn time to boot before health is checked.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \

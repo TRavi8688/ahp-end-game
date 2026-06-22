@@ -143,7 +143,7 @@ export default function ProfileSetupScreen({ navigation, route }) {
                 <View style={[styles.infoBox, GlobalStyles.glass]}>
                     <Ionicons name="information-circle" size={20} color={Theme.colors.primary} />
                     <Text style={styles.infoText}>
-                        This data is used to generate your unique Hospin ID and verify your clinical records.
+                        This data is used to generate your unique Hospyn ID and verify your clinical records.
                     </Text>
                 </View>
             </ScrollView>

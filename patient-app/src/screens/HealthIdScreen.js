@@ -45,12 +45,12 @@ export default function HealthIdScreen() {
         );
     }
 
-    const qrValue = profile?.hospyn_id || 'HOSPIN-PENDING';
+    const qrValue = profile?.hospyn_id || 'HOSPYN-PENDING';
 
     const copyToClipboard = async () => {
-        if (!qrValue || qrValue === 'HOSPIN-PENDING') return;
+        if (!qrValue || qrValue === 'HOSPYN-PENDING') return;
         await Clipboard.setStringAsync(qrValue);
-        Alert.alert('Copied!', 'Your Hospin ID has been copied to your clipboard.');
+        Alert.alert('Copied!', 'Your Hospyn ID has been copied to your clipboard.');
     };
 
     const handleDownloadQR = () => {
@@ -58,7 +58,7 @@ export default function HealthIdScreen() {
         if (Platform.OS === 'web') {
             const link = document.createElement('a');
             link.href = url;
-            link.download = `Hospin_QR_${qrValue}.png`;
+            link.download = `Hospyn_QR_${qrValue}.png`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -72,7 +72,7 @@ export default function HealthIdScreen() {
     return (
         <ScrollView style={[styles.container, { backgroundColor: Theme.colors.background }]} contentContainerStyle={{ padding: 24, alignItems: 'center' }}>
             <Text style={[styles.title, { color: Theme.colors.text }]}>Digital Health Passport</Text>
-            <Text style={[styles.subtitle, { color: Theme.colors.textMuted }]}>Scan this QR code at any Hospin-enabled facility for instant clinical history access.</Text>
+            <Text style={[styles.subtitle, { color: Theme.colors.textMuted }]}>Scan this QR code at any Hospyn-enabled facility for instant clinical history access.</Text>
 
             {/* Premium ID Card */}
             <LinearGradient
@@ -83,7 +83,7 @@ export default function HealthIdScreen() {
             >
                 <View style={styles.cardHeader}>
                     <View>
-                        <Text style={[styles.brandName, { color: isLight ? '#7C3AED' : '#fff' }]}HOSPIN</Text>
+                        <Text style={[styles.brandName, { color: isLight ? '#7C3AED' : '#fff' }]}>HOSPYN</Text>
                         <Text style={[styles.cardType, { color: isLight ? '#64748B' : 'rgba(255,255,255,0.6)' }]}>GLOBAL PATIENT ID</Text>
                     </View>
                     <Ionicons name="shield-checkmark" size={32} color="#10b981" />

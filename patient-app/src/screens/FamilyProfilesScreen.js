@@ -213,7 +213,7 @@ export default function FamilyProfilesScreen({ navigation }) {
                 {isAdding && (
                     <Animated.View entering={FadeInDown} style={[styles.addCard, { backgroundColor: Theme.colors.background === '#050810' ? 'rgba(99,102,241,0.04)' : 'rgba(124,58,237,0.04)', borderColor: Theme.colors.background === '#050810' ? 'rgba(99,102,241,0.15)' : 'rgba(124,58,237,0.15)' }]}>
                         <Text style={[styles.addCardTitle, { color: Theme.colors.text }]}>Add Family Member</Text>
-                        <Text style={[styles.addCardSub, { color: Theme.colors.textMuted }]}>Each member gets a unique Hospin ID & QR code</Text>
+                        <Text style={[styles.addCardSub, { color: Theme.colors.textMuted }]}>Each member gets a unique Hospyn ID & QR code</Text>
 
                         <Text style={[styles.fieldLabel, { color: Theme.colors.primary }]}>RELATIONSHIP</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.relationRow}>
@@ -349,7 +349,7 @@ export default function FamilyProfilesScreen({ navigation }) {
                                 />
                             ) : null}
                         </View>
-                        <Text style={[styles.qrHint, { color: Theme.colors.textMuted }]}>Show this QR at any Hospin-enabled hospital for instant record access</Text>
+                        <Text style={[styles.qrHint, { color: Theme.colors.textMuted }]}>Show this QR at any Hospyn-enabled hospital for instant record access</Text>
                         <TouchableOpacity style={[styles.qrCloseBtn, { backgroundColor: Theme.colors.background === '#050810' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]} onPress={() => { HapticUtils.light(); setQrModal(null); }}>
                             <Text style={[styles.qrCloseBtnText, { color: Theme.colors.textMuted }]}>CLOSE</Text>
                         </TouchableOpacity>

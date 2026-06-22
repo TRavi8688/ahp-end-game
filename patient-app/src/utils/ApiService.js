@@ -8,7 +8,7 @@ import { API_BASE_URL } from '../api';
 const SessionMemoryCache = new Map();
 
 /**
- * Hospin 2.0 Enterprise API Service (Patient App)
+ * Hospyn 2.0 Enterprise API Service (Patient App)
  * Centralized handler for all production clinical endpoints.
  */
 class ApiService {
@@ -131,7 +131,7 @@ class ApiService {
         await new Promise(resolve => setTimeout(resolve, 2000));
         const profile = await this.getProfile();
         return {
-            filename: `Hospin_Export_${profile.hospyn_id}.json`,
+            filename: `Hospyn_Export_${profile.hospyn_id}.json`,
             timestamp: new Date().toISOString(),
             status: 'ready'
         };
@@ -302,45 +302,6 @@ class ApiService {
 
     async getLabReportDetail(orderId) {
         const response = await this.client.get(`/lab/orders/${orderId}/results`);
-        return response.data;
-    }
-
-    // ── Support Tickets ──────────────────────────────────────────────────────
-    async createSupportTicket({ category, subject, description, priority = 'medium', owner_email, owner_phone }) {
-        const response = await this.client.post('/tickets/create', {
-            category,
-            subject,
-            description,
-            priority,
-            product: 'hospin_patient_app',
-            owner_email: owner_email || undefined,
-            owner_phone: owner_phone || undefined,
-        });
-        return response.data;
-    }
-
-    async getMyTickets() {
-        const token  = await SecurityUtils.getToken();
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const response = await this.client.get('/tickets/my-tickets', { headers });
-        return response.data;
-    }
-
-    // ── Phone Number OTP Update ───────────────────────────────────────────────
-    async sendPhoneUpdateOtp(newPhone) {
-        const response = await this.client.post('/auth/send-otp', {
-            phone: newPhone,
-            purpose: 'phone_update',
-        });
-        return response.data;
-    }
-
-    async verifyPhoneUpdateOtp(newPhone, otp) {
-        const response = await this.client.post('/auth/verify-otp', {
-            phone: newPhone,
-            otp,
-            purpose: 'phone_update',
-        });
         return response.data;
     }
 }

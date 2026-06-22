@@ -9,7 +9,7 @@ import HapticUtils from '../utils/HapticUtils';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function RegistrationSuccessScreen({ navigation, route }) {
-    const { hospyn_id, fullName } = route.params || { hospyn_id: 'Hospin-IN-XXXX-XXXX-XX', fullName: 'Member' };
+    const { hospyn_id, fullName } = route.params || { hospyn_id: 'Hospyn-IN-XXXX-XXXX-XX', fullName: 'Member' };
     const { setIsAuthenticated } = useAuth();
 
     const copyToClipboard = async () => {
@@ -21,7 +21,7 @@ export default function RegistrationSuccessScreen({ navigation, route }) {
         HapticUtils.medium();
         try {
             await Share.share({
-                message: `My Hospin Health Passport ID is ${hospyn_id}. Scan this to view my medical history.`,
+                message: `My Hospyn Health Passport ID is ${hospyn_id}. Scan this to view my medical history.`,
             });
         } catch (error) {
             console.error(error);
@@ -34,14 +34,14 @@ export default function RegistrationSuccessScreen({ navigation, route }) {
                 <View style={styles.successIcon}>
                     <Ionicons name="checkmark-circle" size={80} color={Theme.colors.primary} />
                 </View>
-                <Text style={styles.welcomeText}>Welcome to Hospin,</Text>
+                <Text style={styles.welcomeText}>Welcome to Hospyn,</Text>
                 <Text style={[styles.nameText, GlobalStyles.heading]}>{fullName}!</Text>
                 <Text style={styles.subtitle}>Your AI Health Passport is ready.</Text>
             </LinearGradient>
 
             <View style={styles.content}>
                 <View style={[styles.idCard, GlobalStyles.glass]}>
-                    <Text style={styles.idLabel}>YOUR UNIQUE HOSPIN ID</Text>
+                    <Text style={styles.idLabel}>YOUR UNIQUE HOSPYN ID</Text>
                     <View style={styles.idRow}>
                         <Text style={[styles.idValue, { color: '#fff' }]}>{hospyn_id}</Text>
                         <TouchableOpacity onPress={copyToClipboard} style={styles.copyBtn}>
@@ -73,7 +73,7 @@ export default function RegistrationSuccessScreen({ navigation, route }) {
                     </View>
                     <View style={styles.benefitItem}>
                         <Ionicons name="people-outline" size={24} color={Theme.colors.primary} />
-                        <Text style={[styles.benefitText, { color: '#94A3B8' }]}>Share your Hospin ID with doctors for instant consultation.</Text>
+                        <Text style={[styles.benefitText, { color: '#94A3B8' }]}>Share your Hospyn ID with doctors for instant consultation.</Text>
                     </View>
                 </View>
 

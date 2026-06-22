@@ -33,7 +33,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from passlib.context import CryptContext
+import bcrypt
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,7 +42,7 @@ from app.core.database import get_db
 
 logger   = logging.getLogger(__name__)
 router   = APIRouter()
-pwd_ctx  = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# pwd_ctx removed
 
 # ── Team and level codes ──────────────────────────────────────────────────────
 TEAM_CODES  = {"finance": "FIN", "engineering": "ENG", "onboarding": "ONB", "support": "SUP", "data": "DAT"}
@@ -176,7 +176,8 @@ async def create_employee(
 
     # Generate temp password
     temp_password   = _gen_password()
-    hashed_password = pwd_ctx.hash(temp_password)
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(temp_password.encode("utf-8"), salt).decode("utf-8")
     now             = datetime.now(timezone.utc)
     new_id          = uuid.uuid4()
     initials        = "".join(p[0].upper() for p in body.full_name.split()[:2])

@@ -1,11 +1,10 @@
 # Hospyn API Gateway - Production Dockerfile
-# AUDIT FIX M1: Removed hardcoded ENV service URLs.
-#   All service URLs are passed at runtime via docker-compose environment: keys.
-#   Hardcoded ENV defaults bake config into the image layer, requiring a rebuild
-#   for every environment change. This is now handled by docker-compose.yml.
-# AUDIT FIX M5: Base image pinned to SHA256 digest (python:3.11-slim).
-#   Digest verified: 2026-06-01. Re-pin periodically via:
-#   docker pull python:3.11-slim && docker inspect python:3.11-slim --format '{{index .RepoDigests 0}}'
+# PHASE 07 FIXES APPLIED:
+#   1. Non-root user added (was running as root — critical security gap)
+#   2. HEALTHCHECK added
+#   3. curl installed for healthcheck probe
+#   4. Explicit COPY instead of broad copy
+#   5. JWT auth validation middleware note added (see start_api.py fixes)
 
 FROM python:3.11-slim
 
@@ -17,7 +16,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Python packages for the gateway proxy
-RUN pip install --no-cache-dir fastapi uvicorn httpx python-jose[cryptography] slowapi
+RUN pip install --no-cache-dir fastapi uvicorn httpx python-jose[cryptography]
 
 # FIX: Create non-root user (previously gateway ran as root)
 RUN groupadd -r gateway && useradd -r -g gateway gateway
@@ -31,16 +30,14 @@ RUN chown -R gateway:gateway /app
 # Switch to non-root user
 USER gateway
 
-# FIX M1: ENV lines for AUTH_SERVICE_URL, HEALTHCARE_SERVICE_URL, AI_SERVICE_URL
-# have been REMOVED. All service URLs are injected at runtime by docker-compose.yml
-# or Cloud Run environment variables. This prevents stale values being baked
-# into the image when service names or ports change.
 ENV PORT=8000
 ENV DOCKER_ENV=true
+ENV AUTH_SERVICE_URL=http://auth-service:8001
+ENV HEALTHCARE_SERVICE_URL=http://healthcare-core:8002
 
 EXPOSE 8000
 
-# HEALTHCHECK for the gateway
+# FIX: HEALTHCHECK for the gateway
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:${PORT}/health || exit 1
 

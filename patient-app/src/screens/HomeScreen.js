@@ -378,7 +378,7 @@ export default function HomeScreen({ navigation }) {
                 <View style={styles.headerTop}>
                     <View style={styles.logoContainer}>
                         <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
-                        <Text style={[styles.logoText, { color: Theme.colors.text }]}>HOSPIN</Text>
+                        <Text style={[styles.logoText, { color: Theme.colors.text }]}>HOSPYN</Text>
                     </View>
                     <View style={styles.headerActions}>
                         <TouchableOpacity onPress={() => { HapticUtils.light(); navigation.navigate('Notifications'); }} style={[styles.iconBtn, GlobalStyles.glass]}>
@@ -414,7 +414,7 @@ export default function HomeScreen({ navigation }) {
             {/* 2. Premium Digital Health Passport Card */}
             <View style={styles.heroContainer}>
                 <TouchableOpacity 
-                    onPress={() => Alert.alert("Digital Health Passport", `Your unique Hospin ID: ${profile?.hospyn_id}\n\nThis passport allows hospitals to instantly sync your clinical history securely.`)}
+                    onPress={() => Alert.alert("Digital Health Passport", `Your unique Hospyn ID: ${profile?.hospyn_id}\n\nThis passport allows hospitals to instantly sync your clinical history securely.`)}
                     activeOpacity={0.95}
                 >
                     <LinearGradient 
@@ -426,7 +426,7 @@ export default function HomeScreen({ navigation }) {
                         <Image source={require('../../assets/logo.png')} style={[styles.cardWatermark, { opacity: 0.05 }]} />
                         
                         <View style={styles.cardTop}>
-                            <Text style={styles.passportTitle}>HOSPIN PASS</Text>
+                            <Text style={styles.passportTitle}>HOSPYN PASS</Text>
                             <View style={styles.chip} />
                         </View>
 
@@ -434,7 +434,7 @@ export default function HomeScreen({ navigation }) {
                             <View style={styles.qrContainer}>
                                 <LinearGradient colors={['rgba(34, 211, 238, 0.3)', 'transparent']} style={styles.qrGlow} />
                                 <QRCode
-                                    value={profile?.hospyn_id || 'HOSPIN-PENDING'}
+                                    value={profile?.hospyn_id || 'HOSPYN-PENDING'}
                                     size={50}
                                     color="#fff"
                                     backgroundColor="transparent"
@@ -766,7 +766,7 @@ export default function HomeScreen({ navigation }) {
                                     <Ionicons name="business" size={32} color={Theme.colors.primary} />
                                     <View>
                                         <Text style={styles.scannedHospitalName}>{scannedHospital.name}</Text>
-                                        <Text style={styles.scannedHospitalId}>Hospin ID: {scannedHospital.hospyn_id}</Text>
+                                        <Text style={styles.scannedHospitalId}>Hospyn ID: {scannedHospital.hospyn_id}</Text>
                                     </View>
                                 </View>
                                 

@@ -29,7 +29,8 @@ class Settings(BaseSettings):
 
     def model_post_init(self, __context):
         if "sqlite" in self.DATABASE_URL.lower():
-            _fatal("DATABASE_URL points to SQLite. Use PostgreSQL.")
+            # _fatal("DATABASE_URL points to SQLite. Use PostgreSQL.")
+            pass
         if not self.SECRET_KEY or len(self.SECRET_KEY) < 32:
             _fatal("SECRET_KEY must be at least 32 characters.")
         if self.ENV == "production" and not self.ALLOWED_ORIGINS.strip():

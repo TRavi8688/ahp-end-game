@@ -164,7 +164,7 @@ export default function AuthScreen({ navigation }) {
     };
 
     const handleHospynLogin = async () => {
-        if (!hospynId || !password) return Alert.alert('Missing Info', 'Please enter your Hospin ID and Password.');
+        if (!hospynId || !password) return Alert.alert('Missing Info', 'Please enter your Hospyn ID and Password.');
         setLoading(true);
         try {
             const identifier = hospynId.trim();
@@ -192,7 +192,7 @@ export default function AuthScreen({ navigation }) {
             
             setLoading(true);
             try {
-                // Pass identity token to backend to verify and mint Hospin token
+                // Pass identity token to backend to verify and mint Hospyn token
                 const data = await authService.appleLogin(credential.identityToken);
                 const { access_token } = data;
                 
@@ -287,7 +287,7 @@ export default function AuthScreen({ navigation }) {
 
     // Forgot Password Flow
     const handleForgotRequest = async () => {
-        if (!forgotIdentifier) return Alert.alert('Required', 'Please enter your registered Hospin ID or Email.');
+        if (!forgotIdentifier) return Alert.alert('Required', 'Please enter your registered Hospyn ID or Email.');
         setForgotLoading(true);
         try {
             const data = await authService.requestForgotPassword(forgotIdentifier);
@@ -359,12 +359,12 @@ export default function AuthScreen({ navigation }) {
 
                         <View style={styles.inputArea}>
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>HOSPIN ID / EMAIL</Text>
+                                <Text style={styles.label}>HOSPYN ID / EMAIL</Text>
                                 <View style={styles.inputWrapper}>
                                     <Ionicons name="person-outline" size={18} color="#94A3B8" style={styles.inputIcon} />
                                     <TextInput
                                         style={styles.input}
-                                        placeholder="HOSPIN-000000-XXX"
+                                        placeholder="HOSPYN-000000-XXX"
                                         placeholderTextColor="#475569"
                                         value={hospynId}
                                         onChangeText={(t) => setHospynId(t)}
@@ -597,12 +597,12 @@ export default function AuthScreen({ navigation }) {
                             {forgotStep === 1 && (
                                 <View style={styles.setupForm}>
                                     <View style={styles.inputGroup}>
-                                        <Text style={styles.label}>REGISTERED EMAIL / HOSPIN ID</Text>
+                                        <Text style={styles.label}>REGISTERED EMAIL / HOSPYN ID</Text>
                                         <View style={styles.inputWrapper}>
                                             <Ionicons name="mail-outline" size={18} color="#94A3B8" style={styles.inputIcon} />
                                             <TextInput
                                                 style={styles.input}
-                                                placeholder="email@example.com or HOSPIN-ID"
+                                                placeholder="email@example.com or HOSPYN-ID"
                                                 placeholderTextColor="#475569"
                                                 value={forgotIdentifier}
                                                 onChangeText={setForgotIdentifier}

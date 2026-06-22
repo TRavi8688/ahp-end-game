@@ -1,4 +1,24 @@
-import React, { useState, useEffect } from 'react';
+/**
+ * patient-app/App.js
+ * Phase 6 Fix — Wire push notifications after login
+ *
+ * REPLACE: patient-app/App.js (full file)
+ *
+ * Changes from original:
+ *   1. registerForPushNotifications() called after isAuthenticated becomes true
+ *   2. addNotificationListeners() wired with navigation-aware handlers
+ *   3. Notification deep-link routing: appointment_reminder → Appointments,
+ *      lab_result → LabResults, billing → Billing
+ *   4. cleanup returned from useEffect to prevent memory leaks
+ *
+ * INSTALL FIRST (run once on your dev machine, then commit package.json):
+ *   cd patient-app
+ *   npx expo install expo-notifications expo-device expo-constants
+ *   # @react-native-async-storage/async-storage is already in package.json v1.23.1
+ *
+ * NO further manual changes needed after this file is deployed.
+ */
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -11,23 +31,22 @@ try {
   if (Platform.OS !== 'web') {
     Sentry = require('@sentry/react-native');
     Updates = require('expo-updates');
-    
+
     const sentryDsn = process.env.EXPO_PUBLIC_SENTRY_DSN;
     if (!__DEV__ && !sentryDsn) {
-        console.warn('CRITICAL SECURITY WARNING: EXPO_PUBLIC_SENTRY_DSN is missing in production. Crash reports will not be captured.');
+      console.warn('CRITICAL SECURITY WARNING: EXPO_PUBLIC_SENTRY_DSN is missing in production.');
     }
-
     if (sentryDsn) {
-        Sentry.init({
-            dsn: sentryDsn,
-            debug: __DEV__,
-            enableAutoSessionTracking: true,
-            environment: __DEV__ ? 'development' : 'production',
-        });
+      Sentry.init({
+        dsn: sentryDsn,
+        debug: __DEV__,
+        enableAutoSessionTracking: true,
+        environment: __DEV__ ? 'development' : 'production',
+      });
     }
   }
 } catch (e) {
-  console.log("Native module load skipped", e);
+  console.log('Native module load skipped', e);
 }
 
 // Core
@@ -40,16 +59,22 @@ import { Syne_800ExtraBold, Syne_700Bold } from '@expo-google-fonts/syne';
 import { SpaceMono_400Regular } from '@expo-google-fonts/space-mono';
 import { DMSans_400Regular } from '@expo-google-fonts/dm-sans';
 
+// ─── Push Notifications (Phase 6) ─────────────────────────────────────────────
+import {
+  registerForPushNotifications,
+  addNotificationListeners,
+} from './src/services/notifications';
+// ──────────────────────────────────────────────────────────────────────────────
+
 // ─── Screens ──────────────────────────────────────────────────────────────────
 import LoginScreen            from './src/screens/LoginScreen';
 import RegisterScreen         from './src/screens/RegisterScreen';
-import ProfileSetupScreen     from './src/screens/ProfileSetupScreen';   // FIX: was imported but never registered
+import ProfileSetupScreen     from './src/screens/ProfileSetupScreen';
 import OnboardingScreen       from './src/screens/OnboardingScreen';
 import RegistrationSuccessScreen from './src/screens/RegistrationSuccessScreen';
 
 import MainTabs               from './src/navigation/MainTabs';
 
-// Existing authenticated screens
 import SharedAccessScreen     from './src/screens/SharedAccessScreen';
 import SharingSettingsScreen  from './src/screens/SharingSettingsScreen';
 import NotificationsScreen    from './src/screens/NotificationsScreen';
@@ -67,17 +92,22 @@ import MedsScreen             from './src/screens/MedsScreen';
 import AppointmentsScreen     from './src/screens/AppointmentsScreen';
 import ChittiAiScreen         from './src/screens/ChittiAiScreen';
 
-// NEW: Doctor booking + queue flow
+// ─── Phase 6: New Screens ─────────────────────────────────────────────────────
+import AppointmentBookingScreen from './src/screens/AppointmentBookingScreen';
+// Existing booking screens (already registered in original)
 import DoctorSearchScreen     from './src/screens/DoctorSearchScreen';
 import BookAppointmentScreen  from './src/screens/BookAppointmentScreen';
 import QueueStatusScreen      from './src/screens/QueueStatusScreen';
-import SupportScreen          from './src/screens/SupportScreen';
 // ─────────────────────────────────────────────────────────────────────────────
+
+import ErrorBoundary from './src/components/ErrorBoundary';
 
 const Stack = createNativeStackNavigator();
 
 function AppContent() {
   const { isAuthenticated, isLoading, logout } = useAuth();
+  const navigationRef = useRef(null);
+
   const [fontsLoaded] = useFonts({
     Syne_800ExtraBold,
     Syne_700Bold,
@@ -87,15 +117,14 @@ function AppContent() {
 
   const [theme, setThemeState] = useState(getTheme());
   useEffect(() => {
-    return subscribeToTheme((newTheme) => {
-      setThemeState(newTheme);
-    });
+    return subscribeToTheme((newTheme) => setThemeState(newTheme));
   }, []);
 
-  const [bootReady,   setBootReady]   = useState(false);
-  const [isUnlocked,  setIsUnlocked]  = useState(false);
-  const [isUpdating,  setIsUpdating]  = useState(false);
+  const [bootReady,  setBootReady]  = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
+  // ── OTA Updates ─────────────────────────────────────────────────────────────
   useEffect(() => {
     const checkUpdates = async () => {
       if (__DEV__ || Platform.OS === 'web' || !Updates) return;
@@ -107,24 +136,24 @@ function AppContent() {
           await Updates.reloadAsync();
         }
       } catch (e) {
-        console.log("Update check failed", e);
+        console.log('Update check failed', e);
       }
     };
     checkUpdates();
   }, []);
 
+  // ── Auth failure logout hook ─────────────────────────────────────────────────
   useEffect(() => {
-    ApiService.setAuthFailureCallback(() => {
-      logout();
-    });
+    ApiService.setAuthFailureCallback(() => logout());
   }, [logout]);
 
+  // ── Boot sequence ─────────────────────────────────────────────────────────────
   useEffect(() => {
     const runBoot = async () => {
       if (fontsLoaded && !isLoading && !isUpdating) {
         if (isAuthenticated) {
           const { SecurityService } = require('./src/utils/SecurityService');
-          const success = await SecurityService.authenticate('Unlock Hospin Clinical Vault');
+          const success = await SecurityService.authenticate('Unlock Hospyn Clinical Vault');
           if (success) {
             setIsUnlocked(true);
           } else {
@@ -140,29 +169,77 @@ function AppContent() {
     runBoot();
   }, [fontsLoaded, isLoading, isAuthenticated, isUpdating]);
 
+  // ── Phase 6: Push Notifications ──────────────────────────────────────────────
+  // Register after the user is authenticated (needs auth token to POST push-token
+  // to the backend). Cleanup listeners on logout.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    // Request permission + get token + POST to backend
+    registerForPushNotifications().catch((err) => {
+      console.warn('[Push] Registration failed silently:', err?.message);
+    });
+
+    // Wire notification tap handler — navigate based on payload.type
+    const cleanup = addNotificationListeners({
+      onReceived: (notification) => {
+        console.log('[Push] Received:', notification.request.content.title);
+      },
+      onResponse: (response) => {
+        const data = response.notification.request.content.data || {};
+        const nav = navigationRef.current;
+        if (!nav) return;
+
+        switch (data.type) {
+          case 'appointment_reminder':
+            nav.navigate('Appointments');
+            break;
+          case 'lab_result':
+            nav.navigate('LabResults');
+            break;
+          case 'billing':
+            nav.navigate('Billing');
+            break;
+          default:
+            nav.navigate('Notifications');
+        }
+      },
+    });
+
+    return cleanup; // removes listeners on logout/unmount
+  }, [isAuthenticated]);
+  // ─────────────────────────────────────────────────────────────────────────────
+
   if (isUpdating || !bootReady) {
     return (
       <View style={{
         flex: 1,
         backgroundColor: theme === 'light' ? '#F8F7FF' : '#050810',
-        justifyContent: 'center', alignItems: 'center', padding: 40
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 40,
       }}>
         <Text style={{ color: '#6366F1', fontSize: 32, fontWeight: '900', letterSpacing: -1 }}>
-          HOSPIN <Text style={{ color: theme === 'light' ? '#0F172A' : '#fff' }}>CORE</Text>
+          HOSPYN <Text style={{ color: theme === 'light' ? '#0F172A' : '#fff' }}>CORE</Text>
         </Text>
         <View style={{ marginTop: 40, alignItems: 'center' }}>
           <ActivityIndicator size="large" color="#6366F1" />
           <Text style={{
             color: theme === 'light' ? '#475569' : '#94A3B8',
-            fontSize: 12, marginTop: 20, fontWeight: 'bold', letterSpacing: 2
+            fontSize: 12,
+            marginTop: 20,
+            fontWeight: 'bold',
+            letterSpacing: 2,
           }}>
-            {isUpdating ? "SYNCING CLINICAL ASSETS..." : "INITIALIZING VAULT..."}
+            {isUpdating ? 'SYNCING CLINICAL ASSETS...' : 'INITIALIZING VAULT...'}
           </Text>
         </View>
         <Text style={{
-          position: 'absolute', bottom: 40,
+          position: 'absolute',
+          bottom: 40,
           color: theme === 'light' ? '#94A3B8' : '#1E293B',
-          fontSize: 10, fontWeight: 'bold'
+          fontSize: 10,
+          fontWeight: 'bold',
         }}>
           VERSION {Updates?.updateId ? Updates.updateId.substring(0, 8).toUpperCase() : '2.0.2-STABLE'}
         </Text>
@@ -173,17 +250,13 @@ function AppContent() {
   return (
     <SafeAreaProvider style={{ flex: 1, backgroundColor: theme === 'light' ? '#F8F7FF' : '#050810' }}>
       <SocketProvider>
-        <NavigationContainer>
+        <NavigationContainer ref={navigationRef}>
           <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
             {!isAuthenticated ? (
               // ─── Unauthenticated stack ──────────────────────────────────────
               <>
                 <Stack.Screen name="Login"               component={LoginScreen} />
                 <Stack.Screen name="Register"            component={RegisterScreen} />
-                {/* FIX: ProfileSetupScreen was imported in the original App.js but never
-                    registered as a Stack.Screen — navigation.navigate('ProfileSetup')
-                    would throw "The action 'NAVIGATE' with payload {"name":"ProfileSetup"}
-                    was not handled" on any screen that tries to reach it. */}
                 <Stack.Screen name="ProfileSetup"        component={ProfileSetupScreen} />
                 <Stack.Screen name="Onboarding"          component={OnboardingScreen} />
                 <Stack.Screen name="RegistrationSuccess" component={RegistrationSuccessScreen} />
@@ -191,10 +264,7 @@ function AppContent() {
             ) : (
               // ─── Authenticated stack ────────────────────────────────────────
               <>
-                {/* Root tab navigator */}
                 <Stack.Screen name="MainTabs"            component={MainTabs} />
-
-                {/* Existing screens */}
                 <Stack.Screen name="SharedAccess"        component={SharedAccessScreen} />
                 <Stack.Screen name="SharingSettings"     component={SharingSettingsScreen} />
                 <Stack.Screen name="Notifications"       component={NotificationsScreen} />
@@ -212,14 +282,14 @@ function AppContent() {
                 <Stack.Screen name="Appointments"        component={AppointmentsScreen} />
                 <Stack.Screen name="ChittiAi"            component={ChittiAiScreen} />
 
-                {/* NEW: Doctor booking + live queue flow ─────────────────── */}
-                {/* DoctorSearchScreen: GET /doctors/search                   */}
+                {/* Existing booking + queue flow */}
                 <Stack.Screen name="DoctorSearch"        component={DoctorSearchScreen} />
-                {/* BookAppointmentScreen: slot picker + Razorpay + POST /appointments */}
                 <Stack.Screen name="BookAppointment"     component={BookAppointmentScreen} />
-                {/* QueueStatusScreen: WebSocket live queue display           */}
                 <Stack.Screen name="QueueStatus"         component={QueueStatusScreen} />
-                <Stack.Screen name="Support"             component={SupportScreen} />
+
+                {/* Phase 6: New appointment booking screen */}
+                {/* Navigate here with: navigation.navigate("AppointmentBooking") */}
+                <Stack.Screen name="AppointmentBooking"  component={AppointmentBookingScreen} />
               </>
             )}
           </Stack.Navigator>
@@ -228,8 +298,6 @@ function AppContent() {
     </SafeAreaProvider>
   );
 }
-
-import ErrorBoundary from './src/components/ErrorBoundary';
 
 function App() {
   return (
@@ -241,5 +309,4 @@ function App() {
   );
 }
 
-// Sentry.wrap is only available on native platforms
 export default (Sentry ? Sentry.wrap(App) : App);

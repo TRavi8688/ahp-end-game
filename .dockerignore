@@ -1,50 +1,90 @@
-# PHASE 3 FIX: enc.key must NEVER be baked into a Docker image layer.
-# Audit finding: COPY . . in Dockerfile copies enc.key into every image.
-enc.key
-*.key
-*.pem
-*.crt
+# .dockerignore — PHASE 07 FIX
+# CRITICAL: enc.key and all secrets are excluded first.
+# Without this, COPY . . would bake the encryption key into every image layer.
 
-# Environment files
+# ─── SECRETS (CRITICAL — must be first) ─────────────────────────
+enc.key
 .env
 .env.*
 !.env.example
+*.key
+*.pem
+*.p12
+*.pfx
 
-# Dead code / dev artefacts — audit finding: still present in repo
+# ─── DEV / SCRATCH FILES ─────────────────────────────────────────
+scratch.py
+scratch/
 archive/
 backups/
-scratch/
 store_room/
-book/
-scratch.py
 start_manual_testing.py
-recovery.md
-HOSPYN_CTO_BLUEPRINT_PART_*.md
+start.bat
+start_all.ps1
+start_all.py
+create_admin.py
 
-# Test/dev files not needed in image
-tests/
-.pytest_cache/
-.coverage
-htmlcov/
-.mypy_cache/
-.ruff_cache/
+# ─── DOCUMENTATION (not needed in image) ─────────────────────────
+*.md
+!README.md
+book/
+docs/
 
-# Git
-.git/
-.gitignore
+# ─── FRONTEND APPS (separate deployment) ─────────────────────────
+patient-app/
+doctor-app/
+hospyn-v2-web/
+hr-portal/
+partner-app/
+pharma-mobile-app/
+staff-portal/
+super-admin-dashboard/
 
-# Python cache
+# ─── PYTHON CACHE ─────────────────────────────────────────────────
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+.Python
 *.egg-info/
+dist/
+build/
+.eggs/
 
-# Node
+# ─── TESTS ────────────────────────────────────────────────────────
+tests/
+pytest.ini
+.coverage
+htmlcov/
+.pytest_cache/
+
+# ─── GIT ──────────────────────────────────────────────────────────
+.git/
+.gitignore
+.gitattributes
+
+# ─── NODE ─────────────────────────────────────────────────────────
 node_modules/
+npm-debug.log
 package-lock.json
 
-# IDE
+# ─── FIREBASE (not part of backend build) ────────────────────────
+.firebase/
+.firebaserc
+firebase.json
+
+# ─── TERRAFORM ────────────────────────────────────────────────────
+terraform/
+
+# ─── IDE / OS ─────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
+*.swo
 .DS_Store
+Thumbs.db
+
+# ─── STATIC / NGINX (separate containers) ────────────────────────
+static/
+nginx/
+nginx.conf

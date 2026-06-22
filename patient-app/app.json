@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Hospin",
+    "name": "Hospyn",
     "slug": "hospyn-patient",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,9 +16,9 @@
       "bundleIdentifier": "com.hospyn.patient",
       "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "Hospin requires camera access to scan physical medical reports, prescriptions, and profile avatars for your clinical vault.",
-        "NSFaceIDUsageDescription": "Hospin uses FaceID to securely authenticate your identity before decrypting and displaying your sensitive medical records.",
-        "NSMicrophoneUsageDescription": "Hospin requires microphone access to record voice notes for telemedicine consultations."
+        "NSCameraUsageDescription": "Hospyn requires camera access to scan physical medical reports, prescriptions, and profile avatars for your clinical vault.",
+        "NSFaceIDUsageDescription": "Hospyn uses FaceID to securely authenticate your identity before decrypting and displaying your sensitive medical records.",
+        "NSMicrophoneUsageDescription": "Hospyn requires microphone access to record voice notes for telemedicine consultations."
       },
       "usesAppleSignIn": true
     },
@@ -36,7 +36,7 @@
       "package": "com.hospyn.patient",
       "versionCode": 1
     },
-    "privacyPolicyUrl": "https://hospin.in/privacy",
+    "privacyPolicyUrl": "https://hospyn.com/privacy",
     "plugins": [
       "expo-font",
       "expo-secure-store",
@@ -46,7 +46,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Hospin to use the camera to scan medical reports and profiles."
+          "cameraPermission": "Allow Hospyn to use the camera to scan medical reports and profiles."
         }
       ],
       [

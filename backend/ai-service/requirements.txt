@@ -1,48 +1,7 @@
-# ai-service/requirements.txt
-# FIXES:
-#   - Removed duplicate google-generativeai (was listed twice)
-#   - Added sqlalchemy[asyncio], asyncpg, alembic — the Alembic migrations
-#     at ai-service/alembic/versions/002_consent_records.py exist but the
-#     packages to run them were absent
-#   - Added redis (event bus, rate limiting)
-#   - Added httpx (for internal calls to healthcare-core)
-#   - Added pydantic-settings (for settings.py)
-#   - Pinned all versions
-
-# Web framework
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-
-# AI providers
-google-generativeai==0.8.3
-groq==0.11.0
-
-# Database — FIX: was completely missing despite Alembic migrations existing
-sqlalchemy[asyncio]==2.0.35
-asyncpg==0.29.0
-alembic==1.13.3
-
-# Redis (rate limiting, internal events)
-redis[hiredis]==5.1.0
-
-# HTTP client (calls to healthcare-core for clinical summaries)
-httpx==0.27.2
-
-# Validation & settings
-pydantic==2.9.2
-pydantic-settings==2.5.2
-python-dotenv==1.0.1
-
-# Auth (validate JWTs on incoming requests)
-PyJWT[crypto]==2.9.0
-cryptography==43.0.1
-
-# Structured logging
-structlog==24.4.0
-
-# Observability
-sentry-sdk[fastapi]==2.16.0
-opentelemetry-sdk==1.27.0
-opentelemetry-instrumentation-fastapi==0.48b0
-opentelemetry-instrumentation-httpx==0.48b0
-opentelemetry-exporter-otlp-proto-grpc==1.27.0
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.6.0
+httpx>=0.26.0
+google-generativeai>=0.4.0
+structlog>=24.1.0
+sentry-sdk[fastapi]>=1.40.0

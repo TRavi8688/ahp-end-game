@@ -163,12 +163,12 @@ jobs:
             --allow-unauthenticated \
             --port 8080 \
             --remove-secrets="ENCRYPTION_KEY,FERNET_KEY" \
-            --set-env-vars "ENVIRONMENT=production,APP_ENCRYPTION_KEY=${{ secrets.FERNET_KEY }}" \
+            --set-env-vars "ENVIRONMENT=production,APP_ENCRYPTION_KEY=${{ secrets.FERNET_KEY }},SERVICE_NAME=auth-service" \
             --update-secrets "DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_SECRET_KEY=SECRET_KEY:latest,REDIS_URL=REDIS_URL:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest,INTERNAL_SERVICE_SECRET=SECRET_KEY:latest"
           
           AUTH_URL=$(gcloud run services describe hospyn-495906-auth --region asia-south1 --format 'value(status.url)')
           echo "AUTH_URL=$AUTH_URL" >> $GITHUB_ENV
-
+ 
       - name: Deploy Healthcare Service
         id: deploy-healthcare
         run: |
@@ -181,7 +181,7 @@ jobs:
             --allow-unauthenticated \
             --port 8080 \
             --remove-secrets="ENCRYPTION_KEY,FERNET_KEY" \
-            --set-env-vars "ENVIRONMENT=production,APP_ENCRYPTION_KEY=${{ secrets.FERNET_KEY }},AUTH_SERVICE_INTERNAL_URL=${{ env.AUTH_URL }}/api/v1,AUTH_JWKS_URL=${{ env.AUTH_URL }}/api/v1/auth/.well-known/jwks.json" \
+            --set-env-vars "ENVIRONMENT=production,APP_ENCRYPTION_KEY=${{ secrets.FERNET_KEY }},AUTH_SERVICE_INTERNAL_URL=${{ env.AUTH_URL }}/api/v1,AUTH_JWKS_URL=${{ env.AUTH_URL }}/api/v1/auth/.well-known/jwks.json,SERVICE_NAME=healthcare-core" \
             --update-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_SECRET_KEY=JWT_SECRET_KEY:latest,REDIS_URL=REDIS_URL:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest,INTERNAL_SERVICE_SECRET=SECRET_KEY:latest"
 
             

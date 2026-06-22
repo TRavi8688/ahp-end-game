@@ -19,7 +19,7 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
     const shareExternally = async () => {
         try {
             const medList = prescription.medications.map(m => `- ${m.name} (${m.dosage})`).join('\n');
-            const message = `Digital Prescription from Hospin\n\nDiagnosis: ${prescription.diagnosis}\nDate: ${new Date(prescription.created_at).toLocaleDateString()}\n\nMedications:\n${medList}\n\nRef: ${prescription.id}`;
+            const message = `Digital Prescription from Hospyn\n\nDiagnosis: ${prescription.diagnosis}\nDate: ${new Date(prescription.created_at).toLocaleDateString()}\n\nMedications:\n${medList}\n\nRef: ${prescription.id}`;
             
             if (Platform.OS === 'web' && (!navigator.share || !navigator.canShare)) {
                 if (navigator.clipboard) {
@@ -78,9 +78,9 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
                 <View style={[styles.infoCard, GlobalStyles.glass]}>
                     <View style={{ marginBottom: 16 }}>
                         <Text style={styles.sectionLabel}>PRESCRIBING PHYSICIAN</Text>
-                        <Text style={styles.diagnosisText}>{prescription.doctor_name || 'Hospin Clinician'}</Text>
+                        <Text style={styles.diagnosisText}>{prescription.doctor_name || 'Hospyn Clinician'}</Text>
                         <Text style={styles.metaLabel}>HOSPITAL / CLINIC</Text>
-                        <Text style={styles.metaValue}>{prescription.hospital_name || 'Hospin Network Facility'}</Text>
+                        <Text style={styles.metaValue}>{prescription.hospital_name || 'Hospyn Network Facility'}</Text>
                     </View>
                     
                     <Text style={styles.sectionLabel}>DIAGNOSIS</Text>
@@ -177,13 +177,13 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.actionBtnPrimary} onPress={() => setShowShareModal(true)}>
                         <Ionicons name="qr-code-outline" size={20} color="#fff" />
-                        <Text style={styles.actionBtnTextPrimary}>HOSPIN PHARMACY</Text>
+                        <Text style={styles.actionBtnTextPrimary}>HOSPYN PHARMACY</Text>
                     </TouchableOpacity>
                 </View>
 
             </ScrollView>
 
-            {/* Share to Hospin Pharmacy Modal */}
+            {/* Share to Hospyn Pharmacy Modal */}
             <Modal visible={showShareModal} animationType="slide" transparent={true}>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
@@ -193,7 +193,7 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
                                 <Ionicons name="close" size={24} color="#fff" />
                             </TouchableOpacity>
                         </View>
-                        <Text style={styles.modalSub}>Enter the Pharmacy's Hospin ID to instantly beam this prescription to their queue.</Text>
+                        <Text style={styles.modalSub}>Enter the Pharmacy's Hospyn ID to instantly beam this prescription to their queue.</Text>
                         
                         {isScanning ? (
                             <View style={{ height: 300, borderRadius: 16, overflow: 'hidden', marginBottom: 20 }}>
@@ -211,7 +211,7 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
                             <>
                                 <TextInput 
                                     style={styles.input} 
-                                    placeholder="e.g. Hospin-PHARMA-123" 
+                                    placeholder="e.g. Hospyn-PHARMA-123" 
                                     placeholderTextColor="#64748B"
                                     value={pharmacyId}
                                     onChangeText={setPharmacyId}

@@ -1,31 +1,79 @@
-import apiClient from './apiClient';
+/**
+ * doctorService.js
+ * Phase 3 Fix: Doctor App — API service wiring for all Phase 3 routes
+ *
+ * APPLY TO: doctor-app/src/services/doctorService.js  (create or replace)
+ *
+ * Uses httpOnly cookie auth (no localStorage token for doctor-app).
+ * All fetch calls include credentials: "include" so the browser sends the cookie.
+ */
 
-export const doctorService = {
-    /**
-     * Fetch the doctor's own profile
-     */
-    getProfile: async () => {
-        return apiClient.get('/doctor/profile/me');
-    },
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
-    /**
-     * Fetch dashboard statistics for the doctor
-     */
-    getStats: async () => {
-        return apiClient.get('/doctor/stats');
-    },
+const headers = (extra = {}) => ({
+  "Content-Type": "application/json",
+  ...extra,
+});
 
-    /**
-     * Fetch alerts/notifications - fixed from /clinical/alerts to /doctor/alerts
-     */
-    getAlerts: async () => {
-        return apiClient.get('/doctor/alerts');
-    },
+async function apiFetch(path, options = {}) {
+  const res = await fetch(`${API_BASE}/api/v1${path}`, {
+    credentials: "include",   // send httpOnly JWT cookie
+    ...options,
+    headers: { ...headers(), ...(options.headers || {}) },
+  });
 
-    /**
-     * Fetch security access history - fixed from /profile/access-history to /doctor/access-history
-     */
-    getAccessHistory: async () => {
-        return apiClient.get('/doctor/access-history');
-    }
+  if (res.status === 401) {
+    // Session expired — redirect to login
+    window.location.href = "/login";
+    return null;
+  }
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    throw new Error(err.detail || `HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+// ── Doctor stats ──────────────────────────────────────────────────────────
+export const getStats = () => apiFetch("/doctor/stats");
+
+// ── Alerts ───────────────────────────────────────────────────────────────
+export const getAlerts = () => apiFetch("/doctor/alerts");
+
+// ── Access history ────────────────────────────────────────────────────────
+export const getAccessHistory = (limit = 50) =>
+  apiFetch(`/doctor/access-history?limit=${limit}`);
+
+// ── Emergency broadcast ────────────────────────────────────────────────────
+export const broadcastEmergency = (payload) =>
+  apiFetch("/doctor/emergency/broadcast", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+
+// ── Break management ──────────────────────────────────────────────────────
+export const startBreak = () =>
+  apiFetch("/doctor/session/break/start", { method: "POST" });
+
+export const endBreak = () =>
+  apiFetch("/doctor/session/break/end", { method: "POST" });
+
+// ── Queue ─────────────────────────────────────────────────────────────────
+export const getQueue = () => apiFetch("/doctor/queue");
+
+// ── Auth ──────────────────────────────────────────────────────────────────
+export const logout = () =>
+  apiFetch("/auth/logout", { method: "POST" });
+
+export default {
+  getStats,
+  getAlerts,
+  getAccessHistory,
+  broadcastEmergency,
+  startBreak,
+  endBreak,
+  getQueue,
+  logout,
 };

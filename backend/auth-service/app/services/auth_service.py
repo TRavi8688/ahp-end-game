@@ -11,7 +11,7 @@ FIXES APPLIED:
   - SMS is attempted first; email is the fallback if phone not available
 """
 
-from passlib.context import CryptContext
+import bcrypt
 from datetime import datetime, timedelta, timezone
 from jose import jwt, JWTError
 from app.config.settings import settings
@@ -25,8 +25,6 @@ from email.message import EmailMessage
 
 logger = logging.getLogger(__name__)
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 # ─── Password Hashing ────────────────────────────────────────────
 
@@ -34,7 +32,10 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plaintext password against a bcrypt hash."""
     try:
-        return pwd_context.verify(plain_password, hashed_password)
+        return bcrypt.checkpw(
+            plain_password.encode("utf-8"),
+            hashed_password.encode("utf-8")
+        )
     except Exception as e:
         logger.error(f"Password verification error: {e}")
         return False
@@ -42,7 +43,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def get_password_hash(password: str) -> str:
     """Hash a password with bcrypt."""
-    return pwd_context.hash(password)
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
 
 # ─── JWT Token Creation ──────────────────────────────────────────

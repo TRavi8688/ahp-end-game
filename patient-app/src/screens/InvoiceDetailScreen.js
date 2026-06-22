@@ -167,7 +167,7 @@ const InvoiceDetailScreen = ({ route, navigation }) => {
 
                 <View style={styles.footer}>
                     <Ionicons name="shield-checkmark" size={16} color="#1E293B" />
-                    <Text style={styles.footerText}>SECURE CLINICAL TRANSACTION • HOSPIN CORE v2.0</Text>
+                    <Text style={styles.footerText}>SECURE CLINICAL TRANSACTION • HOSPYN CORE v2.0</Text>
                 </View>
             </ScrollView>
         </SafeAreaView>

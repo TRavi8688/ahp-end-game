@@ -9,7 +9,7 @@ import { HapticUtils } from '../utils/haptics';
 
 export default function ShareDoctorScreen({ navigation }) {
     const { user } = useAuth();
-    const hospynId = user?.hospyn_id || 'HOSPIN-ID-PENDING';
+    const hospynId = user?.hospyn_id || 'HOSPYN-ID-PENDING';
     const [theme, setThemeState] = useState(getTheme());
 
     useEffect(() => {
@@ -22,7 +22,7 @@ export default function ShareDoctorScreen({ navigation }) {
         HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Light);
         try {
             await Share.share({
-                message: `Connect with my Hospin Health Profile. My ID: ${hospynId}. Download Hospin to view my clinical history.`,
+                message: `Connect with my Hospyn Health Profile. My ID: ${hospynId}. Download Hospyn to view my clinical history.`,
             });
         } catch (error) {
             console.error(error.message);

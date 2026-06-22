@@ -192,7 +192,7 @@ export default function RecordsScreen({ navigation }) {
                                 <Ionicons name="checkmark-shield" size={14} color="#10B981" />
                             )}
                         </View>
-                        <Text style={[styles.recordSub, { color: Theme.colors.textMuted }]}>{item.hospital_name || 'Hospin Network'}</Text>
+                        <Text style={[styles.recordSub, { color: Theme.colors.textMuted }]}>{item.hospital_name || 'Hospyn Network'}</Text>
                         
                         {analyzing ? (
                             <View style={styles.analyzingBadge}>
@@ -238,7 +238,7 @@ export default function RecordsScreen({ navigation }) {
                         </View>
                         <View style={{ flex: 1 }}>
                             <Text style={[styles.visitHospital, { color: Theme.colors.text }]} numberOfLines={1}>
-                                {item.hospital_name || 'Hospin Medical Center'}
+                                {item.hospital_name || 'Hospyn Medical Center'}
                             </Text>
                             <Text style={[styles.visitReason, { color: Theme.colors.textMuted }]} numberOfLines={1}>
                                 {item.visit_reason || 'General Consultation'}
@@ -498,7 +498,7 @@ export default function RecordsScreen({ navigation }) {
                             </Text>
                             <Text style={[styles.emptySub, { color: Theme.colors.textMuted }]}>
                                 {activeTab === 'visits' 
-                                    ? "Scan a Hospin QR code at any hospital or clinic to open a new digital check-in."
+                                    ? "Scan a Hospyn QR code at any hospital or clinic to open a new digital check-in."
                                     : '"Hello! I am Chitti. Your clinical vault is ready for ingestion. Upload your prescriptions or lab reports to begin my neural analysis."'}
                             </Text>
                             {activeTab === 'all_files' && (

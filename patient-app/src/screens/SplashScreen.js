@@ -89,7 +89,7 @@ const getSplashHtml = (logoUrl) => `
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Hospin – Splash Screen</title>
+<title>Hospyn – Splash Screen</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -215,10 +215,10 @@ const getSplashHtml = (logoUrl) => `
     <div class="logo-wrapper">
       <div class="ring ring-outer"></div>
       <div class="ring ring-inner"></div>
-      <img src="${logoUrl}" alt="Hospin Logo" class="logo-img">
+      <img src="${logoUrl}" alt="Hospyn Logo" class="logo-img">
     </div>
 
-    <h1 class="brand-name">Hospin</h1>
+    <h1 class="brand-name">Hospyn</h1>
     <div class="accent-line"></div>
 
     <div class="loading-dots">

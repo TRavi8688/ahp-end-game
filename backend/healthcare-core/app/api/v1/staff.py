@@ -72,22 +72,32 @@ class StaffInvitePayload(BaseModel):
 async def _get_staff_hospital_id(user_id: str, db: AsyncSession) -> Optional[str]:
     """Get the hospital_id for the authenticated user (staff or owner)."""
     try:
+        import uuid
+        uid_obj = uuid.UUID(str(user_id))
+        uid_dashes = str(uid_obj)
+        uid_hex = uid_obj.hex
+    except Exception:
+        uid_dashes = user_id
+        uid_hex = user_id
+
+    try:
         result = await db.execute(
-            text("SELECT hospital_id FROM staff WHERE user_id = :uid AND deleted_at IS NULL LIMIT 1"),
-            {"uid": user_id},
+            text("SELECT hospital_id FROM staff WHERE (user_id = :uid_dashes OR user_id = :uid_hex) AND deleted_at IS NULL LIMIT 1"),
+            {"uid_dashes": uid_dashes, "uid_hex": uid_hex},
         )
         row = result.fetchone()
         if row:
-            return str(row.hospital_id)
+            return str(row[0])
 
         # Check if owner
         result2 = await db.execute(
-            text("SELECT id FROM hospitals WHERE owner_user_id = :uid AND deleted_at IS NULL LIMIT 1"),
-            {"uid": user_id},
+            text("SELECT id FROM hospitals WHERE (owner_user_id = :uid_dashes OR owner_user_id = :uid_hex) AND deleted_at IS NULL LIMIT 1"),
+            {"uid_dashes": uid_dashes, "uid_hex": uid_hex},
         )
         row2 = result2.fetchone()
-        return str(row2.id) if row2 else None
-    except Exception:
+        return str(row2[0]) if row2 else None
+    except Exception as e:
+        logger.error(f"Error resolving staff hospital_id: {e}")
         return None
 
 
@@ -529,9 +539,9 @@ async def invite_staff_member(
     new_staff_id = str(uuid.uuid4())
 
     try:
-        from passlib.context import CryptContext
-        pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-        hashed_pwd = pwd_ctx.hash(temp_password)
+        import bcrypt
+        salt = bcrypt.gensalt()
+        hashed_pwd = bcrypt.hashpw(temp_password.encode("utf-8"), salt).decode("utf-8")
 
         # Create user
         await db.execute(

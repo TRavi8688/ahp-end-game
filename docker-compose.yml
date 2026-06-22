@@ -1,216 +1,126 @@
 # docker-compose.yml
-# MERGED: Phase 03 + 07 + 10 + 12 + 14 + Audit Fixes
-# AUDIT FIX C5:  SQLite replaced with PostgreSQL for all services (already done in repo)
-# AUDIT FIX H1:  nginx service ADDED — previously commented out / missing entirely
-# AUDIT FIX H5:  healthcheck blocks on all services (already done in repo)
-# AUDIT FIX M1:  Dockerfile.gateway no longer has baked-in ENV service URLs;
-#                all URLs now passed via environment: keys here
-# Notes:
-#   - Redis port NOT exposed externally (OTP theft fix from Phase 07)
-#   - PostgreSQL port NOT exposed externally — internal network only
-#   - Gateway and microservice ports removed from host; all traffic via nginx
+# PHASE 07 + 08 FIXES APPLIED:
+#   1. SQLite replaced with PostgreSQL for both services (CRITICAL)
+#   2. Redis password added — no longer unauthenticated (CRITICAL)
+#   3. Redis port 6379 no longer publicly exposed (HIGH)
+#   4. postgres port 5432 not exposed externally (internal only)
+#   5. All secrets pulled from .env file — never hardcoded here
+#   6. healthcheck added to postgres so services wait for it to be ready
+#   7. depends_on with condition: service_healthy for postgres
 
 version: '3.8'
 
 services:
 
-  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  # ─────────────────────────────────────────────
+  # POSTGRES — replaces SQLite entirely
+  # ─────────────────────────────────────────────
   postgres:
     image: postgres:15-alpine
-    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-hospyn}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}      # REQUIRED — must be set in .env
       POSTGRES_DB: ${POSTGRES_DB:-hospyn}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql:ro
+    # FIX: NOT exposed externally. Internal network only.
+    # ports: — intentionally omitted
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hospyn}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    # Port NOT exposed externally — internal network only
-
-  # ── PgBouncer (connection pooler) ────────────────────────────────────────────
-  pgbouncer:
-    image: edoburu/pgbouncer:1.22.1
     restart: unless-stopped
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: ${POSTGRES_DB:-hospyn}
-      DB_USER: ${POSTGRES_USER:-hospyn}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      POOL_MODE: transaction
-      MAX_CLIENT_CONN: 500
-      DEFAULT_POOL_SIZE: 20
-    depends_on:
-      postgres:
-        condition: service_healthy
-    expose:
-      - "5432"
 
-  # ── Redis (authenticated) ─────────────────────────────────────────────────────
+  # ─────────────────────────────────────────────
+  # REDIS — with password, not exposed externally
+  # ─────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    restart: unless-stopped
-    command: redis-server --requirepass ${REDIS_PASSWORD:?REDIS_PASSWORD must be set} --appendonly yes
+    # FIX: requirepass — Redis no longer unauthenticated
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
     volumes:
       - redis_data:/data
+    # FIX: Port NOT exposed externally (was "6379:6379" — anyone on host could read OTPs)
+    # ports: — intentionally omitted
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
-    # Port NOT exposed externally (OTP theft prevention)
+    restart: unless-stopped
 
-  # ── Auth Service ──────────────────────────────────────────────────────────────
+  # ─────────────────────────────────────────────
+  # AUTH SERVICE
+  # ─────────────────────────────────────────────
   auth-service:
     build:
       context: ./backend
       dockerfile: ./auth-service/Dockerfile
-    restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-hospyn}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB:-hospyn}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
-      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY must be set}
-      - FERNET_KEY=${FERNET_KEY:?FERNET_KEY must be set}
-      - OTP_HMAC_SECRET=${OTP_HMAC_SECRET:-}
-      - JWT_PRIVATE_KEY_PEM=${JWT_PRIVATE_KEY_PEM:-}
-      - JWT_PUBLIC_KEY_PEM=${JWT_PUBLIC_KEY_PEM:-}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}
-      - SENTRY_DSN=${SENTRY_DSN:-}
-      - ENV=${ENV:-development}
-    # No host port mapping — all traffic routes through nginx
-    expose:
-      - "8001"
+      # FIX: PostgreSQL URL — replaces sqlite+aiosqlite
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-hospyn}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hospyn}_auth
+      - SECRET_KEY=${SECRET_KEY}
+      - FERNET_KEY_PATH=/run/secrets/enc_key
+    ports:
+      - "8001:8001"
     depends_on:
-      pgbouncer:
-        condition: service_started
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
+    restart: unless-stopped
 
-  # ── Healthcare Core ────────────────────────────────────────────────────────────
+  # ─────────────────────────────────────────────
+  # HEALTHCARE CORE
+  # ─────────────────────────────────────────────
   healthcare-core:
     build:
       context: ./backend
       dockerfile: ./healthcare-core/Dockerfile
-    restart: unless-stopped
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-hospyn}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB:-hospyn}
+      # FIX: PostgreSQL URL — replaces sqlite+aiosqlite
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-hospyn}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hospyn}
+      # FIX: Redis URL with password
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
       - SECRET_KEY=${SECRET_KEY}
-      - FERNET_KEY=${FERNET_KEY}
-      - AUDIT_HMAC_SECRET=${AUDIT_HMAC_SECRET:?AUDIT_HMAC_SECRET must be set}
-      - JWT_PUBLIC_KEY_PEM=${JWT_PUBLIC_KEY_PEM:-}
-      - AUTH_SERVICE_JWKS_URL=http://auth-service:8001/.well-known/jwks.json
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}
-      - SENTRY_DSN=${SENTRY_DSN:-}
-      - ENV=${ENV:-development}
-    expose:
-      - "8002"
+    ports:
+      - "8002:8002"
     depends_on:
-      pgbouncer:
-        condition: service_started
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-
-  # ── AI Service ────────────────────────────────────────────────────────────────
-  ai-service:
-    build:
-      context: ./backend/ai-service
-      dockerfile: Dockerfile
     restart: unless-stopped
-    environment:
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-      - GROQ_API_KEY=${GROQ_API_KEY:-}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-}
-      - AUTH_SERVICE_JWKS_URL=http://auth-service:8001/.well-known/jwks.json
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-hospyn}:${POSTGRES_PASSWORD}@pgbouncer:5432/${POSTGRES_DB:-hospyn}
-      - AUDIT_HMAC_SECRET=${AUDIT_HMAC_SECRET}
-      - ENV=${ENV:-development}
-    expose:
-      - "8003"
-    depends_on:
-      - auth-service
-      - healthcare-core
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
 
-  # ── API Gateway ────────────────────────────────────────────────────────────────
-  # AUDIT FIX M1: All service URLs passed via environment — NOT baked into image.
+  # ─────────────────────────────────────────────
+  # API GATEWAY
+  # ─────────────────────────────────────────────
   gateway:
     build:
       context: .
       dockerfile: Dockerfile.gateway
-    restart: unless-stopped
-    # No host port mapping — traffic enters via nginx on 443/80
-    expose:
-      - "8000"
+    ports:
+      - "8000:8000"
     environment:
       - DOCKER_ENV=true
       - AUTH_SERVICE_URL=http://auth-service:8001
       - HEALTHCARE_SERVICE_URL=http://healthcare-core:8002
-      - AI_SERVICE_URL=http://ai-service:8003
+      # CORS: set to your actual frontend domain(s) — never use "*" in production
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000}
-      - ENV=${ENV:-development}
-      - UVICORN_WORKERS=${UVICORN_WORKERS:-4}
     depends_on:
       - auth-service
       - healthcare-core
-      - ai-service
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # ── Nginx (AUDIT FIX H1: was missing from docker-compose entirely) ───────────
-  # All external traffic enters here. Provides TLS termination, rate limiting,
-  # security headers, and reverse proxy to the gateway.
-  # DEV: self-signed cert generated at image build time (see nginx/Dockerfile).
-  # PROD: mount real certs at /etc/nginx/certs/ via Docker volume or secrets.
-  nginx:
-    build:
-      context: .
-      dockerfile: nginx/Dockerfile
     restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      # PRODUCTION: uncomment and set cert paths:
-      # - /etc/letsencrypt/live/app.hospyn.com/fullchain.pem:/etc/nginx/certs/fullchain.pem:ro
-      # - /etc/letsencrypt/live/app.hospyn.com/privkey.pem:/etc/nginx/certs/privkey.pem:ro
-    environment:
-      - NGINX_HOST=${NGINX_HOST:-app.hospyn.com}
-    depends_on:
-      gateway:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
 
 volumes:
   postgres_data:
   redis_data:
+
+# ──────────────────────────────────────────────────────────
+# USAGE:
+#   1. Copy .env.example to .env
+#   2. Fill in POSTGRES_PASSWORD, REDIS_PASSWORD, SECRET_KEY
+#   3. docker-compose up -d
+#   4. Run migrations: docker-compose exec auth-service alembic upgrade head
+# ──────────────────────────────────────────────────────────

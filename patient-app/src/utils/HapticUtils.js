@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 
 /**
- * Hospin Premium Haptic Interaction Engine
+ * Hospyn Premium Haptic Interaction Engine
  * Provides physical feedback for digital clinical actions.
  */
 class HapticUtils {

@@ -29,7 +29,7 @@ export default function ActivityLogScreen({ navigation }) {
                 type: 'NETWORK',
                 category: 'Clinical Exchange',
                 title: item.status === 'granted' ? 'Doctor Access Granted' : item.status === 'revoked' ? 'Doctor Access Revoked' : 'Doctor Access Requested',
-                description: `Dr. ${item.doctor_name} (${item.clinic_name || 'Hospin Network'}) was ${item.status} access to your sovereign vault.`,
+                description: `Dr. ${item.doctor_name} (${item.clinic_name || 'Hospyn Network'}) was ${item.status} access to your sovereign vault.`,
                 icon: item.status === 'granted' ? 'shield-checkmark-outline' : item.status === 'revoked' ? 'shield-x-outline' : 'shield-outline',
                 color: item.status === 'granted' ? '#0D9488' : item.status === 'revoked' ? '#EF4444' : '#F59E0B',
             }));
