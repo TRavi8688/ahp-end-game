@@ -84,6 +84,11 @@ async def _call_auth_internal(path: str, json_body: dict | None = None) -> dict:
         )
     if response.status_code >= 400:
         logger.error("auth-service internal call failed: %s %s -> %s", path, response.status_code, response.text)
+        if response.status_code == 409:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A user account with this email already exists.",
+            )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Could not create/activate the partner login account. Try again or contact support.",
@@ -116,16 +121,30 @@ async def register_enterprise(
     selfie:              Optional[UploadFile] = File(None),
     db: AsyncSession = Depends(get_db),
 ):
+    # Validation checks
+    if len(phone_number) > 30:
+        raise HTTPException(
+            status_code=400,
+            detail="Phone number is too long (maximum 30 characters).",
+        )
+
     # Duplicate check
     dup = await db.execute(
-        text("SELECT id FROM hospitals WHERE registration_number = :rn LIMIT 1"),
-        {"rn": registration_number},
+        text("SELECT registration_number, email FROM hospitals WHERE registration_number = :rn OR email = :email LIMIT 1"),
+        {"rn": registration_number, "email": owner_email},
     )
-    if dup.first():
-        raise HTTPException(
-            status_code=409,
-            detail="A hospital with this registration number already exists.",
-        )
+    res = dup.first()
+    if res:
+        if res[0] == registration_number:
+            raise HTTPException(
+                status_code=409,
+                detail="A hospital with this registration number already exists.",
+            )
+        else:
+            raise HTTPException(
+                status_code=409,
+                detail="A hospital with this email already exists.",
+            )
 
     # Parse city/state from address
     parts    = [p.strip() for p in physical_address.split(",")]
@@ -155,15 +174,15 @@ async def register_enterprise(
 
     hospital = Hospital(
         id=hospital_id,
-        name=name,
-        registration_number=registration_number,
-        email=owner_email,
-        phone=phone_number,
-        address_line1=physical_address,
-        city=city,
-        state=state,
+        name=name[:255],
+        registration_number=registration_number[:100],
+        email=owner_email[:255],
+        phone=phone_number[:30],
+        address_line1=physical_address[:255],
+        city=city[:100],
+        state=state[:100],
         country="India",
-        pin_code=pin_code,
+        pin_code=pin_code[:20],
         status=HospitalStatus.pending_verification,
         owner_user_id=owner_user_id,
     )
