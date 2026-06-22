@@ -160,7 +160,7 @@ jobs:
             --region asia-south1 \
             --project hospyn-495906 \
             --platform managed \
-            --no-allow-unauthenticated \
+            --allow-unauthenticated \
             --port 8080 \
             --remove-secrets="ENCRYPTION_KEY,FERNET_KEY" \
             --set-env-vars "ENVIRONMENT=production,APP_ENCRYPTION_KEY=${{ secrets.FERNET_KEY }}" \
@@ -178,7 +178,7 @@ jobs:
             --region asia-south1 \
             --project hospyn-495906 \
             --platform managed \
-            --no-allow-unauthenticated \
+            --allow-unauthenticated \
             --port 8080 \
             --remove-secrets="ENCRYPTION_KEY,FERNET_KEY" \
             --set-env-vars "ENVIRONMENT=production,APP_ENCRYPTION_KEY=${{ secrets.FERNET_KEY }}" \
@@ -197,7 +197,9 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --port 8000 \
-            --set-env-vars "ENVIRONMENT=production,AUTH_SERVICE_URL=${{ env.AUTH_URL }},HEALTHCARE_SERVICE_URL=${{ env.HEALTH_URL }}"
+            --set-env-vars "ENV=production,ENVIRONMENT=production,AUTH_SERVICE_URL=${{ env.AUTH_URL }},HEALTHCARE_SERVICE_URL=${{ env.HEALTH_URL }}" \
+            --update-secrets "ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest"
+
 
   deploy-frontends:
     name: Deploy Frontends to Firebase
