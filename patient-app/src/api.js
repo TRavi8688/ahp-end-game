@@ -31,4 +31,8 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+const WS_BASE_URL = API_BASE_URL.replace(/^http/, "ws");
+const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID || "625745217419-cq76tvb0mlt0bkmg8bd4r0csj4vmqmr8.apps.googleusercontent.com";
+
+export { API_BASE_URL, WS_BASE_URL, GOOGLE_CLIENT_ID };
 export default api;
