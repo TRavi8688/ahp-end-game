@@ -90,6 +90,13 @@ class Settings(BaseSettings):
     DB_POOL_SIZE: int = 20
     DB_POOL_MAX_OVERFLOW: int = 40
 
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def validate_database_url(cls, v: str) -> str:
+        if v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
+
     @field_validator("PARTNER_JWT_SECRET")
     @classmethod
     def validate_partner_secret(cls, v: str) -> str:
