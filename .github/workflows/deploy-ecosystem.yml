@@ -23,6 +23,7 @@ jobs:
       erp: ${{ steps.filter.outputs.erp }}
       admin: ${{ steps.filter.outputs.admin }}
       landing: ${{ steps.filter.outputs.landing }}
+      partner: ${{ steps.filter.outputs.partner }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4.2.2
@@ -54,6 +55,8 @@ jobs:
             landing:
               - 'hospyn-v2-web/**'
               - 'firebase.json'
+            partner:
+              - 'partner-app/**'
 
   run-tests:
     name: Run Automated Quality Gates
@@ -192,7 +195,7 @@ jobs:
   deploy-frontends:
     name: Deploy Frontends to Firebase
     needs: [check-changes, auth-and-backend]
-    if: always() && needs.check-changes.result == 'success' && (needs.check-changes.outputs.patient == 'true' || needs.check-changes.outputs.doctor == 'true' || needs.check-changes.outputs.erp == 'true' || needs.check-changes.outputs.admin == 'true' || needs.check-changes.outputs.landing == 'true' || github.event_name == 'workflow_dispatch')
+    if: always() && needs.check-changes.result == 'success' && (needs.check-changes.outputs.patient == 'true' || needs.check-changes.outputs.doctor == 'true' || needs.check-changes.outputs.erp == 'true' || needs.check-changes.outputs.admin == 'true' || needs.check-changes.outputs.landing == 'true' || needs.check-changes.outputs.partner == 'true' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -209,6 +212,7 @@ jobs:
             staff-portal/package-lock.json
             super-admin-dashboard/package-lock.json
             hospyn-v2-web/package-lock.json
+            partner-app/package-lock.json
 
       - name: Build Patient App
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'patient' || (github.event_name == 'push' && needs.check-changes.outputs.patient == 'true')
@@ -246,6 +250,14 @@ jobs:
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'landing' || (github.event_name == 'push' && needs.check-changes.outputs.landing == 'true')
         run: |
           cd hospyn-v2-web
+          npm install --legacy-peer-deps
+          npm run build
+
+      - name: Build Partner App
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == 'partner' || (github.event_name == 'push' && needs.check-changes.outputs.partner == 'true')
+        run: |
+          cd partner-app
+          echo "VITE_API_BASE_URL=https://hospyn-495906-api-625745217419.asia-south1.run.app/api/v1" > .env
           npm install --legacy-peer-deps
           npm run build
 

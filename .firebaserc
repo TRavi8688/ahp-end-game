@@ -19,6 +19,9 @@
         ],
         "admin": [
           "hospyn-495906-96438"
+        ],
+        "partner": [
+          "hospyn-partner-app"
         ]
       }
     }
