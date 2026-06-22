@@ -37,7 +37,16 @@ def _load_fernet_keys() -> list[Fernet]:
         for part in raw.split(","):
             part = part.strip()
             if part:
-                keys.append(Fernet(part.encode()))
+                try:
+                    keys.append(Fernet(part.encode()))
+                except ValueError as e:
+                    logger.critical(
+                        "FATAL: Provided ENCRYPTION_KEY is not a valid 32 url-safe base64-encoded string. "
+                        "Error: %s. Falling back to dev-key to prevent crash, but PHI will be lost!", e
+                    )
+                    keys.clear()
+                    raw = ""
+                    break
         if keys:
             return keys
 

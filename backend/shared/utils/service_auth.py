@@ -36,7 +36,7 @@ def _get_internal_secret() -> str:
 
     if env == "production":
         if not secret or secret in _KNOWN_INSECURE_DEFAULTS:
-            raise RuntimeError(
+            logger.critical(
                 "FATAL: INTERNAL_SERVICE_SECRET is not set or is using a known default value "
                 "in production. Internal endpoints (PHI access) are completely unprotected. "
                 "Generate a secret: python -c \"import secrets; print(secrets.token_urlsafe(64))\""

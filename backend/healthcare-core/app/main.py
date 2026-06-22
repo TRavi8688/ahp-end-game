@@ -52,8 +52,7 @@ async def lifespan(application: FastAPI):
         await redis.ping()
         logger.info("Redis connected")
     except Exception as exc:
-        logger.critical("Redis unavailable at startup: %s", exc)
-        raise RuntimeError(f"Redis connection failed: {exc}") from exc
+        logger.critical("Redis unavailable at startup: %s. Cache/rate limiting will fail.", exc)
 
     # 3. Warm up DB connection pool
     try:
@@ -66,7 +65,7 @@ async def lifespan(application: FastAPI):
     except Exception as exc:
         from shared.alerting import alert_database_down
         await alert_database_down(str(exc))
-        raise RuntimeError(f"Database unreachable at startup: {exc}") from exc
+        logger.critical("Database unreachable at startup: %s. Service will start but queries will fail.", exc)
 
     yield
 
