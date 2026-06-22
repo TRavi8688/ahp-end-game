@@ -252,6 +252,7 @@ jobs:
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'admin' || (github.event_name == 'push' && needs.check-changes.outputs.admin == 'true')
         run: |
           cd matrix
+          echo "VITE_API_BASE_URL=https://hospyn-495906-api-625745217419.asia-south1.run.app" > .env
           npm run build
 
       - name: Build Hospyn v2.0 Landing Portal
