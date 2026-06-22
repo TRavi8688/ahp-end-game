@@ -206,13 +206,10 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: |
-            patient-app/package-lock.json
-            doctor-app/package-lock.json
-            staff-portal/package-lock.json
-            super-admin-dashboard/package-lock.json
-            hospyn-v2-web/package-lock.json
-            partner-app/package-lock.json
+          cache-dependency-path: package-lock.json
+
+      - name: Install Monorepo Dependencies
+        run: npm install --legacy-peer-deps
 
       - name: Build Patient App
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'patient' || (github.event_name == 'push' && needs.check-changes.outputs.patient == 'true')
@@ -220,7 +217,6 @@ jobs:
           cd patient-app
           echo "EXPO_PUBLIC_API_BASE_URL=https://hospyn-495906-api-625745217419.asia-south1.run.app/api/v1" > .env
           echo "EXPO_PUBLIC_ENVIRONMENT=production" >> .env
-          npm install --legacy-peer-deps
           npm run build
 
       - name: Build Doctor App
@@ -228,7 +224,6 @@ jobs:
         run: |
           cd doctor-app
           echo "VITE_API_URL=https://hospyn-495906-api-625745217419.asia-south1.run.app/api/v1" > .env
-          npm install --legacy-peer-deps
           npm run build
 
       - name: Build Staff Portal
@@ -236,21 +231,18 @@ jobs:
         run: |
           cd staff-portal
           echo "VITE_API_URL=https://hospyn-495906-api-625745217419.asia-south1.run.app/api/v1" > .env
-          npm install --legacy-peer-deps
           npm run build
 
       - name: Build Super Admin Dashboard
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'admin' || (github.event_name == 'push' && needs.check-changes.outputs.admin == 'true')
         run: |
           cd super-admin-dashboard
-          npm install --legacy-peer-deps
           npm run build
 
       - name: Build Hospyn v2.0 Landing Portal
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'landing' || (github.event_name == 'push' && needs.check-changes.outputs.landing == 'true')
         run: |
           cd hospyn-v2-web
-          npm install --legacy-peer-deps
           npm run build
 
       - name: Build Partner App
@@ -258,7 +250,6 @@ jobs:
         run: |
           cd partner-app
           echo "VITE_API_BASE_URL=https://hospyn-495906-api-625745217419.asia-south1.run.app/api/v1" > .env
-          npm install --legacy-peer-deps
           npm run build
 
       - name: Deploy Firebase Sites
