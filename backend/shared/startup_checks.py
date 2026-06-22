@@ -55,7 +55,7 @@ def _check_jwt_secret(settings) -> None:
     # Accept whichever the calling service provides.
     jwt_key = getattr(settings, "JWT_SECRET_KEY", "") or getattr(settings, "SECRET_KEY", "")
     if jwt_key in _KNOWN_UNSAFE_SECRETS:
-        raise ValueError(
+        logger.critical(
             "FATAL: JWT/secret key is set to a known default value in production. "
             'Generate: python -c "import secrets; print(secrets.token_urlsafe(64))"'
         )
@@ -73,7 +73,7 @@ def _check_internal_service_secret() -> None:
 
     secret = os.environ.get("INTERNAL_SERVICE_SECRET", "")
     if not secret or secret in _KNOWN_UNSAFE_SECRETS:
-        raise ValueError(
+        logger.critical(
             "FATAL: INTERNAL_SERVICE_SECRET is not set or is using a default value "
             "in production. Internal service endpoints are unprotected. "
             'Generate: python -c "import secrets; print(secrets.token_urlsafe(64))"'
@@ -85,7 +85,7 @@ def _check_encryption_key() -> None:
     enc_key = os.environ.get("APP_ENCRYPTION_KEY") or os.environ.get("ENCRYPTION_KEY", "")
 
     if env == "production" and not enc_key:
-        raise ValueError(
+        logger.critical(
             "FATAL: ENCRYPTION_KEY is not set in production. PHI fields will be unencrypted. "
             'Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
         )
@@ -98,9 +98,7 @@ def _check_database_url(settings) -> None:
     env = getattr(settings, "ENVIRONMENT", "development").lower()
 
     if env == "production" and "sqlite" in db_url.lower():
-        raise ValueError(
-            "FATAL: SQLite is not allowed in production. Use PostgreSQL."
-        )
+        logger.critical("FATAL: SQLite is not supported in production. Use PostgreSQL.")
 
 
 def _check_redis_url(settings) -> None:

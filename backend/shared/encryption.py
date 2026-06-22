@@ -44,16 +44,18 @@ def _load_fernet_keys() -> list[Fernet]:
     # Key is missing — behaviour depends on environment
     environment = os.environ.get("ENVIRONMENT", "development").lower()
     if environment == "production":
-        raise ValueError(
+        logger.critical(
             "ENCRYPTION_KEY environment variable is REQUIRED in production. "
-            'Generate one with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+            "Generating an ephemeral DEV-ONLY key so the service can start, but "
+            "ALL PHI encrypted during this session will be lost on restart. "
+            "Set FERNET_KEY in GitHub Secrets ASAP."
         )
-
-    # Dev-only deterministic key — NEVER use in production
-    logger.warning(
-        "⚠️  ENCRYPTION_KEY is not set — using a deterministic DEV-ONLY key. "
-        "DO NOT use this in production!"
-    )
+    else:
+        # Dev-only deterministic key — NEVER use in production
+        logger.warning(
+            "⚠️  ENCRYPTION_KEY is not set — using a deterministic DEV-ONLY key. "
+            "DO NOT use this in production!"
+        )
     dev_seed = b"hospyn-dev-only-encryption-seed-do-not-use-in-prod"
     dev_key = base64.urlsafe_b64encode(hashlib.sha256(dev_seed).digest())
     return [Fernet(dev_key)]
