@@ -74,7 +74,7 @@ export default function HospitalNetwork() {
               <Building2 size={20} className="text-indigo-400" />
               Hospital Network
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">All registered clinical nodes across the Hospyn ecosystem</p>
+            <p className="text-xs text-slate-500 mt-0.5">All registered clinical nodes across the Hospain ecosystem</p>
           </div>
           <button onClick={fetchHospitals} className="btn-ghost">
             <RefreshCw size={14} />
@@ -143,7 +143,7 @@ export default function HospitalNetwork() {
             <thead>
               <tr>
                 <th>Hospital</th>
-                <th>Hospyn ID</th>
+                <th>Hospain ID</th>
                 <th>Location</th>
                 <th>Status</th>
                 <th>Registered</th>

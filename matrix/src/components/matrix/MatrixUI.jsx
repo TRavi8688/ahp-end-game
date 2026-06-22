@@ -1,7 +1,7 @@
 /**
  * src/components/matrix/MatrixUI.jsx
  *
- * Shared component library for all 21 Hospin Matrix modules.
+ * Shared component library for all 21 Hospain Matrix modules.
  * Every Matrix page imports from here — no duplicated UI code.
  *
  * Components:

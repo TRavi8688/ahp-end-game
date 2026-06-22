@@ -21,7 +21,7 @@ const SUGGESTIONS = [
 export default function AICopilot() {
   const employee = useMatrixStore((s) => s.employee);
   const [messages, setMessages] = useState([
-    { role:"ai", content:"I am your AI Operations Copilot. I have full visibility into the Hospin ecosystem — tickets, hospitals, employees, financials, incidents. What would you like to know?" },
+    { role:"ai", content:"I am your AI Operations Copilot. I have full visibility into the Hospain ecosystem — tickets, hospitals, employees, financials, incidents. What would you like to know?" },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,7 +29,7 @@ export default function AICopilot() {
   const endRef = useRef(null);
 
   const buildSystemPrompt = () => {
-    return `You are the AI Operations Copilot for Hospin Matrix 3.0 — an enterprise healthcare operations platform managing 10,000+ hospitals, millions of patients, and internal support teams across India.
+    return `You are the AI Operations Copilot for Hospain Matrix 3.0 — an enterprise healthcare operations platform managing 10,000+ hospitals, millions of patients, and internal support teams across India.
 
 You have operational awareness of:
 - Hospital network: 1,842 hospitals across India (verified, pending, suspended)
@@ -151,7 +151,7 @@ Employee context: ${employee?.full_name || "Super Admin"} (${employee?.level || 
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key==="Enter" && !e.shiftKey && send(input)}
-          placeholder="Ask anything about the Hospin ecosystem…"
+          placeholder="Ask anything about the Hospain ecosystem…"
           style={{ flex:1, padding:"10px 14px", borderRadius:10, border:"1px solid rgba(255,255,255,0.08)", background:"#0c1220", color:"#f1f5f9", fontSize:13, outline:"none" }}
           onFocus={(e) => e.target.style.borderColor="#6366f1"}
           onBlur={(e) => e.target.style.borderColor="rgba(255,255,255,0.08)"}

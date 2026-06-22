@@ -238,7 +238,7 @@ export default function RevenueAnalytics() {
                         <td><span className="font-mono text-xs text-indigo-400">{l.invoice_number || l.invoice_id?.substring(0, 10)}</span></td>
                         <td>
                           <div className="text-sm text-white">{l.patient_name}</div>
-                          <div className="font-mono text-xs text-slate-600">{l.patient_hospyn_id}</div>
+                          <div className="font-mono text-xs text-slate-600">{l.patient_hospain_id}</div>
                         </td>
                         <td className="font-bold text-emerald-400">₹{(l.total_amount || 0).toLocaleString()}</td>
                         <td><span className="badge badge-cyan uppercase">{l.payment_method}</span></td>

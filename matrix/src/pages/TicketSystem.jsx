@@ -1,5 +1,5 @@
 // super-admin-dashboard/src/pages/TicketSystem.jsx
-// Full support ticket system for Hospyn internal team.
+// Full support ticket system for Hospain internal team.
 // Shows all hospital/partner tickets. Agents can reply, update status, assign.
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -92,10 +92,10 @@ export default function TicketSystem() {
       await api.post(`/api/v1/tickets/${selected.ticket_id}/message`, {
         text:   msgText,
         sender: 'agent',
-        sender_label: 'Hospyn Support',
+        sender_label: 'Hospain Support',
       });
       setMessages(prev => [...prev, {
-        id: Date.now(), sender: 'agent', sender_label: 'Hospyn Support',
+        id: Date.now(), sender: 'agent', sender_label: 'Hospain Support',
         text: msgText, created_at: new Date().toISOString(),
       }]);
       setMsgText('');
@@ -433,7 +433,7 @@ export default function TicketSystem() {
                           borderRadius: 10, padding: '8px 12px', color: '#fcd34d', fontSize: 12,
                           resize: 'none', outline: 'none', minHeight: 64, fontFamily: 'inherit',
                         }}
-                        placeholder="Internal note (only visible to Hospyn team)..."
+                        placeholder="Internal note (only visible to Hospain team)..."
                         value={noteText}
                         onChange={e => setNoteText(e.target.value)}
                       />

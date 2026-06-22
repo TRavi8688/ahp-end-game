@@ -54,7 +54,7 @@ jobs:
               - 'staff-portal/**'
               - '.github/workflows/deploy-ecosystem.yml'
             admin:
-              - 'super-admin-dashboard/**'
+              - 'matrix/**'
               - '.github/workflows/deploy-ecosystem.yml'
             landing:
               - 'hospyn-v2-web/**'
@@ -251,7 +251,7 @@ jobs:
       - name: Build Super Admin Dashboard
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'admin' || (github.event_name == 'push' && needs.check-changes.outputs.admin == 'true')
         run: |
-          cd super-admin-dashboard
+          cd matrix
           npm run build
 
       - name: Build Hospyn v2.0 Landing Portal

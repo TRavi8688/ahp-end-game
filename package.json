@@ -12,7 +12,7 @@
     "partner-app",
     "pharma-mobile-app",
     "staff-portal",
-    "super-admin-dashboard"
+    "matrix"
   ],
   "scripts": {
     "build": "turbo build",
