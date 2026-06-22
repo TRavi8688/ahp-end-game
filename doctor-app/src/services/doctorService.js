@@ -67,7 +67,7 @@ export const getQueue = () => apiFetch("/doctor/queue");
 export const logout = () =>
   apiFetch("/auth/logout", { method: "POST" });
 
-export default {
+export const doctorService = {
   getStats,
   getAlerts,
   getAccessHistory,
@@ -77,3 +77,5 @@ export default {
   getQueue,
   logout,
 };
+
+export default doctorService;
