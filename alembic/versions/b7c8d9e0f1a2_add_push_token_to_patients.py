@@ -19,7 +19,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = "b7c8d9e0f1a2"
-down_revision = "003_phase13_compliance_tables"   # update to your actual latest revision
+down_revision = "f1e2d3c4b5a6"
 branch_labels = None
 depends_on = None
 
