@@ -122,6 +122,124 @@ async def login(
     }
 
 
+@router.post("/google")
+async def google_login(
+    response: Response,
+    body:     dict,
+    db:       AsyncSession = Depends(get_db),
+):
+    """Verify Google ID token and sign/return JWT access + refresh tokens."""
+    token = body.get("token")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Google ID token is required",
+        )
+
+    # Verify Google OAuth2 token using google-auth library
+    from google.oauth2 import id_token
+    from google.auth.transport import requests as google_requests
+    import secrets
+    import string
+    import uuid
+
+    GOOGLE_CLIENT_ID = "625745217419-cq76tvb0mlt0bkmg8bd4r0csj4vmqmr8.apps.googleusercontent.com"
+    try:
+        idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), GOOGLE_CLIENT_ID)
+    except Exception as e:
+        logger.error("Google Auth token verification failed: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Google Authentication failed: {str(e)}",
+        )
+
+    email = idinfo.get("email")
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email address not provided by Google",
+        )
+
+    # Check if user already exists
+    result = await db.execute(
+        select(User).where(
+            (User.email == email),
+            User.deleted_at.is_(None),
+        )
+    )
+    user = result.scalars().first()
+
+    if not user:
+        # Create a new patient user
+        # Secure random password generation
+        raw_password = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32))
+        hashed_password = get_password_hash(raw_password)
+        
+        name = idinfo.get("name") or f"{idinfo.get('given_name', '')} {idinfo.get('family_name', '')}".strip() or "Google User"
+        
+        user = User(
+            id=uuid.uuid4(),
+            email=email,
+            phone_number=None,
+            hashed_password=hashed_password,
+            role=RoleEnum.patient,
+            full_name=name,
+            is_active=True,
+            token_version=1,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+    else:
+        # If user exists but full_name is empty, populate it
+        if not user.full_name:
+            name = idinfo.get("name") or f"{idinfo.get('given_name', '')} {idinfo.get('family_name', '')}".strip()
+            if name:
+                user.full_name = name
+                await db.commit()
+                await db.refresh(user)
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account is suspended. Contact support.",
+        )
+
+    token_data = {
+        "sub":           str(user.id),
+        "role":          user.role.value,
+        "hospital_id":   str(user.hospital_id) if user.hospital_id else None,
+        "token_version": user.token_version,
+    }
+    access_token = create_access_token(token_data)
+    refresh_token = create_refresh_token(token_data)
+
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=access_token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=COOKIE_MAX_AGE,
+        path="/",
+    )
+
+    return {
+        "access_token":  access_token,
+        "refresh_token": refresh_token,
+        "token_type":    "bearer",
+        "role":          user.role.value,
+        "user_id":       str(user.id),
+        "user": {
+            "id":    str(user.id),
+            "role":  user.role.value,
+            "name":  user.full_name or "",
+            "email": user.email or "",
+            "phone": user.phone_number or "",
+        },
+    }
+
+
 # ─── Logout ──────────────────────────────────────────────────────────────────
 
 @router.post("/logout")
