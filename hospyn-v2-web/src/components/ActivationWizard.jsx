@@ -65,6 +65,22 @@ const V = {
     if (v.trim().length > 300) return 'Address too long';
     return '';
   },
+  street: v => {
+    if (!v?.trim() || v.trim().length < 5) return 'Street address is required (min 5 characters)';
+    return '';
+  },
+  city: v => {
+    if (!v?.trim()) return 'City is required';
+    return '';
+  },
+  state: v => {
+    if (!v?.trim()) return 'State is required';
+    return '';
+  },
+  pinCode: v => {
+    if (!v?.trim() || !/^\d{6}$/.test(v.trim())) return 'Must be a 6-digit PIN code';
+    return '';
+  },
 };
 
 function FieldError({ msg }) {
@@ -115,15 +131,31 @@ export default function ActivationWizard({ isOpen, onClose, onActivationSuccess 
   });
   const set = k => v => setF(p => ({ ...p, [k]: v }));
 
+  const [addressParts, setAddressParts] = useState({
+    street: '', city: '', state: '', pinCode: ''
+  });
+  const updateAddress = (key, val) => {
+    const next = { ...addressParts, [key]: val };
+    setAddressParts(next);
+    const combined = [next.street, next.city, next.state, next.pinCode].filter(Boolean).join(', ');
+    set('physical_address')(combined);
+  };
+
+  const [hasBranches, setHasBranches] = useState(false);
   const [branchAddresses, setBranchAddresses] = useState({});
   const [otp, setOtp] = useState('');
+  const [emailOtp, setEmailOtp] = useState('');
   const [simOtp, setSimOtp] = useState('');
+  const [simEmailOtp, setSimEmailOtp] = useState('');
 
   const s1Errors = {
     name: V.hospitalName(f.name), staff_count: V.staffCount(f.staff_count),
     owner_email: V.email(f.owner_email), owner_password: V.password(f.owner_password),
     registration_number: V.nabh(f.registration_number), phone_number: V.phone(f.phone_number),
-    physical_address: V.address(f.physical_address),
+    street: V.street(addressParts.street),
+    city: V.city(addressParts.city),
+    state: V.state(addressParts.state),
+    pinCode: V.pinCode(addressParts.pinCode),
   };
   const s1Valid = Object.values(s1Errors).every(e => !e);
 
@@ -141,7 +173,7 @@ export default function ActivationWizard({ isOpen, onClose, onActivationSuccess 
     if (!s1Valid) { setGlobalErr('Please fix the errors above before continuing.'); return; }
     setLoading(true); setGlobalErr('');
 
-    const branches = f.branches.split(',').map(b => b.trim()).filter(Boolean);
+    const branches = hasBranches ? f.branches.split(',').map(b => b.trim()).filter(Boolean) : [];
     const branchLocs = branches.map(b => branchAddresses[b] || `${f.physical_address} (${b})`);
 
     try {
@@ -157,13 +189,14 @@ export default function ActivationWizard({ isOpen, onClose, onActivationSuccess 
         staff_count: f.staff_count,
         latitude: f.latitude || undefined,
         longitude: f.longitude || undefined,
-        branches: f.branches,
-        branch_locations: branchLocs.join(';'),
+        branches: hasBranches ? f.branches : '',
+        branch_locations: hasBranches ? branchLocs.join(';') : '',
       });
 
       setHospitalId(data.hospital_id);
       const otpData = await post(`/onboarding/send-government-pan-otp/${data.hospital_id}`, {});
       setSimOtp(otpData.simulated_otp || '');
+      setSimEmailOtp(otpData.simulated_email_otp || '');
       setStep(2);
     } catch (e) {
       setGlobalErr(e.message || 'Registration failed. Please check your details and try again.');
@@ -175,9 +208,13 @@ export default function ActivationWizard({ isOpen, onClose, onActivationSuccess 
   // ── Step 2: Verify OTP → status becomes pending_verification → Step 3 ──────
   const verifyOtp = async () => {
     if (!/^\d{6}$/.test(otp)) { setGlobalErr('Enter the 6-digit OTP sent to your phone.'); return; }
+    if (!/^\d{6}$/.test(emailOtp)) { setGlobalErr('Enter the 6-digit OTP sent to your email.'); return; }
     setLoading(true); setGlobalErr('');
     try {
-      await postForm(`/onboarding/verify-government-pan-otp/${hospitalId}`, { otp_code: otp });
+      await postForm(`/onboarding/verify-government-pan-otp/${hospitalId}`, {
+        otp_code: otp,
+        email_otp_code: emailOtp
+      });
       setStep(3);
       onActivationSuccess?.({
         hospital_id: hospitalId,
@@ -271,7 +308,15 @@ export default function ActivationWizard({ isOpen, onClose, onActivationSuccess 
                           <VInput id="registration_number" label="NABH / Registration No." value={f.registration_number} onChange={set('registration_number')} validate={V.nabh} placeholder="e.g. NABH-2026-908" required/>
                           <VInput id="phone_number" label="Contact Phone (OTP sent here)" type="tel" value={f.phone_number} onChange={set('phone_number')} validate={V.phone} placeholder="10-digit Indian mobile" required inputMode="tel"/>
                         </div>
-                        <VInput id="physical_address" label="Physical Address" value={f.physical_address} onChange={set('physical_address')} validate={V.address} placeholder="Street, Area, City, State, PIN" required/>
+                        <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-4 space-y-4">
+                          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Hospital Address</p>
+                          <VInput id="street" label="Street Address" value={addressParts.street} onChange={val => updateAddress('street', val)} validate={V.street} placeholder="e.g. Flat/House No, Building, Street, Area" required/>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <VInput id="city" label="City" value={addressParts.city} onChange={val => updateAddress('city', val)} validate={V.city} placeholder="e.g. Hyderabad" required/>
+                            <VInput id="state" label="State" value={addressParts.state} onChange={val => updateAddress('state', val)} validate={V.state} placeholder="e.g. Telangana" required/>
+                            <VInput id="pinCode" label="PIN Code" value={addressParts.pinCode} onChange={val => updateAddress('pinCode', val)} validate={V.pinCode} placeholder="e.g. 500081" required maxLength={6} inputMode="numeric"/>
+                          </div>
+                        </div>
                         <div className="grid grid-cols-5 gap-2 items-end">
                           <div className="col-span-2">
                             <label className="block text-slate-700 text-[11px] font-semibold mb-1.5">Latitude</label>
@@ -285,45 +330,79 @@ export default function ActivationWizard({ isOpen, onClose, onActivationSuccess 
                             <MapPin size={13} className="text-violet-600"/>Auto
                           </button>
                         </div>
-                        <div>
-                          <label className="block text-slate-700 text-[11px] font-semibold mb-1.5">Branches <span className="text-slate-400">(comma separated, optional)</span></label>
-                          <input type="text" value={f.branches} onChange={e => set('branches')(e.target.value)} placeholder="e.g. Gachibowli, Kukatpally, Jubilee Hills" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-sm outline-none focus:bg-white focus:border-violet-500 transition-all"/>
-                        </div>
-                        {branchList.length > 0 && (
-                          <div className="p-4 bg-violet-50 border border-violet-100 rounded-2xl space-y-3">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-violet-600 flex items-center gap-1.5"><MapPin size={11}/>Branch Addresses</p>
-                            {branchList.map(b => (
-                              <div key={b}>
-                                <label className="text-[10px] font-bold text-violet-700 block mb-1">"{b}" full address <span className="text-rose-500">*</span></label>
-                                <input value={branchAddresses[b]||''} onChange={e => setBranchAddresses(p => ({...p,[b]:e.target.value}))} placeholder="Full address..." className="w-full bg-white border border-violet-200 rounded-xl p-3 text-xs outline-none focus:border-violet-500 transition-all"/>
-                              </div>
-                            ))}
+                        <div className="border border-slate-200 rounded-2xl p-4 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-xs font-bold text-slate-800">Multiple Branches Services</p>
+                              <p className="text-[10px] text-slate-400">Do you want to configure additional branch locations?</p>
+                            </div>
+                            <button type="button" onClick={() => { setHasBranches(!hasBranches); if (hasBranches) { set('branches')(''); setBranchAddresses({}); } }}
+                              className={`w-11 h-6 rounded-full transition-all relative shrink-0 ${hasBranches ? 'bg-violet-600' : 'bg-slate-200'}`}
+                            >
+                              <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-all ${hasBranches ? 'left-5.5' : 'left-0.5'}`} />
+                            </button>
                           </div>
-                        )}
+                          {hasBranches && (
+                            <div className="space-y-4 pt-2 border-t border-slate-100">
+                              <div>
+                                <label className="block text-slate-700 text-[11px] font-semibold mb-1.5">Branch Names <span className="text-slate-400">(comma separated)</span></label>
+                                <input type="text" value={f.branches} onChange={e => set('branches')(e.target.value)} placeholder="e.g. Gachibowli, Kukatpally" className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-sm outline-none focus:bg-white focus:border-violet-500 transition-all"/>
+                              </div>
+                              {branchList.length > 0 && (
+                                <div className="p-4 bg-violet-50 border border-violet-100 rounded-2xl space-y-3">
+                                  <p className="text-[10px] font-black uppercase tracking-widest text-violet-600 flex items-center gap-1.5"><MapPin size={11}/>Branch Addresses</p>
+                                  {branchList.map(b => (
+                                    <div key={b}>
+                                      <label className="text-[10px] font-bold text-violet-700 block mb-1">"{b}" full address <span className="text-rose-500">*</span></label>
+                                      <input value={branchAddresses[b]||''} onChange={e => setBranchAddresses(p => ({...p,[b]:e.target.value}))} placeholder="Full address for branch..." className="w-full bg-white border border-violet-200 rounded-xl p-3 text-xs outline-none focus:border-violet-500 transition-all"/>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <button type="button" onClick={submitStep1} disabled={loading} className="w-full py-4 bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white font-bold text-sm rounded-2xl transition-all shadow-lg shadow-violet-200 flex items-center justify-center gap-2">
-                        {loading ? <><RefreshCw size={15} className="animate-spin"/>Submitting…</> : 'Register & Verify Phone →'}
+                        {loading ? <><RefreshCw size={15} className="animate-spin"/>Submitting…</> : 'Register & Verify Coordinates →'}
                       </button>
                     </motion.div>
                   )}
 
-                  {/* STEP 2 — Phone OTP */}
+                  {/* STEP 2 — Dual OTP Verification */}
                   {step === 2 && (
                     <motion.div key="s2" initial={{ opacity:0, x:12 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-12 }} className="space-y-6">
-                      <div><h4 className="text-xl font-black text-slate-900">Verify Your Phone</h4><p className="text-slate-400 text-xs mt-1">A 6-digit OTP was sent to {f.phone_number}.</p></div>
-                      {simOtp && <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl"><p className="text-xs font-bold text-amber-800">Dev mode — OTP: <span className="font-mono text-lg ml-2 tracking-widest">{simOtp}</span></p></div>}
+                      <div>
+                        <h4 className="text-xl font-black text-slate-900">Verify Identity</h4>
+                        <p className="text-slate-400 text-xs mt-1">Verification codes have been dispatched to your contact coordinates.</p>
+                      </div>
+                      {(simOtp || simEmailOtp) && (
+                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-2">
+                          <p className="text-[10px] uppercase font-bold tracking-widest text-amber-800">Dev Simulated OTPs:</p>
+                          {simOtp && <p className="text-xs font-bold text-amber-700">Phone OTP: <span className="font-mono text-base ml-2 tracking-widest bg-amber-100/60 px-2 py-0.5 rounded">{simOtp}</span></p>}
+                          {simEmailOtp && <p className="text-xs font-bold text-amber-700">Email OTP: <span className="font-mono text-base ml-2 tracking-widest bg-amber-100/60 px-2 py-0.5 rounded">{simEmailOtp}</span></p>}
+                        </div>
+                      )}
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-slate-700 text-[11px] font-semibold mb-2">Enter 6-Digit OTP <span className="text-rose-500">*</span></label>
+                          <label className="block text-slate-700 text-[11px] font-semibold mb-2">Phone OTP (sent to {f.phone_number}) <span className="text-rose-500">*</span></label>
                           <input type="text" value={otp} onChange={e => { setOtp(e.target.value.replace(/\D/g,'').slice(0,6)); setGlobalErr(''); }}
                             placeholder="● ● ● ● ● ●" inputMode="numeric" maxLength={6}
-                            className={`w-full border rounded-xl p-4 text-center text-3xl font-black tracking-[0.7em] font-mono outline-none transition-all ${otp.length===6?'bg-emerald-50 border-emerald-300':'bg-slate-50 border-slate-200 focus:bg-white focus:border-violet-500'}`}
+                            className={`w-full border rounded-xl p-4 text-center text-2xl font-black tracking-[0.7em] font-mono outline-none transition-all ${otp.length===6?'bg-emerald-50 border-emerald-300':'bg-slate-50 border-slate-200 focus:bg-white focus:border-violet-500'}`}
                           />
                           {otp && otp.length < 6 && <p className="mt-1.5 text-[10px] font-bold text-amber-600">{otp.length}/6 digits entered</p>}
                         </div>
+                        <div>
+                          <label className="block text-slate-700 text-[11px] font-semibold mb-2">Email OTP (sent to {f.owner_email}) <span className="text-rose-500">*</span></label>
+                          <input type="text" value={emailOtp} onChange={e => { setEmailOtp(e.target.value.replace(/\D/g,'').slice(0,6)); setGlobalErr(''); }}
+                            placeholder="● ● ● ● ● ●" inputMode="numeric" maxLength={6}
+                            className={`w-full border rounded-xl p-4 text-center text-2xl font-black tracking-[0.7em] font-mono outline-none transition-all ${emailOtp.length===6?'bg-emerald-50 border-emerald-300':'bg-slate-50 border-slate-200 focus:bg-white focus:border-violet-500'}`}
+                          />
+                          {emailOtp && emailOtp.length < 6 && <p className="mt-1.5 text-[10px] font-bold text-amber-600">{emailOtp.length}/6 digits entered</p>}
+                        </div>
                         <div className="flex gap-3">
                           <button type="button" onClick={() => { setStep(1); setGlobalErr(''); }} className="px-6 py-4 border border-slate-200 text-slate-600 font-bold text-sm rounded-2xl hover:bg-slate-50 transition-all">← Back</button>
-                          <button type="button" onClick={verifyOtp} disabled={loading || otp.length < 6} className="flex-1 py-4 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-bold text-sm rounded-2xl transition-all">
+                          <button type="button" onClick={verifyOtp} disabled={loading || otp.length < 6 || emailOtp.length < 6} className="flex-1 py-4 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-bold text-sm rounded-2xl transition-all">
                             {loading ? 'Verifying…' : 'Verify & Submit Application →'}
                           </button>
                         </div>

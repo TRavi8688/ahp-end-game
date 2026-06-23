@@ -259,6 +259,7 @@ jobs:
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'landing' || (github.event_name == 'push' && needs.check-changes.outputs.landing == 'true')
         run: |
           cd hospyn-v2-web
+          echo "VITE_API_BASE_URL=https://hospyn-495906-api-625745217419.asia-south1.run.app/api" > .env
           npm run build
 
       - name: Build Partner App

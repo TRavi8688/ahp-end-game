@@ -247,15 +247,22 @@ async def send_government_pan_otp(
 ):
     hospital = await _hospital_or_404(db, hospital_id)
     otp = _otp()
-    _otp_store[hospital_id] = {**_otp_store.get(hospital_id, {}), "govt_otp": otp}
+    email_otp = _otp()
+    _otp_store[hospital_id] = {
+        **_otp_store.get(hospital_id, {}),
+        "govt_otp": otp,
+        "email_otp": email_otp
+    }
 
     # Production: Twilio SMS
     await _send_sms(hospital.phone, f"[Hospyn] Your PAN verification OTP is {otp}. Valid for 10 minutes.")
+    logger.info("[DEV] Email OTP sent to %s: %s", hospital.email, email_otp)
 
-    logger.info("Govt OTP sent for hospital %s (phone ending %s)", hospital_id, hospital.phone[-2:])
+    logger.info("Govt and Email OTP sent for hospital %s (phone ending %s)", hospital_id, hospital.phone[-2:])
     return {
-        "message":       f"OTP sent to {hospital.phone[:4]}****{hospital.phone[-2:]}",
-        "simulated_otp": otp,   # Remove this line in production
+        "message":       f"OTP sent to {hospital.phone[:4]}****{hospital.phone[-2:]} and email {hospital.email}",
+        "simulated_otp": otp,
+        "simulated_email_otp": email_otp,
     }
 
 
@@ -265,14 +272,19 @@ async def send_government_pan_otp(
 async def verify_government_pan_otp(
     hospital_id: str,
     otp_code:    str = Form(...),
+    email_otp_code: str = Form(...),
     db: AsyncSession = Depends(get_db),
 ):
     await _hospital_or_404(db, hospital_id)
-    stored = _otp_store.get(hospital_id, {}).get("govt_otp")
-    if not stored or otp_code.strip() != stored:
-        raise HTTPException(status_code=400, detail="Invalid or expired OTP. Request a new one.")
-    logger.info("Govt OTP verified for hospital %s", hospital_id)
-    return {"message": "OTP verified. Proceed to payment setup."}
+    stored_phone = _otp_store.get(hospital_id, {}).get("govt_otp")
+    stored_email = _otp_store.get(hospital_id, {}).get("email_otp")
+    if not stored_phone or otp_code.strip() != stored_phone:
+        raise HTTPException(status_code=400, detail="Invalid or expired phone verification OTP.")
+    if not stored_email or email_otp_code.strip() != stored_email:
+        raise HTTPException(status_code=400, detail="Invalid or expired email verification OTP.")
+    logger.info("Govt and Email OTP verified for hospital %s", hospital_id)
+    return {"message": "OTP verified. Proceed to next step."}
+
 
 
 # ── 4a. Generate Razorpay UPI QR ─────────────────────────────────────────────
