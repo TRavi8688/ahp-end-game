@@ -252,6 +252,7 @@ jobs:
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'admin' || (github.event_name == 'push' && needs.check-changes.outputs.admin == 'true')
         run: |
           cd matrix
+          npm install --legacy-peer-deps
           echo "VITE_API_BASE_URL=https://hospyn-495906-api-625745217419.asia-south1.run.app" > .env
           npm run build
 
@@ -259,8 +260,10 @@ jobs:
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'landing' || (github.event_name == 'push' && needs.check-changes.outputs.landing == 'true')
         run: |
           cd hospyn-v2-web
+          npm install --legacy-peer-deps
           echo "VITE_API_BASE_URL=https://hospyn-495906-api-625745217419.asia-south1.run.app/api" > .env
           npm run build
+
 
       - name: Build Partner App
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'partner' || (github.event_name == 'push' && needs.check-changes.outputs.partner == 'true')
