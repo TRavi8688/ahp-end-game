@@ -20,8 +20,11 @@ except ImportError:
     pass
 
 
-# ─── Add repo root to Python path so 'backend' module can be imported ─────────
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# ─── Add repo root and backend to Python path so 'backend' or 'app' can be imported ─────────
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(root_dir, "backend"))
+sys.path.insert(0, root_dir)
+
 
 # ─── Force test environment ───────────────────────────────────────────────────
 os.environ.setdefault("ENV", "test")
