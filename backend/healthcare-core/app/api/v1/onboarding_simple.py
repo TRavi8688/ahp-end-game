@@ -36,6 +36,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models.hospital import Hospital, HospitalStatus
+from app.api.v1.onboarding import _call_auth_internal
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -131,6 +132,19 @@ async def register_enterprise_simple(
     hospital_id = uuid.uuid4()
     hospyn_id   = _hospyn_id(body.name)
 
+    # Create the owner user in auth-service
+    auth_result = await _call_auth_internal(
+        "/internal/create-partner-user",
+        {
+            "email": body.owner_email,
+            "password": body.owner_password,
+            "hospital_id": str(hospital_id),
+            "role": "owner",
+            "full_name": body.name,
+        },
+    )
+    owner_user_id = uuid.UUID(auth_result["user_id"])
+
     hospital = Hospital(
         id=hospital_id,
         name=body.name,
@@ -143,7 +157,7 @@ async def register_enterprise_simple(
         country="India",
         pin_code=pin_code,
         status=HospitalStatus.pending_verification,
-        owner_user_id=uuid.uuid4(),
+        owner_user_id=owner_user_id,
     )
     db.add(hospital)
     await db.flush()
