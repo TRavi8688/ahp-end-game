@@ -498,12 +498,30 @@ async def all_tickets(
 
 @router.get("/my-tickets")
 async def my_tickets(request: Request, db: AsyncSession = Depends(get_db)):
+    """
+    FIX-T1 (2026-06-23): previously this only matched on owner_email. Most
+    patient-app users register by phone number and never set an email, so
+    they could create a ticket fine but could never see it again — "my
+    tickets" would 401/empty for them. Now accepts X-Owner-Phone as a
+    fallback identity header alongside X-Owner-Email.
+    """
     owner_email = request.headers.get("X-Owner-Email", "") or getattr(request.state, "user_email", "")
-    if not owner_email:
+    owner_phone = request.headers.get("X-Owner-Phone", "")
+
+    if not owner_email and not owner_phone:
         raise HTTPException(status_code=401, detail="Authentication required.")
 
+    where_clause = []
+    params: dict = {}
+    if owner_email:
+        where_clause.append("t.owner_email = :email")
+        params["email"] = owner_email
+    if owner_phone:
+        where_clause.append("t.owner_phone = :phone")
+        params["phone"] = owner_phone
+
     result = await db.execute(
-        text("""
+        text(f"""
             SELECT t.*,
               (SELECT text FROM ticket_messages tm WHERE tm.ticket_id = t.ticket_id
                ORDER BY tm.created_at DESC LIMIT 1) AS last_message,
@@ -512,10 +530,10 @@ async def my_tickets(request: Request, db: AsyncSession = Depends(get_db)):
               (SELECT COUNT(*) FROM ticket_messages tm WHERE tm.ticket_id = t.ticket_id
                AND tm.sender='agent' AND tm.read_by_owner=false) AS unread_count
             FROM support_tickets t
-            WHERE t.owner_email = :email
+            WHERE {" OR ".join(where_clause)}
             ORDER BY t.updated_at DESC
         """),
-        {"email": owner_email},
+        params,
     )
     rows = [dict(r) for r in result.mappings().all()]
     return {"tickets": rows, "total": len(rows)}

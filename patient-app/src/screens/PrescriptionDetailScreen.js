@@ -4,9 +4,9 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Theme, GlobalStyles } from '../theme';
 import HapticUtils from '../utils/HapticUtils';
-import ApiService from '../utils/ApiService';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import QRCode from 'react-native-qrcode-svg';
+import { clinicalService } from '../services/clinicalService';
 
 export default function PrescriptionDetailScreen({ route, navigation }) {
     const { prescription } = route.params;
@@ -41,15 +41,17 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
         if (!pharmacyId) return Alert.alert('Error', 'Please enter a Pharmacy ID or scan a QR');
         setIsSharing(true);
         try {
-            await ApiService.post(`/referrals/pharmacies/request`, { 
-                prescription_id: prescription.id,
-                partner_pharmacy_id: pharmacyId 
-            });
+            // FIX-RX1 (2026-06-24): was calling /referrals/pharmacies/request,
+            // which never existed. Now hits the real, already-built
+            // /prescriptions/{id}/share endpoint — works for any pharmacy
+            // account in the system, not a narrow referral list.
+            await clinicalService.submitPartnerPharmacyRequest(prescription.id, pharmacyId);
             setShowShareModal(false);
             setPharmacyId('');
             Alert.alert('Success', 'Prescription securely shared with Pharmacy!');
         } catch (error) {
-            Alert.alert('Error', 'Failed to share. Make sure the Pharmacy ID is correct.');
+            const msg = error.response?.data?.detail || 'Failed to share. Make sure the Pharmacy ID is correct.';
+            Alert.alert('Error', msg);
         } finally {
             setIsSharing(false);
         }

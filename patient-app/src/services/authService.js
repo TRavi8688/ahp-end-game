@@ -31,13 +31,61 @@ export const authService = {
         return response.data;
     },
 
-    setupProfile: async (payload, tempToken) => {
-        // setupProfile requires idempotency and proper auth headers handling, but we have a temp token.
-        // It's safer to use raw axios to avoid apiClient overriding anything or failing.
-        const response = await axios.post(`${API_BASE_URL}/patient/setup-profile`, payload, {
-            headers: { 'Authorization': `Bearer ${tempToken}` }
+    // SEC-2/AUTH-FIX (2026-06-23): centralizing register/check-user/otp calls
+    // here instead of scattering raw axios calls across screens, so there's
+    // one place that knows the real shape of these errors.
+
+    checkUser: async (identifier) => {
+        const response = await axios.get(`${API_BASE_URL}/auth/check-user`, { params: { identifier } });
+        return response.data; // { exists, verified }
+    },
+
+    register: async ({ phone, password, firstName, lastName, role = 'patient' }) => {
+        const response = await axios.post(`${API_BASE_URL}/auth/register`, {
+            phone_number: phone,
+            password,
+            first_name: firstName,
+            last_name: lastName,
+            full_name: `${firstName} ${lastName}`.trim(),
+            role,
+        });
+        return response.data; // { id, role, email, phone, resumed }
+    },
+
+    sendOtp: async (phone) => {
+        const response = await axios.post(`${API_BASE_URL}/auth/send-otp`, { identifier: phone, phone, country_code: '+91', method: 'sms' });
+        return response.data; // { message, resend_after_seconds }
+    },
+
+    verifyOtp: async (phone, otp) => {
+        const response = await axios.post(`${API_BASE_URL}/auth/verify-otp`, { phone, otp });
+        return response.data; // { access_token, user }
+    },
+
+    // Lets a Google/Apple-only user set a real Hospyn ID + password.
+    // Requires the access token from their current (social) session.
+    setPassword: async (phone, password, accessToken) => {
+        const response = await axios.post(`${API_BASE_URL}/auth/set-password`, {
+            phone_number: phone,
+            password,
+        }, {
+            headers: { Authorization: `Bearer ${accessToken}` }
         });
         return response.data;
+    },
+
+    setupProfile: async (payload, tempToken) => {
+        // FIX-P1 (2026-06-24): this used to POST to /patient/setup-profile,
+        // which doesn't exist anywhere in the backend — every registration
+        // and every Google-first-login profile setup dead-ended here. The
+        // real endpoint is POST /patients/, it doesn't require a hospital_id
+        // anymore, and it returns the new hospyn_id wrapped in an envelope
+        // ({ success, message, data: {...} }) that needs one level of
+        // unwrapping.
+        const response = await axios.post(`${API_BASE_URL}/patients/`, payload, {
+            headers: { 'Authorization': `Bearer ${tempToken}` }
+        });
+        return response.data?.data || response.data;
     },
 
     requestForgotPassword: async (identifier) => {

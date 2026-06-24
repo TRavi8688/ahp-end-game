@@ -117,3 +117,12 @@ doctor-app/doctor-app-fixes/
 
 # Allow src/lib/ folders in JS/TS frontend apps (reverses the python lib/ ignore rule)
 !**/src/lib/
+
+# ── Expo / React Native ───────────────────────────────────────────────────────
+.expo/
+web-build/
+*.expo/
+
+# ── Compiled zips & binaries ──────────────────────────────────────────────────
+*.zip
+cloud-sql-proxy.exe

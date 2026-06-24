@@ -175,9 +175,15 @@ export const clinicalService = {
     },
 
     submitPartnerPharmacyRequest: async (prescriptionId, partnerPharmacyId) => {
-        const response = await apiClient.post('/referrals/pharmacies/request', {
-            prescription_id: prescriptionId,
-            partner_pharmacy_id: partnerPharmacyId
+        // FIX-RX1 (2026-06-24): /referrals/pharmacies/request doesn't exist
+        // anywhere in the backend — there is no /referrals router at all.
+        // The real, already-fully-built endpoint for this is
+        // POST /prescriptions/{id}/share, which works against ANY pharmacy's
+        // hospital_id (there's no separate referral/partner whitelist to
+        // maintain — every registered pharmacy account is a valid target,
+        // identified by whatever hospital_id their QR code encodes).
+        const response = await apiClient.post(`/prescriptions/${prescriptionId}/share`, {
+            pharmacy_hospital_id: partnerPharmacyId,
         });
         return response.data;
     },

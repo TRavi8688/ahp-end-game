@@ -98,6 +98,9 @@ import AppointmentBookingScreen from './src/screens/AppointmentBookingScreen';
 import DoctorSearchScreen     from './src/screens/DoctorSearchScreen';
 import BookAppointmentScreen  from './src/screens/BookAppointmentScreen';
 import QueueStatusScreen      from './src/screens/QueueStatusScreen';
+import RaiseTicketScreen      from './src/screens/RaiseTicketScreen';
+import MyTicketsScreen        from './src/screens/MyTicketsScreen';
+import SetPasswordScreen      from './src/screens/SetPasswordScreen';
 // ─────────────────────────────────────────────────────────────────────────────
 
 import ErrorBoundary from './src/components/ErrorBoundary';
@@ -105,8 +108,26 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 const Stack = createNativeStackNavigator();
 
 function AppContent() {
-  const { isAuthenticated, isLoading, logout } = useAuth();
+  const { isAuthenticated, isLoading, logout, needsPasswordSetup, setNeedsPasswordSetup } = useAuth();
   const navigationRef = useRef(null);
+
+  // FIX (2026-06-23): one-time prompt after a Google/Apple sign-in that
+  // created an account with no usable Hospyn ID + password. Waits briefly
+  // for the post-login screen (MainTabs) to actually mount before navigating,
+  // since the navigator's authenticated routes only exist once isAuthenticated
+  // flips true.
+  useEffect(() => {
+    if (!isAuthenticated || !needsPasswordSetup) return;
+    const t = setTimeout(() => {
+      try {
+        navigationRef.current?.navigate('SetPassword');
+      } catch (e) {
+        console.warn('[Auth] Could not navigate to SetPassword:', e?.message);
+      }
+      setNeedsPasswordSetup(false);
+    }, 700);
+    return () => clearTimeout(t);
+  }, [isAuthenticated, needsPasswordSetup, setNeedsPasswordSetup]);
 
   const [fontsLoaded] = useFonts({
     Syne_800ExtraBold,
@@ -286,6 +307,9 @@ function AppContent() {
                 <Stack.Screen name="DoctorSearch"        component={DoctorSearchScreen} />
                 <Stack.Screen name="BookAppointment"     component={BookAppointmentScreen} />
                 <Stack.Screen name="QueueStatus"         component={QueueStatusScreen} />
+                <Stack.Screen name="RaiseTicket"         component={RaiseTicketScreen} />
+                <Stack.Screen name="MyTickets"           component={MyTicketsScreen} />
+                <Stack.Screen name="SetPassword"         component={SetPasswordScreen} />
 
                 {/* Phase 6: New appointment booking screen */}
                 {/* Navigate here with: navigation.navigate("AppointmentBooking") */}

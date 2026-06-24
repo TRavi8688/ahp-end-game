@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View, Text, StyleSheet, TextInput,
     TouchableOpacity, ActivityIndicator, Alert,
@@ -8,9 +8,8 @@ import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
 import { SecurityUtils } from '../utils/security';
-import { API_BASE_URL } from '../api';
+import { authService } from '../services/authService';
 
 export default function RegisterScreen({ navigation }) {
     const [loading, setLoading] = useState(false);
@@ -28,6 +27,29 @@ export default function RegisterScreen({ navigation }) {
     const [step, setStep] = useState(1); // 1: Details, 2: OTP
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [resendCooldown, setResendCooldown] = useState(0);
+    const cooldownTimer = useRef(null);
+
+    useEffect(() => {
+        return () => { if (cooldownTimer.current) clearInterval(cooldownTimer.current); };
+    }, []);
+
+    const startCooldown = (seconds = 45) => {
+        setResendCooldown(seconds);
+        if (cooldownTimer.current) clearInterval(cooldownTimer.current);
+        cooldownTimer.current = setInterval(() => {
+            setResendCooldown((s) => {
+                if (s <= 1) { clearInterval(cooldownTimer.current); return 0; }
+                return s - 1;
+            });
+        }, 1000);
+    };
+
+    const showError = (title, err, fallback) => {
+        const msg = err?.response?.data?.detail || err?.message || fallback;
+        if (Platform.OS === 'web') window.alert(`${title}\n\n${msg}`);
+        else Alert.alert(title, msg);
+    };
 
     const onChangeDate = (event, selectedDate) => {
         setShowDatePicker(false);
@@ -48,15 +70,18 @@ export default function RegisterScreen({ navigation }) {
 
         setLoading(true);
         try {
-            // Instant Check for already registered users
-            const checkResp = await axios.get(`${API_BASE_URL}/auth/check-user?identifier=${phone}`);
-            if (checkResp.data.exists) {
+            // FIX (2026-06-23): this used to hard-block here whenever
+            // check-user found ANY existing row for this phone number — even
+            // one that registered but never finished OTP. That left people
+            // permanently stuck: can't register again, and nothing told them
+            // they could just log in. Now we only block if the account is
+            // actually fully verified.
+            const checkResp = await authService.checkUser(phone);
+            if (checkResp.exists && checkResp.verified) {
                 setLoading(false);
                 if (Platform.OS === 'web') {
                     const proceed = window.confirm("This phone number is already registered. Click OK to go to Login, or Cancel to use a different number.");
-                    if (proceed) {
-                        navigation.navigate('Login');
-                    }
+                    if (proceed) navigation.navigate('Login');
                 } else {
                     Alert.alert(
                         'Already Registered',
@@ -67,21 +92,35 @@ export default function RegisterScreen({ navigation }) {
                 return;
             }
 
-            // Register the user first so they exist in the DB for OTP verification
-            await axios.post(`${API_BASE_URL}/auth/register`, {
-                phone_number: phone,
-                password: password,
-                first_name: firstName,
-                last_name: lastName,
-                role: 'patient'
-            });
+            // Register (or resume a previous unfinished registration) so the
+            // user exists in the DB for OTP verification.
+            const regResp = await authService.register({ phone, password, firstName, lastName });
 
-            // Then send OTP
-            await axios.post(`${API_BASE_URL}/auth/send-otp`, { identifier: phone, country_code: '+91', method: 'sms' });
+            // Then send OTP — surfaces a real error now if delivery fails,
+            // instead of silently saying "OTP sent" either way.
+            await authService.sendOtp(phone);
+            startCooldown(45);
             setStep(2);
+
+            if (regResp?.resumed) {
+                const msg = "Welcome back — we're sending a new code to finish setting up your account.";
+                if (Platform.OS === 'web') window.alert(msg);
+                else Alert.alert('Resuming registration', msg);
+            }
         } catch (err) {
             console.error(err);
-            Alert.alert('Error', 'Something went wrong. Please try again.');
+            showError('Could not continue', err, 'Something went wrong. Please try again.');
+        } finally { setLoading(false); }
+    };
+
+    const handleResendOtp = async () => {
+        if (resendCooldown > 0) return;
+        setLoading(true);
+        try {
+            const res = await authService.sendOtp(formData.phone);
+            startCooldown(res?.resend_after_seconds || 45);
+        } catch (err) {
+            showError('Could not resend code', err, 'Please try again in a moment.');
         } finally { setLoading(false); }
     };
 
@@ -89,30 +128,32 @@ export default function RegisterScreen({ navigation }) {
         if (!otp) return Alert.alert('Enter OTP', 'Please enter the 6-digit code sent to your phone.');
         setLoading(true);
         try {
-            const resp = await axios.post(`${API_BASE_URL}/auth/verify-otp`, {
-                identifier: formData.phone,
-                otp: otp
-            });
-            const { access_token } = resp.data;
+            const resp = await authService.verifyOtp(formData.phone, otp);
+            const { access_token } = resp;
 
-            // Immediately complete profile setup
+            // FIX-P1 (2026-06-24): field names now match the real PatientCreate
+            // schema. phone_number -> phone; conditions/medications arrays and
+            // password don't exist on this endpoint at all (password was
+            // already set by /auth/register; medications has nowhere to go
+            // here yet — that's a separate gap, not silently dropped data loss
+            // on our end, see changelog).
             const setupPayload = {
-                phone_number: formData.phone,
+                phone: formData.phone,
                 first_name: formData.firstName,
                 last_name: formData.lastName,
                 date_of_birth: formData.age || null,
-                gender: formData.gender || 'Unknown',
+                // FIX-P1: backend Gender enum values are lowercase
+                // ("male"/"female"/"other"/"prefer_not_to_say"); the Gender
+                // picker sends "Male"/"Female"/"Other" — every registration
+                // that selected a gender was failing validation here.
+                gender: formData.gender ? formData.gender.toLowerCase() : null,
                 blood_group: 'Unknown',
-                password: formData.password,
-                conditions: [],
-                medications: []
+                chronic_conditions: null,
             };
 
-            const setupResp = await axios.post(`${API_BASE_URL}/profile/setup`, setupPayload, {
-                headers: { Authorization: `Bearer ${access_token}` }
-            });
+            const setupResp = await authService.setupProfile(setupPayload, access_token);
 
-            const hospyn_id = setupResp.data.hospyn_id;
+            const hospyn_id = setupResp.hospyn_id;
             await SecurityUtils.saveToken(access_token);
             await SecurityUtils.saveHospynId(hospyn_id);
 
@@ -122,7 +163,7 @@ export default function RegisterScreen({ navigation }) {
 
         } catch (err) {
             console.error(err);
-            Alert.alert('Verification Failed', 'Incorrect OTP. Please check the code and try again.');
+            showError('Verification failed', err, 'Incorrect OTP. Please check the code and try again.');
         } finally { setLoading(false); }
     };
 
@@ -302,6 +343,15 @@ export default function RegisterScreen({ navigation }) {
                                 <Text style={{ color: '#6366F1', fontSize: 12, textAlign: 'center', marginBottom: 10, opacity: 0.8 }}>
                                     Check your messages for the 6-digit verification code.
                                 </Text>
+                                <TouchableOpacity
+                                    onPress={handleResendOtp}
+                                    disabled={resendCooldown > 0 || loading}
+                                    style={{ alignItems: 'center', marginBottom: 4 }}
+                                >
+                                    <Text style={{ color: resendCooldown > 0 ? '#475569' : '#94A3B8', fontSize: 13 }}>
+                                        {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Didn't get a code? Resend"}
+                                    </Text>
+                                </TouchableOpacity>
                             </View>
                         )}
 

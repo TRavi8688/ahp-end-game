@@ -61,7 +61,7 @@ export default function SettingsScreen({ navigation }) {
         fetchProfileData();
     }, []);
 
-    const { logout } = useAuth();
+    const { logout, authProvider } = useAuth();
 
     const handleLogout = async () => {
         HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Heavy);
@@ -308,14 +308,33 @@ export default function SettingsScreen({ navigation }) {
                 />
 
                 <Text style={[styles.sectionTitle, { marginTop: 30 }]}>SUPPORT</Text>
+                {authProvider !== 'local' && (
+                    <SettingItem
+                        icon="key-outline"
+                        label="Set up Hospyn ID & password"
+                        sub="So you don't have to use Google every time"
+                        onPress={() => {
+                            HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Light);
+                            navigation.navigate('SetPassword');
+                        }}
+                    />
+                )}
                 <SettingItem 
                     icon="help-circle-outline" 
-                    label="Hospyn Help Center" 
+                    label="Raise a ticket" 
+                    sub="Tell our support team what's wrong"
                     onPress={() => {
                         HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Light);
-                        const helpMsg = "Accessing Hospyn Clinical Support Vault... Our medical assistance desk has been alerted.";
-                        if (Platform.OS === 'web') window.alert(helpMsg);
-                        else Alert.alert("Hospyn Help Center", helpMsg);
+                        navigation.navigate('RaiseTicket');
+                    }} 
+                />
+                <SettingItem 
+                    icon="list-outline" 
+                    label="My tickets" 
+                    sub="Track tickets you've already raised"
+                    onPress={() => {
+                        HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Light);
+                        navigation.navigate('MyTickets');
                     }} 
                 />
                 <SettingItem 

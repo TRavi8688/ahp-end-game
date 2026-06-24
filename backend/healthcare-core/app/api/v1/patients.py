@@ -13,6 +13,8 @@ Endpoints:
 import uuid
 import json
 import os
+import secrets
+import string
 from datetime import timezone, datetime
 from typing import Annotated, Optional, Dict
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
@@ -41,6 +43,25 @@ from app.schemas.doctor import DoctorResponse, DoctorListResponse
 router = APIRouter()
 
 
+async def _generate_hospyn_id(db: AsyncSession) -> str:
+    """
+    FIX-P1 (2026-06-24): patient self-registration never had its own ID
+    generator (only doctors/hospitals did), even though the Hospyn ID is
+    the consumer-facing identity shown throughout the app (e.g. the Login
+    screen's "HOSPYN-000000-XXX" placeholder). Format: HOSPYN-{6 digits}-{3
+    letters}. Retries on the (very unlikely) chance of a collision.
+    """
+    for _ in range(10):
+        digits = "".join(secrets.choice(string.digits) for _ in range(6))
+        letters = "".join(secrets.choice(string.ascii_uppercase) for _ in range(3))
+        candidate = f"HOSPYN-{digits}-{letters}"
+        existing = await db.execute(select(Patient).where(Patient.hospyn_id == candidate))
+        if not existing.scalars().first():
+            return candidate
+    # Practically unreachable, but never silently return a colliding id.
+    raise HTTPException(status_code=500, detail="Could not allocate a Hospyn ID. Please try again.")
+
+
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def create_patient(
     payload: PatientCreate,
@@ -50,14 +71,19 @@ async def create_patient(
     db: AsyncSession = Depends(get_db),
 ):
     """Register a new patient profile. Links to user_id from auth service."""
-    # Verify the hospital exists
-    hospital_result = await db.execute(
-        select(Hospital).where(
-            Hospital.id == payload.hospital_id, Hospital.deleted_at.is_(None)
+    # FIX-P1 (2026-06-24): hospital_id is now optional. Most patients
+    # self-register through the consumer app with no hospital chosen yet —
+    # they get a hospital_id later (e.g. their first real visit/booking),
+    # not at sign-up. Only validate it when one was actually supplied
+    # (reception/walk-in flows still pass a real hospital_id here).
+    if payload.hospital_id is not None:
+        hospital_result = await db.execute(
+            select(Hospital).where(
+                Hospital.id == payload.hospital_id, Hospital.deleted_at.is_(None)
+            )
         )
-    )
-    if not hospital_result.scalars().first():
-        raise HTTPException(status_code=404, detail="Hospital not found")
+        if not hospital_result.scalars().first():
+            raise HTTPException(status_code=404, detail="Hospital not found")
 
     # Check if this user already has a patient profile
     existing = await db.execute(
@@ -71,6 +97,7 @@ async def create_patient(
     patient = Patient(
         **payload.model_dump(),
         user_id=uuid.UUID(current_user.sub),
+        hospyn_id=await _generate_hospyn_id(db),
     )
     db.add(patient)
     await db.flush()

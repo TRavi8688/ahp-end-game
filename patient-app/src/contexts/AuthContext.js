@@ -16,6 +16,7 @@ export const AuthProvider = ({ children }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [user, setUser] = useState(null);
     const [authProvider, setAuthProvider] = useState('local');
+    const [needsPasswordSetup, setNeedsPasswordSetup] = useState(false);
 
     /**
      * Restore session from secure storage on boot.
@@ -119,6 +120,7 @@ export const AuthProvider = ({ children }) => {
             await AsyncStorage.removeItem('auth_provider');
             setIsAuthenticated(false);
             setUser(null);
+            setNeedsPasswordSetup(false);
             console.log('[Auth] Session cleared.');
         } catch (error) {
             console.error('[Auth] Logout failed:', error);
@@ -146,15 +148,32 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    /**
+     * FIX-A6 (2026-06-23): called after a Google/Apple user successfully sets
+     * a real Hospyn ID + password, so the UI stops treating them as
+     * "social-only" without needing a full re-login.
+     */
+    const updateAuthProvider = async (provider) => {
+        try {
+            await AsyncStorage.setItem('auth_provider', provider);
+            setAuthProvider(provider);
+        } catch (error) {
+            console.error('[Auth] Failed to update auth provider:', error);
+        }
+    };
+
     return (
         <AuthContext.Provider value={{
             isAuthenticated,
             isLoading,
             user,
             authProvider,
+            needsPasswordSetup,
+            setNeedsPasswordSetup,
             login,
             logout,
             switchProfile,
+            updateAuthProvider,
             setIsAuthenticated // Exposed for interceptors
         }}>
             {children}

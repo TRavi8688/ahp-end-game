@@ -8,9 +8,14 @@ export const patientService = {
     getProfile: async (signal) => {
         const activeMemberId = await SecurityUtils.getActiveMemberId() || 'primary';
         try {
-            const response = await apiClient.get('/patient/profile', { signal });
-            ephemeralProfileCache.set(activeMemberId, response.data);
-            return response.data;
+            // FIX-P1 (2026-06-24): /patient/profile doesn't exist anywhere in
+            // the backend — the real "get my own profile" endpoint is
+            // /patients/me, and its response is wrapped in
+            // { success, message, data: {...} }.
+            const response = await apiClient.get('/patients/me', { signal });
+            const profile = response.data?.data || response.data;
+            ephemeralProfileCache.set(activeMemberId, profile);
+            return profile;
         } catch (e) {
             if (e.name === 'CanceledError' || e.name === 'AbortError') {
                 throw e;
@@ -28,14 +33,22 @@ export const patientService = {
     updateProfile: async (data) => {
         const activeMemberId = await SecurityUtils.getActiveMemberId() || 'primary';
         try {
-            const response = await apiClient.post('/patient/profile/update', data);
-            
-            // Re-sync in-memory cache
-            const current = ephemeralProfileCache.get(activeMemberId) || {};
-            const updated = { ...current, ...data };
+            // FIX-P1: /patient/profile/update doesn't exist either. The real
+            // endpoint is PUT /patients/{id} — needs the patient's own id,
+            // which we already have from getProfile()/the cached profile.
+            const cached = ephemeralProfileCache.get(activeMemberId);
+            const patientId = data.id || cached?.id;
+            if (!patientId) {
+                throw new Error('Cannot update profile: missing patient id. Reload your profile first.');
+            }
+            const response = await apiClient.put(`/patients/${patientId}`, data);
+            const updatedFromServer = response.data?.data || response.data;
+
+            const current = cached || {};
+            const updated = { ...current, ...updatedFromServer };
             ephemeralProfileCache.set(activeMemberId, updated);
             
-            return response.data;
+            return updated;
         } catch (e) {
             console.error('[patientService] Profile update failed.');
             throw e;

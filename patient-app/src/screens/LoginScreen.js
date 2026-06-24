@@ -19,7 +19,7 @@ import axios from 'axios';
 const { width, height } = Dimensions.get('window');
 
 export default function AuthScreen({ navigation }) {
-    const { login } = useAuth();
+    const { login, setNeedsPasswordSetup } = useAuth();
 
     // Auth States
     const [hospynId, setHospynId] = useState('');
@@ -93,11 +93,18 @@ export default function AuthScreen({ navigation }) {
                                     // But since we just want to verify if profile exists, authService can do it or we just use raw axios for this specific check if apiClient isn't hydrated yet.
                                     // Wait, let's just mock the check or use a temporary apiClient request.
                                     // For now, use the old axios approach for this specific one-off check just to be safe before login finishes
-                                    const profileResp = await axios.get(`${API_BASE_URL}/patient/profile`, {
+                                    const profileResp = await axios.get(`${API_BASE_URL}/patients/me`, {
                                         headers: { 'Authorization': `Bearer ${access_token}` }
                                     });
                                     await AsyncStorage.removeItem('mock_profile');
                                     await login(access_token, email, null, 'google');
+                                    // FIX (2026-06-23): tell the app this account can't use
+                                    // Hospyn ID + password yet, so it can offer a one-time
+                                    // "set up a password" prompt instead of forcing Google
+                                    // sign-in forever.
+                                    if (data.has_usable_password === false) {
+                                        setNeedsPasswordSetup(true);
+                                    }
                                 } catch (profileErr) {
                                     if (profileErr.response?.status === 404) {
                                         setTempAuthToken(access_token);
@@ -200,11 +207,14 @@ export default function AuthScreen({ navigation }) {
                 const email = credential.email || 'apple.user@hospyn.com';
                 
                 try {
-                    const profileResp = await axios.get(`${API_BASE_URL}/patient/profile`, {
+                    const profileResp = await axios.get(`${API_BASE_URL}/patients/me`, {
                         headers: { 'Authorization': `Bearer ${access_token}` }
                     });
                     await AsyncStorage.removeItem('mock_profile');
                     await login(access_token, email, null, 'apple');
+                    if (data.has_usable_password === false) {
+                        setNeedsPasswordSetup(true);
+                    }
                 } catch (profileErr) {
                     if (profileErr.response?.status === 404) {
                         setTempAuthToken(access_token);
@@ -261,14 +271,19 @@ export default function AuthScreen({ navigation }) {
 
         setSetupLoading(true);
         try {
+            // FIX-P1 (2026-06-24): field names now match the real PatientCreate
+            // schema (phone, not phone_number). Also: this endpoint has no
+            // password field at all — setting a Hospyn ID password is a
+            // separate operation now handled by the dedicated "Set up
+            // password" flow (Settings, or the one-time prompt after first
+            // Google sign-in), so it's no longer silently ignored here.
             const payload = {
                 first_name: cleanFirstName,
                 last_name: cleanLastName,
-                phone_number: cleanPhone,
+                phone: cleanPhone,
                 date_of_birth: cleanDob,
-                gender: setupGender,
-                blood_group: setupBloodGroup,
-                password: setupPassword ? setupPassword : null
+                gender: setupGender ? setupGender.toLowerCase() : null,
+                blood_group: setupBloodGroup || 'Unknown',
             };
 
             await authService.setupProfile(payload, tempAuthToken);
@@ -549,18 +564,9 @@ export default function AuthScreen({ navigation }) {
                                     </View>
 
                                     <View style={styles.inputGroup}>
-                                        <Text style={styles.label}>SET LOCAL PASSWORD (OPTIONAL)</Text>
-                                        <View style={styles.inputWrapper}>
-                                            <Ionicons name="key-outline" size={18} color="#94A3B8" style={styles.inputIcon} />
-                                            <TextInput
-                                                style={styles.input}
-                                                placeholder="Secure offline login password"
-                                                placeholderTextColor="#475569"
-                                                value={setupPassword}
-                                                onChangeText={setSetupPassword}
-                                                secureTextEntry
-                                            />
-                                        </View>
+                                        <Text style={[styles.label, { opacity: 0.6 }]}>
+                                            You can set a Hospyn ID password right after this, from Settings → "Set up Hospyn ID & password."
+                                        </Text>
                                     </View>
 
                                     <TouchableOpacity style={styles.setupSubmitBtn} onPress={handleSetupSubmit} disabled={setupLoading}>

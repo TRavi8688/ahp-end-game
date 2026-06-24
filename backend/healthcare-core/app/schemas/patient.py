@@ -10,7 +10,13 @@ from app.models.patient import BloodGroup, Gender
 
 
 class PatientCreate(BaseModel):
-    hospital_id: uuid.UUID
+    # FIX-P1 (2026-06-24): hospital_id used to be mandatory, which meant the
+    # patient app could never call this endpoint at all — it has no "pick a
+    # hospital" step, and isn't supposed to need one. A Hospyn ID is a
+    # health-network identity, not tied to one hospital. hospital_id stays
+    # supported for the reception/walk-in flows that DO know which hospital
+    # they're registering a patient at.
+    hospital_id: Optional[uuid.UUID] = None
     first_name: str
     last_name: str
     email: Optional[EmailStr] = None
@@ -49,7 +55,8 @@ class PatientUpdate(BaseModel):
 class PatientResponse(BaseModel):
     id: uuid.UUID
     user_id: uuid.UUID
-    hospital_id: uuid.UUID
+    hospyn_id: Optional[str] = None
+    hospital_id: Optional[uuid.UUID] = None
     first_name: str
     last_name: str
     email: Optional[str]

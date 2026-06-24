@@ -48,6 +48,22 @@ class User(Base):
     role: Mapped[RoleEnum] = mapped_column(SQLEnum(RoleEnum), default=RoleEnum.patient)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     token_version: Mapped[int] = mapped_column(Integer, default=1)
+
+    # FIX-U3 (2026-06-23): Tracks whether this account finished OTP verification.
+    # Without this, a user who registered but never completed OTP looked
+    # identical to a fully verified user, so /check-user could only say
+    # "already registered" and send them to Login with no way to resume
+    # verification. New registrations start False; verify-otp flips it True.
+    phone_verified: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # FIX-U3: Where this account's credentials came from: 'local' | 'google' | 'apple'.
+    auth_provider: Mapped[str] = mapped_column(String(20), default="local")
+
+    # FIX-U3: False for Google/Apple-created accounts until the user explicitly
+    # sets a real password via POST /auth/set-password. Lets /login give a
+    # helpful "this account uses Google Sign-In" message instead of a generic
+    # "invalid credentials" when a social-only user tries Hospyn ID + password.
+    has_usable_password: Mapped[bool] = mapped_column(Boolean, default=True)
     hospital_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), nullable=True, index=True
     )
