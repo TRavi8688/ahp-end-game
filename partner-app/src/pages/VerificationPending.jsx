@@ -60,7 +60,7 @@ export default function VerificationPending() {
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-2 mb-8">
           <Logo variant="mark" className="w-9 h-9 rounded-xl" />
-          <span className="font-bold text-ink-900 text-lg">Hospin Partner</span>
+          <span className="font-bold text-ink-900 text-lg">HOSPAIN Partner</span>
         </div>
 
         <h2 className="text-2xl font-bold text-ink-900 mb-2">Verification Pending</h2>

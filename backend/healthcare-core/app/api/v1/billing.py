@@ -678,123 +678,53 @@ async def download_receipt(
     hospital_result = await db.execute(select(Hospital).where(Hospital.id == inv.hospital_id))
     hospital = hospital_result.scalars().first()
     hospital_name = hospital.name if hospital else "Hospital"
+    hospital_address = f"{hospital.address_line1 or ''}, {hospital.city or ''}, {hospital.state or ''}".strip(", ") if hospital else ""
+    hospital_phone = hospital.phone if hospital else ""
+    hospital_gstin = ""
 
     try:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib import colors
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import mm
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
-        from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+        from app.utils.pdf_engine import build_invoice_pdf, InvoiceData, InvoiceLineItem
 
-        buf = io.BytesIO()
-        doc = SimpleDocTemplate(buf, pagesize=A4,
-                                rightMargin=20*mm, leftMargin=20*mm,
-                                topMargin=20*mm, bottomMargin=20*mm)
-        styles = getSampleStyleSheet()
-        story = []
+        invoice_data = InvoiceData(
+            invoice_number=inv.invoice_number,
+            issued_at=inv.paid_at or inv.created_at or datetime.now(),
+            pharmacy_name=hospital_name,
+            pharmacy_address=hospital_address,
+            pharmacy_phone=hospital_phone,
+            pharmacy_gstin=hospital_gstin,
+            invoice_type="Tax Invoice / Receipt",
+            payment_method=inv.upi_transaction_ref and "UPI" or "",
+            payment_ref=inv.upi_transaction_ref or "",
+            status="PAID" if inv.status == "PAID" else inv.status,
+            items=[
+                InvoiceLineItem(
+                    description=row.description,
+                    category=row.category or "",
+                    quantity=float(row.quantity),
+                    unit_price=float(row.unit_price),
+                    tax_percent=5.0,
+                )
+                for row in line_items
+            ],
+        )
 
-        # Header
-        story.append(Paragraph(f"<b>{hospital_name}</b>", ParagraphStyle("h1", fontSize=20, spaceAfter=4, alignment=TA_CENTER)))
-        story.append(Paragraph("Powered by HOSPYN", ParagraphStyle("sub", fontSize=9, textColor=colors.grey, alignment=TA_CENTER)))
-        story.append(Spacer(1, 8*mm))
-        story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#4F46E5")))
-        story.append(Spacer(1, 4*mm))
-
-        # Invoice meta
-        meta_data = [
-            ["Receipt / Tax Invoice", ""],
-            ["Invoice Number:", inv.invoice_number],
-            ["Date:", inv.paid_at.strftime("%d %b %Y %H:%M") if inv.paid_at else ""],
-            ["UPI Transaction Ref:", inv.upi_transaction_ref or "—"],
-            ["Status:", "PAID ✓"],
-        ]
-        meta_table = Table(meta_data, colWidths=[60*mm, 100*mm])
-        meta_table.setStyle(TableStyle([
-            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 10),
-            ("FONTSIZE", (0, 0), (-1, 0), 14),
-            ("SPAN", (0, 0), (1, 0)),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#4F46E5")),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-        ]))
-        story.append(meta_table)
-        story.append(Spacer(1, 6*mm))
-
-        # Line items table
-        story.append(Paragraph("<b>Bill Details</b>", ParagraphStyle("h3", fontSize=11, spaceAfter=4)))
-        item_headers = [["Description", "Category", "Qty", "Unit Price", "Total"]]
-        item_rows = [
-            [row.description, row.category.title(), str(row.quantity),
-             f"₹{float(row.unit_price):.2f}", f"₹{float(row.line_total):.2f}"]
-            for row in line_items
-        ]
-        items_table_data = item_headers + item_rows + [
-            ["", "", "", "TOTAL", f"₹{float(inv.total_amount):.2f}"]
-        ]
-        items_table = Table(items_table_data, colWidths=[70*mm, 35*mm, 15*mm, 25*mm, 25*mm])
-        items_table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#4F46E5")),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTNAME", (0, -1), (-1, -1), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 9),
-            ("GRID", (0, 0), (-1, -2), 0.5, colors.HexColor("#E5E7EB")),
-            ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#F0FDF4")),
-            ("TEXTCOLOR", (3, -1), (-1, -1), colors.HexColor("#16A34A")),
-            ("ALIGN", (2, 0), (-1, -1), "RIGHT"),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-            ("TOPPADDING", (0, 0), (-1, -1), 5),
-        ]))
-        story.append(items_table)
-        story.append(Spacer(1, 8*mm))
-
-        # Footer
-        story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#E5E7EB")))
-        story.append(Spacer(1, 3*mm))
-        story.append(Paragraph(
-            "Payment made directly to hospital via UPI. HOSPYN is not a payment intermediary.",
-            ParagraphStyle("footer", fontSize=8, textColor=colors.grey, alignment=TA_CENTER)
-        ))
-        story.append(Paragraph(
-            "This is a computer-generated receipt and does not require a signature.",
-            ParagraphStyle("footer2", fontSize=8, textColor=colors.grey, alignment=TA_CENTER)
-        ))
-
-        doc.build(story)
-        buf.seek(0)
+        buf = build_invoice_pdf(invoice_data)
 
         return Response(
             content=buf.read(),
             media_type="application/pdf",
-            headers={
-                "Content-Disposition": f'attachment; filename="receipt-{inv.invoice_number}.pdf"'
-            },
+            headers={"Content-Disposition": f'attachment; filename="HOSPAIN-{inv.invoice_number}.pdf"'},
         )
 
     except ImportError:
-        # reportlab not installed — return JSON fallback
         return success_response(
             data={
                 "invoice_number": inv.invoice_number,
-                "status": "PAID",
+                "status": inv.status,
                 "total_amount": float(inv.total_amount),
-                "upi_transaction_ref": inv.upi_transaction_ref,
-                "paid_at": inv.paid_at.isoformat() if inv.paid_at else None,
-                "hospital_name": hospital_name,
-                "line_items": [
-                    {
-                        "description": row.description,
-                        "category": row.category,
-                        "quantity": float(row.quantity),
-                        "unit_price": float(row.unit_price),
-                        "line_total": float(row.line_total),
-                    }
-                    for row in line_items
-                ],
-                "note": "PDF generation requires reportlab. Add 'reportlab>=4.0.0' to requirements.txt.",
+                "note": "Install reportlab>=4.0.0 to enable PDF generation.",
             },
-            message="Receipt data (PDF generation requires reportlab)",
+            message="PDF not available — reportlab not installed",
         )
 
 

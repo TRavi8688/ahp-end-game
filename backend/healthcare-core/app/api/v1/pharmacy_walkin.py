@@ -291,53 +291,64 @@ async def download_sale_pdf(
 
     hospital_result = await db.execute(select(Hospital).where(Hospital.id == hospital_id))
     hospital = hospital_result.scalars().first()
-    pharmacy_name = hospital.name if hospital else "Pharmacy"
+
+    # Resolve patient/walk-in customer name
+    patient_name = ""
+    patient_phone = ""
+    patient_hospain_id = ""
+    if sale.patient_id:
+        from app.models.patient import Patient
+        pat_result = await db.execute(select(Patient).where(Patient.id == sale.patient_id))
+        pat = pat_result.scalars().first()
+        if pat:
+            patient_name = f"{pat.first_name} {pat.last_name}"
+            patient_phone = pat.phone or ""
+            patient_hospain_id = pat.hospyn_id or ""
+    elif sale.walkin_customer_id:
+        from app.models.pharmacy import WalkInCustomer
+        wc_result = await db.execute(select(WalkInCustomer).where(WalkInCustomer.id == sale.walkin_customer_id))
+        wc = wc_result.scalars().first()
+        if wc:
+            patient_name = wc.name
+            patient_phone = wc.phone or ""
 
     try:
-        from reportlab.lib.pagesizes import A4
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import mm
-        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-        from reportlab.lib.enums import TA_CENTER, TA_RIGHT
-        from reportlab.lib import colors
+        from app.utils.pdf_engine import build_invoice_pdf, InvoiceData, InvoiceLineItem
+
+        invoice_data = InvoiceData(
+            invoice_number=sale.invoice_number,
+            issued_at=sale.created_at or datetime.now(timezone.utc),
+            pharmacy_name=hospital.name if hospital else "Pharmacy",
+            pharmacy_address=(
+                f"{hospital.address_line1 or ''}, {hospital.city or ''}".strip(", ")
+                if hospital else ""
+            ),
+            pharmacy_phone=hospital.phone if hospital else "",
+            invoice_type="Pharmacy Tax Invoice",
+            payment_method=sale.payment_method.value.upper() if sale.payment_method else "",
+            patient_name=patient_name,
+            patient_phone=patient_phone,
+            patient_hospain_id=patient_hospain_id,
+            status="PAID",
+            items=[
+                InvoiceLineItem(
+                    description=item.medicine_name,
+                    quantity=item.quantity,
+                    unit_price=float(item.unit_price),
+                    tax_percent=5.0,
+                )
+                for item in sale.items
+            ],
+        )
+
+        buf = build_invoice_pdf(invoice_data)
+        return StreamingResponse(
+            buf, media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=HOSPAIN-{sale.invoice_number}.pdf"},
+        )
+
     except ImportError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="PDF generation requires reportlab (already in requirements.txt — install dependencies).",
+            detail="Install reportlab>=4.0.0 to enable PDF generation.",
         )
-
-    buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4, rightMargin=20*mm, leftMargin=20*mm, topMargin=20*mm, bottomMargin=20*mm)
-    styles = getSampleStyleSheet()
-    story = [
-        Paragraph(f"<b>{pharmacy_name}</b>", ParagraphStyle("h1", fontSize=18, alignment=TA_CENTER, spaceAfter=4)),
-        Paragraph(f"Invoice {sale.invoice_number}", ParagraphStyle("h2", fontSize=11, alignment=TA_CENTER, textColor=colors.grey)),
-        Spacer(1, 10 * mm),
-    ]
-
-    rows = [["Medicine", "Qty", "Unit Price", "Total"]]
-    for item in sale.items:
-        rows.append([item.medicine_name, str(item.quantity), f"₹{item.unit_price:.2f}", f"₹{item.unit_price * item.quantity:.2f}"])
-    rows.append(["", "", "Subtotal", f"₹{sale.subtotal:.2f}"])
-    rows.append(["", "", "GST (5%)", f"₹{sale.gst_amount:.2f}"])
-    rows.append(["", "", "Total", f"₹{sale.total:.2f}"])
-
-    table = Table(rows, colWidths=[70*mm, 20*mm, 35*mm, 35*mm])
-    table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#7C3AED")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTSIZE", (0, 0), (-1, -1), 9),
-        ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
-        ("GRID", (0, 0), (-1, -4), 0.5, colors.HexColor("#EDE9FE")),
-        ("FONTNAME", (2, -1), (-1, -1), "Helvetica-Bold"),
-    ]))
-    story.append(table)
-    story.append(Spacer(1, 10 * mm))
-    story.append(Paragraph(f"Payment method: {sale.payment_method.value.upper() if sale.payment_method else '—'}", styles["Normal"]))
-
-    doc.build(story)
-    buf.seek(0)
-    return StreamingResponse(
-        buf, media_type="application/pdf",
-        headers={"Content-Disposition": f"attachment; filename={sale.invoice_number}.pdf"},
-    )

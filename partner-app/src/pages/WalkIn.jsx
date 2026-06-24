@@ -337,7 +337,23 @@ function PaymentStep({ cart, customerState, onComplete, onBack }) {
 // ── Step 6: Bill Success (Screen 16) ────────────────────────────────────────
 function BillSuccessStep({ sale, onDone }) {
   const handleWhatsApp = () => {
-    const text = encodeURIComponent(`Invoice ${sale.invoice_number}\nTotal: ₹${sale.total.toFixed(2)}\nThank you for your purchase!`);
+    const pharmacyName = (() => {
+      try {
+        const token = localStorage.getItem('token');
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        return payload.hospital_name || 'HOSPAIN Partner Pharmacy';
+      } catch { return 'HOSPAIN Partner Pharmacy'; }
+    })();
+    const itemsList = (sale.items || []).map(i => `  • ${i.medicine_name} × ${i.quantity} — ₹${i.line_total?.toFixed(2) || '0.00'}`).join('\n');
+    const text = encodeURIComponent(
+      `🏥 *${pharmacyName}*\n` +
+      `_Powered by HOSPAIN — Care Beyond Today_\n\n` +
+      `*Invoice:* ${sale.invoice_number}\n` +
+      `*Date:* ${new Date().toLocaleDateString('en-IN')}\n\n` +
+      `*Items:*\n${itemsList}\n\n` +
+      `*Total Paid:* ₹${sale.total?.toFixed(2) || '0.00'}\n\n` +
+      `Thank you for choosing us! 🙏\nFor queries: support@hospain.in`
+    );
     window.open(`https://wa.me/?text=${text}`, '_blank');
   };
   const handlePdf = () => {

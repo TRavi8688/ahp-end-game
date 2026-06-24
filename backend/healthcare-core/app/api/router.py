@@ -26,6 +26,7 @@ from app.api.v1.patient_vitals_notifications import router as patient_extras_rou
 from app.api.v1.staff           import router as staff_router
 from app.api.v1.prescriptions   import router as prescriptions_router
 from app.api.v1.lab_results     import router as lab_results_router
+from app.api.v1.patient_mobile_api import patient_router as patient_mobile_router, profile_router as profile_mobile_router
 from app.api.v1.consent         import router as consent_router
 from app.api.v1.surgery         import router as surgery_router
 from app.api.v1.doctor_extensions  import router as doctor_ext_router
@@ -38,12 +39,8 @@ from app.api.v1.onboarding      import router as onboarding_router, walkin_publi
 from app.api.v1.onboarding_admin import router as onboarding_admin_router
 from app.api.v1.tickets         import router as tickets_router
 from app.api.v1.employees       import router as employees_router
-from app.api.v1.super_admin     import router as super_admin_router
 
 api_router = APIRouter()
-
-# ── Super Admin ───────────────────────────────────────────────────────────────
-api_router.include_router(super_admin_router,     prefix="/admin",      tags=["Super Admin"])
 
 # ── Public: Onboarding ────────────────────────────────────────────────────────
 api_router.include_router(onboarding_router,       prefix="/onboarding", tags=["Onboarding"])
@@ -93,3 +90,10 @@ api_router.include_router(pharmacy_router,       prefix="/pharmacy", tags=["Phar
 api_router.include_router(pharmacy_walkin_router, prefix="/pharmacy", tags=["Pharmacy Walk-In POS"])
 api_router.include_router(pharmacy_orders_router, prefix="/pharmacy", tags=["Pharmacy Order Pipeline"])
 api_router.include_router(pharmacy_ops_router,    prefix="/pharmacy", tags=["Pharmacy Ops (Suppliers/Purchases/Expenses/Reports)"])
+
+# ── HOSPAIN Patient Mobile App API ────────────────────────────────────────────
+# nginx rewrites /api/v1/patient/* → /api/v1/healthcare/patient/*
+# nginx rewrites /api/v1/profile/* → /api/v1/healthcare/profile/*
+# These routers serve those rewritten paths.
+api_router.include_router(patient_mobile_router, prefix="/patient", tags=["HOSPAIN Patient Mobile"])
+api_router.include_router(profile_mobile_router, prefix="/profile", tags=["HOSPAIN Patient Profile Setup"])

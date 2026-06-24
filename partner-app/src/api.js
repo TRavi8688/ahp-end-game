@@ -1,4 +1,4 @@
-// Central API configuration for Partner App
+// HOSPAIN Partner App — Central API configuration
 const getBackendUrl = () => {
     try {
         if (import.meta.env && import.meta.env.VITE_API_BASE_URL) {
@@ -6,15 +6,18 @@ const getBackendUrl = () => {
         }
     } catch (e) {}
 
-    if (typeof window !== 'undefined' && 
-        (window.location.hostname === 'localhost' || 
+    if (typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' ||
          window.location.hostname === '127.0.0.1')) {
         return "http://localhost:8000";
     }
-    return "https://hospyn-495906-api-625745217419.us-central1.run.app";
+    // Production Cloud Run backend
+    return "https://hospain-495906-api-625745217419.us-central1.run.app";
 };
 
 const BACKEND_URL = getBackendUrl();
 export const API_BASE_URL = `${BACKEND_URL}/api/v1`;
 
-console.log(`[Partner Config] API Base URL: ${API_BASE_URL}`);
+if (import.meta.env?.DEV) {
+    console.log(`[HOSPAIN Partner] API Base URL: ${API_BASE_URL}`);
+}

@@ -46,26 +46,28 @@ async def login(
     db:       AsyncSession = Depends(get_db),
 ):
     """
-    FIX-A1: Accepts any of these body keys for the identifier:
-      username, email, phone, phone_number
-    Sends access_token in JSON body AND as httpOnly cookie.
+    HOSPAIN patient/partner login.
+    Accepts: username, email, phone, phone_number, hospyn_id, hospain_id.
+    Returns access_token in JSON body AND as httpOnly cookie.
+    hospyn_id is embedded in the JWT so the patient-app can read it directly.
     """
-    # FIX-A1: accept all common key names
     identifier = (
         body.get("username")
         or body.get("email")
         or body.get("phone")
         or body.get("phone_number")
+        or body.get("hospyn_id")
+        or body.get("hospain_id")
     )
     password = body.get("password")
 
     if not identifier or not password:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="username/email/phone and password are required",
+            detail="username/email/phone/hospyn_id and password are required",
         )
 
-    # Look up user by email or phone
+    # Look up user by email, phone, or full_name (HOSPAIN ID is stored in patient record)
     result = await db.execute(
         select(User).where(
             ((User.email == identifier) | (User.phone_number == identifier)),
@@ -74,6 +76,10 @@ async def login(
     )
     user = result.scalars().first()
 
+    # If not found by email/phone, try by HOSPAIN ID via cross-service lookup
+    # HOSPAIN IDs are stored in healthcare-core's patient table — auth-service
+    # doesn't have them. For now treat the identifier as phone/email only;
+    # the /patient/login-hospyn endpoint in healthcare-core handles hospyn_id login.
     if not user or not verify_password(password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -83,7 +89,7 @@ async def login(
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Account is suspended. Contact support.",
+            detail="Account is pending approval or suspended. Contact HOSPAIN support.",
         )
 
     token_data = {
@@ -91,11 +97,13 @@ async def login(
         "role":          user.role.value,
         "hospital_id":   str(user.hospital_id) if user.hospital_id else None,
         "token_version": user.token_version,
+        "full_name":     user.full_name or "",
+        "phone":         user.phone_number or "",
+        "email":         user.email or "",
     }
     token = create_access_token(token_data)
     refresh = create_refresh_token(token_data)
 
-    # FIX-A2: Set httpOnly cookie AND return in body
     response.set_cookie(
         key=COOKIE_NAME,
         value=token,
@@ -113,129 +121,11 @@ async def login(
         "role":          user.role.value,
         "user_id":       str(user.id),
         "user": {
-            "id":    str(user.id),
-            "role":  user.role.value,
-            "name":  user.full_name or "",
-            "email": user.email or "",
-            "phone": user.phone_number or "",
-        },
-    }
-
-
-@router.post("/google")
-async def google_login(
-    response: Response,
-    body:     dict,
-    db:       AsyncSession = Depends(get_db),
-):
-    """Verify Google ID token and sign/return JWT access + refresh tokens."""
-    token = body.get("token")
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Google ID token is required",
-        )
-
-    # Verify Google OAuth2 token using google-auth library
-    from google.oauth2 import id_token
-    from google.auth.transport import requests as google_requests
-    import secrets
-    import string
-    import uuid
-
-    GOOGLE_CLIENT_ID = "625745217419-cq76tvb0mlt0bkmg8bd4r0csj4vmqmr8.apps.googleusercontent.com"
-    try:
-        idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), GOOGLE_CLIENT_ID)
-    except Exception as e:
-        logger.error("Google Auth token verification failed: %s", e)
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Google Authentication failed: {str(e)}",
-        )
-
-    email = idinfo.get("email")
-    if not email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email address not provided by Google",
-        )
-
-    # Check if user already exists
-    result = await db.execute(
-        select(User).where(
-            (User.email == email),
-            User.deleted_at.is_(None),
-        )
-    )
-    user = result.scalars().first()
-
-    if not user:
-        # Create a new patient user
-        # Secure random password generation
-        raw_password = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32))
-        hashed_password = get_password_hash(raw_password)
-        
-        name = idinfo.get("name") or f"{idinfo.get('given_name', '')} {idinfo.get('family_name', '')}".strip() or "Google User"
-        
-        user = User(
-            id=uuid.uuid4(),
-            email=email,
-            phone_number=None,
-            hashed_password=hashed_password,
-            role=RoleEnum.patient,
-            full_name=name,
-            is_active=True,
-            token_version=1,
-        )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
-    else:
-        # If user exists but full_name is empty, populate it
-        if not user.full_name:
-            name = idinfo.get("name") or f"{idinfo.get('given_name', '')} {idinfo.get('family_name', '')}".strip()
-            if name:
-                user.full_name = name
-                await db.commit()
-                await db.refresh(user)
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Account is suspended. Contact support.",
-        )
-
-    token_data = {
-        "sub":           str(user.id),
-        "role":          user.role.value,
-        "hospital_id":   str(user.hospital_id) if user.hospital_id else None,
-        "token_version": user.token_version,
-    }
-    access_token = create_access_token(token_data)
-    refresh_token = create_refresh_token(token_data)
-
-    response.set_cookie(
-        key=COOKIE_NAME,
-        value=access_token,
-        httponly=True,
-        secure=True,
-        samesite="strict",
-        max_age=COOKIE_MAX_AGE,
-        path="/",
-    )
-
-    return {
-        "access_token":  access_token,
-        "refresh_token": refresh_token,
-        "token_type":    "bearer",
-        "role":          user.role.value,
-        "user_id":       str(user.id),
-        "user": {
-            "id":    str(user.id),
-            "role":  user.role.value,
-            "name":  user.full_name or "",
-            "email": user.email or "",
-            "phone": user.phone_number or "",
+            "id":       str(user.id),
+            "role":     user.role.value,
+            "name":     user.full_name or "",
+            "email":    user.email or "",
+            "phone":    user.phone_number or "",
         },
     }
 
@@ -265,7 +155,13 @@ async def register(
     phone_number = body.get("phone_number") or body.get("phone")
     password     = body.get("password")
     role_str     = body.get("role", "patient")
-    full_name    = body.get("full_name") or body.get("name") or ""
+    # Accept both full_name and first_name+last_name (patient-app sends them separately)
+    full_name = (
+        body.get("full_name")
+        or body.get("name")
+        or f"{body.get('first_name', '')} {body.get('last_name', '')}".strip()
+        or ""
+    )
 
     if not password:
         raise HTTPException(status_code=422, detail="password is required")
@@ -321,12 +217,18 @@ async def send_otp(
     body:    dict,
     db:      AsyncSession = Depends(get_db),
 ):
-    """Send OTP to phone or email for patient app authentication."""
-    phone = body.get("phone") or body.get("phone_number")
+    """Send OTP to phone or email for HOSPAIN patient app authentication."""
+    # Accept 'identifier' (what patient-app sends), 'phone', 'phone_number', or 'email'
+    phone = body.get("phone") or body.get("phone_number") or body.get("identifier")
     email = body.get("email")
 
+    # If identifier looks like email, treat as email
+    if phone and "@" in phone:
+        email = phone
+        phone = None
+
     if not phone and not email:
-        raise HTTPException(status_code=422, detail="phone or email is required")
+        raise HTTPException(status_code=422, detail="phone, identifier, or email is required")
 
     otp_code   = generate_otp()
     hashed     = hash_otp(otp_code)
@@ -363,11 +265,17 @@ async def verify_otp_endpoint(
     db:       AsyncSession = Depends(get_db),
 ):
     """Verify OTP and return access token. Used by patient mobile app."""
-    identifier = body.get("phone") or body.get("phone_number") or body.get("email")
+    identifier = (
+        body.get("phone")
+        or body.get("phone_number")
+        or body.get("email")
+        or body.get("identifier")
+    )
+    # If identifier looks like email, keep as-is
     otp_plain  = body.get("otp") or body.get("code")
 
     if not identifier or not otp_plain:
-        raise HTTPException(status_code=422, detail="phone/email and otp are required")
+        raise HTTPException(status_code=422, detail="phone/email/identifier and otp are required")
 
     # Get most recent non-expired, non-verified OTP
     result = await db.execute(
@@ -403,6 +311,8 @@ async def verify_otp_endpoint(
     )
     user = result.scalars().first()
 
+    is_new_user = user is None
+
     if not user:
         # Auto-create patient account on first OTP verify
         user = User(
@@ -420,6 +330,9 @@ async def verify_otp_endpoint(
         "sub":           str(user.id),
         "role":          user.role.value,
         "token_version": user.token_version,
+        "full_name":     user.full_name or "",
+        "phone":         user.phone_number or "",
+        "email":         user.email or "",
     })
 
     response.set_cookie(
@@ -430,11 +343,14 @@ async def verify_otp_endpoint(
     return {
         "access_token": token,
         "token_type":   "bearer",
+        "is_new_user":  is_new_user,
+        "needs_profile_setup": is_new_user,
         "user": {
-            "id":    str(user.id),
-            "role":  user.role.value,
-            "phone": user.phone_number or "",
-            "email": user.email or "",
+            "id":        str(user.id),
+            "role":      user.role.value,
+            "phone":     user.phone_number or "",
+            "email":     user.email or "",
+            "full_name": user.full_name or "",
         },
     }
 

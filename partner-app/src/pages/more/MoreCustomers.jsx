@@ -90,13 +90,13 @@ export default function MoreCustomers() {
         <div className="space-y-4">
           {patients.length > 0 && (
             <div>
-              <p className="text-xs font-bold text-gray-400 uppercase mb-2">Hospin Patients</p>
+              <p className="text-xs font-bold text-gray-400 uppercase mb-2">HOSPAIN Patients</p>
               <div className="space-y-2">
                 {patients.map((p) => (
-                  <button key={p.id} onClick={() => setSelected({ type: 'patient', id: p.id, name: `${p.first_name} ${p.last_name}`, phone: p.phone_number, code: p.hospyn_id })}
+                  <button key={p.id} onClick={() => setSelected({ type: 'patient', id: p.id, name: `${p.first_name} ${p.last_name}`, phone: p.phone_number, code: p.hospain_id })}
                     className="w-full bg-white rounded-2xl shadow-card p-4 text-left flex justify-between items-center">
                     <div><p className="font-semibold text-ink-900 text-sm">{p.first_name} {p.last_name}</p><p className="text-xs text-gray-400">{p.phone_number}</p></div>
-                    <span className="text-xs bg-primary-50 text-primary-600 px-2 py-1 rounded-full font-semibold">Hospin</span>
+                    <span className="text-xs bg-primary-50 text-primary-600 px-2 py-1 rounded-full font-semibold">HOSPAIN</span>
                   </button>
                 ))}
               </div>

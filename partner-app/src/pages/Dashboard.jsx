@@ -218,7 +218,7 @@ export default function Dashboard() {
             <div className="w-8 h-8 rounded-xl bg-indigo-500 flex items-center justify-center">
               <FlaskConical size={18} className="text-white" />
             </div>
-            <h1 className="text-xl font-black text-white tracking-tight">HOSPYN.</h1>
+            <h1 className="text-xl font-black text-white tracking-tight">HOSPAIN.</h1>
           </div>
           <p className="text-[10px] font-black text-indigo-400 tracking-widest uppercase ml-11">Enterprise Pharmacy</p>
         </div>
@@ -269,7 +269,7 @@ export default function Dashboard() {
                  <div>
                     <h3 className="text-xl font-black text-white mb-2">Universal Receiving QR</h3>
                     <p className="text-sm text-slate-400 max-w-md">
-                      Display this QR code at the counter. Patients can scan it with their Hospyn app to instantly share their digital prescriptions.
+                      Display this QR code at the counter. Patients can scan it with their HOSPAIN app to instantly share their digital prescriptions.
                     </p>
                  </div>
                  <div className="p-4 bg-white rounded-2xl">
@@ -518,7 +518,7 @@ export default function Dashboard() {
                ) : (
                  <>
                    <Search className="absolute left-4 top-10 text-slate-500" size={18}/>
-                   <input className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-4 text-sm text-white focus:border-emerald-500 outline-none" placeholder="Search patient by Hospyn ID or phone..." value={patientSearch} onChange={e=>setPatientSearch(e.target.value)} />
+                   <input className="w-full bg-white/5 border border-white/10 rounded-xl pl-12 pr-4 py-4 text-sm text-white focus:border-emerald-500 outline-none" placeholder="Search patient by HOSPAIN ID or phone..." value={patientSearch} onChange={e=>setPatientSearch(e.target.value)} />
                    {patients.length > 0 && (
                      <div className="absolute w-full mt-2 bg-[#1e293b] border border-white/10 rounded-xl overflow-hidden z-20 shadow-xl">
                        {patients.map(pt => (

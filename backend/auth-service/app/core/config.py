@@ -32,13 +32,6 @@ class Settings(BaseSettings):
         self._validate()
 
     def _validate(self):
-        # Fix driver scheme for asyncpg if needed
-        self.DATABASE_URL = self.DATABASE_URL.strip()
-        if self.DATABASE_URL.startswith("postgresql://"):
-            self.DATABASE_URL = self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
-        if "sslmode=" in self.DATABASE_URL:
-            self.DATABASE_URL = self.DATABASE_URL.replace("sslmode=require", "ssl=require").replace("sslmode=disable", "")
-
         # Sync ENV and ENVIRONMENT
         env_val = self.ENV.lower() if self.ENV else "production"
         if self.ENVIRONMENT != "production" and self.ENV == "production":

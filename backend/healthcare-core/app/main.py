@@ -189,15 +189,3 @@ app.include_router(internal_router, prefix="/api/v1/healthcare")
 
 # All core + partner routes — single registration point
 app.include_router(api_router, prefix="/api/v1/healthcare")
-
-# Matrix 3.0 additions
-from app.api.v1 import matrix_employees
-from app.api.v1 import matrix_ai
-from app.api.v1.webhooks import whatsapp as whatsapp_webhook
-from app.api.v1.webhooks import email as email_webhook
-
-app.include_router(matrix_employees.router,   prefix="/api/v1/matrix/employees",  tags=["Matrix Employees"])
-app.include_router(matrix_ai.router,          prefix="/api/v1/matrix/ai",          tags=["Matrix AI"])
-app.include_router(whatsapp_webhook.router,   prefix="/webhooks/whatsapp",         tags=["Webhooks"])
-app.include_router(email_webhook.router,      prefix="/webhooks/email",            tags=["Webhooks"])
-

@@ -38,7 +38,7 @@ export default function Login({ onLogin }) {
       if (err.response?.status === 403) {
         setError('Your account is still pending verification. Check your status to see what\'s left.');
       } else {
-        setError('Invalid credentials or unauthorized partner account.');
+        setError('Invalid credentials. Check your email/phone and password, or contact HOSPAIN support at support@hospain.in');
       }
     } finally {
       setLoading(false);
@@ -50,7 +50,7 @@ export default function Login({ onLogin }) {
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
           <Logo variant="full" className="w-48 mb-1" />
-          <p className="text-primary-600 font-semibold text-sm mt-1">Hospin Partner Portal</p>
+          <p className="text-primary-600 font-semibold text-sm mt-1">HOSPAIN Partner Portal</p>
         </div>
 
         <div className="bg-white p-7 rounded-3xl shadow-card border border-lavender-100">

@@ -22,7 +22,7 @@ export default function Layout({ children, pharmacyName, onLogout }) {
         <div className="flex items-center gap-2.5">
           <Logo variant="mark" className="w-9 h-9 rounded-xl" />
           <div className="leading-tight">
-            <p className="font-bold text-ink-900 text-sm">Hospin Partner</p>
+            <p className="font-bold text-ink-900 text-sm">HOSPAIN Partner</p>
             {pharmacyName && <p className="text-xs text-gray-500">{pharmacyName}</p>}
           </div>
         </div>

@@ -52,7 +52,7 @@ export default function MoreSettings({ onLogout }) {
 
       <div className="bg-white rounded-3xl shadow-card p-5 mb-4 text-center">
         <p className="font-bold text-ink-900 mb-1">Universal Receiving QR</p>
-        <p className="text-xs text-gray-500 mb-4">Display this at the counter. Patients scan it with their Hospin app to instantly share prescriptions.</p>
+        <p className="text-xs text-gray-500 mb-4">Display this at the counter. Patients scan it with their HOSPAIN app to instantly share prescriptions.</p>
         <div className="bg-white border border-lavender-100 rounded-2xl p-4 inline-block">
           <QRCode value={pharmacyId} size={150} fgColor="#0F1029" bgColor="#ffffff" />
         </div>

@@ -90,22 +90,14 @@ class Settings(BaseSettings):
     DB_POOL_SIZE: int = 20
     DB_POOL_MAX_OVERFLOW: int = 40
 
-    @field_validator("DATABASE_URL")
-    @classmethod
-    def validate_database_url(cls, v: str) -> str:
-        v = v.strip()
-        if v.startswith("postgresql://"):
-            v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
-        if "sslmode=" in v:
-            v = v.replace("sslmode=require", "ssl=require").replace("sslmode=disable", "")
-        return v
-
     @field_validator("PARTNER_JWT_SECRET")
     @classmethod
     def validate_partner_secret(cls, v: str) -> str:
         if len(v) < 32:
             raise ValueError("PARTNER_JWT_SECRET must be at least 32 characters.")
         return v
+
+    AI_SERVICE_URL: str = "http://ai-service:8003/api/v1/ai"
 
     model_config = SettingsConfigDict(
         env_file=".env",

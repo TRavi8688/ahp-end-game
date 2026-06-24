@@ -14,7 +14,6 @@ from jose import JWTError, jwt
 from pydantic import BaseModel
 from typing import Literal, Optional
 from app.config.settings import settings
-from passlib.context import CryptContext
 
 bearer_scheme = HTTPBearer(auto_error=True)
 
@@ -145,13 +144,3 @@ def require_role(*allowed_roles: str):
             )
         return current_user
     return role_checker
-# Password hashing functions for Matrix 3.0
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-def hash_password(password: str) -> str:
-    """Hash a password using bcrypt."""
-    return pwd_context.hash(password)
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a password against its hash."""
-    return pwd_context.verify(plain_password, hashed_password)
