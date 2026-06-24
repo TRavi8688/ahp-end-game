@@ -80,7 +80,7 @@ import SharingSettingsScreen  from './src/screens/SharingSettingsScreen';
 import NotificationsScreen    from './src/screens/NotificationsScreen';
 import AccessHistoryScreen    from './src/screens/AccessHistoryScreen';
 import UploadScreen           from './src/screens/UploadScreen';
-import BillingScreen          from './src/screens/BillingScreen';
+import BillingScreen, { BillingDetailScreen } from './src/screens/BillingScreen';
 import InvoiceDetailScreen    from './src/screens/InvoiceDetailScreen';
 import PrescriptionScreen     from './src/screens/PrescriptionScreen';
 import PrescriptionDetailScreen from './src/screens/PrescriptionDetailScreen';
@@ -292,6 +292,13 @@ function AppContent() {
                 <Stack.Screen name="AccessHistory"       component={AccessHistoryScreen} />
                 <Stack.Screen name="Upload"              component={UploadScreen} />
                 <Stack.Screen name="Billing"             component={BillingScreen} />
+                {/* FIX-B4 (2026-06-24): BillingScreen has always navigated to
+                    "BillingDetail" — that screen existed in the same file the
+                    whole time (BillingDetailScreen) but was never registered.
+                    "InvoiceDetail" below is a different, separately-built
+                    screen nothing currently navigates to; left in place but
+                    not wired up further, see changelog. */}
+                <Stack.Screen name="BillingDetail"        component={BillingDetailScreen} />
                 <Stack.Screen name="InvoiceDetail"       component={InvoiceDetailScreen} />
                 <Stack.Screen name="Prescriptions"       component={PrescriptionScreen} />
                 <Stack.Screen name="PrescriptionDetail"  component={PrescriptionDetailScreen} />

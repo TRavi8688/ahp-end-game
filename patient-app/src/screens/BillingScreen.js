@@ -21,17 +21,26 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import QRCode from "react-native-qrcode-svg";
+import * as FileSystem from "expo-file-system";
+import * as Sharing from "expo-sharing";
 
 const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 // ── Status badge ──────────────────────────────────────────────────────────
+// FIX-B1 (2026-06-24): the backend's InvoiceStatus enum is uppercase
+// (PAID, DRAFT, ISSUED, PARTIALLY_PAID, CANCELLED, OVERDUE). This map used
+// lowercase keys, so EVERY invoice — paid or not — fell through to the
+// "pending" default. Every bill in this app showed as pending, always.
 function StatusBadge({ status }) {
   const map = {
-    paid: { bg: "#d1fae5", text: "#065f46", label: "PAID" },
-    pending: { bg: "#fef3c7", text: "#92400e", label: "PENDING" },
-    cancelled: { bg: "#f3f4f6", text: "#6b7280", label: "CANCELLED" },
+    PAID: { bg: "#d1fae5", text: "#065f46", label: "PAID" },
+    DRAFT: { bg: "#e5e7eb", text: "#374151", label: "DRAFT" },
+    ISSUED: { bg: "#fef3c7", text: "#92400e", label: "PENDING" },
+    PARTIALLY_PAID: { bg: "#fef3c7", text: "#92400e", label: "PARTIALLY PAID" },
+    CANCELLED: { bg: "#f3f4f6", text: "#6b7280", label: "CANCELLED" },
+    OVERDUE: { bg: "#fee2e2", text: "#991b1b", label: "OVERDUE" },
   };
-  const s = map[status] || map.pending;
+  const s = map[String(status || "").toUpperCase()] || map.ISSUED;
   return (
     <View style={{ backgroundColor: s.bg, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 2 }}>
       <Text style={{ color: s.text, fontSize: 10, fontWeight: "700" }}>{s.label}</Text>
@@ -55,8 +64,10 @@ export default function BillingScreen() {
       const pid = patientId || await AsyncStorage.getItem("patient_id");
       if (!pid) throw new Error("Patient ID not found. Please re-login.");
 
+      // FIX-B2 (2026-06-24): API_BASE already includes /api/v1 — this was
+      // doubling the prefix and 404ing on every single request.
       const res = await fetch(
-        `${API_BASE}/api/v1/billing/patient/${pid}/invoices?limit=30`,
+        `${API_BASE}/billing/patient/${pid}/invoices?limit=30`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       if (!res.ok) throw new Error("Failed to load invoices");
@@ -139,16 +150,18 @@ export function BillingDetailScreen({ route }) {
   const [upiUrl, setUpiUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       try {
         const token = await AsyncStorage.getItem("access_token");
         const [invRes, upiRes] = await Promise.all([
-          fetch(`${API_BASE}/api/v1/billing/invoice/${invoiceId}`, {
+          // FIX-B2: removed the duplicate /api/v1 — API_BASE already has it.
+          fetch(`${API_BASE}/billing/invoice/${invoiceId}`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
-          fetch(`${API_BASE}/api/v1/billing/invoice/${invoiceId}/upi-url`, {
+          fetch(`${API_BASE}/billing/invoice/${invoiceId}/upi-url`, {
             headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
@@ -189,7 +202,38 @@ export function BillingDetailScreen({ route }) {
     </View>
   );
 
-  const isPaid = invoice.status === "paid";
+  const handleDownloadReceipt = async () => {
+    setDownloading(true);
+    try {
+      const token = await AsyncStorage.getItem("access_token");
+      const fileUri = `${FileSystem.cacheDirectory}Receipt_${invoice.invoice_number}.pdf`;
+      // FIX-B3 (2026-06-24): this is the actual feature the patient app was
+      // missing — the only "download" code that existed before lived in a
+      // disconnected screen nothing ever navigated to, and even that one
+      // pointed at a URL (/billing/invoices/{id}/pdf) that doesn't exist.
+      // The real endpoint is GET /billing/invoice/{id}/receipt (singular
+      // "invoice", "receipt" not "pdf") and only works for paid invoices.
+      const res = await FileSystem.downloadAsync(
+        `${API_BASE}/billing/invoice/${invoice.id}/receipt`,
+        fileUri,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.status === 200) {
+        await Sharing.shareAsync(res.uri);
+      } else {
+        Alert.alert("Could not download", "Please try again in a moment.");
+      }
+    } catch (e) {
+      Alert.alert("Could not download", "Please check your connection and try again.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  // FIX-B1: backend status is uppercase ("PAID"), this comparison was
+  // lowercase and never matched — payment-confirmed UI never showed, and
+  // the "scan to pay" QR kept showing for invoices that were already paid.
+  const isPaid = String(invoice.status).toUpperCase() === "PAID";
 
   return (
     <View style={{ flex: 1, backgroundColor: "#f9fafb" }}>
@@ -271,6 +315,15 @@ export function BillingDetailScreen({ route }) {
             <Text style={{ color: "#065f46", fontSize: 12, marginTop: 2 }}>
               Paid: {String(invoice.paid_at || "").slice(0, 16).replace("T", " ")}
             </Text>
+            <TouchableOpacity
+              style={{ marginTop: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, backgroundColor: "#065f46", borderRadius: 8, paddingVertical: 10 }}
+              onPress={handleDownloadReceipt}
+              disabled={downloading}
+            >
+              {downloading
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Text style={{ color: "#fff", fontSize: 13, fontWeight: "700" }}>⬇ Download Receipt</Text>}
+            </TouchableOpacity>
           </View>
         )}
       </View>

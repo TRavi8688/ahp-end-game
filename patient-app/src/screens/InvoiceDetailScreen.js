@@ -40,8 +40,9 @@ const InvoiceDetailScreen = ({ route, navigation }) => {
             const token = await SecurityUtils.getToken();
             const fileUri = `${FileSystem.cacheDirectory}Invoice_${invoice.invoice_number}.pdf`;
             
+            // FIX-B3 (2026-06-24): was /billing/invoices/{id}/pdf (doesn't exist).
             const downloadRes = await FileSystem.downloadAsync(
-                `${API_BASE_URL}/billing/invoices/${invoice.id}/pdf`,
+                `${API_BASE_URL}/billing/invoice/${invoice.id}/receipt`,
                 fileUri,
                 {
                     headers: { 'Authorization': `Bearer ${token}` }
