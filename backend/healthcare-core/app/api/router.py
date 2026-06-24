@@ -38,8 +38,12 @@ from app.api.v1.onboarding      import router as onboarding_router, walkin_publi
 from app.api.v1.onboarding_admin import router as onboarding_admin_router
 from app.api.v1.tickets         import router as tickets_router
 from app.api.v1.employees       import router as employees_router
+from app.api.v1.super_admin     import router as super_admin_router
 
 api_router = APIRouter()
+
+# ── Super Admin ───────────────────────────────────────────────────────────────
+api_router.include_router(super_admin_router,     prefix="/admin",      tags=["Super Admin"])
 
 # ── Public: Onboarding ────────────────────────────────────────────────────────
 api_router.include_router(onboarding_router,       prefix="/onboarding", tags=["Onboarding"])

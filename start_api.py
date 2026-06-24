@@ -290,6 +290,21 @@ async def route_all(request: Request, path: str):
     return await proxy_request(request, url)
 
 
+@app.api_route(
+    "/{path:path}",
+    methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"]
+)
+async def route_fallback(request: Request, path: str):
+    """
+    Fallback routing for requests that miss the '/api/v1' prefix.
+    """
+    # Let FastAPI native health/docs routes fall through
+    if path.startswith(("health", "docs", "openapi.json", "redoc")):
+        return Response(content="Not Found", status_code=404)
+    return await route_all(request, path)
+
+
+
 # ─── Health endpoints ──────────────────────────────────────────────────────────
 @app.get("/health/auth")
 async def health_auth():

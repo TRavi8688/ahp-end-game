@@ -1,5 +1,5 @@
 /**
- * src/stores/authStore.js — Hospain Matrix 3.0
+ * src/stores/authStore.js — Hospin Matrix 3.0
  *
  * FIXES:
  *  1. Token stored in-memory (tokenStore) — no PHI in localStorage
@@ -50,8 +50,8 @@ const PERMISSION_LEVELS = {
 // Restore session from sessionStorage on page load
 const restoreSession = () => {
   try {
-    const token = sessionStorage.getItem('hospain_token');
-    const user  = JSON.parse(sessionStorage.getItem('hospain_user') || 'null');
+    const token = sessionStorage.getItem('hospin_token');
+    const user  = JSON.parse(sessionStorage.getItem('hospin_user') || 'null');
     if (token && user) {
       tokenStore.set(token);
       return { user, isAuthenticated: true };
@@ -66,15 +66,15 @@ export const useAuthStore = create((set, get) => ({
   login: (user, token) => {
     tokenStore.set(token);
     // sessionStorage: survives refresh, clears on tab close
-    sessionStorage.setItem('hospain_token', token);
-    sessionStorage.setItem('hospain_user', JSON.stringify(user));
+    sessionStorage.setItem('hospin_token', token);
+    sessionStorage.setItem('hospin_user', JSON.stringify(user));
     set({ user, isAuthenticated: true });
   },
 
   logout: () => {
     tokenStore.clear();
-    sessionStorage.removeItem('hospain_token');
-    sessionStorage.removeItem('hospain_user');
+    sessionStorage.removeItem('hospin_token');
+    sessionStorage.removeItem('hospin_user');
     set({ user: null, isAuthenticated: false });
   },
 

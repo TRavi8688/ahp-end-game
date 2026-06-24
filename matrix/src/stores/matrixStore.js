@@ -1,7 +1,7 @@
 /**
  * src/stores/matrixStore.js
  *
- * Central Zustand store for Hospain Matrix 3.0.
+ * Central Zustand store for Hospin Matrix 3.0.
  * Replaces the scattered useState calls in the old dashboard.
  *
  * Slices:

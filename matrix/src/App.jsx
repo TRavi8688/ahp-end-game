@@ -1,13 +1,7 @@
 /**
  * src/App.jsx — Hospain Matrix 3.0
- *
- * FIXES IN THIS FILE:
- *  1. Uses Layout.jsx (sidebar with Hospain logo) wrapping all protected routes
- *  2. ProtectedRoute replaces bare RequireAuth — supports role-based gating
- *  3. No inline Sidebar/Topbar — Layout handles everything
- *  5. Default redirect → /matrix/mission (Mission Control)
- *  6. Session restored from sessionStorage (no logout on refresh)
- *  7. All 21 Matrix module routes included
+ * FIX: /tickets now redirects to /matrix/support — removes the duplicate ticket page
+ *      so agents always work from one single ticket queue with no state conflicts.
  */
 import { lazy, Suspense } from 'react';
 import {
@@ -21,7 +15,6 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
 });
 
-// ── Loading fallback ──────────────────────────────────────────────────────────
 const PageLoader = () => (
   <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100%', color:'#334155', fontSize:13, fontFamily:'Inter,system-ui,sans-serif' }}>
     <div style={{ textAlign:'center' }}>
@@ -31,7 +24,6 @@ const PageLoader = () => (
   </div>
 );
 
-// ── Existing pages ────────────────────────────────────────────────────────────
 const Login                          = lazy(() => import('./pages/Login'));
 const Unauthorized                   = lazy(() => import('./pages/Unauthorized'));
 const OverviewDashboard              = lazy(() => import('./pages/OverviewDashboard'));
@@ -46,9 +38,8 @@ const VerificationDetail             = lazy(() => import('./pages/VerificationDe
 const OperationalGovernanceDashboard = lazy(() => import('./pages/OperationalGovernanceDashboard'));
 const AuditLogViewer                 = lazy(() => import('./pages/AuditLogViewer'));
 const ExportReports                  = lazy(() => import('./pages/ExportReports'));
-const TicketSystem                   = lazy(() => import('./pages/TicketSystem'));
+// NOTE: TicketSystem import removed — /tickets now redirects to /matrix/support
 
-// ── Matrix 3.0 module pages ───────────────────────────────────────────────────
 const MissionControl        = lazy(() => import('./pages/matrix/MissionControl'));
 const SupportMatrix         = lazy(() => import('./pages/matrix/SupportMatrix'));
 const AutoAssignmentEngine  = lazy(() => import('./pages/matrix/AutoAssignmentEngine'));
@@ -82,94 +73,91 @@ export default function App() {
           @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
         `}</style>
         <Routes>
-          {/* Public routes */}
           <Route path="/login"        element={<Suspense fallback={<PageLoader/>}><Login /></Suspense>} />
           <Route path="/unauthorized" element={<Suspense fallback={<PageLoader/>}><Unauthorized /></Suspense>} />
-
-          {/* Root → Mission Control */}
           <Route path="/" element={<Navigate to="/matrix/mission" replace />} />
 
-          {/* All protected routes share the Layout (sidebar + logo) */}
           <Route path="/*" element={
             <ProtectedRoute>
               <Layout>
                 <Suspense fallback={<PageLoader />}>
                   <Routes>
-                    {/* ── Legacy routes ── */}
-                    <Route path="overview"             element={<OverviewDashboard />} />
-                    <Route path="hospitals"            element={<HospitalNetwork />} />
-                    <Route path="hospitals/:id"        element={<HospitalDetail />} />
-                    <Route path="revenue"              element={<RevenueAnalytics />} />
-                    <Route path="staff"                element={<StaffPerformance />} />
-                    <Route path="alerts"               element={<EmergencyAlerts />} />
-                    <Route path="iam"                  element={<IAMManagement />} />
-                    <Route path="verifications"        element={<VerificationQueue />} />
-                    <Route path="verifications/:id"    element={<VerificationDetail />} />
-                    <Route path="governance"           element={<OperationalGovernanceDashboard />} />
-                    <Route path="audit-logs"           element={<AuditLogViewer />} />
-                    <Route path="export"               element={<ExportReports />} />
-                    <Route path="tickets"              element={<TicketSystem />} />
+                    {/* Legacy routes */}
+                    <Route path="overview"          element={<OverviewDashboard />} />
+                    <Route path="hospitals"         element={<HospitalNetwork />} />
+                    <Route path="hospitals/:id"     element={<HospitalDetail />} />
+                    <Route path="revenue"           element={<RevenueAnalytics />} />
+                    <Route path="staff"             element={<StaffPerformance />} />
+                    <Route path="alerts"            element={<EmergencyAlerts />} />
+                    <Route path="iam"               element={<IAMManagement />} />
+                    <Route path="verifications"     element={<VerificationQueue />} />
+                    <Route path="verifications/:id" element={<VerificationDetail />} />
+                    <Route path="governance"        element={<OperationalGovernanceDashboard />} />
+                    <Route path="audit-logs"        element={<AuditLogViewer />} />
+                    <Route path="export"            element={<ExportReports />} />
 
-                    {/* ── Matrix 3.0 — COMMAND ── */}
-                    <Route path="matrix/mission"       element={<MissionControl />} />
-                    <Route path="matrix/boardroom"     element={
+                    {/* FIX: /tickets redirects to /matrix/support — single source of truth */}
+                    <Route path="tickets" element={<Navigate to="/matrix/support" replace />} />
+
+                    {/* Matrix 3.0 — COMMAND */}
+                    <Route path="matrix/mission"   element={<MissionControl />} />
+                    <Route path="matrix/boardroom" element={
                       <ProtectedRoute requiredPermission="view_boardroom">
                         <ExecutiveBoardroom />
                       </ProtectedRoute>
                     } />
 
-                    {/* ── Matrix 3.0 — OPERATIONS ── */}
-                    <Route path="matrix/support"       element={<SupportMatrix />} />
-                    <Route path="matrix/assignment"    element={<AutoAssignmentEngine />} />
-                    <Route path="matrix/workload"      element={<WorkloadBalancer />} />
-                    <Route path="matrix/sla"           element={<SLAEngine />} />
-                    <Route path="matrix/escalation"    element={<EscalationEngine />} />
+                    {/* Matrix 3.0 — OPERATIONS */}
+                    <Route path="matrix/support"    element={<SupportMatrix />} />
+                    <Route path="matrix/assignment" element={<AutoAssignmentEngine />} />
+                    <Route path="matrix/workload"   element={<WorkloadBalancer />} />
+                    <Route path="matrix/sla"        element={<SLAEngine />} />
+                    <Route path="matrix/escalation" element={<EscalationEngine />} />
 
-                    {/* ── Matrix 3.0 — WORKFORCE ── */}
-                    <Route path="matrix/workforce"     element={
+                    {/* Matrix 3.0 — WORKFORCE */}
+                    <Route path="matrix/workforce" element={
                       <ProtectedRoute requiredPermission="manage_employees">
                         <EmployeeCommandCenter />
                       </ProtectedRoute>
                     } />
 
-                    {/* ── Matrix 3.0 — NETWORK ── */}
-                    <Route path="matrix/hospitals"     element={<HospitalNetworkCenter />} />
-                    <Route path="matrix/pharmacy"      element={<PharmacyNetworkCenter />} />
-                    <Route path="matrix/lab"           element={<LabNetworkCenter />} />
-                    <Route path="matrix/patients"      element={<PatientIntelligence />} />
+                    {/* Matrix 3.0 — NETWORK */}
+                    <Route path="matrix/hospitals" element={<HospitalNetworkCenter />} />
+                    <Route path="matrix/pharmacy"  element={<PharmacyNetworkCenter />} />
+                    <Route path="matrix/lab"       element={<LabNetworkCenter />} />
+                    <Route path="matrix/patients"  element={<PatientIntelligence />} />
 
-                    {/* ── Matrix 3.0 — CRISIS ── */}
-                    <Route path="matrix/incidents"     element={<IncidentWarRoom />} />
-                    <Route path="matrix/broadcast"     element={
+                    {/* Matrix 3.0 — CRISIS */}
+                    <Route path="matrix/incidents" element={<IncidentWarRoom />} />
+                    <Route path="matrix/broadcast" element={
                       <ProtectedRoute requiredPermission="send_broadcast">
                         <EmergencyBroadcast />
                       </ProtectedRoute>
                     } />
 
-                    {/* ── Matrix 3.0 — SECURITY ── */}
-                    <Route path="matrix/iam"           element={
+                    {/* Matrix 3.0 — SECURITY */}
+                    <Route path="matrix/iam" element={
                       <ProtectedRoute requiredPermission="manage_iam">
                         <IAMGovernance />
                       </ProtectedRoute>
                     } />
-                    <Route path="matrix/verification"  element={<VerificationCommand />} />
+                    <Route path="matrix/verification" element={<VerificationCommand />} />
 
-                    {/* ── Matrix 3.0 — ANALYTICS ── */}
-                    <Route path="matrix/financial"     element={
+                    {/* Matrix 3.0 — ANALYTICS */}
+                    <Route path="matrix/financial" element={
                       <ProtectedRoute requiredPermission="view_financial">
                         <FinancialCommand />
                       </ProtectedRoute>
                     } />
-                    <Route path="matrix/audit"         element={
+                    <Route path="matrix/audit" element={
                       <ProtectedRoute requiredPermission="view_audit">
                         <AuditCompliance />
                       </ProtectedRoute>
                     } />
 
-                    {/* ── Matrix 3.0 — INTELLIGENCE ── */}
-                    <Route path="matrix/ai"            element={<AICopilot />} />
+                    {/* Matrix 3.0 — INTELLIGENCE */}
+                    <Route path="matrix/ai" element={<AICopilot />} />
 
-                    {/* Fallback */}
                     <Route path="*" element={<Navigate to="/matrix/mission" replace />} />
                   </Routes>
                 </Suspense>

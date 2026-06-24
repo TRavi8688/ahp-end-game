@@ -21,7 +21,7 @@ const SUGGESTIONS = [
 export default function AICopilot() {
   const employee = useMatrixStore((s) => s.employee);
   const [messages, setMessages] = useState([
-    { role:"ai", content:"I am your AI Operations Copilot. I have full visibility into the Hospain ecosystem — tickets, hospitals, employees, financials, incidents. What would you like to know?" },
+    { role:"ai", content:"I am your AI Operations Copilot. I have full visibility into the Hospin ecosystem — tickets, hospitals, employees, financials, incidents. What would you like to know?" },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,7 +29,7 @@ export default function AICopilot() {
   const endRef = useRef(null);
 
   const buildSystemPrompt = () => {
-    return `You are the AI Operations Copilot for Hospain Matrix 3.0 — an enterprise healthcare operations platform managing 10,000+ hospitals, millions of patients, and internal support teams across India.
+    return `You are the AI Operations Copilot for Hospin Matrix 3.0 — an enterprise healthcare operations platform managing 10,000+ hospitals, millions of patients, and internal support teams across India.
 
 You have operational awareness of:
 - Hospital network: 1,842 hospitals across India (verified, pending, suspended)
@@ -55,12 +55,14 @@ Employee context: ${employee?.full_name || "Super Admin"} (${employee?.level || 
     const t0 = Date.now();
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const baseApiUrl = import.meta.env.VITE_API_URL || "http://localhost:8001/api/v1";
+      const res = await fetch(`${baseApiUrl}/matrix/ai/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("matrix_token")}`,
+        },
         body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 1000,
           system: buildSystemPrompt(),
           messages: [...messages, userMsg].map((m) => ({
             role: m.role === "ai" ? "assistant" : "user",
@@ -96,7 +98,7 @@ Employee context: ${employee?.full_name || "Super Admin"} (${employee?.level || 
         <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:3 }}>
           <div style={{ width:28, height:28, borderRadius:"50%", background:"linear-gradient(135deg,#6366f1,#8b5cf6)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14 }}>🤖</div>
           <h1 style={{ fontSize:17, fontWeight:900, color:"#f1f5f9", margin:0 }}>AI Operations Copilot</h1>
-          <Pill label="claude-sonnet-4-6" color="#8b5cf6" />
+          <Pill label="gemini-1.5-flash" color="#1a73e8" />
           {latency && <span style={{ fontSize:10, color:"#475569" }}>{latency}ms</span>}
         </div>
         <p style={{ fontSize:12, color:"#475569", margin:0 }}>Ask anything — tickets, hospitals, employees, financials, incidents, trends, predictions</p>
@@ -151,7 +153,7 @@ Employee context: ${employee?.full_name || "Super Admin"} (${employee?.level || 
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key==="Enter" && !e.shiftKey && send(input)}
-          placeholder="Ask anything about the Hospain ecosystem…"
+          placeholder="Ask anything about the Hospin ecosystem…"
           style={{ flex:1, padding:"10px 14px", borderRadius:10, border:"1px solid rgba(255,255,255,0.08)", background:"#0c1220", color:"#f1f5f9", fontSize:13, outline:"none" }}
           onFocus={(e) => e.target.style.borderColor="#6366f1"}
           onBlur={(e) => e.target.style.borderColor="rgba(255,255,255,0.08)"}

@@ -1,3 +1,7 @@
+/**
+ * src/pages/matrix/MissionControl.jsx — Hospain Matrix 3.0
+ * FIX: renamed `fetch` variable to `fetchMission` — `fetch` shadows the browser API
+ */
 import { useEffect, useState, useCallback } from "react";
 import { useMatrixStore } from "../../stores/matrixStore";
 import {
@@ -10,13 +14,15 @@ const fmt  = (n) => n >= 1e6 ? `${(n/1e6).toFixed(2)}M` : n >= 1e3 ? `${(n/1e3).
 const fmtC = (n) => `₹${((n||0)/1e5).toFixed(1)}L`;
 
 export default function MissionControl() {
-  const metrics  = useMatrixStore((s) => s.missionMetrics);
-  const health   = useMatrixStore((s) => s.systemHealth);
-  const feed     = useMatrixStore((s) => s.activityFeed);
-  const loading  = useMatrixStore((s) => s.missionLoading);
-  const fetch    = useMatrixStore((s) => s.fetchMissionOverview);
+  const metrics      = useMatrixStore((s) => s.missionMetrics);
+  const health       = useMatrixStore((s) => s.systemHealth);
+  const feed         = useMatrixStore((s) => s.activityFeed);
+  const loading      = useMatrixStore((s) => s.missionLoading);
+  // FIX: was `const fetch = ...` which shadows the browser fetch API
+  const fetchMission = useMatrixStore((s) => s.fetchMissionOverview);
 
-  useEffect(() => { fetch(); }, []);
+  // FIX: was `fetch()` — now correctly calls fetchMission()
+  useEffect(() => { fetchMission(); }, []);
 
   const m = metrics || {};
   const h = m.hospitals   || {};
