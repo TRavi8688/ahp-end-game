@@ -23,7 +23,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision      = "008_enterprise_ticket_system"
-down_revision = "007_queue_lab_support"
+down_revision = "007_workflow_engine"
 branch_labels = None
 depends_on    = None
 
