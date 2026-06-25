@@ -3,10 +3,10 @@ import {
   AlertTriangle, Radio, Send, CheckCircle2, Clock, Shield,
   Zap, Bell, BellOff, RefreshCw, Loader2, X, Building2, Activity
 } from 'lucide-react';
-import axios from 'axios';
+import { api } from '../lib/apiClient';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
 
 const SEVERITY = {
   critical: { label: 'Critical', cls: 'badge-red', bg: 'bg-rose-500/10 border-rose-500/20', icon: <AlertTriangle size={13} className="text-rose-400" /> },
@@ -30,9 +30,9 @@ export default function EmergencyAlerts() {
   const fetchAlerts = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const cfg = { headers: { Authorization: `Bearer ${token}` } };
-      const res = await axios.get(`${API_BASE}/admin/audit-logs?limit=50`, cfg);
+      
+      
+      const res = await api.get('/api/v1/admin/audit-logs?limit=50');
       const allLogs = Array.isArray(res.data) ? res.data : [];
       // Filter for emergency-related events
       const emergencyLogs = allLogs.filter(l =>
@@ -63,13 +63,13 @@ export default function EmergencyAlerts() {
     if (!broadcastForm.message.trim()) return;
     setBroadcasting(true);
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(`${API_BASE}/doctor/emergency/broadcast`, {
+      
+      await api.post('/api/v1/matrix/broadcasts', {
         message: broadcastForm.message,
         severity: broadcastForm.severity,
         target: broadcastForm.target,
         broadcaster_type: 'super_admin',
-      }, { headers: { Authorization: `Bearer ${token}` } });
+      });
       setShowBroadcastModal(false);
       setBroadcastForm({ message: '', severity: 'high', target: 'all' });
       showToast('Emergency broadcast sent to all nodes', 'success');

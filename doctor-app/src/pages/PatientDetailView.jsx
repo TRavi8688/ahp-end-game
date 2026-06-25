@@ -104,7 +104,7 @@ export default function PatientDetailView() {
         try {
             await ApiService.post('/doctor/scan-patient', {
                 hospyn_id: patient?.profile?.hospyn_id,
-                clinic_name: 'Hospyn Clinic',
+                clinic_name: 'Hospain Clinic',
                 access_level: 'full'
             });
             setRequestSent(true);
@@ -139,7 +139,7 @@ export default function PatientDetailView() {
                 notes,
                 diagnosis
             );
-            showToast('Notes saved to patient Hospyn profile ✔');
+            showToast('Notes saved to patient Hospain profile ✔');
             setNotes('');
             setDiagnosis('');
         } catch (error) {
@@ -224,7 +224,7 @@ export default function PatientDetailView() {
                             <CircularProgress size={60} thickness={2} sx={{ color: '#0d9488', mb: 3 }} />
                             <Typography variant="h5" sx={{ fontWeight: 900, color: '#2dd4bf', mb: 1 }}>Awaiting Patient Approval...</Typography>
                             <Typography variant="body2" sx={{ color: '#64748b', maxWidth: 400, mx: 'auto' }}>
-                                A secure request was sent to {patient?.profile?.name}'s Hospyn app.
+                                A secure request was sent to {patient?.profile?.name}'s Hospain app.
                             </Typography>
                         </Box>
                     ) : (
@@ -274,7 +274,7 @@ export default function PatientDetailView() {
                                 {patient?.profile?.age} Years · {patient?.profile?.gender} · <Box component="span" sx={{ color: '#fff', fontWeight: 800 }}>{patient?.profile?.blood_group}</Box>
                             </Typography>
                             <Box sx={{ px: 2, py: 0.8, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', display: 'inline-block' }}>
-                                <Typography variant="caption" sx={{ color: '#475569', fontWeight: 800, mr: 1 }}>Hospyn ID:</Typography>
+                                <Typography variant="caption" sx={{ color: '#475569', fontWeight: 800, mr: 1 }}>Hospain ID:</Typography>
                                 <Typography component="span" sx={{ color: '#fff', fontFamily: 'monospace', fontWeight: 700 }}>{patient?.profile?.hospyn_id}</Typography>
                             </Box>
                         </Box>
@@ -474,7 +474,7 @@ export default function PatientDetailView() {
                                         <Typography variant="caption" sx={{ fontFamily: 'monospace', color: '#0d9488', fontWeight: 800 }}>{h.date?.toUpperCase()}</Typography>
                                     </Box>
                                 )) : (
-                                    <Typography variant="body2" sx={{ color: '#64748b' }}>No clinical history found in Hospyn network.</Typography>
+                                    <Typography variant="body2" sx={{ color: '#64748b' }}>No clinical history found in Hospain network.</Typography>
                                 )}
                             </Box>
                         </Card>
@@ -501,7 +501,7 @@ export default function PatientDetailView() {
                                 <Typography variant="h6" sx={{ fontWeight: 900, color: '#fff', mb: 2 }}>CLINICAL MEMO</Typography>
                                 <TextField fullWidth label="Diagnosis" placeholder="e.g. Acute Bronchitis" value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)}
                                     sx={{ mb: 2, '& .MuiOutlinedInput-root': { color: 'white', bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '12px', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } }, '& .MuiInputLabel-root': { color: '#64748b' } }} />
-                                <TextField fullWidth multiline rows={4} placeholder="Annotate this encounter... Encrypted and synced to Hospyn profile." value={notes} onChange={(e) => setNotes(e.target.value)}
+                                <TextField fullWidth multiline rows={4} placeholder="Annotate this encounter... Encrypted and synced to Hospain profile." value={notes} onChange={(e) => setNotes(e.target.value)}
                                     sx={{ mb: 3, '& .MuiOutlinedInput-root': { color: 'white', bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '16px', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } } }} />
                                 <Button variant="contained" fullWidth disableElevation startIcon={savingNotes ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
                                     sx={{ bgcolor: '#0d9488', '&:hover': { bgcolor: '#0f766e' }, py: 2, borderRadius: '14px', fontWeight: 900, boxShadow: '0 8px 20px rgba(13,148,136,0.2)' }}

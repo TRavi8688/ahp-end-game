@@ -18,7 +18,7 @@ export default function SignupScreen() {
                     <Typography variant="h4" sx={{ fontWeight: 800, color: 'white', mb: 2 }}>Registration Restricted</Typography>
                     <Typography variant="body1" sx={{ color: '#94a3b8', mb: 4, lineHeight: 1.6 }}>
                         Direct practitioner registration has been disabled per the Digital Health Protocol (DHP-8). 
-                        To gain access to the Hospyn network, please contact your Hospital Administrator. 
+                        To gain access to the Hospain network, please contact your Hospital Administrator. 
                         They will verify your AHBA ID and Medical Certification through the Gateway Portal and provision your credentials.
                     </Typography>
                     

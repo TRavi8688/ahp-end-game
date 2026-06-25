@@ -7,7 +7,7 @@ export default function HRDashboard() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">HR Portal</h1>
-        <p className="text-sm text-slate-400">Welcome to the Hospyn HR Management Dashboard.</p>
+        <p className="text-sm text-slate-400">Welcome to the Hospain HR Management Dashboard.</p>
       </div>
 
       {/* Grid of stats */}

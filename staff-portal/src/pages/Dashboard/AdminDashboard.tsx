@@ -1,94 +1,86 @@
 import React, { useState, useEffect } from 'react';
 import {
-  ShieldCheck, Terminal, Settings, Globe,
-  Database, Cpu, Lock, Activity, ChevronRight,
-  Server, Key, ShieldAlert, RefreshCw, AlertCircle,
+  Terminal, Globe,
+  ChevronRight,
+  Server, ShieldAlert, RefreshCw, AlertCircle,
 } from 'lucide-react';
 import apiClient from '../../apiClient';
-import { useStore } from '../../store/useStore';
 
 interface Tenant {
   id: string;
   name: string;
-  slug: string;
+  city: string;
   status: string;
-  user_count?: number;
+  // NOTE: backend's HospitalResponse has no "slug" or "user_count" field —
+  // those were invented. Using real fields only.
 }
 
 interface AuditLog {
   id: string;
-  event: string;
-  identity: string;
-  status: string;
-  latency: string;
-  timestamp?: string;
+  action: string;
+  user_name: string | null;
+  resource_type: string | null;
+  ip_address: string | null;
+  timestamp: string | null;
+  // NOTE: backend's audit_logs rows have no "status" or "latency" field —
+  // those (and the whole MOCK_LOGS fallback below) were fabricated to make
+  // this look like a live security feed. Removed.
 }
 
 /**
  * FIXES:
  * 1. Removed all undefined CSS class names: glass-panel, glass-card-premium,
  *    btn-cyber, pulse-emergency — replaced with explicit Tailwind utility classes.
- * 2. Tenant list now fetched from /hospitals/ instead of being hardcoded.
- * 3. Audit log now fetched from /admin/audit-logs with fallback to mock if empty.
- * 4. Security lockdown toggle wired to /admin/security/lockdown endpoint.
+ * 2. Tenant list now fetched from /hospitals/ instead of being hardcoded —
+ *    AND fixed the response unwrap: backend wraps as {success, data: {items, total,...}},
+ *    so tenants live at d.data.items, not d.data directly (which is an object, not an array).
+ * 3. Audit log fetched from /admin/audit-logs, same unwrap fix (d.data.logs not d.data).
+ *    Removed the MOCK_LOGS fabrication entirely — a fabricated "live security feed"
+ *    showing fake events ("Dr. Sharma", "JWT_RS256_VERIFY", "2ms") is actively
+ *    misleading on what's supposed to be a real security console.
+ * 4. /admin/audit-logs requires role "super_admin" specifically (see
+ *    super_admin.py: `SuperAdmin = Annotated[TokenPayload, Depends(require_role("super_admin"))]`)
+ *    but this whole page was only routed for role "admin" — meaning a real
+ *    "admin" user would always get a 403 here. Broadened routing in
+ *    App.tsx/Layout.tsx to include super_admin (see those files).
+ * 5. Removed fabricated "security theater": hardcoded fake SHA256 hash, a
+ *    "key rotation" button with no onClick handler at all, a hardcoded
+ *    "Uptime: 99.99%", an invented "auto-scaling... +2 nodes" blurb, and a
+ *    lockdown toggle pointing at /admin/security/lockdown — an endpoint
+ *    that doesn't exist anywhere in the backend (confirmed). Shipping
+ *    controls that look functional but silently do nothing (or 404) is
+ *    worse than not having them — replaced with an honest "not yet built"
+ *    panel instead.
  */
 const AdminDashboard: React.FC = () => {
-  const { systemStatus } = useStore();
   const [tenants, setTenants]     = useState<Tenant[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [lockdownOn, setLockdownOn] = useState(false);
-  const [lockdownLoading, setLockdownLoading] = useState(false);
+  const [auditError, setAuditError] = useState<string | null>(null);
   const [error, setError]         = useState<string | null>(null);
-
-  const MOCK_LOGS: AuditLog[] = [
-    { id: 'EV-1001', event: 'JWT_RS256_VERIFY',       identity: 'Dr. Sharma',    status: 'SECURED', latency: '2ms' },
-    { id: 'EV-1002', event: 'AES_GCM_ENCRYPT',        identity: 'System::Kernel',status: 'SUCCESS', latency: '1ms' },
-    { id: 'EV-1003', event: 'TENANT_LOAD_BALANCER',   identity: 'Nginx::Edge',   status: 'OPTIMAL', latency: '4ms' },
-  ];
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [tRes, lRes] = await Promise.allSettled([
-          apiClient.get('/hospitals/'),
-          apiClient.get('/admin/audit-logs'),
-        ]);
-        if (tRes.status === 'fulfilled') {
-          const d = tRes.value.data;
-          setTenants(Array.isArray(d) ? d : d.data ?? d.hospitals ?? []);
-        }
-        if (lRes.status === 'fulfilled') {
-          const logs = lRes.value.data?.data ?? lRes.value.data ?? [];
-          setAuditLogs(logs.length ? logs : MOCK_LOGS);
-        } else {
-          setAuditLogs(MOCK_LOGS);
-        }
+        const tRes = await apiClient.get('/hospitals/');
+        setTenants(tRes.data?.data?.items ?? []);
       } catch {
-        setAuditLogs(MOCK_LOGS);
+        setError('Unable to load hospital tenants.');
+      }
+      try {
+        const lRes = await apiClient.get('/admin/audit-logs');
+        setAuditLogs(lRes.data?.data?.logs ?? []);
+      } catch (err: any) {
+        // Most likely cause: logged in as "admin" rather than "super_admin" —
+        // this endpoint is super_admin-only on the backend.
+        setAuditError(
+          err.response?.status === 403
+            ? 'Audit logs require Super Admin access.'
+            : 'Unable to load audit logs.'
+        );
       }
     };
     load();
   }, []);
-
-  const handleToggleLockdown = async () => {
-    setLockdownLoading(true);
-    try {
-      await apiClient.post('/admin/security/lockdown', { active: !lockdownOn });
-      setLockdownOn(prev => !prev);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Lockdown toggle failed.');
-      setTimeout(() => setError(null), 4000);
-    } finally {
-      setLockdownLoading(false);
-    }
-  };
-
-  const stats = [
-    { label: 'API Latency',    value: systemStatus.latency, icon: Activity,    color: 'text-blue-400',   load: parseInt(systemStatus.latency) || 0 },
-    { label: 'Database Load',  value: systemStatus.dbLoad,  icon: Database,    color: 'text-green-400',  load: parseInt(systemStatus.dbLoad) || 0 },
-    { label: 'Cluster CPU',    value: systemStatus.cpu,     icon: Cpu,         color: 'text-purple-400', load: parseInt(systemStatus.cpu) || 0 },
-    { label: 'WAF Protection', value: 'ACTIVE',             icon: ShieldCheck, color: 'text-blue-500',   load: 100 },
-  ];
 
   const panelBase = 'bg-white/[0.02] border border-white/5 rounded-3xl';
 
@@ -109,34 +101,22 @@ const AdminDashboard: React.FC = () => {
             Infrastructure Console
           </h1>
           <p className="text-slate-500 font-bold text-xs tracking-widest uppercase">
-            Environment: <span className="text-blue-400">Production-Hardened</span> • Cluster: <span className="text-slate-300">GCP-Asia-South1</span>
+            Platform Administration · Tenants &amp; Audit
           </p>
-        </div>
-        <div className="px-4 py-2 bg-green-500/5 border border-green-500/20 rounded-full flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-xs font-black text-green-500 uppercase tracking-widest">Uptime: 99.99%</span>
         </div>
       </div>
 
-      {/* Telemetry */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {stats.map((stat, i) => (
-          <div key={i} className={`${panelBase} p-6 space-y-4`}>
-            <div className="flex justify-between items-center">
-              <div className={`p-2 rounded-lg bg-slate-900 ${stat.color}`}>
-                <stat.icon size={20} />
-              </div>
-              <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Real-time</span>
-            </div>
-            <div>
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{stat.label}</p>
-              <h2 className={`text-3xl font-black tracking-tighter ${stat.color}`}>{stat.value}</h2>
-            </div>
-            <div className="h-1 bg-slate-900 rounded-full overflow-hidden">
-              <div className={`h-full transition-all duration-1000 ${stat.color.replace('text-', 'bg-')}`} style={{ width: `${Math.min(stat.load, 100)}%` }} />
-            </div>
-          </div>
-        ))}
+      {/* NOTE: removed the old "Telemetry" stat cards (API Latency / Database
+          Load / Cluster CPU / WAF Protection). They read from useStore's
+          systemStatus, which is only ever updated by a "SYSTEM_HEALTH"
+          websocket message type — and the backend's websocket handler
+          (ws_endpoint.py) never sends one. Those cards would have shown
+          0ms/0%/0% forever, plus a hardcoded "WAF Protection: ACTIVE/100%"
+          that isn't backed by anything. Flagging as a real backend gap
+          rather than shipping permanently-zero numbers. */}
+      <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl text-amber-400 text-xs font-bold flex items-center gap-3">
+        <AlertCircle size={16} className="flex-shrink-0" />
+        Live infrastructure telemetry (latency, DB load, CPU) isn't wired to a real data source yet — removed rather than show permanent zeros.
       </div>
 
       <div className="grid grid-cols-12 gap-8">
@@ -153,27 +133,27 @@ const AdminDashboard: React.FC = () => {
 
           <div className={`${panelBase} overflow-hidden`}>
             <div className="bg-slate-900/40 p-4 border-b border-white/5 grid grid-cols-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-              <span>Event ID / Action</span>
-              <span>Identity Service</span>
-              <span>Security Status</span>
-              <span className="text-right">Latency</span>
+              <span>Action</span>
+              <span>User</span>
+              <span>Resource</span>
+              <span className="text-right">When</span>
             </div>
-            <div className="divide-y divide-white/5">
-              {auditLogs.map((log) => (
-                <div key={log.id} className="p-4 grid grid-cols-4 items-center hover:bg-white/[0.02] transition-all font-mono text-xs">
-                  <div className="flex flex-col">
-                    <span className="text-blue-500 font-bold">{log.event}</span>
-                    <span className="text-[10px] text-slate-600">{log.id}</span>
+            {auditError ? (
+              <div className="p-8 text-center text-amber-400 text-xs font-bold">{auditError}</div>
+            ) : auditLogs.length === 0 ? (
+              <div className="p-8 text-center text-slate-500 text-xs font-bold">No audit events recorded yet.</div>
+            ) : (
+              <div className="divide-y divide-white/5">
+                {auditLogs.map((log) => (
+                  <div key={log.id} className="p-4 grid grid-cols-4 items-center hover:bg-white/[0.02] transition-all font-mono text-xs">
+                    <span className="text-blue-500 font-bold truncate">{log.action}</span>
+                    <span className="text-slate-400 truncate">{log.user_name || '—'}</span>
+                    <span className="text-slate-500 truncate">{log.resource_type || '—'}</span>
+                    <span className="text-right text-slate-500 font-bold">{log.timestamp ? new Date(log.timestamp).toLocaleString() : '—'}</span>
                   </div>
-                  <span className="text-slate-400">{log.identity}</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]" />
-                    <span className="text-green-500 font-bold">{log.status}</span>
-                  </div>
-                  <span className="text-right text-slate-500 font-bold">{log.latency}</span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Tenants */}
@@ -191,7 +171,7 @@ const AdminDashboard: React.FC = () => {
                     <div className="space-y-1">
                       <h4 className="font-black text-white uppercase tracking-tight">{t.name}</h4>
                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
-                        Slug: {t.slug} {t.user_count !== undefined ? `• ${t.user_count} Users` : ''}
+                        {t.city}
                       </p>
                     </div>
                     <div className="flex items-center gap-4">
@@ -210,68 +190,28 @@ const AdminDashboard: React.FC = () => {
         {/* Right — Keys + Lockdown */}
         <div className="col-span-12 lg:col-span-4 space-y-8">
 
-          {/* Key Management */}
-          <div className={`${panelBase} p-6 space-y-6`}>
-            <h3 className="text-lg font-black uppercase tracking-tighter flex items-center gap-3">
-              <Key size={20} className="text-blue-500" />
-              Cryptographic Control
-            </h3>
-            <div className="space-y-4">
-              <div className="p-4 bg-slate-950/50 rounded-2xl border border-slate-800 space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-slate-400">RS256 Private Key</span>
-                  <span className="text-[10px] font-black text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded uppercase tracking-widest">Rotated</span>
-                </div>
-                <div className="h-1.5 bg-slate-900 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-600 w-full" />
-                </div>
-                <p className="text-[10px] font-mono text-slate-600 break-all leading-tight">
-                  SHA256: f46383b...24bbd99_SECURE_ROTATION_ENABLED
-                </p>
-              </div>
-              <button className="w-full py-3 border border-blue-500/20 bg-blue-500/5 hover:bg-blue-500/10 text-blue-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
-                Initiate Key Rotation
-              </button>
-            </div>
-          </div>
-
-          {/* Lockdown */}
-          <div className={`${panelBase} p-6 border-t-4 border-t-red-600 bg-red-600/5 space-y-6`}>
+          {/* NOTE: removed three fabricated panels here:
+              1. "Cryptographic Control" — hardcoded fake SHA256 hash and an
+                 "Initiate Key Rotation" button with no onClick handler at all.
+              2. "Security Lockdown" toggle — pointed at /admin/security/lockdown,
+                 an endpoint that does not exist anywhere in the backend
+                 (confirmed). A toggle that claims to "instantly revoke all
+                 JWT tokens and block incoming traffic" but actually just
+                 404s is worse than not having the feature — it could give
+                 a real admin false confidence during an actual incident.
+              3. "SRE Automation Insight" — a hardcoded, invented blurb
+                 about an auto-scaling event that never happened.
+              All three are real features worth building properly later —
+              flagging clearly rather than shipping non-functional theater. */}
+          <div className={`${panelBase} p-6 space-y-3`}>
             <div className="flex items-center gap-3">
-              <ShieldAlert className="text-red-500 animate-pulse" size={24} />
-              <h3 className="font-black uppercase tracking-tighter text-lg text-red-500">Security Lockdown</h3>
+              <ShieldAlert className="text-slate-500" size={20} />
+              <h3 className="font-black uppercase tracking-tighter text-sm text-slate-400">Security Controls</h3>
             </div>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-red-600/10 rounded-2xl border border-red-500/20">
-                <span className="text-xs font-black text-red-500 uppercase tracking-widest">Global API Block</span>
-                {/* FIXED: wired to real endpoint */}
-                <button
-                  onClick={handleToggleLockdown}
-                  disabled={lockdownLoading}
-                  className={`w-12 h-6 rounded-full relative transition-all ${lockdownOn ? 'bg-red-600' : 'bg-slate-800'} disabled:opacity-50`}
-                >
-                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${lockdownOn ? 'left-7' : 'left-1'}`} />
-                </button>
-              </div>
-              <p className="text-[10px] text-slate-500 leading-relaxed italic text-center">
-                Activating lockdown will instantly revoke all JWT tokens and block incoming traffic at the WAF layer.
-              </p>
-              {lockdownOn && (
-                <div className="text-center p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-black uppercase tracking-widest">
-                  ⚠ LOCKDOWN ACTIVE
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* SRE */}
-          <div className={`${panelBase} p-6 bg-blue-600/5 border-blue-600/10`}>
-            <div className="flex items-center gap-2 mb-4">
-              <Settings size={16} className="text-blue-500" />
-              <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SRE Automation Insight</h4>
-            </div>
-            <p className="text-xs font-medium text-slate-400 leading-relaxed">
-              Auto-scaling event detected. Cluster expanded by <span className="text-blue-500 font-black">2 nodes</span> to handle increased peak-hour traffic.
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Key rotation and emergency lockdown aren't wired to the backend yet —
+              removed the controls rather than ship ones that look functional but
+              don't actually do anything.
             </p>
           </div>
         </div>

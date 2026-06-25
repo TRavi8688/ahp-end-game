@@ -32,7 +32,7 @@ const MOCK_NOTIFICATIONS = [
     { id: 'N002', type: 'prescription', title: 'Prescription Dispensed', body: 'Amoxicillin prescribed to Priya Mehta has been dispensed by the pharmacy.', created_at: new Date(Date.now() - 20 * 60000).toISOString(), is_read: false, patient_id: null },
     { id: 'N003', type: 'alert', title: 'Drug Interaction Warning', body: 'Potential interaction detected for Rahul Verma: Warfarin + Aspirin.', created_at: new Date(Date.now() - 45 * 60000).toISOString(), is_read: false, patient_id: null },
     { id: 'N004', type: 'appointment', title: 'Appointment Reminder', body: 'You have 3 consultations scheduled for tomorrow morning.', created_at: new Date(Date.now() - 2 * 3600000).toISOString(), is_read: true, patient_id: null },
-    { id: 'N005', type: 'system', title: 'System Update', body: 'Hospyn network has been updated. New AI diagnostic features are now available.', created_at: new Date(Date.now() - 5 * 3600000).toISOString(), is_read: true, patient_id: null },
+    { id: 'N005', type: 'system', title: 'System Update', body: 'Hospain network has been updated. New AI diagnostic features are now available.', created_at: new Date(Date.now() - 5 * 3600000).toISOString(), is_read: true, patient_id: null },
     { id: 'N006', type: 'patient', title: 'Access Request', body: 'Sunita Rao has approved your medical record access request.', created_at: new Date(Date.now() - 24 * 3600000).toISOString(), is_read: true, patient_id: null },
 ];
 

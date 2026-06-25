@@ -1,29 +1,38 @@
 /**
  * doctorService.js
- * Phase 3 Fix: Doctor App — API service wiring for all Phase 3 routes
  *
- * APPLY TO: doctor-app/src/services/doctorService.js  (create or replace)
+ * FIXED: this file assumed httpOnly-cookie auth ("credentials: include",
+ * no Authorization header at all) — but the backend's login endpoint
+ * returns a JSON { access_token } body, not a cookie (confirmed in
+ * LoginScreen.jsx). No cookie is ever set, so every call through this file
+ * always 401'd silently before this fix.
  *
- * Uses httpOnly cookie auth (no localStorage token for doctor-app).
- * All fetch calls include credentials: "include" so the browser sends the cookie.
+ * Also fixed the same missing-prefix issue as Staff Portal: healthcare-core
+ * mounts everything under /api/v1/healthcare/*, not /api/v1/*.
  */
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
-const headers = (extra = {}) => ({
-  "Content-Type": "application/json",
-  ...extra,
-});
+const headers = (extra = {}) => {
+  const token = sessionStorage.getItem('hospain_access_token');
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
+  };
+};
 
 async function apiFetch(path, options = {}) {
-  const res = await fetch(`${API_BASE}/api/v1${path}`, {
-    credentials: "include",   // send httpOnly JWT cookie
+  // FIXED: was `/api/v1${path}` — healthcare-core routes live under
+  // /api/v1/healthcare/*, not directly under /api/v1/*.
+  const res = await fetch(`${API_BASE}/api/v1/healthcare${path}`, {
     ...options,
     headers: { ...headers(), ...(options.headers || {}) },
   });
 
   if (res.status === 401) {
     // Session expired — redirect to login
+    sessionStorage.removeItem('hospain_access_token');
     window.location.href = "/login";
     return null;
   }

@@ -43,7 +43,7 @@ export default function HomeDashboard({ onOpenScan }) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${sessionStorage.getItem('hospain_access_token')}`
                 }
             });
             if (response.ok) {
@@ -66,7 +66,7 @@ export default function HomeDashboard({ onOpenScan }) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${sessionStorage.getItem('hospain_access_token')}`
                 },
                 body: JSON.stringify(payload)
             });

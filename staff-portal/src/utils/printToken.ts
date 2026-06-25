@@ -67,7 +67,7 @@ export const printToken = (token: {
   </style>
 </head>
 <body>
-  <p class="hospital">Hospyn Healthcare</p>
+  <p class="hospital">Hospain Healthcare</p>
   <div class="type-badge">${label}</div>
   <div class="token-number">${token_number}</div>
   <div class="divider"></div>

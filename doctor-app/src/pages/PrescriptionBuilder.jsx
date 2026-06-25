@@ -57,7 +57,7 @@ export default function PrescriptionBuilder() {
             const fetchPatient = async () => {
                 try {
                     const response = await fetch(`${API_BASE_URL}/doctor/patient/${patientId}`, {
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('hospain_access_token')}` }
                     });
                     if (response.ok) {
                         const data = await response.json();

@@ -6,9 +6,9 @@ import {
   Clock, Mail, UserCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
+import { api } from '../lib/apiClient';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
 
 const ROLE_COLORS = {
   super_admin: 'badge-red',
@@ -41,11 +41,11 @@ export default function IAMManagement() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const cfg = { headers: { Authorization: `Bearer ${token}` } };
+      
+      
       const [tenantRes, userRes] = await Promise.all([
-        axios.get(`${API_BASE}/iam/tenants`, cfg),
-        axios.get(`${API_BASE}/iam/users`, cfg),
+        api.get('/api/v1/iam/tenants'),
+        api.get('/api/v1/iam/users'),
       ]);
       const tenantList = Array.isArray(tenantRes.data) ? tenantRes.data : [];
       const userList = Array.isArray(userRes.data) ? userRes.data : [];
@@ -64,10 +64,8 @@ export default function IAMManagement() {
   const handleToggleStatus = async (userId, currentStatus) => {
     const newStatus = currentStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`${API_BASE}/iam/users/${userId}/status`, { status: newStatus }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      
+      await api.put(`/api/v1/iam/users/${userId}/status`, { status: newStatus });
       fetchData();
       showToast(`User ${newStatus === 'ACTIVE' ? 'activated' : 'suspended'} successfully`);
     } catch {
@@ -79,13 +77,13 @@ export default function IAMManagement() {
     if (!inviteForm.email) return;
     setSubmitting(true);
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(`${API_BASE}/iam/invite`, {
+      
+      await api.post('/api/v1/iam/invite', {
         email: inviteForm.email,
         role: inviteForm.role,
         tenant_id: selectedTenant?.id,
         enforce_mfa: inviteForm.enforce_mfa,
-      }, { headers: { Authorization: `Bearer ${token}` } });
+      });
       setShowInviteModal(false);
       setInviteForm({ email: '', role: 'hospital_admin', enforce_mfa: true });
       fetchData();

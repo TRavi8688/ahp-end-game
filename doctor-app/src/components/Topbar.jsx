@@ -39,7 +39,7 @@ export default function Topbar({ onLogout, onOpenScan }) {
         if (path.startsWith('/alerts')) return 'Alerts';
         if (path.startsWith('/settings')) return 'Settings';
         if (path.startsWith('/patient/')) return 'Patient Detail';
-        return 'Hospyn Portal';
+        return 'Hospain Portal';
     };
 
     return (

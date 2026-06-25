@@ -30,12 +30,6 @@ const HRDashboard       = lazy(() => import('./pages/Dashboard/HRDashboard'));
 const ReceptionDashboard = lazy(() => import('./pages/Dashboard/ReceptionDashboard'));
 const SupportPage        = lazy(() => import('./pages/Dashboard/SupportPage'));
 
-const CheckInPage           = lazy(() => import('./pages/Dashboard/CheckInPage'));
-const WalkInPage            = lazy(() => import('./pages/WalkInPage'));
-const QueueBoardPage        = lazy(() => import('./pages/Dashboard/QueueBoardPage'));
-const TodaysAppointmentsPage = lazy(() => import('./pages/Dashboard/TodaysAppointmentsPage'));
-const BillingPage           = lazy(() => import('./pages/Dashboard/BillingPage'));
-
 function Loading() {
   return (
     <div style={{
@@ -69,10 +63,10 @@ function StaffPage({
 
 // After login, redirect to the correct dashboard based on role
 function RoleBasedRedirect() {
-  const storedToken = sessionStorage.getItem('hospyn_access_token');
+  const storedToken = sessionStorage.getItem('hospain_access_token');
   if (!storedToken) return <Navigate to="/login" replace />;
 
-  const userStr = sessionStorage.getItem('hospyn_user');
+  const userStr = sessionStorage.getItem('hospain_user');
   let role = '';
   try {
     role = userStr ? JSON.parse(userStr).role : '';
@@ -181,15 +175,8 @@ export default function App() {
             <Route
               path="/reception/*"
               element={
-                <StaffPage roles={['receptionist', 'admin']}>
-                  <Routes>
-                    <Route path="" element={<ReceptionDashboard />} />
-                    <Route path="checkin" element={<CheckInPage />} />
-                    <Route path="walkin" element={<WalkInPage />} />
-                    <Route path="queue" element={<QueueBoardPage />} />
-                    <Route path="appointments" element={<TodaysAppointmentsPage />} />
-                    <Route path="billing" element={<BillingPage />} />
-                  </Routes>
+                <StaffPage roles={['receptionist']}>
+                  <ReceptionDashboard />
                 </StaffPage>
               }
             />

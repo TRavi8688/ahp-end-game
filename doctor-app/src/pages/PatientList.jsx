@@ -112,7 +112,7 @@ export default function PatientList() {
                     }}>
                         <SearchIcon sx={{ color: '#64748b', mr: 2 }} />
                         <InputBase
-                            placeholder="Locate patient by name or Hospyn identity..."
+                            placeholder="Locate patient by name or Hospain identity..."
                             sx={{ flex: 1, fontSize: '0.95rem', color: 'white', fontWeight: 500 }}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -225,7 +225,7 @@ export default function PatientList() {
                             {isLoadingDetail ? "RETRIVING..." : "SELECT NODE"}
                         </Typography>
                         <Typography variant="body2" sx={{ color: '#64748b', mt: 1.5, fontWeight: 500 }}>
-                            {isLoadingDetail ? "Establishing encrypted link to Hospyn ledger." : "Choose a valid practitioner link to view deep clinical context."}
+                            {isLoadingDetail ? "Establishing encrypted link to Hospain ledger." : "Choose a valid practitioner link to view deep clinical context."}
                         </Typography>
                     </Box>
                 ) : (
@@ -244,9 +244,9 @@ export default function PatientList() {
                                 border: '4px solid #050810',
                                 boxShadow: '0 10px 30px rgba(13, 148, 136, 0.2)'
                             }}>
-                                {(selectedPatientData.profile.name || 'Hospyn Patient').split(' ').map(n => n[0]).join('')}
+                                {(selectedPatientData.profile.name || 'Hospain Patient').split(' ').map(n => n[0]).join('')}
                             </Avatar>
-                            <Typography variant="h5" sx={{ color: '#fff', fontWeight: 900, fontFamily: 'Outfit', mb: 1 }}>{selectedPatientData.profile.name || 'Hospyn Patient'}</Typography>
+                            <Typography variant="h5" sx={{ color: '#fff', fontWeight: 900, fontFamily: 'Outfit', mb: 1 }}>{selectedPatientData.profile.name || 'Hospain Patient'}</Typography>
                             <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 2 }}>
                                 <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 800 }}>
                                     {selectedPatientData.profile.age !== undefined && selectedPatientData.profile.age !== null ? `${selectedPatientData.profile.age} YRS` : 'SECURE'}

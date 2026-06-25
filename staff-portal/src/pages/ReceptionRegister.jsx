@@ -123,7 +123,7 @@ export default function ReceptionRegister() {
               <div style={{padding: '1rem', background: 'var(--color-success-muted)', borderRadius: '8px', border: '1px solid rgba(34, 197, 94, 0.2)'}}>
                 <p style={{margin: '0 0 0.5rem 0', fontWeight: 600, color: 'var(--color-success)'}}>Success! Patient Queued.</p>
                 <p style={{margin: '0.25rem 0'}}><strong>Name:</strong> {lastRegistered.name}</p>
-                <p style={{margin: '0.25rem 0'}}><strong>Hospyn ID:</strong> <span style={{fontFamily: 'monospace', background: 'white', padding: '0.1rem 0.3rem', borderRadius: '4px'}}>{lastRegistered.hospyn_id}</span></p>
+                <p style={{margin: '0.25rem 0'}}><strong>Hospain ID:</strong> <span style={{fontFamily: 'monospace', background: 'white', padding: '0.1rem 0.3rem', borderRadius: '4px'}}>{lastRegistered.hospyn_id}</span></p>
               </div>
             ) : (
               <p className="text-secondary" style={{fontSize: '0.9rem'}}>No patients registered in this session.</p>

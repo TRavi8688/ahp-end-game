@@ -80,7 +80,7 @@ function ForgotPasswordScreen({ onBack }) {
                     {step === 'done' ? 'Password Reset ✓' : 'Recover Access'}
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#64748b' }}>
-                    {step === 'request' && 'Enter your Hospyn ID or registered email to receive a reset code.'}
+                    {step === 'request' && 'Enter your Hospain ID or registered email to receive a reset code.'}
                     {step === 'verify' && 'Enter the 6-digit code sent to your registered contact.'}
                     {step === 'reset' && 'Set a new secure password for your practitioner account.'}
                     {step === 'done' && 'Your password has been reset successfully. You can now log in.'}
@@ -92,7 +92,7 @@ function ForgotPasswordScreen({ onBack }) {
 
             {step === 'request' && (
                 <>
-                    <TextField fullWidth label="Hospyn ID or Email" value={identifier} onChange={e => setIdentifier(e.target.value)} sx={inputSx} InputProps={{ startAdornment: <EmailIcon sx={{ mr: 2, color: '#475569' }} /> }} />
+                    <TextField fullWidth label="Hospain ID or Email" value={identifier} onChange={e => setIdentifier(e.target.value)} sx={inputSx} InputProps={{ startAdornment: <EmailIcon sx={{ mr: 2, color: '#475569' }} /> }} />
                     <Button fullWidth variant="contained" onClick={handleRequest} disabled={isLoading || !identifier} sx={{ bgcolor: '#6366f1', borderRadius: '14px', py: 1.8, fontWeight: 900, '&:hover': { bgcolor: '#4f46e5' } }}>
                         {isLoading ? 'Sending...' : 'Send Reset Code'}
                     </Button>
@@ -180,7 +180,7 @@ export default function LoginScreen() {
             }
 
             localStorage.setItem('isAuthenticated', 'true');
-            localStorage.setItem('token', data.access_token);
+            sessionStorage.setItem('hospain_access_token', data.access_token);
 
             // Start doctor session — FIX: API_BASE_URL is now properly imported
             try {
@@ -208,18 +208,17 @@ export default function LoginScreen() {
                 <Grid item xs={12} md={6} sx={{ display: { xs: 'none', md: 'flex' }, flexDirection: 'column', justifyContent: 'center', p: 10 }}>
                     <Box sx={{ mb: 6 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-                            <Box sx={{ width: 64, height: 64, background: 'linear-gradient(135deg, #6366f1, #0ea5e9)', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 30px rgba(99, 102, 241, 0.4)', mr: 3 }}>
-                                <ShieldIcon sx={{ color: 'white', fontSize: 32 }} />
+                            {/* Exact, unmodified logo file — white-card backing since the
+                                PNG has a white background and this panel is dark. */}
+                            <Box sx={{ background: 'white', borderRadius: '16px', px: 2, py: 1.5, display: 'inline-flex' }}>
+                                <img src="/assets/hospain-logo.png" alt="Hospain — Care Beyond Today" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
                             </Box>
-                            <Typography variant="h2" sx={{ fontWeight: 900, color: 'white', letterSpacing: '-0.04em' }}>
-                                Hospyn<span style={{ color: '#6366f1' }}>.</span>
-                            </Typography>
                         </Box>
                         <Typography variant="h1" sx={{ fontWeight: 800, color: 'white', fontSize: '3.5rem', lineHeight: 1.1, mb: 4, fontFamily: 'Syne, sans-serif' }}>
                             Clinical <br /><span style={{ color: 'rgba(255,255,255,0.4)' }}>Intelligence.</span>
                         </Typography>
                         <Typography variant="h6" sx={{ color: '#94a3b8', fontWeight: 400, maxWidth: 500, lineHeight: 1.6, mb: 6 }}>
-                            Welcome back to the clinical command center. Access restricted to authorized medical practitioners within the Hospyn network.
+                            Welcome back to the clinical command center. Access restricted to authorized medical practitioners within the Hospain network.
                         </Typography>
                         <Box sx={{ p: 3, maxWidth: 450, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '16px' }}>
                             <Box sx={{ display: 'flex', gap: 2 }}>
@@ -258,7 +257,7 @@ export default function LoginScreen() {
                                     {errorMsg && <Alert severity="error" sx={{ mb: 3, borderRadius: 3, bgcolor: 'rgba(244,63,94,0.1)', color: '#fb7185', border: '1px solid rgba(244,63,94,0.2)' }}>{errorMsg}</Alert>}
                                     {successMsg && <Alert severity="success" sx={{ mb: 3, borderRadius: 3, bgcolor: 'rgba(16,185,129,0.1)', color: '#34d399', border: '1px solid rgba(16,185,129,0.2)' }}>{successMsg}</Alert>}
 
-                                    <TextField fullWidth placeholder="Hospyn ID, Email or Phone" value={identifier} onChange={(e) => setIdentifier(e.target.value)} sx={{ mb: 3, ...inputSx }} InputProps={{ startAdornment: <SmartphoneIcon sx={{ mr: 2, color: '#475569' }} /> }} />
+                                    <TextField fullWidth placeholder="Hospain ID, Email or Phone" value={identifier} onChange={(e) => setIdentifier(e.target.value)} sx={{ mb: 3, ...inputSx }} InputProps={{ startAdornment: <SmartphoneIcon sx={{ mr: 2, color: '#475569' }} /> }} />
 
                                     {loginMode === 'otp' ? (
                                         !otpSent ? (

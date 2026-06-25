@@ -28,7 +28,7 @@ export default function Settings() {
     const [devOtpInfo, setDevOtpInfo] = useState('');
 
     const fetchProfile = async () => {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('hospain_access_token');
         if (!token) return;
         try {
             const res = await fetch(`${API_BASE_URL}/doctor/profile/me`, {
@@ -54,7 +54,7 @@ export default function Settings() {
     }, []);
 
     const handleSaveProfile = async () => {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('hospain_access_token');
         if (!token) return;
         try {
             const res = await fetch(`${API_BASE_URL}/doctor/profile`, {
@@ -85,7 +85,7 @@ export default function Settings() {
     };
 
     const handleUpdatePreferences = async () => {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('hospain_access_token');
         if (!token) return;
         try {
             const res = await fetch(`${API_BASE_URL}/doctor/settings`, {
@@ -115,7 +115,7 @@ export default function Settings() {
     };
 
     const handleSendPhoneOtp = async () => {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('hospain_access_token');
         if (!token) return;
         setPhoneLoading(true);
         setDevOtpInfo('');
@@ -147,7 +147,7 @@ export default function Settings() {
     };
 
     const handleVerifyPhoneOtp = async () => {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('hospain_access_token');
         if (!token) return;
         setPhoneLoading(true);
         try {
@@ -220,13 +220,13 @@ export default function Settings() {
                                 <Grid item xs={12}>
                                     <TextField 
                                         fullWidth 
-                                        label="Hospyn ID" 
+                                        label="Hospain ID" 
                                         value={profile?.hospyn_id || "Loading..."} 
                                         size="small" 
                                         disabled 
                                         InputLabelProps={{ shrink: true }}
                                         sx={{ input: { color: '#94a3b8' } }}
-                                        helperText="Hospyn ID is permanently locked and cannot be changed."
+                                        helperText="Hospain ID is permanently locked and cannot be changed."
                                     />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>

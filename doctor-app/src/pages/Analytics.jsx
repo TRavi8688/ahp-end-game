@@ -13,7 +13,7 @@ export default function Analytics() {
             try {
                 const response = await fetch(`${API_BASE_URL}/doctor/analytics`, {
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${sessionStorage.getItem('hospain_access_token')}`
                     }
                 });
                 if (response.ok) {

@@ -20,14 +20,14 @@ export default function Schedule() {
     
     // Provision slot dialog states
     const [openDialog, setOpenDialog] = useState(false);
-    const [hospynId, setHospynId] = useState('');
+    const [hospynId, setHospainId] = useState('');
     const [slotTime, setSlotTime] = useState(''); // YYYY-MM-DD HH:MM
     const [errorMsg, setErrorMsg] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
     const [loading, setLoading] = useState(false);
 
     const fetchSchedule = async () => {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('hospain_access_token');
         if (!token) return;
         try {
             const res = await fetch(`${API_BASE_URL}/doctor/schedule`, {
@@ -47,10 +47,10 @@ export default function Schedule() {
     }, []);
 
     const handleProvisionSlot = async () => {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('hospain_access_token');
         if (!token) return;
         if (!hospynId || !slotTime) {
-            setErrorMsg("Hospyn ID and Date/Time are required.");
+            setErrorMsg("Hospain ID and Date/Time are required.");
             return;
         }
         setLoading(true);
@@ -75,7 +75,7 @@ export default function Schedule() {
             const data = await res.json();
             if (res.ok && data.success) {
                 setSuccessMsg("Clinical consultation slot successfully provisioned!");
-                setHospynId('');
+                setHospainId('');
                 setSlotTime('');
                 fetchSchedule();
                 setTimeout(() => {
@@ -275,13 +275,13 @@ export default function Schedule() {
                     <TextField
                         autoFocus
                         margin="dense"
-                        label="Patient Hospyn ID"
+                        label="Patient Hospain ID"
                         type="text"
                         fullWidth
                         variant="outlined"
                         value={hospynId}
-                        onChange={(e) => setHospynId(e.target.value)}
-                        placeholder="e.g. Hospyn-8A9F3C1D"
+                        onChange={(e) => setHospainId(e.target.value)}
+                        placeholder="e.g. Hospain-8A9F3C1D"
                         sx={{ input: { color: '#fff' }, mb: 2 }}
                         InputLabelProps={{ shrink: true }}
                     />

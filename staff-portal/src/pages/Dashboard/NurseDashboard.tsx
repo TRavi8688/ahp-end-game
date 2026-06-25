@@ -32,6 +32,36 @@ const NurseDashboard: React.FC = () => {
     temperature: '', spo2: '', respiratory_rate: '', weight_kg: '',
   });
   const [triageNotes, setTriageNotes] = useState('');
+  const [emergencyOverride, setEmergencyOverride] = useState(false);
+
+  // Mirrors triage_service.py's assess_priority_from_vitals() thresholds
+  // exactly, so the colors shown here match what the backend will do with
+  // the same numbers (auto-escalation on save). Kept in sync deliberately —
+  // if those thresholds change server-side, update here too.
+  type Severity = 'normal' | 'warning' | 'critical';
+  const vitalSeverity = (field: keyof typeof vitals, raw: string): Severity => {
+    const v = parseFloat(raw);
+    if (raw === '' || Number.isNaN(v)) return 'normal';
+    switch (field) {
+      case 'spo2':
+        return v < 90 ? 'critical' : v < 95 ? 'warning' : 'normal';
+      case 'heart_rate':
+        return (v > 150 || v < 40) ? 'critical' : (v > 120 || v < 50) ? 'warning' : 'normal';
+      case 'blood_pressure_systolic':
+        return (v > 180 || v < 80) ? 'warning' : 'normal';
+      case 'temperature':
+        return v > 104 ? 'warning' : v > 100.4 ? 'warning' : 'normal';
+      default:
+        return 'normal';
+    }
+  };
+  const severityRing: Record<Severity, string> = {
+    normal:   'border-white/10',
+    warning:  'border-amber-500/60 ring-1 ring-amber-500/30',
+    critical: 'border-rose-500/70 ring-1 ring-rose-500/40',
+  };
+  const anyCritical = (['spo2', 'heart_rate', 'blood_pressure_systolic', 'temperature'] as const)
+    .some((f) => vitalSeverity(f, vitals[f]) === 'critical');
 
   const fetchQueue = async () => {
     try {
@@ -78,6 +108,12 @@ const NurseDashboard: React.FC = () => {
     try {
       await apiClient.patch(`/nurse/queue/${activePatient.id}/complete`, {
         triage_notes: triageNotes,
+        // Real backend field (TriageCompletePayload.priority_override) — lets
+        // the nurse manually escalate regardless of what the vitals alone
+        // would trigger. The backend ALSO auto-escalates from vitals via
+        // assess_priority_from_vitals(), independent of this flag — this is
+        // for cases the numbers don't fully capture (e.g. clinical judgment).
+        priority_override: emergencyOverride ? 'emergency' : undefined,
         vitals: {
           heart_rate:               parseInt(vitals.heart_rate),
           blood_pressure_systolic:  parseInt(vitals.blood_pressure_systolic),
@@ -91,6 +127,7 @@ const NurseDashboard: React.FC = () => {
       setActivePatient(null);
       setVitals({ heart_rate: '', blood_pressure_systolic: '', blood_pressure_diastolic: '', temperature: '', spo2: '', respiratory_rate: '', weight_kg: '' });
       setTriageNotes('');
+      setEmergencyOverride(false);
       fetchQueue();
     } catch (err: any) {
       // FIXED: replaced alert() with inline error
@@ -140,42 +177,25 @@ const NurseDashboard: React.FC = () => {
                   Queue is empty
                 </div>
               )}
-              {queue.map((p) => (
-                <div
-                  key={p.id}
-                  className={`p-6 flex items-center justify-between transition-all cursor-pointer ${
-                    activePatient?.id === p.id
-                      ? 'bg-white/[0.05] border-l-4 border-l-rose-500'
-                      : 'hover:bg-white/[0.02]'
-                  }`}
-                  onClick={() => { if (p.queue_state === 'in_triage') setActivePatient(p); }}
-                >
-                  <div className="flex items-center gap-6">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl border ${priorityClass(p.priority_level)}`}>
-                      {p.queue_number}
-                    </div>
-                    <div className="space-y-1">
-                      <h4 className="text-lg font-black tracking-tight text-white">{p.full_name}</h4>
-                      <div className="flex items-center gap-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                        <span>{p.age}y {p.gender[0]}</span>
-                        <div className="w-1 h-1 rounded-full bg-slate-800" />
-                        <span>Wait: {p.wait_minutes}m</span>
-                      </div>
-                      <p className="text-[10px] text-slate-600">{p.reason_for_visit}</p>
-                    </div>
-                  </div>
 
-                  {p.queue_state === 'waiting_triage' ? (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleStartTriage(p); }}
-                      className="bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white px-4 py-3 rounded-xl font-black text-[10px] tracking-widest uppercase transition-all flex items-center gap-2"
-                    >
-                      <Play size={14} /> Start
-                    </button>
-                  ) : (
-                    <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest animate-pulse">In Triage</span>
-                  )}
+              {queue.filter((p) => p.queue_state === 'in_triage').length > 0 && (
+                <div className="px-6 pt-5 pb-1 text-[10px] font-black text-rose-500 uppercase tracking-widest">
+                  Active Triage
                 </div>
+              )}
+              {queue.filter((p) => p.queue_state === 'in_triage').map((p) => (
+                <NurseQueueRow key={p.id} p={p} activePatient={activePatient} setActivePatient={setActivePatient}
+                  handleStartTriage={handleStartTriage} priorityClass={priorityClass} />
+              ))}
+
+              {queue.filter((p) => p.queue_state === 'waiting_triage').length > 0 && (
+                <div className="px-6 pt-5 pb-1 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                  Waiting
+                </div>
+              )}
+              {queue.filter((p) => p.queue_state === 'waiting_triage').map((p) => (
+                <NurseQueueRow key={p.id} p={p} activePatient={activePatient} setActivePatient={setActivePatient}
+                  handleStartTriage={handleStartTriage} priorityClass={priorityClass} />
               ))}
             </div>
           </div>
@@ -214,9 +234,18 @@ const NurseDashboard: React.FC = () => {
                     { icon: Droplets,   color: 'blue',    field: 'blood_pressure_systolic' as const,  unit: 'sys',  label: 'BP Systolic',   step: undefined },
                     { icon: Thermometer,color: 'amber',   field: 'temperature' as const,              unit: '°F',   label: 'Temperature',   step: '0.1' },
                     { icon: Wind,       color: 'emerald', field: 'spo2' as const,                     unit: '%',    label: 'SpO₂',          step: undefined },
-                  ].map(({ icon: Icon, color, field, unit, label, step }) => (
-                    <div key={field} className={`bg-white/5 border border-white/10 rounded-2xl p-5 hover:border-${color}-500/50 transition-all`}>
-                      <Icon className={`text-${color}-500 mb-3`} size={24} />
+                  ].map(({ icon: Icon, color, field, unit, label, step }) => {
+                    const sev = vitalSeverity(field, vitals[field]);
+                    return (
+                    <div key={field} className={`bg-white/5 border rounded-2xl p-5 transition-all ${severityRing[sev]}`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <Icon className={`text-${color}-500`} size={24} />
+                        {sev !== 'normal' && (
+                          <span className={`text-[9px] font-black uppercase tracking-widest ${sev === 'critical' ? 'text-rose-400' : 'text-amber-400'}`}>
+                            {sev === 'critical' ? 'Critical' : 'Watch'}
+                          </span>
+                        )}
+                      </div>
                       <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{label}</label>
                       <div className="flex items-end gap-2">
                         <input
@@ -228,7 +257,7 @@ const NurseDashboard: React.FC = () => {
                         <span className="text-xs font-bold text-slate-600 mb-1">{unit}</span>
                       </div>
                     </div>
-                  ))}
+                  );})}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -251,6 +280,30 @@ const NurseDashboard: React.FC = () => {
                       className="w-full bg-transparent text-xl font-black text-white focus:outline-none" placeholder="70.5" />
                   </div>
                 </div>
+
+                {anyCritical && (
+                  <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center gap-3 text-rose-400 text-sm font-bold">
+                    <AlertCircle size={18} className="flex-shrink-0" />
+                    One or more vitals are in the critical range — the system will auto-escalate priority on save.
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setEmergencyOverride((v) => !v)}
+                  className={`w-full flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                    emergencyOverride
+                      ? 'bg-rose-600 border-rose-500 text-white'
+                      : 'bg-white/5 border-white/10 text-slate-400 hover:border-rose-500/40 hover:text-rose-400'
+                  }`}
+                >
+                  <span className="flex items-center gap-2 font-black text-xs uppercase tracking-widest">
+                    <AlertCircle size={16} /> Escalate to Emergency Priority
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">
+                    {emergencyOverride ? 'Will escalate on submit' : 'Tap to override'}
+                  </span>
+                </button>
 
                 <div>
                   <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Triage Notes</label>
@@ -275,3 +328,48 @@ const NurseDashboard: React.FC = () => {
 };
 
 export default NurseDashboard;
+
+// Extracted so the same row markup can be reused for both the
+// "Active Triage" and "Waiting" groups above without duplicating JSX.
+const NurseQueueRow: React.FC<{
+  p: TriagePatient;
+  activePatient: TriagePatient | null;
+  setActivePatient: (p: TriagePatient) => void;
+  handleStartTriage: (p: TriagePatient) => void;
+  priorityClass: (p: string) => string;
+}> = ({ p, activePatient, setActivePatient, handleStartTriage, priorityClass }) => (
+  <div
+    className={`p-6 flex items-center justify-between transition-all cursor-pointer ${
+      activePatient?.id === p.id
+        ? 'bg-white/[0.05] border-l-4 border-l-rose-500'
+        : 'hover:bg-white/[0.02]'
+    }`}
+    onClick={() => { if (p.queue_state === 'in_triage') setActivePatient(p); }}
+  >
+    <div className="flex items-center gap-6">
+      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-black text-xl border ${priorityClass(p.priority_level)}`}>
+        {p.queue_number}
+      </div>
+      <div className="space-y-1">
+        <h4 className="text-lg font-black tracking-tight text-white">{p.full_name}</h4>
+        <div className="flex items-center gap-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+          <span>{p.age}y {p.gender[0]}</span>
+          <div className="w-1 h-1 rounded-full bg-slate-800" />
+          <span>Wait: {p.wait_minutes}m</span>
+        </div>
+        <p className="text-[10px] text-slate-600">{p.reason_for_visit}</p>
+      </div>
+    </div>
+
+    {p.queue_state === 'waiting_triage' ? (
+      <button
+        onClick={(e) => { e.stopPropagation(); handleStartTriage(p); }}
+        className="bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white px-4 py-3 rounded-xl font-black text-[10px] tracking-widest uppercase transition-all flex items-center gap-2"
+      >
+        <Play size={14} /> Start
+      </button>
+    ) : (
+      <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest animate-pulse">In Triage</span>
+    )}
+  </div>
+);

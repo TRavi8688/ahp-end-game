@@ -29,7 +29,7 @@ export default function IntakeModal({ open, onClose, patientId, onComplete }) {
                 symptoms: intakeSymptoms,
                 vitals_bp: intakeVitalsBp || "120/80",
                 vitals_hr: intakeVitalsHr || "72",
-                clinic_name: "Hospyn Clinic"
+                clinic_name: "Hospain Clinic"
             };
 
             await ApiService.post(`/doctor/patient/${patientId}/intake`, payload);

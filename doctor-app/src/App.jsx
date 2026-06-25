@@ -95,7 +95,7 @@ const theme = createTheme({
 });
 
 function AppContent() {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('hospain_access_token');
     let isDoctor = false;
     if (token) {
         try {
@@ -116,7 +116,7 @@ function AppContent() {
         if (token && !isDoctor) {
             localStorage.removeItem('isAuthenticated');
             localStorage.removeItem('isVerified');
-            localStorage.removeItem('token');
+            sessionStorage.removeItem('hospain_access_token');
             window.location.href = '/login';
         }
     }, [token, isDoctor]);
@@ -124,7 +124,7 @@ function AppContent() {
     const handleLogout = () => {
         localStorage.removeItem('isAuthenticated');
         localStorage.removeItem('isVerified');
-        localStorage.removeItem('token');
+        sessionStorage.removeItem('hospain_access_token');
         window.location.href = '/login';
     };
 

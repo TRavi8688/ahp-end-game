@@ -86,7 +86,7 @@ const WalkInPage: React.FC = () => {
             <Activity className="text-indigo-500 w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-3xl font-black tracking-tighter">Hospyn Walk-In</h1>
+            <h1 className="text-3xl font-black tracking-tighter">Hospain Walk-In</h1>
             <p className="text-xs font-black uppercase tracking-widest text-slate-500">QR Patient Intake</p>
           </div>
         </div>

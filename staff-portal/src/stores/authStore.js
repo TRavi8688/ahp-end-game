@@ -1,5 +1,5 @@
 /**
- * Hospyn Staff Portal — Auth Store (Zustand)
+ * Hospain Staff Portal — Auth Store (Zustand)
  *
  * Single source of truth for authentication state.
  * Persists minimal session info to sessionStorage.

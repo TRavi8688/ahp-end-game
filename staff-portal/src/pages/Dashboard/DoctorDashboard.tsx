@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Stethoscope, 
   Clock,
@@ -6,7 +6,10 @@ import {
   FileText,
   Activity,
   Pill,
-  MoreVertical
+  MoreVertical,
+  AlertCircle,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 import apiClient from '../../apiClient';
 import { useAuth } from '../../context/AuthContext';
@@ -32,12 +35,32 @@ const DoctorDashboard: React.FC = () => {
   const [queue, setQueue] = useState<ConsultationPatient[]>([]);
   const [stats, setStats] = useState({ total_waiting: 0, total_in_consultation: 0 });
   const [activePatient, setActivePatient] = useState<ConsultationPatient | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   
   // Clinical Notes Form State
   const [chiefComplaint, setChiefComplaint] = useState('');
   const [clinicalNotes, setClinicalNotes] = useState('');
   const [diagnosis, setDiagnosis] = useState('');
-  const [prescription, setPrescription] = useState('');
+
+  // FIXED: backend's ConsultationCompletePayload takes `prescription_items`
+  // — a list of {drug_name, dosage, frequency, duration, instructions} —
+  // not a free-text `prescription` string. The old code sent `prescription`
+  // (a field the schema doesn't have), so every prescription a doctor wrote
+  // was silently dropped — Pydantic ignores unrecognized fields by default,
+  // and the consultation still completed "successfully" with no medication
+  // record saved anywhere.
+  type RxItem = { drug_name: string; dosage: string; frequency: string; duration: string; instructions: string };
+  const emptyRxItem: RxItem = { drug_name: '', dosage: '', frequency: '', duration: '', instructions: '' };
+  const [prescriptionItems, setPrescriptionItems] = useState<RxItem[]>([{ ...emptyRxItem }]);
+
+  const updateRxItem = (idx: number, field: keyof RxItem, value: string) => {
+    setPrescriptionItems((items) => items.map((it, i) => i === idx ? { ...it, [field]: value } : it));
+  };
+  const addRxItem = () => setPrescriptionItems((items) => [...items, { ...emptyRxItem }]);
+  const removeRxItem = (idx: number) => setPrescriptionItems((items) => items.filter((_, i) => i !== idx));
+
+  const activePatientRef = useRef<ConsultationPatient | null>(null);
+  activePatientRef.current = activePatient;
 
   const fetchQueue = async () => {
     try {
@@ -48,7 +71,7 @@ const DoctorDashboard: React.FC = () => {
         total_in_consultation: res.data.data.total_in_consultation
       });
       // Auto-select first in_consultation patient if none selected
-      if (!activePatient) {
+      if (!activePatientRef.current) {
         const inProgress = res.data.data.queue.find((p: any) => p.queue_state === 'in_consultation' && p.assigned_to_me);
         if (inProgress) setActivePatient(inProgress);
       }
@@ -59,9 +82,14 @@ const DoctorDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchQueue();
-    const interval = setInterval(fetchQueue, 15000); // Poll every 15s
+    // FIXED: was [activePatient] — re-ran fetchQueue on every patient
+    // selection, which could re-trigger the auto-select logic mid-fill.
+    // Interval now polls independently; ref keeps fresh value for the
+    // closure inside fetchQueue.
+    const interval = setInterval(fetchQueue, 15000);
     return () => clearInterval(interval);
-  }, [activePatient]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleStartConsultation = async (patient: ConsultationPatient) => {
     try {
@@ -78,20 +106,30 @@ const DoctorDashboard: React.FC = () => {
     e.preventDefault();
     if (!activePatient) return;
     try {
+      const cleanItems = prescriptionItems
+        .filter((it) => it.drug_name.trim() && it.dosage.trim() && it.frequency.trim() && it.duration.trim())
+        .map((it) => ({
+          drug_name: it.drug_name.trim(),
+          dosage: it.dosage.trim(),
+          frequency: it.frequency.trim(),
+          duration: it.duration.trim(),
+          instructions: it.instructions.trim() || undefined,
+        }));
       await apiClient.patch(`/doctor/queue/${activePatient.id}/complete`, {
         chief_complaint: chiefComplaint,
         clinical_notes: clinicalNotes,
         diagnosis: diagnosis,
-        prescription: prescription
+        prescription_items: cleanItems.length > 0 ? cleanItems : undefined,
       });
       setActivePatient(null);
       setChiefComplaint('');
       setClinicalNotes('');
       setDiagnosis('');
-      setPrescription('');
+      setPrescriptionItems([{ ...emptyRxItem }]);
       fetchQueue();
-    } catch (err) {
-      alert('Failed to submit consultation data.');
+    } catch (err: any) {
+      // FIXED: replaced alert() with inline error state
+      setSubmitError(err.response?.data?.detail || 'Failed to submit consultation data.');
     }
   };
 
@@ -208,6 +246,12 @@ const DoctorDashboard: React.FC = () => {
                 </div>
 
                 <form onSubmit={handleCompleteConsultation} className="space-y-6 relative z-10">
+                  {submitError && (
+                    <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-2xl flex items-center gap-3 text-sm font-bold">
+                      <AlertCircle size={16} /><span>{submitError}</span>
+                    </div>
+                  )}
+
                   <div>
                     <label className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2"><FileText size={14}/> Clinical Notes</label>
                     <textarea required value={clinicalNotes} onChange={e => setClinicalNotes(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none h-40" placeholder="Patient presented with..." />
@@ -219,8 +263,44 @@ const DoctorDashboard: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2"><Pill size={14}/> Prescription / Treatment Plan</label>
-                    <textarea value={prescription} onChange={e => setPrescription(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none h-32" placeholder="1. Paracetamol 500mg BID..." />
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest"><Pill size={14}/> Prescription</label>
+                      <button type="button" onClick={addRxItem} className="flex items-center gap-1 text-[10px] font-black text-blue-400 hover:text-blue-300 uppercase tracking-widest">
+                        <Plus size={12} /> Add Medication
+                      </button>
+                    </div>
+                    <div className="space-y-3">
+                      {prescriptionItems.map((item, idx) => (
+                        <div key={idx} className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <input type="text" value={item.drug_name} onChange={e => updateRxItem(idx, 'drug_name', e.target.value)}
+                              placeholder="Drug name (e.g., Paracetamol)"
+                              className="bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white focus:ring-1 focus:ring-blue-500 focus:outline-none" />
+                            <input type="text" value={item.dosage} onChange={e => updateRxItem(idx, 'dosage', e.target.value)}
+                              placeholder="Dosage (e.g., 500mg)"
+                              className="bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white focus:ring-1 focus:ring-blue-500 focus:outline-none" />
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <input type="text" value={item.frequency} onChange={e => updateRxItem(idx, 'frequency', e.target.value)}
+                              placeholder="Frequency (e.g., BID)"
+                              className="bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white focus:ring-1 focus:ring-blue-500 focus:outline-none" />
+                            <input type="text" value={item.duration} onChange={e => updateRxItem(idx, 'duration', e.target.value)}
+                              placeholder="Duration (e.g., 5 days)"
+                              className="bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white focus:ring-1 focus:ring-blue-500 focus:outline-none" />
+                          </div>
+                          <div className="flex gap-3">
+                            <input type="text" value={item.instructions} onChange={e => updateRxItem(idx, 'instructions', e.target.value)}
+                              placeholder="Instructions (optional, e.g., after food)"
+                              className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white focus:ring-1 focus:ring-blue-500 focus:outline-none" />
+                            {prescriptionItems.length > 1 && (
+                              <button type="button" onClick={() => removeRxItem(idx)} className="px-3 rounded-xl text-rose-400 hover:bg-rose-500/10">
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
                   <button type="submit" className="w-full py-5 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-xs tracking-widest uppercase transition-all flex items-center justify-center gap-2 shadow-[0_0_40px_rgba(59,130,246,0.3)] hover:shadow-[0_0_60px_rgba(59,130,246,0.5)] mt-4">

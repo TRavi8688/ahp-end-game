@@ -22,7 +22,7 @@ export default function AccessHistory() {
             try {
                 const response = await fetch(`${API_BASE_URL}/doctor/access-history`, {
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                        'Authorization': `Bearer ${sessionStorage.getItem('hospain_access_token')}`
                     }
                 });
                 if (response.ok) {

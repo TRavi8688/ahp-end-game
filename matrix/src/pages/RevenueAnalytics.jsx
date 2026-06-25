@@ -7,9 +7,9 @@ import {
   DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   CreditCard, Building2, RefreshCw, Download, Filter, Calendar, Loader2
 } from 'lucide-react';
-import axios from 'axios';
+import { api } from '../lib/apiClient';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#f43f5e', '#06b6d4'];
 
 const CustomTooltip = ({ active, payload, label }) => {
@@ -51,9 +51,9 @@ export default function RevenueAnalytics() {
   useEffect(() => {
     const fetchHospitals = async () => {
       try {
-        const token = localStorage.getItem('token');
-        const cfg = { headers: { Authorization: `Bearer ${token}` } };
-        const res = await axios.get(`${API_BASE}/admin/hospitals`, cfg);
+        
+        
+        const res = await api.get('/api/v1/admin/hospitals');
         const list = res.data?.data || [];
         setHospitals(list.filter(h => h.status === 'verified'));
         if (list.length > 0) setSelectedHospital(list[0]);
@@ -68,10 +68,8 @@ export default function RevenueAnalytics() {
     const fetchDash = async () => {
       setDashLoading(true);
       try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get(`${API_BASE}/admin/owner/dashboard`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        
+        const res = await api.get('/api/v1/admin/owner/dashboard');
         setDashData(res.data);
       } catch (e) { console.error(e); }
       finally { setDashLoading(false); }

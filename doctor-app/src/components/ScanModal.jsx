@@ -13,9 +13,9 @@ import { API_BASE_URL } from '../api';
 
 // Mock Patient lookup for demo
 const DEMO_PATIENTS = {
-    'Hospyn-IN-9284-7731': { name: 'Rahul Sharma', allergies: ['Penicillin (Severe)', 'Sulfa drugs (Severe)'] },
-    'Hospyn-IN-3312-9801': { name: 'Ananya Mehta', allergies: ['Latex (Severe)'] },
-    'Hospyn-IN-5521-4413': { name: 'Vijay Kumar', allergies: [] }
+    'Hospain-IN-9284-7731': { name: 'Rahul Sharma', allergies: ['Penicillin (Severe)', 'Sulfa drugs (Severe)'] },
+    'Hospain-IN-3312-9801': { name: 'Ananya Mehta', allergies: ['Latex (Severe)'] },
+    'Hospain-IN-5521-4413': { name: 'Vijay Kumar', allergies: [] }
 };
 
 export default function ScanModal({ open, onClose }) {
@@ -64,28 +64,28 @@ export default function ScanModal({ open, onClose }) {
             // For now we use the clinical view if permitted, or handle 404/403
             const response = await fetch(`${API_BASE_URL}/doctor/patient/${manualId}`, {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${sessionStorage.getItem('hospain_access_token')}`
                 }
             });
 
             if (response.ok) {
                 const data = await response.json();
                 setPatientData({
-                    name: data.profile?.name || "Hospyn Patient",
+                    name: data.profile?.name || "Hospain Patient",
                     id: data.profile?.hospyn_id || manualId,
                     allergies: (data.allergies || []).map(a => `${a.allergen} (${a.severity})`)
                 });
                 setStep(2);
             } else if (response.status === 202) {
                 // Access is pending
-                setPatientData({ name: "Hospyn Patient", id: manualId, allergies: [] });
+                setPatientData({ name: "Hospain Patient", id: manualId, allergies: [] });
                 setStep(3);
             } else if (response.status === 403) {
                 setErrorMsg("Access denied. Please request access for this patient.");
-                setPatientData({ name: "Hospyn Patient", id: manualId, allergies: [] });
+                setPatientData({ name: "Hospain Patient", id: manualId, allergies: [] });
                 setStep(2);
             } else {
-                alert("Patient not found or connection error. Please check the Hospyn ID.");
+                alert("Patient not found or connection error. Please check the Hospain ID.");
             }
         } catch (error) {
             console.error("Lookup error:", error);
@@ -102,11 +102,11 @@ export default function ScanModal({ open, onClose }) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${sessionStorage.getItem('hospain_access_token')}`
                 },
                 body: JSON.stringify({
                     hospyn_id: patientData.id,
-                    clinic_name: "Hospyn Clinic",
+                    clinic_name: "Hospain Clinic",
                     access_level: "full"
                 })
             });
@@ -173,7 +173,7 @@ export default function ScanModal({ open, onClose }) {
                         </Box>
 
                         <Typography variant="body2" sx={{ color: '#6b7280', mb: 3 }}>
-                            Ask the patient to open their Hospyn App and display their connection QR code.
+                            Ask the patient to open their Hospain App and display their connection QR code.
                         </Typography>
 
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
@@ -186,7 +186,7 @@ export default function ScanModal({ open, onClose }) {
                             <TextField
                                 fullWidth
                                 size="small"
-                                placeholder="Hospyn-IN-XXXX-XXXX-XX"
+                                placeholder="Hospain-IN-XXXX-XXXX-XX"
                                 value={manualId}
                                 onChange={(e) => setManualId(e.target.value)}
                             />
@@ -235,7 +235,7 @@ export default function ScanModal({ open, onClose }) {
                             />
                             <FormControlLabel
                                 control={<Checkbox checked={consent2} onChange={e => setConsent2(e.target.checked)} sx={{ color: '#0d9488', '&.Mui-checked': { color: '#0d9488' } }} />}
-                                label={<Typography variant="body2" sx={{ color: '#4b5563' }}>I understand that this access and any actions taken are permanently logged in the patient's Hospyn app.</Typography>}
+                                label={<Typography variant="body2" sx={{ color: '#4b5563' }}>I understand that this access and any actions taken are permanently logged in the patient's Hospain app.</Typography>}
                             />
                         </Box>
 
@@ -263,7 +263,7 @@ export default function ScanModal({ open, onClose }) {
                         <Typography variant="h6" fontWeight="bold" gutterBottom>Waiting for Patient Approval</Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 4, px: 2 }}>
                             A request has been sent to <strong>{patientData?.name}</strong>.
-                            Please ask the patient to click <strong>"Approve"</strong> on their Hospyn App notification.
+                            Please ask the patient to click <strong>"Approve"</strong> on their Hospain App notification.
                         </Typography>
 
                         <Box sx={{ p: 2, bgcolor: '#f0fdfa', borderRadius: 2, border: '1px dashed #0d9488', display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>

@@ -66,6 +66,8 @@ const ReceptionDashboard: React.FC = () => {
   const [showManualForm, setShowManualForm] = useState(false);
   const emptyForm = { hospyn_id: '', first_name: '', last_name: '', phone: '', age: '', gender: 'Male', reason_for_visit: '', priority_level: 'normal', symptoms: '' };
   const [formData, setFormData] = useState(emptyForm);
+  const [duplicateMatches, setDuplicateMatches] = useState<SearchPatientResult[]>([]);
+  const [checkingDuplicate, setCheckingDuplicate] = useState(false);
 
   // Billing drawer
   const [selectedWalkinForBilling, setSelectedWalkinForBilling] = useState<WalkInRequest | null>(null);
@@ -122,10 +124,10 @@ const ReceptionDashboard: React.FC = () => {
   // ── WebSocket ─────────────────────────────────────────────────────────────
 
   const connectWebSocket = () => {
-    // FIXED: app stores the JWT in sessionStorage under 'hospyn_access_token'
+    // FIXED: app stores the JWT in sessionStorage under 'hospain_access_token'
     // (see AuthContext.tsx) — localStorage.getItem('token') is never written
     // anywhere, so this always returned null and the socket never connected.
-    const token = sessionStorage.getItem('hospyn_access_token');
+    const token = sessionStorage.getItem('hospain_access_token');
     if (!token) return;
     if (wsRef.current) wsRef.current.close();
 
@@ -196,6 +198,31 @@ const ReceptionDashboard: React.FC = () => {
     return () => clearTimeout(t);
   }, [searchQuery]);
 
+  // ── Duplicate-patient detection (re-uses /reception/patients/search) ──────
+  // Plan asked for "real-time duplicate detection warning flags" in the
+  // registration drawer. There's no dedicated dedupe endpoint on the
+  // backend, but /reception/patients/search already does a name/phone
+  // lookup — same call, just triggered off the form fields and surfaced
+  // as a non-blocking warning rather than a navigation result list.
+  useEffect(() => {
+    if (!showManualForm) { setDuplicateMatches([]); return; }
+    const query = formData.phone.trim().length >= 6
+      ? formData.phone.trim()
+      : formData.first_name.trim().length >= 3
+        ? `${formData.first_name.trim()} ${formData.last_name.trim()}`.trim()
+        : '';
+    if (!query) { setDuplicateMatches([]); return; }
+    const t = setTimeout(async () => {
+      setCheckingDuplicate(true);
+      try {
+        const res = await apiClient.get(`/reception/patients/search?q=${encodeURIComponent(query)}`);
+        setDuplicateMatches(res.data.data || []);
+      } catch { /* swallow — duplicate check is advisory, not blocking */ }
+      finally { setCheckingDuplicate(false); }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [showManualForm, formData.phone, formData.first_name, formData.last_name]);
+
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const selectPatientFromSearch = (patient: SearchPatientResult) => {
@@ -224,6 +251,7 @@ const ReceptionDashboard: React.FC = () => {
       });
       setShowManualForm(false);
       setFormData(emptyForm);
+      setDuplicateMatches([]);
       fetchQueue();
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Failed to check in patient.');
@@ -483,9 +511,40 @@ const ReceptionDashboard: React.FC = () => {
             </div>
 
             <form onSubmit={handleManualSubmit} className="space-y-5">
+              {checkingDuplicate && (
+                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                  <RefreshCw size={12} className="animate-spin" /> Checking for existing records…
+                </div>
+              )}
+              {!checkingDuplicate && duplicateMatches.length > 0 && (
+                <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-3">
+                  <div className="flex items-center gap-2 text-amber-400 text-[11px] font-black uppercase tracking-widest">
+                    <ShieldAlert size={14} /> Possible duplicate{duplicateMatches.length > 1 ? 's' : ''} found
+                  </div>
+                  <div className="space-y-2">
+                    {duplicateMatches.slice(0, 3).map((p) => (
+                      <button
+                        type="button"
+                        key={p.id}
+                        onClick={() => selectPatientFromSearch(p)}
+                        className="w-full p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex items-center justify-between text-left transition-all"
+                      >
+                        <div>
+                          <span className="font-bold text-white text-xs block">{p.full_name}</span>
+                          <span className="text-[11px] text-slate-500">{p.phone} · {p.gender || 'N/A'} · {p.age ? `${p.age}y` : 'N/A'}</span>
+                        </div>
+                        <span className="text-[10px] font-black text-amber-400 uppercase tracking-wider">Use this record</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-slate-500">
+                    Not the same person? It's fine to continue below — this is advisory only.
+                  </p>
+                </div>
+              )}
               <div>
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
-                  Hospyn ID <span className="text-emerald-500 ml-2">Optional</span>
+                  Hospain ID <span className="text-emerald-500 ml-2">Optional</span>
                 </label>
                 <input type="text" placeholder="PAT-999999" value={formData.hospyn_id}
                   onChange={e => setFormData({ ...formData, hospyn_id: e.target.value })}
@@ -643,7 +702,7 @@ const ReceptionDashboard: React.FC = () => {
               {receiptToPrint.payment_reference && (
                 <div className="flex justify-between my-1 text-slate-500"><span>Ref</span><span className="font-mono">{receiptToPrint.payment_reference}</span></div>
               )}
-              <div className="border-t border-dashed border-slate-300 mt-3 pt-2 text-center text-[9px] text-slate-400">Thank you for visiting Hospyn Clinics.</div>
+              <div className="border-t border-dashed border-slate-300 mt-3 pt-2 text-center text-[9px] text-slate-400">Thank you for visiting Hospain Clinics.</div>
             </div>
             <div className="flex gap-3">
               <button onClick={printReceipt} className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2">

@@ -12,19 +12,16 @@ interface StaffMember {
   role: string;
   department: string;
   status: string;
-  contact?: string;
-  phone?: string;
   email?: string;
+  phone_number?: string; // backend field — was looking for "phone"/"contact", neither exists
 }
 
 interface ShiftEntry {
   id: string;
   staff_name: string;
   role: string;
-  day: string;
-  shift_type: string;
-  start_time: string;
-  end_time: string;
+  shift_date: string; // ISO date — backend has no separate "day" field
+  shift_type: string; // MORNING / EVENING / NIGHT — no start_time/end_time exist
 }
 
 interface LeaveRequest {
@@ -88,34 +85,36 @@ const OwnerDashboard: React.FC = () => {
     setStatsLoading(true);
     setStatsError('');
     try {
-      // FIXED: paths had double /api/v1/ (apiClient baseURL already ends in /api/v1)
-      const [revRes, patRes, staffRes, labRes] = await Promise.allSettled([
-        apiClient.get('/analytics/revenue'),
-        apiClient.get('/analytics/patients'),
-        apiClient.get('/staff/list'),
-        apiClient.get('/lab/orders', { params: { status: 'pending' } }),
-      ]);
-      if (revRes.status  === 'fulfilled') { const d = revRes.value.data; setRevenue(d.today_revenue ?? d.total_revenue ?? d.revenue ?? 0); }
-      if (patRes.status  === 'fulfilled') { const d = patRes.value.data; setPatientsToday(d.today_count ?? d.total ?? d.count ?? 0); }
-      if (staffRes.status === 'fulfilled') {
-        const d = staffRes.value.data;
-        const list: StaffMember[] = Array.isArray(d) ? d : d.staff ?? d.data ?? [];
-        setActiveStaff(list.filter((s) => ['active', 'on_duty'].includes(s.status?.toLowerCase())).length || list.length);
-      }
-      if (labRes.status === 'fulfilled') {
-        const d = labRes.value.data;
-        setPendingLabs((Array.isArray(d) ? d : d.orders ?? d.data ?? []).length);
-      }
-    } catch { setStatsError('Failed to load dashboard statistics.'); }
-    finally { setStatsLoading(false); }
+      // FIXED: was 4 separate calls to endpoints that either don't exist
+      // (/analytics/revenue, /analytics/patients — there is no per-hospital
+      // analytics route, only a platform-wide super_admin one) or weren't
+      // the right scope (/staff/list and /lab/orders just for two numbers).
+      // owner.py already has a single, real, hospital-scoped endpoint
+      // built for exactly this screen — it just wasn't being called.
+      const { data } = await apiClient.get('/owner/dashboard');
+      const telemetry = data?.data?.telemetry || {};
+      setRevenue(telemetry.income_today ?? 0);
+      // NOTE: there's no real "patients today" count in this payload — the
+      // closest real number is the live queue size. Showing that instead
+      // of fabricating a patients-today figure.
+      setPatientsToday(telemetry.active_queue_count ?? 0);
+      setActiveStaff((data?.data?.staff || []).length);
+      setPendingLabs(telemetry.pending_lab_orders ?? 0);
+    } catch {
+      setStatsError('Failed to load dashboard statistics.');
+    } finally { setStatsLoading(false); }
   }, []);
 
   const fetchStaff = useCallback(async () => {
     setStaffLoading(true); setStaffError('');
     try {
-      // FIXED: was /api/v1/staff/list → should be /staff/list
+      // FIXED: backend wraps everything as {success, message, data: {...}}.
+      // staff list lives at data.data.staff, not data.staff — the old
+      // fallback chain (data.staff ?? data.data ?? []) bottomed out at the
+      // *object* data.data (not an array), which would have crashed the
+      // .map() call below.
       const { data } = await apiClient.get('/staff/list');
-      setStaffList(Array.isArray(data) ? data : data.staff ?? data.data ?? []);
+      setStaffList(data?.data?.staff ?? []);
     } catch { setStaffError('Unable to load staff directory.'); }
     finally { setStaffLoading(false); }
   }, []);
@@ -124,7 +123,8 @@ const OwnerDashboard: React.FC = () => {
     setShiftsLoading(true); setShiftsError('');
     try {
       const { data } = await apiClient.get('/staff/shifts', { params: { week_start: formatDateISO(weekStart) } });
-      setShifts(Array.isArray(data) ? data : data.shifts ?? data.data ?? []);
+      // FIXED: same unwrap issue as fetchStaff — shifts live at data.data.shifts
+      setShifts(data?.data?.shifts ?? []);
     } catch { setShiftsError('Unable to load shift roster.'); }
     finally { setShiftsLoading(false); }
   }, [weekStart]);
@@ -133,7 +133,9 @@ const OwnerDashboard: React.FC = () => {
     setLeavesLoading(true); setLeavesError('');
     try {
       const { data } = await apiClient.get('/staff/leaves', { params: { status: 'PENDING' } });
-      setLeaves(Array.isArray(data) ? data : data.leaves ?? data.data ?? []);
+      // FIXED: backend key is "leave_requests", not "leaves" — old code's
+      // `data.leaves` was always undefined even before the unwrap issue.
+      setLeaves(data?.data?.leave_requests ?? []);
     } catch { setLeavesError('Unable to load leave requests.'); }
     finally { setLeavesLoading(false); }
   }, []);
@@ -198,7 +200,7 @@ const OwnerDashboard: React.FC = () => {
                     {s.status}
                   </span>
                 </td>
-                <td className="px-5 py-4 text-xs text-slate-400 font-mono">{s.contact || s.phone || s.email || '—'}</td>
+                <td className="px-5 py-4 text-xs text-slate-400 font-mono">{s.phone_number || s.email || '—'}</td>
               </tr>
             ))}
           </tbody>
@@ -230,10 +232,18 @@ const OwnerDashboard: React.FC = () => {
                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{day}</span>
                   </div>
                   <div className="p-2 space-y-2 min-h-[140px]">
-                    {shifts.filter((s) => s.day?.toLowerCase().startsWith(day.toLowerCase())).map((s) => (
+                    {shifts.filter((s) => {
+                      // FIXED: backend sends shift_date (an ISO date), not a
+                      // "day" field — derive the weekday label from it instead.
+                      if (!s.shift_date) return false;
+                      const d = new Date(s.shift_date);
+                      const label = DAY_LABELS[(d.getDay() + 6) % 7]; // getDay(): Sun=0 -> align to Mon-first DAY_LABELS
+                      return label === day;
+                    }).map((s) => (
                       <div key={s.id} className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 space-y-1">
                         <p className="text-[10px] font-black text-blue-400 truncate">{s.staff_name}</p>
-                        <p className="text-[9px] text-slate-500 font-mono">{s.start_time}–{s.end_time}</p>
+                        {/* FIXED: backend has no start_time/end_time fields — only shift_type */}
+                        <p className="text-[9px] text-slate-500">{s.role}</p>
                         <span className="inline-block text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">{s.shift_type}</span>
                       </div>
                     ))}
@@ -323,8 +333,8 @@ const OwnerDashboard: React.FC = () => {
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
-          { icon: IndianRupee, label: "Today's Revenue",  value: `₹${formatCurrency(revenue)}`, trend: '+12.4%', trendUp: true,  color: 'text-emerald-400' },
-          { icon: Users,       label: 'Patients Today',   value: patientsToday,                  trend: '+8',     trendUp: true,  color: 'text-blue-400' },
+          { icon: IndianRupee, label: "Today's Revenue",  value: `₹${formatCurrency(revenue)}`, trend: undefined, trendUp: true,  color: 'text-emerald-400' },
+          { icon: Users,       label: 'Active Queue',   value: patientsToday,                  trend: undefined,               color: 'text-blue-400' },
           { icon: Activity,    label: 'Staff On Duty',    value: activeStaff,                    trend: undefined,               color: 'text-purple-400' },
           { icon: Clock,       label: 'Pending Lab Orders', value: pendingLabs,                  trend: undefined,               color: 'text-amber-400' },
         ].map((card, i) => (

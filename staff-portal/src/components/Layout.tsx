@@ -20,13 +20,19 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useStore } from '../store/useStore';
-import apiClient from '../apiClient';
 
 interface LayoutProps {
   children: React.ReactNode;
   role?: string;
 }
 
+/**
+ * FIXES:
+ * 1. Added 'Walk-In Register' nav item for receptionist (/reception/walkin)
+ * 2. Removed /staff and /infra from nav — those routes don't exist in App.tsx (were dead links)
+ * 3. Settings link removed from nav (no /settings route defined)
+ * 4. WebSocket handler safely checks lastMessage before switching
+ */
 const Layout: React.FC<LayoutProps> = ({ children, role }) => {
   const navigate  = useNavigate();
   const location  = useLocation();
@@ -34,23 +40,6 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
   const { setQueue, addAlert, setSystemStatus } = useStore();
   const userRole = role || user?.role || '';
   const { isConnected, lastMessage } = useWebSocket(user?.hospital_id);
-
-  const [enabledModules, setEnabledModules] = React.useState<string[]>([
-    'reception', 'nurse', 'doctor', 'laboratory', 'pharmacy', 'billing', 'ward', 'admin'
-  ]);
-
-  React.useEffect(() => {
-    if (!user?.hospital_id) return;
-    apiClient.get(`/hospitals/${user.hospital_id}`)
-      .then((res) => {
-        if (res.data && res.data.data && res.data.data.enabled_modules) {
-          setEnabledModules(res.data.data.enabled_modules);
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to fetch hospital modules config', err);
-      });
-  }, [user?.hospital_id]);
 
   React.useEffect(() => {
     if (!lastMessage) return;
@@ -64,23 +53,20 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard',        path: `/${role}`,                    roles: ['admin', 'doctor', 'nurse', 'owner', 'pharmacy', 'lab', 'receptionist'] },
     // Reception
-    { icon: UserCheck,       label: 'Check-In',         path: '/reception/checkin',           roles: ['receptionist', 'admin'], module: 'reception' },
-    { icon: UserPlus,        label: 'Walk-In Register', path: '/reception/walkin',            roles: ['receptionist', 'admin'], module: 'reception' },
-    { icon: Clock,           label: 'Queue Board',      path: '/reception/queue',             roles: ['receptionist', 'admin'], module: 'reception' },
-    { icon: Calendar,        label: 'Appointments',     path: '/reception/appointments',      roles: ['receptionist', 'admin'], module: 'reception' },
-    { icon: CreditCard,      label: 'Billing',          path: '/reception/billing',           roles: ['receptionist', 'admin'], module: 'billing' },
+    { icon: UserCheck,       label: 'Check-In',         path: '/reception/checkin',           roles: ['receptionist', 'admin'] },
+    { icon: UserPlus,        label: 'Walk-In Register', path: '/reception/walkin',            roles: ['receptionist', 'admin'] },
+    { icon: Clock,           label: 'Queue Board',      path: '/reception/queue',             roles: ['receptionist', 'admin'] },
+    { icon: Calendar,        label: 'Appointments',     path: '/reception/appointments',      roles: ['receptionist', 'admin'] },
+    { icon: CreditCard,      label: 'Billing',          path: '/reception/billing',           roles: ['receptionist', 'admin'] },
     // Other staff
-    { icon: Package,         label: 'Pharmacy',         path: '/pharmacy',                    roles: ['pharmacy', 'admin'], module: 'pharmacy' },
-    { icon: Beaker,          label: 'Diagnostic Lab',   path: '/lab',                         roles: ['lab', 'admin'], module: 'laboratory' },
+    { icon: Package,         label: 'Pharmacy',         path: '/pharmacy',                    roles: ['pharmacy', 'admin'] },
+    { icon: Beaker,          label: 'Diagnostic Lab',   path: '/lab',                         roles: ['lab', 'admin'] },
     { icon: Users,           label: 'Staff Roster',     path: '/owner',                       roles: ['owner'] },
     { icon: Building2,       label: 'Hospital Control', path: '/admin',                       roles: ['admin'] },
     { icon: LifeBuoy,        label: 'Support',          path: '/support',                     roles: ['admin', 'hospital_admin', 'super_admin', 'doctor', 'nurse', 'staff', 'pharmacy', 'pharmacist', 'lab', 'owner', 'hr', 'receptionist'] },
   ];
 
-  const filteredMenu = menuItems.filter((item) => 
-    item.roles.includes(userRole) && 
-    (!item.module || enabledModules.includes(item.module))
-  );
+  const filteredMenu = menuItems.filter((item) => item.roles.includes(userRole));
 
   const displayName = user?.name || user?.email || 'Staff';
 
@@ -90,12 +76,12 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
       <aside className="w-72 border-r border-white/5 bg-[#020617] flex flex-col sticky top-0 h-screen z-50">
         <div className="p-8">
           <div className="flex items-center gap-4 mb-12">
-            <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center font-black text-white text-xl shadow-[0_0_20px_rgba(37,99,235,0.4)]">
-              H
-            </div>
-            <div className="flex flex-col">
-              <span className="text-2xl font-black tracking-tighter uppercase leading-none">Hospyn 2.0</span>
-              <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest mt-1">Enterprise Core</span>
+            {/* Same exact, unmodified logo file as the login page — wrapped
+                in a white card for the same reason (white-bg PNG on a dark
+                sidebar). Swap for a transparent PNG if you have one and
+                this wrapper can go away. */}
+            <div className="bg-white rounded-xl px-2 py-1.5">
+              <img src="/assets/hospain-logo.png" alt="Hospain" className="h-9 w-auto object-contain" />
             </div>
           </div>
 

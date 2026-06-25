@@ -10,16 +10,37 @@ const apiClient = axios.create({
     },
 });
 
+// FIXED: same systemic bug as Staff Portal — healthcare-core mounts every
+// route under /api/v1/healthcare/*, not directly under /api/v1/*. This app
+// (and the doctor-app's other two API clients) called paths like
+// /doctor/queue, /medicines/search, /prescriptions with no prefix at all.
+const PASSTHROUGH_PREFIXES = ['/auth', '/ai', '/notifications', '/healthcare'];
+function withHealthcarePrefix(url) {
+  if (!url) return url;
+  if (/^https?:\/\//i.test(url)) return url;
+  const normalized = url.startsWith('/') ? url : `/${url}`;
+  if (PASSTHROUGH_PREFIXES.some((p) => normalized.startsWith(p))) return url;
+  return `/healthcare${normalized}`;
+}
+
 // -----------------------------------------------------------------------------
 // Request Interceptor
 // -----------------------------------------------------------------------------
 apiClient.interceptors.request.use(
     (config) => {
-        // Automatically attach the Authorization token if it exists
-        const token = localStorage.getItem('token');
+        // FIXED: was localStorage.getItem('token') — that key/storage is
+        // never written anywhere consistent with the PHI policy (token
+        // should not persist in localStorage); now reads sessionStorage
+        // under the key LoginScreen.jsx actually writes to.
+        const token = sessionStorage.getItem('hospain_access_token');
         if (token) {
             config.headers['Authorization'] = `Bearer ${token}`;
         }
+        // FIXED ORDER: prefix rewrite must happen while the URL still has
+        // its leading slash (withHealthcarePrefix's passthrough check
+        // depends on it) — then strip the slash afterward as this file
+        // already did for axios baseURL concatenation.
+        config.url = withHealthcarePrefix(config.url);
         if (config.url && config.url.startsWith('/')) {
             config.url = config.url.substring(1);
         }
@@ -51,7 +72,7 @@ apiClient.interceptors.response.use(
             case 401:
                 // Unauthorized - Token expired or invalid
                 console.warn('[API 401 Unauthorized] - Logging out...');
-                localStorage.removeItem('token');
+                sessionStorage.removeItem('hospain_access_token');
                 // Redirect to login (doing it this way prevents cyclic imports with React Router)
                 if (window.location.pathname !== '/login') {
                     window.location.href = '/login';

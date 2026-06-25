@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   ShieldCheck, Search, Filter, Clock, AlertTriangle, Eye,
   ChevronRight, Loader2, RefreshCw, CheckCircle2, XCircle
 } from 'lucide-react';
-import axios from 'axios';
+import { api } from '../lib/apiClient';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
 
 const STATUS_INFO = {
   submitted: { label: 'Submitted', cls: 'badge-cyan' },
@@ -16,19 +17,37 @@ const STATUS_INFO = {
 };
 
 export default function VerificationQueue({ onSelect }) {
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
 
+  const handleSelect = (hospitalId) => {
+    if (onSelect) {
+      onSelect(hospitalId);
+    } else {
+      navigate(`/verifications/${hospitalId}`);
+    }
+  };
+
   const fetchTasks = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`${API_BASE}/admin/verification/queue`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setTasks(Array.isArray(res.data) ? res.data : []);
+      const res = await api.get('/api/v1/admin/verification/queue');
+      const rawQueue = res.data?.queue || [];
+      const mapped = rawQueue.map(q => ({
+        id: q.id,
+        hospital_id: q.id,
+        name: q.name,
+        email: q.email,
+        city: q.city,
+        status: q.verification_status === 'pending_verification' ? 'submitted' : q.verification_status,
+        created_at: q.submitted_at,
+        assigned_verifier_id: q.verified_by,
+        priority: q.fraud_signals > 2 ? 'critical' : 'normal',
+      }));
+      setTasks(mapped);
     } catch (e) {
       console.error(e);
     } finally {
@@ -133,7 +152,7 @@ export default function VerificationQueue({ onSelect }) {
                 const si = STATUS_INFO[task.status] || { label: task.status, cls: 'badge-slate' };
                 const isCritical = task.priority === 'critical';
                 return (
-                  <tr key={task.id} className="group cursor-pointer" onClick={() => onSelect(task.hospital_id)}>
+                  <tr key={task.id} className="group cursor-pointer" onClick={() => handleSelect(task.hospital_id)}>
                     <td>
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 font-bold text-sm">
@@ -178,7 +197,7 @@ export default function VerificationQueue({ onSelect }) {
                     </td>
                     <td className="text-right">
                       <button
-                        onClick={e => { e.stopPropagation(); onSelect(task.hospital_id); }}
+                        onClick={e => { e.stopPropagation(); handleSelect(task.hospital_id); }}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-400 text-xs font-semibold hover:bg-amber-500/20 transition-colors ml-auto opacity-0 group-hover:opacity-100"
                       >
                         <Eye size={12} />Review

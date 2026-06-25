@@ -104,7 +104,7 @@ export default function VerificationScreen() {
             localStorage.setItem('isAuthenticated', 'true');
             localStorage.setItem('isVerified', 'true');
             if (data.access_token) {
-                localStorage.setItem('token', data.access_token);
+                sessionStorage.setItem('hospain_access_token', data.access_token);
             }
 
             // Mock immediate verification for our demo
@@ -171,7 +171,7 @@ export default function VerificationScreen() {
                                     Clinical Credentials
                                 </Typography>
                                 <Typography variant="body1" sx={{ color: 'rgba(255, 255, 255, 0.5)', maxWidth: 600, mx: 'auto' }}>
-                                    To ensure the integrity of the Hospyn ecosystem, we verify all clinicians against global medical registries. This is a one-time secure protocol.
+                                    To ensure the integrity of the Hospain ecosystem, we verify all clinicians against global medical registries. This is a one-time secure protocol.
                                 </Typography>
                             </Box>
 

@@ -106,7 +106,7 @@ export default function BillingPage() {
           <div class="divider"></div>
           <div class="row"><span>Payment Mode:</span><span>${inv.upi_transaction_ref === 'CASH-DESK' ? 'CASH' : 'UPI'}</span></div>
           ${inv.upi_transaction_ref && inv.upi_transaction_ref !== 'CASH-DESK' ? `<div class="row" style="font-size:9px;"><span>Txn Ref:</span><span>${inv.upi_transaction_ref}</span></div>` : ''}
-          <div class="footer"><div>Thank you for visiting!</div><div>Hospyn Clinix Infrastructure</div></div>
+          <div class="footer"><div>Thank you for visiting!</div><div>Hospain Clinix Infrastructure</div></div>
           <script>window.onload = function() { window.print(); window.close(); }<\/script>
         </body>
       </html>

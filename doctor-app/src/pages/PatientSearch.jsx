@@ -29,7 +29,7 @@ export default function PatientSearch() {
             <Paper elevation={0} sx={{ p: 4, border: 1, borderColor: 'divider', borderRadius: 2 }}>
 
                 {/* Search by ID Block */}
-                <Typography variant="h6" fontWeight="bold" mb={2}>Enter Health ID (Hospyn ID)</Typography>
+                <Typography variant="h6" fontWeight="bold" mb={2}>Enter Health ID (Hospain ID)</Typography>
                 <Box sx={{ display: 'flex', gap: 2 }}>
                     <TextField
                         fullWidth
@@ -68,7 +68,7 @@ export default function PatientSearch() {
                         Scan Patient QR Code
                     </Button>
                     <Typography variant="caption" display="block" color="text.secondary" mt={2}>
-                        Patient must open their Hospyn App and present the dynamic QR code for scanning.
+                        Patient must open their Hospain App and present the dynamic QR code for scanning.
                     </Typography>
                 </Box>
 

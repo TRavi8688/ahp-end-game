@@ -20,7 +20,7 @@ export const SocketProvider = ({ children }) => {
     const MAX_RECONNECT_ATTEMPTS = 10;
 
     const connect = useCallback(() => {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('hospain_access_token');
         if (!token) return;
 
         // Prevent duplicate connections
@@ -118,7 +118,7 @@ export const SocketProvider = ({ children }) => {
 
         // Poll for late login (token added after mount)
         const tokenPoll = setInterval(() => {
-            if (!socketRef.current && localStorage.getItem('token')) {
+            if (!socketRef.current && sessionStorage.getItem('hospain_access_token')) {
                 connect();
             }
         }, 5000);

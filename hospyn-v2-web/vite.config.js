@@ -9,6 +9,10 @@ const __dirname = path.dirname(__filename)
 
 const PROD_API = 'https://hospyn-495906-api-625745217419.us-central1.run.app'
 
+import { createRequire } from 'module'
+
+const require = createRequire(import.meta.url)
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -17,8 +21,8 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      react: path.resolve(__dirname, './node_modules/react'),
-      'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
+      react: path.dirname(require.resolve('react/package.json')),
+      'react-dom': path.dirname(require.resolve('react-dom/package.json')),
     },
   },
   server: {

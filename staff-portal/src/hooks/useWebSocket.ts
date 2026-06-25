@@ -9,7 +9,7 @@ type WSMessage = { type: string; payload: any };
  * 1. Reconnect timer was not cleared on unmount — caused memory leaks + double connections.
  * 2. Token was read from localStorage.getItem('token') — that key is never written
  *    anywhere in this app (AuthContext stores it in sessionStorage under
- *    'hospyn_access_token'), so the socket never had a token and never connected.
+ *    'hospain_access_token'), so the socket never had a token and never connected.
  * 3. URL was /api/v1/ws/{hospitalId} — no such backend route exists. The only
  *    websocket endpoint is ws_endpoint.py's "/ws/reception", mounted at
  *    /api/v1/healthcare/ws/reception, and it derives hospital_id from the
@@ -24,7 +24,7 @@ export const useWebSocket = (hospitalId: string | undefined) => {
 
   const connect = useCallback(() => {
     // FIXED: read from sessionStorage (the actual store) under the actual key
-    const liveToken = sessionStorage.getItem('hospyn_access_token');
+    const liveToken = sessionStorage.getItem('hospain_access_token');
     if (!liveToken) return;
     if (socketRef.current?.readyState === WebSocket.OPEN) return;
 

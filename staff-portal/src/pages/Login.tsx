@@ -18,22 +18,6 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const { login, user } = useAuth();
 
-  const handleQuickLogin = async (roleEmail: string) => {
-    setLoading(true);
-    setError('');
-    try {
-      await login(roleEmail, 'bypass');
-      const storedUser = sessionStorage.getItem('hospyn_user');
-      const role = storedUser ? JSON.parse(storedUser).role : null;
-      const redirect = role ? (ROLE_REDIRECT_MAP[role] || '/unauthorized') : '/unauthorized';
-      navigate(redirect, { replace: true });
-    } catch (err: any) {
-      setError('Bypass login failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -41,11 +25,11 @@ const Login: React.FC = () => {
     try {
       await login(email, password);
       // AuthContext.login() already parses the backend response and stores
-      // the resulting role in sessionStorage under 'hospyn_user' (and the
-      // token under 'hospyn_access_token'). Read the role from there —
+      // the resulting role in sessionStorage under 'hospain_user' (and the
+      // token under 'hospain_access_token'). Read the role from there —
       // do NOT read localStorage.getItem('token'), which is never written
       // anywhere in this app and would always be null.
-      const storedUser = sessionStorage.getItem('hospyn_user');
+      const storedUser = sessionStorage.getItem('hospain_user');
       const role = storedUser ? JSON.parse(storedUser).role : null;
       const redirect = role ? (ROLE_REDIRECT_MAP[role] || '/unauthorized') : '/unauthorized';
       navigate(redirect, { replace: true });
@@ -67,10 +51,17 @@ const Login: React.FC = () => {
 
       <div className="w-full max-w-md bg-white/[0.03] border border-white/10 backdrop-blur-xl rounded-3xl p-8 space-y-8">
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center font-bold text-white text-2xl mx-auto mb-4 shadow-[0_0_20px_rgba(37,99,235,0.4)]">
-            H
+          {/* Using the exact logo file, unmodified — only scaled via CSS.
+              It already contains the wordmark + tagline, so no separate
+              text label is layered on top of it.
+              NOTE: the logo PNG has a white background and this page is
+              dark — wrapped in a white card so it reads as intentional
+              rather than a stray white box. If you have a transparent-
+              background version of the logo, swap it in and this wrapper
+              can be removed. */}
+          <div className="inline-block bg-white rounded-2xl px-6 py-4 mb-2">
+            <img src="/assets/hospain-logo.png" alt="Hospain — Care Beyond Today" className="h-24 w-auto object-contain" />
           </div>
-          <h1 className="text-3xl font-black tracking-tight text-white">Hospyn 2.0</h1>
           <p className="text-slate-500 text-sm font-medium uppercase tracking-widest">
             Enterprise Staff Portal
           </p>
@@ -144,65 +135,9 @@ const Login: React.FC = () => {
           </button>
         </form>
 
-        <div className="pt-6 border-t border-slate-800 text-center space-y-4">
-          <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">
-            Demo Portal Quick Access
-          </p>
-          <div className="grid grid-cols-2 gap-2 text-left">
-            <button
-              onClick={() => handleQuickLogin('owner@hospyn.com')}
-              className="px-3 py-2 bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center gap-1.5"
-            >
-              <span>👑</span> Owner
-            </button>
-            <button
-              onClick={() => handleQuickLogin('doctor@hospyn.com')}
-              className="px-3 py-2 bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center gap-1.5"
-            >
-              <span>🩺</span> Doctor
-            </button>
-            <button
-              onClick={() => handleQuickLogin('nurse@hospyn.com')}
-              className="px-3 py-2 bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center gap-1.5"
-            >
-              <span>🩺</span> Nurse
-            </button>
-            <button
-              onClick={() => handleQuickLogin('receptionist@hospyn.com')}
-              className="px-3 py-2 bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center gap-1.5"
-            >
-              <span>🏢</span> Reception
-            </button>
-            <button
-              onClick={() => handleQuickLogin('pharmacist@hospyn.com')}
-              className="px-3 py-2 bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center gap-1.5"
-            >
-              <span>💊</span> Pharmacy
-            </button>
-            <button
-              onClick={() => handleQuickLogin('lab@hospyn.com')}
-              className="px-3 py-2 bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center gap-1.5"
-            >
-              <span>🩻</span> Lab Tech
-            </button>
-            <button
-              onClick={() => handleQuickLogin('hr@hospyn.com')}
-              className="px-3 py-2 bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center gap-1.5"
-            >
-              <span>👤</span> HR Portal
-            </button>
-            <button
-              onClick={() => handleQuickLogin('admin@hospyn.com')}
-              className="px-3 py-2 bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-all flex items-center gap-1.5"
-            >
-              <span>⚙️</span> Hospital Control
-            </button>
-          </div>
-        </div>
-
         <div className="pt-6 border-t border-slate-800 text-center">
           <p className="text-xs text-slate-500">
-            Protected by Hospyn Security Engine (RS256 / HS256)
+            Protected by Hospain Security Engine (RS256 / HS256)
           </p>
         </div>
       </div>

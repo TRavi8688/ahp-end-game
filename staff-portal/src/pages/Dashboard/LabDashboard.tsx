@@ -191,6 +191,7 @@ const LabDashboard: React.FC = () => {
   const [collecting, setCollecting] = useState<string | null>(null);
   const [collectError, setCollectError] = useState<string | null>(null); // FIXED: replaced alert()
   const [stats, setStats] = useState({ pending: '—', collected: '—', processing: '—', completed: '—' });
+  const [showNewOrder, setShowNewOrder] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -287,6 +288,9 @@ const LabDashboard: React.FC = () => {
         <button onClick={() => { fetchOrders(); fetchStats(); }} className="p-2 bg-white/5 border border-white/5 rounded-xl text-slate-400 hover:text-white transition ml-auto">
           <RefreshCw size={14} />
         </button>
+        <button onClick={() => setShowNewOrder(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all">
+          <Plus size={14} /> New Order
+        </button>
       </div>
 
       {/* Orders Grid */}
@@ -349,6 +353,122 @@ const LabDashboard: React.FC = () => {
       {activeOrder && (
         <ResultEntryModal order={activeOrder} onClose={() => setActiveOrder(null)} onSuccess={() => { fetchOrders(); fetchStats(); }} />
       )}
+
+      {showNewOrder && (
+        <NewOrderModal onClose={() => setShowNewOrder(false)} onSuccess={() => { fetchOrders(); fetchStats(); }} />
+      )}
+    </div>
+  );
+};
+
+// ── New Order Modal ────────────────────────────────────────────────────────────
+// There was no way to create a lab order anywhere in the system before this
+// (no UI, and the backend endpoint itself didn't exist either — see
+// lab_results.py's POST /lab/orders, added alongside this). Patient search
+// reuses /reception/patients/search since that's the only patient-lookup
+// endpoint in the system; lab techs aren't given a separate one.
+interface PatientHit { id: string; full_name: string; phone: string; }
+
+const NewOrderModal: React.FC<{ onClose: () => void; onSuccess: () => void }> = ({ onClose, onSuccess }) => {
+  const [query, setQuery] = useState('');
+  const [matches, setMatches] = useState<PatientHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [patient, setPatient] = useState<PatientHit | null>(null);
+  const [testNames, setTestNames] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (patient || query.trim().length < 3) { setMatches([]); return; }
+    const t = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await apiClient.get(`/reception/patients/search?q=${encodeURIComponent(query.trim())}`);
+        setMatches(res.data.data || []);
+      } catch { setMatches([]); }
+      finally { setSearching(false); }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [query, patient]);
+
+  const submit = async () => {
+    if (!patient) { setError('Select a patient first.'); return; }
+    const tests = testNames.split(',').map(t => t.trim()).filter(Boolean);
+    if (tests.length === 0) { setError('Enter at least one test name.'); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await apiClient.post('/lab/orders', { patient_id: patient.id, test_names: tests });
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Could not create the order.');
+    } finally { setSubmitting(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-[#0f172a] border border-white/10 rounded-3xl w-full max-w-lg p-8 space-y-5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-black uppercase tracking-tight text-white">New Lab Order</h2>
+          <button onClick={onClose} className="text-slate-500 hover:text-white"><X size={20} /></button>
+        </div>
+
+        {error && (
+          <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl flex items-center gap-2 text-xs font-bold">
+            <AlertCircle size={14} /> {error}
+          </div>
+        )}
+
+        {!patient ? (
+          <div>
+            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Find Patient (name or phone)</label>
+            <input
+              value={query} onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search…"
+              className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
+            />
+            {searching && <p className="text-[10px] text-slate-500 mt-2">Searching…</p>}
+            <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto">
+              {matches.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setPatient(p)}
+                  className="w-full p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex items-center justify-between text-left transition-all"
+                >
+                  <span className="font-bold text-white text-xs">{p.full_name}</span>
+                  <span className="text-[11px] text-slate-500">{p.phone}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="p-3 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between">
+            <div>
+              <p className="font-bold text-white text-xs">{patient.full_name}</p>
+              <p className="text-[11px] text-slate-500">{patient.phone}</p>
+            </div>
+            <button onClick={() => setPatient(null)} className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Change</button>
+          </div>
+        )}
+
+        <div>
+          <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Tests (comma-separated)</label>
+          <input
+            value={testNames} onChange={(e) => setTestNames(e.target.value)}
+            placeholder="CBC Panel, Lipid Profile, HbA1c"
+            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-sm text-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
+          />
+        </div>
+
+        <button
+          onClick={submit}
+          disabled={submitting || !patient}
+          className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-2xl text-sm font-black uppercase tracking-wider transition-all"
+        >
+          {submitting ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Create Order'}
+        </button>
+      </div>
     </div>
   );
 };
