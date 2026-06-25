@@ -110,7 +110,7 @@ jobs:
       - name: Run tests with coverage
         run: |
           cd backend/healthcare-core
-          PYTHONPATH=..:../.. pytest tests/ \
+          PYTHONPATH=.:.. pytest tests/ \
             --cov=app \
             --cov-report=term-missing \
             --cov-report=xml \

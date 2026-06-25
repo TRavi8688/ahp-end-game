@@ -91,31 +91,47 @@ COOKIE_MAX_AGE = 60 * 60 * 8   # 8 hours
 @router.get("/run-auth-migrations")
 async def run_auth_migrations():
     """
-    One-shot endpoint — adds the 3 missing account-verification columns to the
-    live users table.  Safe to call multiple times (IF NOT EXISTS guard).
-    Does NOT use Depends(get_db) to avoid the double-commit 500 that occurs
-    when the dependency tries to commit again after our DDL commit.
+    One-shot endpoint — adds the 3 missing account-verification columns.
+    Uses asyncpg directly (the driver already installed) to avoid SQLAlchemy
+    trying to import the sync psycopg2 driver.
+    Safe to call multiple times (IF NOT EXISTS guard on every statement).
     """
-    from app.core.database import get_engine
-    from sqlalchemy import text
+    import os
+    import asyncpg
 
-    columns = {
-        "phone_verified":     "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT true NOT NULL",
-        "auth_provider":      "ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(20) DEFAULT 'local' NOT NULL",
-        "has_usable_password":"ALTER TABLE users ADD COLUMN IF NOT EXISTS has_usable_password BOOLEAN DEFAULT true NOT NULL",
-    }
+    raw_url = os.getenv("DATABASE_URL", "")
+    if not raw_url:
+        return {"status": "error", "message": "DATABASE_URL env var not set"}
+
+    # asyncpg expects postgresql:// — strip any SQLAlchemy driver prefix
+    pg_url = (
+        raw_url
+        .replace("postgresql+asyncpg://", "postgresql://")
+        .replace("postgresql+psycopg2://", "postgresql://")
+    )
+
+    migrations = [
+        ("phone_verified",      "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT true NOT NULL"),
+        ("auth_provider",       "ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(20) DEFAULT 'local' NOT NULL"),
+        ("has_usable_password", "ALTER TABLE users ADD COLUMN IF NOT EXISTS has_usable_password BOOLEAN DEFAULT true NOT NULL"),
+    ]
     results = {}
     try:
-        async with get_engine().begin() as conn:
-            for col, sql in columns.items():
+        conn = await asyncpg.connect(dsn=pg_url)
+        try:
+            for col, sql in migrations:
                 try:
-                    await conn.execute(text(sql))
+                    await conn.execute(sql)
                     results[col] = "ok"
                 except Exception as col_err:
                     results[col] = str(col_err)
+        finally:
+            await conn.close()
         return {"status": "done", "columns": results}
     except Exception as e:
         return {"status": "error", "message": str(e), "partial": results}
+
+
 
 
 
