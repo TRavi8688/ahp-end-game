@@ -85,6 +85,24 @@ async def registered_user(client: AsyncClient):
         "role": "doctor",
     })
     assert resp.status_code == 201, resp.text
+
+    from app.core.database import get_db
+    db_gen = client.transport.app.dependency_overrides[get_db]()
+    session = await db_gen.__anext__()
+    try:
+        from app.models.user import User
+        from sqlalchemy import select
+        result = await session.execute(select(User).where(User.email == "test@hospyn.com"))
+        user = result.scalars().first()
+        if user:
+            user.phone_verified = True
+            await session.commit()
+    finally:
+        try:
+            await db_gen.__anext__()
+        except StopAsyncIteration:
+            pass
+
     return {"email": "test@hospyn.com", "password": "StrongP@ssw0rd!2024"}
 
 

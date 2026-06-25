@@ -197,14 +197,18 @@ async def refresh_access_token(
         }
     )
 
-    return success_response(
-        data={
+    return {
+        "success": True,
+        "message": "Token refreshed",
+        "access_token": new_access_token,
+        "token_type": "bearer",
+        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "data": {
             "access_token": new_access_token,
             "token_type": "bearer",
             "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         },
-        message="Token refreshed",
-    )
+    }
 
 
 # ─── Forgot Password: Request OTP ────────────────────────────────

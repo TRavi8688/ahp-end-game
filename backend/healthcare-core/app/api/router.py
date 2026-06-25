@@ -37,6 +37,7 @@ from app.api.v1.pharmacy_orders import router as pharmacy_orders_router
 from app.api.v1.pharmacy_ops    import router as pharmacy_ops_router
 from app.api.v1.onboarding      import router as onboarding_router, walkin_public_router
 from app.api.v1.onboarding_admin import router as onboarding_admin_router
+from app.api.v1.onboarding_simple import router as onboarding_simple_router
 from app.api.v1.tickets         import router as tickets_router
 from app.api.v1.employees       import router as employees_router
 
@@ -45,6 +46,7 @@ api_router = APIRouter()
 # ── Public: Onboarding ────────────────────────────────────────────────────────
 api_router.include_router(onboarding_router,       prefix="/onboarding", tags=["Onboarding"])
 api_router.include_router(onboarding_admin_router, prefix="/onboarding", tags=["Onboarding Admin"])
+api_router.include_router(onboarding_simple_router, prefix="/onboarding", tags=["Onboarding Simple"])
 api_router.include_router(walkin_public_router,    prefix="/walkin",     tags=["Walk-In Public"])
 
 # ── Ticket System ─────────────────────────────────────────────────────────────

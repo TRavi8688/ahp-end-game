@@ -226,6 +226,12 @@ def deliver_otp(phone_number: str | None, email_address: str | None, otp_code: s
         email_ok = send_otp_email(email_address, otp_code)
 
     if not sms_ok and not email_ok:
+        if settings.ENVIRONMENT in ("development", "dev", "test", "testing"):
+            logger.warning(
+                f"[DEV/TEST ONLY] OTP delivery failed via ALL channels, but returning True to prevent blocking "
+                f"registration/login. (OTP code would have been: {otp_code})"
+            )
+            return True
         logger.critical(
             "OTP delivery failed via ALL channels. "
             "User cannot receive OTP. Check Twilio and SMTP configuration."

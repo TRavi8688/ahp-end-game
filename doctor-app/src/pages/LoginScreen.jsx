@@ -208,10 +208,9 @@ export default function LoginScreen() {
                 <Grid item xs={12} md={6} sx={{ display: { xs: 'none', md: 'flex' }, flexDirection: 'column', justifyContent: 'center', p: 10 }}>
                     <Box sx={{ mb: 6 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
-                            {/* Exact, unmodified logo file — white-card backing since the
-                                PNG has a white background and this panel is dark. */}
-                            <Box sx={{ background: 'white', borderRadius: '16px', px: 2, py: 1.5, display: 'inline-flex' }}>
-                                <img src="/assets/hospain-logo.png" alt="Hospain — Care Beyond Today" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+                            {/* Logo */}
+                            <Box sx={{ display: 'inline-flex' }}>
+                                <img src="/assets/hospain-logo.png" alt="Hospain — Care Beyond Today" style={{ height: 56, width: 'auto', objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
                             </Box>
                         </Box>
                         <Typography variant="h1" sx={{ fontWeight: 800, color: 'white', fontSize: '3.5rem', lineHeight: 1.1, mb: 4, fontFamily: 'Syne, sans-serif' }}>

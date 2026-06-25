@@ -33,7 +33,7 @@ FIXES:
 import logging
 from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, Response, HTTPException, status, Depends, Request
+from fastapi import APIRouter, Response, HTTPException, status, Depends, Request, Body
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -49,6 +49,7 @@ from app.services.auth_service import (
     deliver_otp,
 )
 import re
+import uuid
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -74,7 +75,12 @@ async def get_current_user(
         raise HTTPException(status_code=401, detail="Invalid token type.")
 
     user_id = payload.get("sub")
-    result = await db.execute(select(User).where(User.id == user_id, User.deleted_at.is_(None)))
+    try:
+        user_uuid = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=401, detail="Invalid token payload.")
+
+    result = await db.execute(select(User).where(User.id == user_uuid, User.deleted_at.is_(None)))
     user = result.scalars().first()
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="Account not found or inactive.")
@@ -143,14 +149,24 @@ async def run_auth_migrations():
 async def login(
     request:  Request,
     response: Response,
-    body:     dict,
     db:       AsyncSession = Depends(get_db),
 ):
     """
     FIX-A1: Accepts any of these body keys for the identifier:
       username, email, phone, phone_number
     Sends access_token in JSON body AND as httpOnly cookie.
+    Supports both JSON and application/x-www-form-urlencoded bodies.
     """
+    try:
+        content_type = request.headers.get("content-type", "")
+        if "application/x-www-form-urlencoded" in content_type:
+            form_data = await request.form()
+            body = dict(form_data)
+        else:
+            body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid request payload")
+
     # FIX-A1: accept all common key names
     identifier = (
         body.get("username")
@@ -180,12 +196,14 @@ async def login(
         # never had a real password set, say so instead of a generic error —
         # this is the exact case from the support report where Google users
         # try Hospyn ID + password and just see "invalid credentials" forever.
-        if user and not user.has_usable_password:
+        has_usable = (user.has_usable_password if user.has_usable_password is not None else True) if user else True
+        if user and not has_usable:
+            provider = user.auth_provider or "local"
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=(
-                    f"This account signs in with {user.auth_provider.capitalize()}. "
-                    f"Tap 'Sign in with {user.auth_provider.capitalize()}', or set a "
+                    f"This account signs in with {provider.capitalize()}. "
+                    f"Tap 'Sign in with {provider.capitalize()}', or set a "
                     f"password from Settings to use your Hospyn ID instead."
                 ),
             )
@@ -226,8 +244,8 @@ async def login(
         "token_type":    "bearer",
         "role":          user.role.value,
         "user_id":       str(user.id),
-        "auth_provider": user.auth_provider,
-        "has_usable_password": user.has_usable_password,
+        "auth_provider": user.auth_provider or "local",
+        "has_usable_password": user.has_usable_password if user.has_usable_password is not None else True,
         "user": {
             "id":    str(user.id),
             "role":  user.role.value,
@@ -352,8 +370,8 @@ async def google_login(
         "token_type":    "bearer",
         "role":          user.role.value,
         "user_id":       str(user.id),
-        "auth_provider": user.auth_provider,
-        "has_usable_password": user.has_usable_password,
+        "auth_provider": user.auth_provider or "google",
+        "has_usable_password": user.has_usable_password if user.has_usable_password is not None else False,
         "user": {
             "id":    str(user.id),
             "role":  user.role.value,
