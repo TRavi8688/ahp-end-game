@@ -409,15 +409,12 @@ async def change_password(
     db: AsyncSession = Depends(get_db),
 ):
     """Change password for the currently authenticated user."""
-    from jose import jwt as jose_jwt, JWTError
+    from app.core.security import decode_token
+    import jwt as pyjwt
 
     try:
-        payload = jose_jwt.decode(
-            credentials.credentials,
-            settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM],
-        )
-    except JWTError:
+        payload = decode_token(credentials.credentials)
+    except pyjwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
     user_id = payload.get("sub")
@@ -493,16 +490,13 @@ async def logout(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
 ):
     """Logout: blacklist the current access token in Redis."""
-    from jose import jwt as jose_jwt, JWTError
+    from app.core.security import decode_token
     from shared.redis_client import blacklist_token
+    import jwt as pyjwt
 
     try:
-        payload = jose_jwt.decode(
-            credentials.credentials,
-            settings.JWT_SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM],
-        )
-    except JWTError:
+        payload = decode_token(credentials.credentials)
+    except pyjwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
 
     jti = payload.get("jti")

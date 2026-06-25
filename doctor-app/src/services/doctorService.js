@@ -25,7 +25,7 @@ const headers = (extra = {}) => {
 async function apiFetch(path, options = {}) {
   // FIXED: was `/api/v1${path}` — healthcare-core routes live under
   // /api/v1/healthcare/*, not directly under /api/v1/*.
-  const res = await fetch(`${API_BASE}/api/v1/healthcare${path}`, {
+  const res = await fetch(`${API_BASE}/healthcare${path}`, {
     ...options,
     headers: { ...headers(), ...(options.headers || {}) },
   });

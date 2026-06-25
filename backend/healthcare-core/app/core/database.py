@@ -57,14 +57,17 @@ def _build_engine_kwargs(database_url: str) -> dict:
         return kwargs
 
     kwargs.update({
-        # FIX: was pool_size=10, max_overflow=20 — too small for Cloud Run 10k req/s
-        # With 20 Cloud Run instances × 20 connections = 400 max DB connections.
-        # PgBouncer / Cloud SQL Proxy should be in front to pool to ~100.
-        "pool_size":        settings.DB_POOL_SIZE,        # default 20
-        "max_overflow":     settings.DB_POOL_MAX_OVERFLOW, # default 40
-        "pool_timeout":     30,    # max seconds to wait for a connection from pool
-        "pool_pre_ping":    True,  # reconnect on stale connections (Cloud Run idles)
-        "pool_recycle":     1800,  # recycle connections every 30 min
+        "pool_size":        settings.DB_POOL_SIZE,
+        "max_overflow":     settings.DB_POOL_MAX_OVERFLOW,
+        "pool_timeout":     30,
+        "pool_pre_ping":    True,
+        "pool_recycle":     1800,
+        "connect_args": {
+            "server_settings": {
+                "statement_timeout": "30000",
+                "idle_in_transaction_session_timeout": "60000",
+            }
+        },
     })
     return kwargs
 
@@ -76,16 +79,6 @@ def get_engine() -> AsyncEngine:
             settings.DATABASE_URL,
             **_build_engine_kwargs(settings.DATABASE_URL),
         )
-
-        # Set statement_timeout on every new connection — prevents runaway queries
-        # from blocking the entire pool under high load
-        if "sqlite" not in settings.DATABASE_URL:
-            @event.listens_for(_engine.sync_engine, "connect")
-            def set_timeouts(dbapi_conn, connection_record):
-                cursor = dbapi_conn.cursor()
-                cursor.execute("SET statement_timeout = '30000'")  # 30 seconds
-                cursor.execute("SET idle_in_transaction_session_timeout = '60000'")  # 60s
-                cursor.close()
 
         logger.info(
             "DB engine created: pool_size=%d max_overflow=%d",

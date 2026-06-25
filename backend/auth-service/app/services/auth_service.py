@@ -9,11 +9,15 @@ FIXES APPLIED:
   - OTP is NO LONGER logged to console under any circumstances
   - send_otp_email no longer leaks OTP in the warning log
   - SMS is attempted first; email is the fallback if phone not available
+  - FIX-JWT: create_access_token / create_refresh_token / decode_refresh_token
+    now delegate to app.core.security (RS256) instead of using jose+HS256.
+    The old HS256 path caused a critical algorithm mismatch where tokens
+    signed here could never be verified by security.decode_token, producing
+    500 errors on every authenticated request.
 """
 
 import bcrypt
 from datetime import datetime, timedelta, timezone
-from jose import jwt, JWTError
 from app.config.settings import settings
 import secrets
 import logging
@@ -48,57 +52,29 @@ def get_password_hash(password: str) -> str:
 
 
 # ─── JWT Token Creation ──────────────────────────────────────────
+# FIX-JWT: Delegate to app.core.security which uses RS256 with RSA keys.
+# The old implementation used jose + HS256 + settings.JWT_SECRET_KEY,
+# but security.py's decode_token uses PyJWT + RS256 + RSA public key.
+# That mismatch meant every token signed here was rejected by the decoder,
+# causing 500 errors on all authenticated endpoints.
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
-    """Create a signed JWT access token with unique JTI for revocation."""
-    to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + (
-        expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
-    to_encode.update(
-        {
-            "exp": expire,
-            "type": "access",
-            "jti": str(uuid.uuid4()),
-            "iat": datetime.now(timezone.utc),
-        }
-    )
-    return jwt.encode(
-        to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
-    )
+    """Create a signed RS256 JWT access token."""
+    from app.core.security import create_access_token as _create
+    return _create(data, expires_delta)
 
 
 def create_refresh_token(data: dict) -> str:
-    """Create a long-lived refresh token with unique JTI for revocation."""
-    to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(
-        days=settings.REFRESH_TOKEN_EXPIRE_DAYS
-    )
-    to_encode.update(
-        {
-            "exp": expire,
-            "type": "refresh",
-            "jti": str(uuid.uuid4()),
-            "iat": datetime.now(timezone.utc),
-        }
-    )
-    return jwt.encode(
-        to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
-    )
+    """Create a long-lived RS256 refresh token."""
+    from app.core.security import create_refresh_token as _create
+    return _create(data)
 
 
 def decode_refresh_token(token: str) -> dict | None:
     """Decode and validate a refresh token. Returns payload or None."""
-    try:
-        payload = jwt.decode(
-            token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
-        )
-        if payload.get("type") != "refresh":
-            return None
-        return payload
-    except JWTError:
-        return None
+    from app.core.security import decode_refresh_token as _decode
+    return _decode(token)
 
 
 # ─── OTP ──────────────────────────────────────────────────────────

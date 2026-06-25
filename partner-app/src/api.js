@@ -12,7 +12,7 @@ const getBackendUrl = () => {
         return "http://localhost:8000";
     }
     // Production Cloud Run backend
-    return "https://hospain-495906-api-625745217419.us-central1.run.app";
+    return "https://hospyn-495906-api-625745217419.asia-south1.run.app";
 };
 
 const BACKEND_URL = getBackendUrl();

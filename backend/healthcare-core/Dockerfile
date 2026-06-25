@@ -31,5 +31,5 @@ ENV PYTHONPATH=/app:/app/healthcare-core
 # Cloud Run injects PORT at runtime (default 8080 if not set)
 EXPOSE 8080
 
-# Shell form so ${PORT} is expanded at runtime by Cloud Run
-CMD exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}
+# Run alembic migrations before starting uvicorn
+CMD alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}

@@ -32,7 +32,11 @@ async function request(method, path, body, extraHeaders = {}) {
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   };
 
-  const url = path.startsWith('http') ? path : `${BASE_URL}${path}`;
+  let normalizedPath = path;
+  if (BASE_URL.endsWith('/api/v1') && path.startsWith('/api/v1')) {
+    normalizedPath = path.substring(7); // remove /api/v1
+  }
+  const url = normalizedPath.startsWith('http') ? normalizedPath : `${BASE_URL}${normalizedPath}`;
   const res = await fetch(url, config);
 
   // Auto-logout on 401

@@ -18,3 +18,5 @@ sentry-sdk[fastapi]
 google-cloud-storage
 python-magic==0.4.27
 cryptography>=42.0.0
+requests>=2.31.0
+google-auth>=2.23.0
