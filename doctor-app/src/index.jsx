@@ -17,7 +17,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
 import './i18n';
 import App from './App';
-import { SocketProvider } from './contexts/SocketContext';
+// SocketProvider is rendered inside App.jsx — do not import it here
 import { queryClient } from './queryClient';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -27,9 +27,7 @@ root.render(
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <SocketProvider>
             <App />
-          </SocketProvider>
         </BrowserRouter>
         {/* Only visible in development — zero bundle impact in production */}
         <ReactQueryDevtools initialIsOpen={false} />

@@ -238,7 +238,8 @@ jobs:
         if: github.event.inputs.target == 'all' || github.event.inputs.target == 'doctor' || (github.event_name == 'push' && needs.check-changes.outputs.doctor == 'true')
         run: |
           cd doctor-app
-          echo "VITE_API_URL=https://hospyn-495906-api-625745217419.asia-south1.run.app/api/v1" > .env
+          echo "VITE_API_BASE_URL=https://hospyn-495906-api-625745217419.asia-south1.run.app/api/v1" > .env
+          echo "VITE_WS_BASE_URL=wss://hospyn-495906-api-625745217419.asia-south1.run.app" >> .env
           npm run build
 
       - name: Build Staff Portal
