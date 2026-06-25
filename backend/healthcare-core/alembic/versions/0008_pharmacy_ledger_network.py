@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "0008_pharmacy_ledger_network"
-down_revision = "0007_doctor_notif"
+down_revision = "009_hospin_matrix_3"
 branch_labels = None
 depends_on = None
 
