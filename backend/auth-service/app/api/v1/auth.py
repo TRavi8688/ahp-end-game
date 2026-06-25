@@ -87,6 +87,21 @@ COOKIE_NAME    = "token"
 COOKIE_MAX_AGE = 60 * 60 * 8   # 8 hours
 
 
+@router.get("/run-auth-migrations")
+async def run_auth_migrations(db: AsyncSession = Depends(get_db)):
+    """Runs database migration queries to add account verification columns to the users table in production."""
+    from sqlalchemy import text
+    try:
+        await db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT true NOT NULL;"))
+        await db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(20) DEFAULT 'local' NOT NULL;"))
+        await db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS has_usable_password BOOLEAN DEFAULT true NOT NULL;"))
+        await db.commit()
+        return {"status": "success", "message": "Columns phone_verified, auth_provider, has_usable_password added successfully to users table."}
+    except Exception as e:
+        await db.rollback()
+        return {"status": "error", "message": str(e)}
+
+
 # ─── Login ───────────────────────────────────────────────────────────────────
 
 @router.post("/login")
