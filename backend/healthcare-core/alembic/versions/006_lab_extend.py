@@ -24,7 +24,6 @@ this as the single head: 001_initial -> 6df9cf33819a -> a5f82bb547d2 ->
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision = "006_lab_extend"
 down_revision = "0007_doctor_notif"

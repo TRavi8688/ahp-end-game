@@ -14,7 +14,6 @@ Endpoints:
   GET  /pharmacy/sales/{id}/pdf             - downloadable invoice PDF
 """
 
-import io
 import logging
 import uuid
 from datetime import datetime, timezone

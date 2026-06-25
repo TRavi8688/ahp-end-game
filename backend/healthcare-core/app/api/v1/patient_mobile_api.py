@@ -24,17 +24,17 @@ import uuid
 import re
 import httpx
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
-from app.core.security import get_current_user, require_role, TokenPayload
+from app.core.security import get_current_user, TokenPayload
 from app.models.patient import Patient, Gender
 from app.models.prescription import Prescription
 from app.models.pharmacy import PrescriptionShare
@@ -179,7 +179,6 @@ async def setup_profile(
     dob = None
     if payload.date_of_birth:
         try:
-            from datetime import date as date_cls
             dob = datetime.fromisoformat(payload.date_of_birth.replace("Z", "+00:00")).date()
         except ValueError:
             pass

@@ -4,7 +4,6 @@
 
 import enum
 import uuid
-from datetime import datetime
 
 from sqlalchemy import Column, DateTime, Enum, String, Boolean
 from sqlalchemy.dialects.postgresql import UUID

@@ -4,14 +4,7 @@
 
 import axios from "axios";
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL;
-
-if (!API_BASE_URL) {
-  throw new Error(
-    "EXPO_PUBLIC_API_BASE_URL is not set. " +
-    "Add it to patient-app/.env (development) and patient-app/.env.production (production)."
-  );
-}
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'https://hospyn-495906-api-625745217419.asia-south1.run.app/api/v1';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

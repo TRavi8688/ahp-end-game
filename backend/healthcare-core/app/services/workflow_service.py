@@ -32,7 +32,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import HTTPException
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -179,7 +179,7 @@ async def lock_token(db: AsyncSession, token: PatientToken, staff_id: uuid.UUID)
     if token.locked_by_staff_id and token.locked_by_staff_id != staff_id:
         raise HTTPException(
             status_code=409,
-            detail=f"Currently assigned to another staff member.",
+            detail="Currently assigned to another staff member.",
         )
     token.locked_by_staff_id = staff_id
     token.locked_at = datetime.now(timezone.utc)

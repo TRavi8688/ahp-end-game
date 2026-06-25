@@ -28,8 +28,7 @@ import io
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import List, Optional
-from decimal import Decimal
+from typing import List
 
 # Brand constants
 BRAND_NAME = "HOSPAIN"
@@ -126,7 +125,7 @@ def build_invoice_pdf(data: InvoiceData) -> io.BytesIO:
         SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
         HRFlowable, Image as RLImage,
     )
-    from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+    from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 
     # ── Colors ────────────────────────────────────────────────────────────────
     navy    = colors.HexColor(BRAND_NAVY)

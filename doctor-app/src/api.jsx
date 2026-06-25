@@ -4,14 +4,7 @@
 
 import axios from "axios";
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-if (!API_BASE_URL) {
-  throw new Error(
-    "VITE_API_BASE_URL is not set. " +
-    "Add it to doctor-app/.env"
-  );
-}
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://hospyn-495906-api-625745217419.asia-south1.run.app/api/v1';
 
 export const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || API_BASE_URL.replace(/^http/, 'ws');
 

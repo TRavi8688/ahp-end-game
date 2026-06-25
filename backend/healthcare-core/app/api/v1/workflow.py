@@ -35,7 +35,6 @@ from app.core.database import get_db
 from app.core.security import TokenPayload, require_role
 from app.models.doctor import Doctor
 from app.models.patient import Patient
-from app.models.staff import Staff, StaffRole
 from app.models.workflow import (
     WorkflowDefinition, WorkflowStage, WorkflowTransition,
     PatientToken, DoctorSession,

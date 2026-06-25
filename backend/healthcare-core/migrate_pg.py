@@ -1,12 +1,11 @@
 import asyncio
 import asyncpg
-import os
 
 async def main():
     # Parse the URL from .env (since we don't load .env automatically in this simple script)
     # The string from .env: postgresql+asyncpg://hospyn:0JPfr3cF891KUHRrikdzzw@localhost:5432/hospyn
     dsn = "postgresql://hospyn:0JPfr3cF891KUHRrikdzzw@localhost:5432/hospyn"
-    print(f"Connecting to database...")
+    print("Connecting to database...")
     try:
         conn = await asyncpg.connect(dsn)
         print("Connected. Running migration...")

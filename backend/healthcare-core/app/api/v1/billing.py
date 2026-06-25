@@ -468,7 +468,6 @@ async def get_invoice_upi_qr(
     The frontend can render this directly in an <img src="data:image/png;base64,..."> tag.
     """
     import base64
-    import io
     try:
         import qrcode
     except ImportError:

@@ -20,7 +20,6 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.patient import Patient
-    from app.models.hospital import Hospital
     from app.models.doctor import Doctor
 
 
