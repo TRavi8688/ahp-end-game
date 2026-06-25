@@ -87,19 +87,37 @@ COOKIE_NAME    = "token"
 COOKIE_MAX_AGE = 60 * 60 * 8   # 8 hours
 
 
+
 @router.get("/run-auth-migrations")
-async def run_auth_migrations(db: AsyncSession = Depends(get_db)):
-    """Runs database migration queries to add account verification columns to the users table in production."""
+async def run_auth_migrations():
+    """
+    One-shot endpoint — adds the 3 missing account-verification columns to the
+    live users table.  Safe to call multiple times (IF NOT EXISTS guard).
+    Does NOT use Depends(get_db) to avoid the double-commit 500 that occurs
+    when the dependency tries to commit again after our DDL commit.
+    """
+    from app.core.database import get_engine
     from sqlalchemy import text
+
+    columns = {
+        "phone_verified":     "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT true NOT NULL",
+        "auth_provider":      "ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(20) DEFAULT 'local' NOT NULL",
+        "has_usable_password":"ALTER TABLE users ADD COLUMN IF NOT EXISTS has_usable_password BOOLEAN DEFAULT true NOT NULL",
+    }
+    results = {}
     try:
-        await db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT true NOT NULL;"))
-        await db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(20) DEFAULT 'local' NOT NULL;"))
-        await db.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS has_usable_password BOOLEAN DEFAULT true NOT NULL;"))
-        await db.commit()
-        return {"status": "success", "message": "Columns phone_verified, auth_provider, has_usable_password added successfully to users table."}
+        async with get_engine().begin() as conn:
+            for col, sql in columns.items():
+                try:
+                    await conn.execute(text(sql))
+                    results[col] = "ok"
+                except Exception as col_err:
+                    results[col] = str(col_err)
+        return {"status": "done", "columns": results}
     except Exception as e:
-        await db.rollback()
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": str(e), "partial": results}
+
+
 
 
 # ─── Login ───────────────────────────────────────────────────────────────────
