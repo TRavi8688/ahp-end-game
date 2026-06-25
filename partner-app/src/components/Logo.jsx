@@ -1,5 +1,5 @@
 import React from 'react';
-import logoSrc from '../assets/hospain-logo.png';
+import logoSrc from '../assets/hospin-logo.png';
 
 /**
  * Renders the exact HOSPAIN logo file provided — pixel-for-pixel, no
