@@ -33,7 +33,7 @@ FIXES:
 import logging
 from datetime import datetime, timezone, timedelta
 
-from fastapi import APIRouter, Response, HTTPException, status, Depends, Request, Body
+from fastapi import APIRouter, Response, HTTPException, status, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -587,7 +587,7 @@ async def verify_otp_endpoint(
         select(OTPVerification)
         .where(
             OTPVerification.identifier == identifier,
-            OTPVerification.is_verified == False,
+            OTPVerification.is_verified.is_(False),
             OTPVerification.expires_at > datetime.now(timezone.utc),
             OTPVerification.attempts < 5,
         )
