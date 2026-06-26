@@ -21,6 +21,10 @@ LEVELS = ('l1', 'team_lead', 'manager', 'super_admin')
 
 
 def upgrade():
+    # Create ENUMs explicitly (create_type=False is set on inline sa.Enum)
+    op.execute("CREATE TYPE employee_team AS ENUM ('finance', 'engineering', 'onboarding', 'support', 'data')")
+    op.execute("CREATE TYPE employee_level AS ENUM ('l1', 'team_lead', 'manager', 'super_admin')")
+
     # ── hospyn_employees ──────────────────────────────────────────────────────
     op.create_table(
         'hospyn_employees',

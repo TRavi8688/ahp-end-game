@@ -16,6 +16,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # Create all ENUM types explicitly (since create_type=False is set on all sa.Enum)
+    op.execute("CREATE TYPE hospitalstatus AS ENUM ('pending_verification', 'active', 'suspended', 'deactivated')")
+    op.execute("CREATE TYPE gender AS ENUM ('male', 'female', 'other', 'prefer_not_to_say')")
+    op.execute("CREATE TYPE bloodgroup AS ENUM ('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown')")
+    op.execute("CREATE TYPE appointmenttype AS ENUM ('in_person', 'teleconsultation', 'follow_up', 'emergency')")
+    op.execute("CREATE TYPE appointmentstatus AS ENUM ('scheduled', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show')")
+
     # ─── Hospitals ────────────────────────────────────────────────
     op.create_table(
         "hospitals",

@@ -30,36 +30,69 @@ depends_on    = None
 
 def upgrade() -> None:
 
-    # ─── 1. Add missing roles to rolesenum ───────────────────────────────────
-    # PostgreSQL requires committing before ALTER TYPE, so we use raw SQL
-    op.execute("ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS 'nurse'")
-    op.execute("ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS 'pharmacist'")
-    op.execute("ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS 'super_admin'")
-    op.execute("ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS 'owner'")
-    op.execute("ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS 'receptionist'")
-    op.execute("ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS 'lab'")
-    op.execute("ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS 'hr'")
+    # ─── 1. rolesenum belongs to auth-service; skip in healthcare-core ────────
+    # The rolesenum type and users table live in the auth-service database.
+    # This migration runs against healthcare-core's own database where neither
+    # the type nor the table exist.  Guard with a DO $$ block so it's a no-op
+    # when running in the healthcare-core schema.
+    op.execute("""
+        DO $$ BEGIN
+            IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'rolesenum') THEN
+                EXECUTE 'ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS ''nurse''';
+                EXECUTE 'ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS ''pharmacist''';
+                EXECUTE 'ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS ''super_admin''';
+                EXECUTE 'ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS ''owner''';
+                EXECUTE 'ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS ''receptionist''';
+                EXECUTE 'ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS ''lab''';
+                EXECUTE 'ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS ''hr''';
+            END IF;
+        END $$;
+    """)
 
-    # ─── 2. Add missing columns to users table ────────────────────────────────
-    op.add_column("users", sa.Column(
-        "full_name",   sa.String(255), nullable=True
-    ))
-    op.add_column("users", sa.Column(
-        "hospital_id", postgresql.UUID(as_uuid=True), nullable=True
-    ))
-    op.create_index("ix_users_hospital_id", "users", ["hospital_id"])
+    # ─── 2. users table belongs to auth-service; skip in healthcare-core ──────
+    op.execute("""
+        DO $$ BEGIN
+            IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'users') THEN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'full_name') THEN
+                    ALTER TABLE users ADD COLUMN full_name VARCHAR(255);
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'hospital_id') THEN
+                    ALTER TABLE users ADD COLUMN hospital_id UUID;
+                    CREATE INDEX IF NOT EXISTS ix_users_hospital_id ON users (hospital_id);
+                END IF;
+                UPDATE users SET token_version = 1 WHERE token_version IS NULL OR token_version = 0;
+            END IF;
+        END $$;
+    """)
 
-    # token_version default 1 (not 0) — ensure existing rows are set
-    op.execute("UPDATE users SET token_version = 1 WHERE token_version IS NULL OR token_version = 0")
-
-    # ─── 3. Add missing columns to hospitals table ────────────────────────────
-    op.add_column("hospitals", sa.Column("city",                sa.String(100),  nullable=True))
-    op.add_column("hospitals", sa.Column("state",               sa.String(100),  nullable=True))
-    op.add_column("hospitals", sa.Column("phone",               sa.String(20),   nullable=True))
-    op.add_column("hospitals", sa.Column("registration_number", sa.String(100),  nullable=True))
-    op.add_column("hospitals", sa.Column("is_active",           sa.Boolean(),    nullable=False, server_default="true"))
-    op.add_column("hospitals", sa.Column("updated_at",          sa.DateTime(timezone=True), nullable=True, server_default=sa.text("now()")))
-    op.add_column("hospitals", sa.Column("deleted_at",          sa.DateTime(timezone=True), nullable=True))
+    # ─── 3. Add missing columns to hospitals table (guard duplicates) ─────────
+    # city, state, phone, registration_number, is_active, updated_at, deleted_at
+    # already exist from 001_initial.py — use IF NOT EXISTS guards.
+    op.execute("""
+        DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hospitals' AND column_name = 'city') THEN
+                ALTER TABLE hospitals ADD COLUMN city VARCHAR(100);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hospitals' AND column_name = 'state') THEN
+                ALTER TABLE hospitals ADD COLUMN state VARCHAR(100);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hospitals' AND column_name = 'phone') THEN
+                ALTER TABLE hospitals ADD COLUMN phone VARCHAR(20);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hospitals' AND column_name = 'registration_number') THEN
+                ALTER TABLE hospitals ADD COLUMN registration_number VARCHAR(100);
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hospitals' AND column_name = 'is_active') THEN
+                ALTER TABLE hospitals ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT true;
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hospitals' AND column_name = 'updated_at') THEN
+                ALTER TABLE hospitals ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now();
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hospitals' AND column_name = 'deleted_at') THEN
+                ALTER TABLE hospitals ADD COLUMN deleted_at TIMESTAMPTZ;
+            END IF;
+        END $$;
+    """)
 
     # ─── 4. Extend support_tickets for full enterprise use ────────────────────
     # The existing table has partner_id FK — add nullable columns for cross-product use
@@ -202,13 +235,21 @@ def upgrade() -> None:
     op.create_index("ix_hospital_branches_hospital_id", "hospital_branches", ["hospital_id"])
 
     # ─── 11. audit_logs: add hospital_id + details columns if missing ─────────
-    op.add_column("audit_logs", sa.Column(
-        "hospital_id", postgresql.UUID(as_uuid=True), nullable=True
-    ))
-    op.add_column("audit_logs", sa.Column(
-        "details", sa.Text(), nullable=True
-    ))
-    op.create_index("ix_audit_logs_hospital_id", "audit_logs", ["hospital_id"])
+    # audit_logs table is created later in the migration chain (0009_hospital_enabled_modules).
+    # Guard with IF EXISTS so this is a no-op when running from scratch.
+    op.execute("""
+        DO $$ BEGIN
+            IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'audit_logs') THEN
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'audit_logs' AND column_name = 'hospital_id') THEN
+                    ALTER TABLE audit_logs ADD COLUMN hospital_id UUID;
+                    CREATE INDEX IF NOT EXISTS ix_audit_logs_hospital_id ON audit_logs (hospital_id);
+                END IF;
+                IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'audit_logs' AND column_name = 'details') THEN
+                    ALTER TABLE audit_logs ADD COLUMN details TEXT;
+                END IF;
+            END IF;
+        END $$;
+    """)
 
 
 def downgrade() -> None:
