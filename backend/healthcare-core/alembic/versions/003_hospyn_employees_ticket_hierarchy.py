@@ -67,7 +67,7 @@ def upgrade():
     op.add_column('support_tickets', sa.Column('assigned_employee_id', sa.String(30), nullable=True))
     op.add_column('support_tickets', sa.Column('assigned_employee_name', sa.String(200), nullable=True))
     op.add_column('support_tickets', sa.Column('escalation_level', sa.String(20), nullable=True, server_default='l1'))
-    op.add_column('support_tickets', sa.Column('owner_phone', sa.String(20), nullable=True))
+    # NOTE: owner_phone is NOT added here — it already exists from 002_ticket_system CREATE TABLE.
     op.create_index('ix_support_tickets_assigned', 'support_tickets', ['assigned_employee_id'])
 
 
@@ -76,7 +76,7 @@ def downgrade():
     op.drop_column('support_tickets', 'escalation_level')
     op.drop_column('support_tickets', 'assigned_employee_name')
     op.drop_column('support_tickets', 'assigned_employee_id')
-    op.drop_column('support_tickets', 'owner_phone')
+    # NOTE: owner_phone is NOT dropped here — it belongs to 002_ticket_system.
     op.drop_table('ticket_assignments')
     op.drop_table('hospyn_employees')
     op.execute('DROP TYPE IF EXISTS employee_team')
