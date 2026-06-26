@@ -69,8 +69,7 @@ def upgrade() -> None:
         sa.Column("result_value", sa.String(500), nullable=True),
         sa.Column("result_status", labresultstatus, nullable=False, server_default="PENDING"),
         sa.Column("resulted_at", sa.DateTime, nullable=True),
-        sa.Column("resulted_by", postgresql.UUID(as_uuid=True),
-                  sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
+        sa.Column("resulted_by", postgresql.UUID(as_uuid=True), nullable=True),
     )
     op.create_index("ix_lab_order_items_order_id", "lab_order_items", ["order_id"])
     op.create_index("ix_lab_order_items_test_id", "lab_order_items", ["test_id"])
