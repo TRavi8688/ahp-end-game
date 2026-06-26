@@ -17,9 +17,9 @@ down_revision = "0009_hospital_enabled_modules"
 branch_labels = None
 depends_on = None
 
-payment_method_enum = postgresql.ENUM("cash", "upi", "card", name="paymentmethod", create_type=True)
+payment_method_enum = postgresql.ENUM("cash", "upi", "card", name="paymentmethod", create_type=False)
 expense_category_enum = postgresql.ENUM(
-    "rent", "salaries", "utilities", "purchase", "other", name="expensecategory", create_type=True
+    "rent", "salaries", "utilities", "purchase", "other", name="expensecategory", create_type=False
 )
 
 

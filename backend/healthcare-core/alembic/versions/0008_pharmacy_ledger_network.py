@@ -19,7 +19,7 @@ depends_on = None
 transaction_type_enum = postgresql.ENUM(
     "purchase", "dispense", "adjustment", "return_",
     name="transactiontype",
-    create_type=True,
+    create_type=False,
 )
 
 

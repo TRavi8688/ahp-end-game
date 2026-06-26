@@ -18,15 +18,15 @@ def upgrade() -> None:
     # Enums
     invoicestatus = postgresql.ENUM(
         "DRAFT", "ISSUED", "PAID", "PARTIALLY_PAID", "CANCELLED", "OVERDUE",
-        name="invoicestatus",
+        name="invoicestatus", create_type=False,
     )
     paymentmethod = postgresql.ENUM(
         "CASH", "CARD", "UPI", "NETBANKING", "INSURANCE",
-        name="paymentmethod",
+        name="paymentmethod", create_type=False,
     )
     paymentstatus = postgresql.ENUM(
         "PENDING", "SUCCESS", "FAILED", "REFUNDED",
-        name="paymentstatus",
+        name="paymentstatus", create_type=False,
     )
     invoicestatus.create(op.get_bind(), checkfirst=True)
     paymentmethod.create(op.get_bind(), checkfirst=True)
