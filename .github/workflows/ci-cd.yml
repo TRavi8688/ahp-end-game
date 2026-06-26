@@ -104,13 +104,17 @@ jobs:
       - name: Install dependencies
         run: pip install --no-cache-dir -r backend/healthcare-core/requirements.txt pytest pytest-cov pytest-asyncio httpx
 
-      - name: Run migrations against test database
-        run: PYTHONPATH=backend alembic upgrade head
+      # NOTE: Do NOT run root-level 'alembic upgrade head' here.
+      # healthcare-core has its own alembic environment with its own
+      # migration chain. Running root alembic first stamps alembic_version
+      # with revisions that healthcare-core doesn't recognize, causing
+      # ResolutionError: "No such revision or branch 'b7c8d9e0f1a2'"
+      # The healthcare-core test conftest handles its own migrations.
 
       - name: Run tests with coverage
         run: |
           cd backend/healthcare-core
-          PYTHONPATH=.:.. pytest tests/ \
+          PYTHONPATH=.:.. TEST_DATABASE_URL=postgresql+asyncpg://test_hospyn:test_password_ci_only@localhost:5432/test_hospyn pytest tests/ \
             --cov=app \
             --cov-report=term-missing \
             --cov-report=xml \
