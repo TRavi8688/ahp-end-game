@@ -42,7 +42,7 @@ def upgrade() -> None:
     # ── 1. Extend hospyn_employees ────────────────────────────────────────────
     op.add_column("hospyn_employees", sa.Column(
         "shift_status",
-        sa.Enum(*SHIFT_STATUSES, name="shift_status_enum"),
+        sa.Enum(*SHIFT_STATUSES, name="shift_status_enum", create_type=False),
         nullable=False,
         server_default="offline",
     ))

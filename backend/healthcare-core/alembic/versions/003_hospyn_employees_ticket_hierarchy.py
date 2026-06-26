@@ -29,8 +29,8 @@ def upgrade():
         sa.Column('full_name',     sa.String(200), nullable=False),
         sa.Column('email',         sa.String(255), unique=True, nullable=False),
         sa.Column('hashed_password', sa.String(255), nullable=False),
-        sa.Column('team',          sa.Enum(*TEAMS,  name='employee_team'),  nullable=False),
-        sa.Column('level',         sa.Enum(*LEVELS, name='employee_level'), nullable=False),
+        sa.Column('team',          sa.Enum(*TEAMS,  name='employee_team', create_type=False),  nullable=False),
+        sa.Column('level',         sa.Enum(*LEVELS, name='employee_level', create_type=False), nullable=False),
         # manager_id → the manager this employee reports to (NULL for managers/super_admin)
         sa.Column('manager_id',    UUID(as_uuid=True), nullable=True),
         # team_lead_id → the TL this L1 reports to (NULL for TLs and above)

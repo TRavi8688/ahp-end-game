@@ -17,11 +17,11 @@ depends_on = None
 def upgrade() -> None:
     laborderstatus = postgresql.ENUM(
         "ORDERED", "SAMPLE_COLLECTED", "IN_PROGRESS", "COMPLETED", "CANCELLED",
-        name="laborderstatus",
+        name="laborderstatus", create_type=False
     )
     labresultstatus = postgresql.ENUM(
         "PENDING", "NORMAL", "ABNORMAL", "CRITICAL",
-        name="labresultstatus",
+        name="labresultstatus", create_type=False
     )
     laborderstatus.create(op.get_bind(), checkfirst=True)
     labresultstatus.create(op.get_bind(), checkfirst=True)
