@@ -168,6 +168,18 @@ jobs:
       - name: Configure Docker for GCR
         run: gcloud auth configure-docker gcr.io --quiet
 
+      - name: Build and push Gateway image
+        run: |
+          docker build -t ${{ env.IMAGE_PREFIX }}/gateway:${{ github.sha }} \
+            -f Dockerfile.gateway .
+          docker push ${{ env.IMAGE_PREFIX }}/gateway:${{ github.sha }}
+
+      - name: Build and push API image
+        run: |
+          docker build -t ${{ env.IMAGE_PREFIX }}/hospyn-api:${{ github.sha }} \
+            -f Dockerfile .
+          docker push ${{ env.IMAGE_PREFIX }}/hospyn-api:${{ github.sha }}
+
       # AUDIT FIX M3: Run migrations BEFORE starting new containers.
       # This uses a one-off migration container with the new image.
       # If migrations fail, deployment stops here — containers are NOT updated.
@@ -182,18 +194,6 @@ jobs:
         # NOTE: This requires the image to be built first in a real pipeline.
         # In practice, build the image, push it, then run this step.
         # The above is the correct ORDER — migrations before container swap.
-
-      - name: Build and push Gateway image
-        run: |
-          docker build -t ${{ env.IMAGE_PREFIX }}/gateway:${{ github.sha }} \
-            -f Dockerfile.gateway .
-          docker push ${{ env.IMAGE_PREFIX }}/gateway:${{ github.sha }}
-
-      - name: Build and push API image
-        run: |
-          docker build -t ${{ env.IMAGE_PREFIX }}/hospyn-api:${{ github.sha }} \
-            -f Dockerfile .
-          docker push ${{ env.IMAGE_PREFIX }}/hospyn-api:${{ github.sha }}
 
       - name: Deploy to Cloud Run (Gateway)
         run: |

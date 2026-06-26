@@ -100,6 +100,27 @@ resource "google_secret_manager_secret" "secret_key" {
   replication { auto {} }
 }
 
+resource "google_secret_manager_secret" "jwt_private_key" {
+  secret_id = "JWT_PRIVATE_KEY"
+  replication { auto {} }
+}
+
+resource "google_secret_manager_secret" "jwt_public_key" {
+  secret_id = "JWT_PUBLIC_KEY"
+  replication { auto {} }
+}
+
+resource "google_secret_manager_secret" "migration_secret" {
+  secret_id = "MIGRATION_SECRET"
+  replication { auto {} }
+}
+
+resource "google_secret_manager_secret" "smtp_host" { secret_id = "SMTP_HOST"; replication { auto {} } }
+resource "google_secret_manager_secret" "smtp_port" { secret_id = "SMTP_PORT"; replication { auto {} } }
+resource "google_secret_manager_secret" "smtp_user" { secret_id = "SMTP_USER"; replication { auto {} } }
+resource "google_secret_manager_secret" "smtp_password" { secret_id = "SMTP_PASSWORD"; replication { auto {} } }
+resource "google_secret_manager_secret" "smtp_from_email" { secret_id = "SMTP_FROM_EMAIL"; replication { auto {} } }
+
 # ─── CLOUD SQL POSTGRESQL ─────────────────────────────────────────────────────
 # FIX: High-availability PostgreSQL — replaces SQLite
 resource "google_sql_database_instance" "hospyn_postgres" {
