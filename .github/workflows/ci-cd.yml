@@ -102,7 +102,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install --no-cache-dir -r backend/healthcare-core/requirements.txt pytest pytest-cov pytest-asyncio httpx
+        run: pip install --no-cache-dir -r backend/healthcare-core/requirements.txt pytest pytest-cov pytest-asyncio httpx psycopg2-binary
 
       # NOTE: Do NOT run root-level 'alembic upgrade head' here.
       # healthcare-core has its own alembic environment with its own
