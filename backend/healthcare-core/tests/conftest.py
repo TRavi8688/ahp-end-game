@@ -39,27 +39,32 @@ def event_loop():
     loop.close()
 
 
-@pytest_asyncio.fixture(scope="session")
-async def test_engine():
+@pytest.fixture(scope="session")
+def test_engine():
     """Create engine and run Alembic migrations once per test session."""
+    import sqlalchemy as sa
+    from sqlalchemy import create_engine
+    
+    sync_url = TEST_DATABASE_URL.replace("postgresql+asyncpg", "postgresql")
+    
+    # 1. Clean the database (drop and recreate public schema)
+    # This prevents DuplicateObjectError (like ENUMs left behind from previous runs)
+    sync_engine = create_engine(sync_url, isolation_level="AUTOCOMMIT")
+    with sync_engine.connect() as conn:
+        conn.execute(sa.text("DROP SCHEMA public CASCADE;"))
+        conn.execute(sa.text("CREATE SCHEMA public;"))
+    
+    # 2. Run migrations
+    alembic_cfg = Config("alembic.ini")   # path relative to service root
+    alembic_cfg.set_main_option("sqlalchemy.url", sync_url)
+    command.upgrade(alembic_cfg, "head")
+    
+    # 3. Yield the async engine for the tests
     engine = create_async_engine(TEST_DATABASE_URL, echo=False)
-
-    # Run migrations (equivalent to alembic upgrade head)
-    def run_migrations():
-        alembic_cfg = Config("alembic.ini")   # path relative to service root
-        alembic_cfg.set_main_option("sqlalchemy.url", TEST_DATABASE_URL.replace(
-            "postgresql+asyncpg", "postgresql"  # Alembic uses sync URL
-        ))
-        command.upgrade(alembic_cfg, "head")
-
-    await asyncio.get_event_loop().run_in_executor(None, run_migrations)
-
     yield engine
-
-    # Teardown: drop all tables after the session
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-    await engine.dispose()
+    
+    # We don't need to drop_all here because the database is either destroyed (in CI)
+    # or will be cleaned on the next run by the DROP SCHEMA step above.
 
 
 @pytest_asyncio.fixture
