@@ -22,8 +22,16 @@ LEVELS = ('l1', 'team_lead', 'manager', 'super_admin')
 
 def upgrade():
     # Create ENUMs explicitly (create_type=False is set on inline sa.Enum)
-    op.execute("CREATE TYPE employee_team AS ENUM ('finance', 'engineering', 'onboarding', 'support', 'data')")
-    op.execute("CREATE TYPE employee_level AS ENUM ('l1', 'team_lead', 'manager', 'super_admin')")
+    op.execute("""
+        DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'employee_team') THEN
+                CREATE TYPE employee_team AS ENUM ('finance', 'engineering', 'onboarding', 'support', 'data');
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'employee_level') THEN
+                CREATE TYPE employee_level AS ENUM ('l1', 'team_lead', 'manager', 'super_admin');
+            END IF;
+        END $$;
+    """)
 
     # ── hospyn_employees ──────────────────────────────────────────────────────
     op.create_table(

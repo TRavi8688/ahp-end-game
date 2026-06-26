@@ -40,9 +40,19 @@ INCIDENT_STATUSES   = ("active", "mitigated", "resolved", "postmortem")
 def upgrade() -> None:
 
     # Create ENUMs explicitly (create_type=False is set on inline sa.Enum)
-    op.execute("CREATE TYPE shift_status_enum AS ENUM ('online', 'offline', 'break', 'meeting', 'training', 'leave')")
-    op.execute("CREATE TYPE incident_severity AS ENUM ('P1', 'P2', 'P3', 'P4')")
-    op.execute("CREATE TYPE incident_status AS ENUM ('active', 'mitigated', 'resolved', 'postmortem')")
+    op.execute("""
+        DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'shift_status_enum') THEN
+                CREATE TYPE shift_status_enum AS ENUM ('online', 'offline', 'break', 'meeting', 'training', 'leave');
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'incident_severity') THEN
+                CREATE TYPE incident_severity AS ENUM ('P1', 'P2', 'P3', 'P4');
+            END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'incident_status') THEN
+                CREATE TYPE incident_status AS ENUM ('active', 'mitigated', 'resolved', 'postmortem');
+            END IF;
+        END $$;
+    """)
 
     # ── 1. Extend hospyn_employees ────────────────────────────────────────────
     op.add_column("hospyn_employees", sa.Column(
