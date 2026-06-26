@@ -7,9 +7,10 @@ Create Date: 2026-01-01 00:00:00.000000
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from typing import Union
 
 revision = "004_pharmacy"
-down_revision = "003_billing"   # UPDATE THIS
+down_revision = "003b_core_models"
 branch_labels = None
 depends_on = None
 
