@@ -53,7 +53,8 @@ async def test_engine():
 
     # Teardown: drop all tables after the session
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
+        from sqlalchemy import text
+        await conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
     await engine.dispose()
 
 

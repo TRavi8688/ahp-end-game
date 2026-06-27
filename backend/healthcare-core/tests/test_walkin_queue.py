@@ -187,7 +187,7 @@ async def test_full_walkin_queue_pipeline(
         f"/api/v1/healthcare/walkin/join/{qr_token}", json=intake_data
     )
     assert response_dup.status_code == 409
-    assert "active walk-in request" in response_dup.json()["message"]
+    assert "active walk-in request" in response_dup.json()["detail"]
 
     # 4. Patient checks their status
     status_response = await client.get(f"/api/v1/healthcare/walkin/status/{walkin_id}")

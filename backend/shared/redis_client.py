@@ -61,7 +61,8 @@ def init_redis(redis_url: str) -> Redis:
     Call once at app startup inside lifespan.
     """
     global _pool
-    if redis_url.startswith("redis://mock") or os.environ.get("ENVIRONMENT") == "development" or os.environ.get("ENV") == "development":
+    env = os.environ.get("ENVIRONMENT", os.environ.get("ENV", ""))
+    if redis_url.startswith("redis://mock") or env in ["development", "test"]:
         logger.warning("Using mock in-memory Redis client")
         _pool = MockRedis()
         return _pool
