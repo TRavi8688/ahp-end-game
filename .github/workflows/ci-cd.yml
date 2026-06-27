@@ -196,13 +196,13 @@ jobs:
             --region $REGION \
             --project $PROJECT_ID \
             --command "alembic" --args "upgrade,head" \
-            --set-secrets="DATABASE_URL=DATABASE_URL:latest" || \
+            --set-env-vars="DATABASE_URL=${{ secrets.DATABASE_URL }}" || \
           gcloud run jobs create hospyn-migrations \
             --image gcr.io/${{ env.PROJECT_ID }}/hospyn-api:${{ github.sha }} \
             --region $REGION \
             --project $PROJECT_ID \
             --command "alembic" --args "upgrade,head" \
-            --set-secrets="DATABASE_URL=DATABASE_URL:latest"
+            --set-env-vars="DATABASE_URL=${{ secrets.DATABASE_URL }}"
 
           gcloud run jobs execute hospyn-migrations \
             --region=$REGION \
