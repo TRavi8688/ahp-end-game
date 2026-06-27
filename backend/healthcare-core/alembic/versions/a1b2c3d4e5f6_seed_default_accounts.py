@@ -7,18 +7,15 @@ Create Date: 2026-06-28
 from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
-from passlib.context import CryptContext
-
 revision: str = 'a1b2c3d4e5f6'
 down_revision: Union[str, None] = 'b7c8d9e0f1a2'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def upgrade() -> None:
-    # 1. Hashed password
-    default_hash = pwd_ctx.hash("Admin@Hospain2024!")
+    # 1. Hashed password (Admin@Hospain2024!)
+    default_hash = "$2b$12$AC7HVUHGBWXLgQZbJI7PhOGihtjrGbdooHJOzyOMi5WpsZO4CEbxW"
 
     # 2. Seed Super Admin in hospyn_employees
     op.execute(f"""
