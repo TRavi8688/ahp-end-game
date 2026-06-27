@@ -154,7 +154,7 @@ jobs:
       - name: Build and push API image
         run: |
           IMAGE_TAG="gcr.io/$PROJECT_ID/hospyn-api:$GITHUB_SHA"
-          docker build -t "$IMAGE_TAG" -t "gcr.io/$PROJECT_ID/hospyn-api:latest" .
+          docker build -t "$IMAGE_TAG" -t "gcr.io/$PROJECT_ID/hospyn-api:latest" -f backend/healthcare-core/Dockerfile backend
           docker push "$IMAGE_TAG"
           docker push "gcr.io/$PROJECT_ID/hospyn-api:latest"
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
