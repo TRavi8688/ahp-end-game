@@ -39,10 +39,27 @@ INCIDENT_STATUSES   = ("active", "mitigated", "resolved", "postmortem")
 
 def upgrade() -> None:
 
+    # Explicitly create enums to avoid asyncpg issues
+    op.execute("""
+        DO $$ 
+        BEGIN 
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'shift_status_enum') THEN 
+                CREATE TYPE shift_status_enum AS ENUM ('online', 'offline', 'break', 'meeting', 'training', 'leave'); 
+            END IF; 
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'incident_severity') THEN 
+                CREATE TYPE incident_severity AS ENUM ('P1', 'P2', 'P3', 'P4'); 
+            END IF; 
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'incident_status') THEN 
+                CREATE TYPE incident_status AS ENUM ('active', 'mitigated', 'resolved', 'postmortem'); 
+            END IF; 
+        END 
+        $$;
+    """)
+
     # ── 1. Extend hospyn_employees ────────────────────────────────────────────
     op.add_column("hospyn_employees", sa.Column(
         "shift_status",
-        sa.Enum(*SHIFT_STATUSES, name="shift_status_enum"),
+        postgresql.ENUM(*SHIFT_STATUSES, name="shift_status_enum", create_type=False),
         nullable=False,
         server_default="offline",
     ))
@@ -100,9 +117,9 @@ def upgrade() -> None:
                   server_default=sa.text("gen_random_uuid()")),
         sa.Column("incident_id",  sa.String(20),  unique=True, nullable=False),
         sa.Column("title",        sa.String(300), nullable=False),
-        sa.Column("severity",     sa.Enum(*INCIDENT_SEVERITIES, name="incident_severity"),
+        sa.Column("severity",     postgresql.ENUM(*INCIDENT_SEVERITIES, name="incident_severity", create_type=False),
                   nullable=False, server_default="P3"),
-        sa.Column("status",       sa.Enum(*INCIDENT_STATUSES, name="incident_status"),
+        sa.Column("status",       postgresql.ENUM(*INCIDENT_STATUSES, name="incident_status", create_type=False),
                   nullable=False, server_default="active"),
         sa.Column("owner_employee_id", sa.String(30), nullable=True),
         sa.Column("team",         sa.String(50),  nullable=True),
