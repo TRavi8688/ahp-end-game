@@ -32,14 +32,7 @@ def upgrade() -> None:
 
     # (Removed invalid rolesenum and users alterations that belong in auth-service)
 
-    # ─── 3. Add missing columns to hospitals table ────────────────────────────
-    op.add_column("hospitals", sa.Column("city",                sa.String(100),  nullable=True))
-    op.add_column("hospitals", sa.Column("state",               sa.String(100),  nullable=True))
-    op.add_column("hospitals", sa.Column("phone",               sa.String(20),   nullable=True))
-    op.add_column("hospitals", sa.Column("registration_number", sa.String(100),  nullable=True))
-    op.add_column("hospitals", sa.Column("is_active",           sa.Boolean(),    nullable=False, server_default="true"))
-    op.add_column("hospitals", sa.Column("updated_at",          sa.DateTime(timezone=True), nullable=True, server_default=sa.text("now()")))
-    op.add_column("hospitals", sa.Column("deleted_at",          sa.DateTime(timezone=True), nullable=True))
+    # (Removed redundant hospital column additions that already exist from 001_initial.py)
 
     # ─── 4. Extend support_tickets for full enterprise use ────────────────────
     # The existing table has partner_id FK — add nullable columns for cross-product use
