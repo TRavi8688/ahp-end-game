@@ -90,6 +90,28 @@ class Settings(BaseSettings):
                 "SQLite is not supported in production — use PostgreSQL. "
                 "Example: postgresql+asyncpg://user:password@postgres:5432/hospyn"
             )
+        
+        # Ensure postgresql+asyncpg
+        if v.startswith("postgres://"):
+            v = v.replace("postgres://", "postgresql://", 1)
+        if v.startswith("postgresql://") and "+asyncpg" not in v:
+            v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        
+        # Sanitize query parameters for asyncpg
+        try:
+            from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
+            parsed = urlparse(v)
+            q_params = dict(parse_qsl(parsed.query))
+            q_params.pop("channel_binding", None)
+            if "sslmode" in q_params:
+                val = q_params.pop("sslmode")
+                if val in ("require", "prefer", "allow"):
+                    q_params["ssl"] = "true"
+            new_query = urlencode(q_params)
+            parsed = parsed._replace(query=new_query)
+            v = urlunparse(parsed)
+        except Exception:
+            pass
         return v
 
     @field_validator("ALLOWED_ORIGINS")

@@ -24,6 +24,8 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
+
 # Read DATABASE_URL from environment — never hardcoded
 _database_url = os.environ.get("DATABASE_URL", "")
 if not _database_url:
@@ -33,13 +35,26 @@ if "sqlite" in _database_url.lower():
     print("ERROR: DATABASE_URL points to SQLite. Alembic requires PostgreSQL.", file=sys.stderr)
     sys.exit(1)
 
-# asyncpg driver for async migrations
-if "postgresql://" in _database_url and "+asyncpg" not in _database_url:
-    _database_url = _database_url.replace("postgresql://", "postgresql+asyncpg://")
+# Ensure postgresql+asyncpg
+if _database_url.startswith("postgres://"):
+    _database_url = _database_url.replace("postgres://", "postgresql://", 1)
+if _database_url.startswith("postgresql://") and "+asyncpg" not in _database_url:
+    _database_url = _database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-# asyncpg uses 'ssl' instead of 'sslmode'
-if "+asyncpg" in _database_url:
-    _database_url = _database_url.replace("sslmode=", "ssl=")
+# Sanitize query parameters for asyncpg
+try:
+    parsed = urlparse(_database_url)
+    q_params = dict(parse_qsl(parsed.query))
+    q_params.pop("channel_binding", None)
+    if "sslmode" in q_params:
+        val = q_params.pop("sslmode")
+        if val in ("require", "prefer", "allow"):
+            q_params["ssl"] = "true"
+    new_query = urlencode(q_params)
+    parsed = parsed._replace(query=new_query)
+    _database_url = urlunparse(parsed)
+except Exception as e:
+    print(f"Warning: Failed to parse DATABASE_URL query parameters: {e}", file=sys.stderr)
 
 config.set_main_option("sqlalchemy.url", _database_url)
 
