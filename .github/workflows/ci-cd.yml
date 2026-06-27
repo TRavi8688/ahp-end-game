@@ -233,6 +233,13 @@ jobs:
             --cpu=1
             --memory=512Mi
 
+      - name: Print Cloud Run Deploy Failure Logs
+        if: failure()
+        run: |
+          echo "=== CLOUD RUN DEPLOYMENT FAILED ==="
+          echo "Retrieving container crash logs directly from Google Cloud Logging..."
+          gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=hospyn-api AND severity>=ERROR" --limit=30 --project=${{ env.PROJECT_ID }} --format="value(textPayload)"
+
       - name: Deploy Gateway to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
         with:
