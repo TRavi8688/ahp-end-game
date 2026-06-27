@@ -29,13 +29,17 @@ def upgrade() -> None:
     staffrole = postgresql.ENUM(
         "receptionist", "nurse", "admin", "lab_technician", "pharmacist",
         name="staffrole",
+        create_type=False
     )
     shiftstatus = postgresql.ENUM(
         "on_duty", "off_duty", "on_break",
         name="shiftstatus",
+        create_type=False
     )
-    staffrole.create(op.get_bind(), checkfirst=True)
-    shiftstatus.create(op.get_bind(), checkfirst=True)
+    
+    # staffrole and shiftstatus were already created in 003b_core_models.py
+    # We just need to ensure lab_technician is added to staffrole.
+    op.execute("ALTER TYPE staffrole ADD VALUE IF NOT EXISTS 'lab_technician'")
 
     op.create_table(
         "staff",

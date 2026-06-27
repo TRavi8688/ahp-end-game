@@ -17,15 +17,15 @@ down_revision = "0009_hospital_enabled_modules"
 branch_labels = None
 depends_on = None
 
-payment_method_enum = postgresql.ENUM("cash", "upi", "card", name="paymentmethod", create_type=True)
+payment_method_enum = postgresql.ENUM("cash", "upi", "card", name="paymentmethod", create_type=False)
 expense_category_enum = postgresql.ENUM(
-    "rent", "salaries", "utilities", "purchase", "other", name="expensecategory", create_type=True
+    "rent", "salaries", "utilities", "purchase", "other", name="expensecategory", create_type=False
 )
 
 
 def upgrade() -> None:
-    payment_method_enum.create(op.get_bind(), checkfirst=True)
-    expense_category_enum.create(op.get_bind(), checkfirst=True)
+    op.execute("DO $$ BEGIN CREATE TYPE paymentmethod AS ENUM ('cash', 'upi', 'card'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+    op.execute("DO $$ BEGIN CREATE TYPE expensecategory AS ENUM ('rent', 'salaries', 'utilities', 'purchase', 'other'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
 
     # ── Order pipeline additions ────────────────────────────────────────────
     op.add_column("prescription_shares", sa.Column("token_number", sa.Integer, nullable=True))

@@ -18,13 +18,15 @@ def upgrade() -> None:
     laborderstatus = postgresql.ENUM(
         "ORDERED", "SAMPLE_COLLECTED", "IN_PROGRESS", "COMPLETED", "CANCELLED",
         name="laborderstatus",
+        create_type=False
     )
     labresultstatus = postgresql.ENUM(
         "PENDING", "NORMAL", "ABNORMAL", "CRITICAL",
         name="labresultstatus",
+        create_type=False
     )
-    laborderstatus.create(op.get_bind(), checkfirst=True)
-    labresultstatus.create(op.get_bind(), checkfirst=True)
+    op.execute("DO $$ BEGIN CREATE TYPE laborderstatus AS ENUM ('ORDERED', 'SAMPLE_COLLECTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+    op.execute("DO $$ BEGIN CREATE TYPE labresultstatus AS ENUM ('PENDING', 'NORMAL', 'ABNORMAL', 'CRITICAL'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
 
     op.create_table(
         "lab_tests",

@@ -19,9 +19,8 @@ depends_on = None
 transaction_type_enum = postgresql.ENUM(
     "purchase", "dispense", "adjustment", "return_",
     name="transactiontype",
-    create_type=True,
+    create_type=False,
 )
-
 
 def upgrade() -> None:
     # 004_pharmacy created pharmacy_inventory without created_at — model now
@@ -31,7 +30,7 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime, nullable=False, server_default=sa.text("now()")),
     )
 
-    transaction_type_enum.create(op.get_bind(), checkfirst=True)
+    op.execute("DO $$ BEGIN CREATE TYPE transactiontype AS ENUM ('purchase', 'dispense', 'adjustment', 'return_'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
 
     op.create_table(
         "pharmacy_transactions",

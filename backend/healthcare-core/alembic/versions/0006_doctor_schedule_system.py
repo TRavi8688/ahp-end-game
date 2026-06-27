@@ -92,12 +92,13 @@ def upgrade() -> None:
         "day_off", "half_day", "emergency_leave", "conference_cme",
         "personal", "vacation", "sick",
         name="leavetype",
+        create_type=False
     )
     leave_status_enum = postgresql.ENUM(
-        "pending", "approved", "rejected", "cancelled", name="leavestatus"
+        "pending", "approved", "rejected", "cancelled", name="leavestatus", create_type=False
     )
-    leave_type_enum.create(op.get_bind(), checkfirst=True)
-    leave_status_enum.create(op.get_bind(), checkfirst=True)
+    op.execute("DO $$ BEGIN CREATE TYPE leavetype AS ENUM ('day_off', 'half_day', 'emergency_leave', 'conference_cme', 'personal', 'vacation', 'sick'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+    op.execute("DO $$ BEGIN CREATE TYPE leavestatus AS ENUM ('pending', 'approved', 'rejected', 'cancelled'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
 
     op.create_table(
         "doctor_leaves",
@@ -140,8 +141,9 @@ def upgrade() -> None:
         "bio_break", "lunch_break", "tea_break", "meeting",
         "emergency_pause", "other",
         name="breaktype",
+        create_type=False
     )
-    break_type_enum.create(op.get_bind(), checkfirst=True)
+    op.execute("DO $$ BEGIN CREATE TYPE breaktype AS ENUM ('bio_break', 'lunch_break', 'tea_break', 'meeting', 'emergency_pause', 'other'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
 
     op.create_table(
         "doctor_break_logs",
@@ -165,8 +167,9 @@ def upgrade() -> None:
     shift_type_enum = postgresql.ENUM(
         "morning", "afternoon", "evening", "night", "on_call", "off",
         name="shifttypedoctor",
+        create_type=False
     )
-    shift_type_enum.create(op.get_bind(), checkfirst=True)
+    op.execute("DO $$ BEGIN CREATE TYPE shifttypedoctor AS ENUM ('morning', 'afternoon', 'evening', 'night', 'on_call', 'off'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
 
     op.create_table(
         "doctor_roster_shifts",

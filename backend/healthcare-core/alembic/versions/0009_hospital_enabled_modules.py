@@ -14,13 +14,13 @@ branch_labels = None
 depends_on = None
 
 # Enum types
-queue_priority_enum = postgresql.ENUM('NORMAL', 'VIP', 'EMERGENCY', name='queuepriority', create_type=True)
+queue_priority_enum = postgresql.ENUM('NORMAL', 'VIP', 'EMERGENCY', name='queuepriority', create_type=False)
 queue_status_enum = postgresql.ENUM(
     'waiting_reception', 'waiting_triage', 'waiting_doctor', 'consulting',
     'waiting_lab', 'waiting_pharmacy', 'waiting_billing', 'completed', 'rejected',
-    name='queuestatus', create_type=True
+    name='queuestatus', create_type=False
 )
-bed_status_enum = postgresql.ENUM('AVAILABLE', 'OCCUPIED', 'CLEANING', 'MAINTENANCE', name='bedstatus', create_type=True)
+bed_status_enum = postgresql.ENUM('AVAILABLE', 'OCCUPIED', 'CLEANING', 'MAINTENANCE', name='bedstatus', create_type=False)
 
 
 def upgrade() -> None:
@@ -36,9 +36,9 @@ def upgrade() -> None:
     )
 
     # Create enums
-    queue_priority_enum.create(op.get_bind(), checkfirst=True)
-    queue_status_enum.create(op.get_bind(), checkfirst=True)
-    bed_status_enum.create(op.get_bind(), checkfirst=True)
+    op.execute("DO $$ BEGIN CREATE TYPE queuepriority AS ENUM ('NORMAL', 'VIP', 'EMERGENCY'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+    op.execute("DO $$ BEGIN CREATE TYPE queuestatus AS ENUM ('waiting_reception', 'waiting_triage', 'waiting_doctor', 'consulting', 'waiting_lab', 'waiting_pharmacy', 'waiting_billing', 'completed', 'rejected'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+    op.execute("DO $$ BEGIN CREATE TYPE bedstatus AS ENUM ('AVAILABLE', 'OCCUPIED', 'CLEANING', 'MAINTENANCE'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
 
     # 2. Create hospital_chains table
     op.create_table(
