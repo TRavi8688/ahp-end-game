@@ -30,27 +30,7 @@ depends_on    = None
 
 def upgrade() -> None:
 
-    # ─── 1. Add missing roles to rolesenum ───────────────────────────────────
-    # PostgreSQL requires committing before ALTER TYPE, so we use raw SQL
-    op.execute("ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS 'nurse'")
-    op.execute("ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS 'pharmacist'")
-    op.execute("ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS 'super_admin'")
-    op.execute("ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS 'owner'")
-    op.execute("ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS 'receptionist'")
-    op.execute("ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS 'lab'")
-    op.execute("ALTER TYPE rolesenum ADD VALUE IF NOT EXISTS 'hr'")
-
-    # ─── 2. Add missing columns to users table ────────────────────────────────
-    op.add_column("users", sa.Column(
-        "full_name",   sa.String(255), nullable=True
-    ))
-    op.add_column("users", sa.Column(
-        "hospital_id", postgresql.UUID(as_uuid=True), nullable=True
-    ))
-    op.create_index("ix_users_hospital_id", "users", ["hospital_id"])
-
-    # token_version default 1 (not 0) — ensure existing rows are set
-    op.execute("UPDATE users SET token_version = 1 WHERE token_version IS NULL OR token_version = 0")
+    # (Removed invalid rolesenum and users alterations that belong in auth-service)
 
     # ─── 3. Add missing columns to hospitals table ────────────────────────────
     op.add_column("hospitals", sa.Column("city",                sa.String(100),  nullable=True))
