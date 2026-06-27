@@ -81,7 +81,7 @@ class Patient(Base):
 
     # Medical Info
     blood_group: Mapped[BloodGroup] = mapped_column(
-        SQLEnum(BloodGroup), default=BloodGroup.UNKNOWN, nullable=True
+        SQLEnum(BloodGroup, values_callable=lambda obj: [e.value for e in obj]), default=BloodGroup.UNKNOWN, nullable=True
     )
     known_allergies: Mapped[str] = mapped_column(EncryptedText, nullable=True)
     chronic_conditions: Mapped[str] = mapped_column(EncryptedText, nullable=True)
