@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "004_pharmacy"
-down_revision = "003_billing"   # UPDATE THIS
+down_revision = "003b_core_models"   # UPDATE THIS
 branch_labels = None
 depends_on = None
 
