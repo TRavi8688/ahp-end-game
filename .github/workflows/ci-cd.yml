@@ -204,7 +204,21 @@ jobs:
           gcloud run jobs execute hospyn-migrations \
             --region=$REGION \
             --wait \
-            --project=$PROJECT_ID
+            --project=$PROJECT_ID || {
+              echo "=== DATABASE MIGRATION JOB FAILED ==="
+              echo "Retrieving container crash logs directly from Google Cloud..."
+              
+              # Get name of latest execution
+              EXEC_NAME=$(gcloud run jobs executions list --job=hospyn-migrations --region=$REGION --project=$PROJECT_ID --limit=1 --format="value(name)")
+              
+              # Print description of execution
+              gcloud run jobs executions describe $EXEC_NAME --region=$REGION --project=$PROJECT_ID
+              
+              # Read error logs directly
+              gcloud logging read "resource.type=cloud_run_job AND resource.labels.job_name=hospyn-migrations AND severity>=ERROR" --limit=30 --project=$PROJECT_ID --format="value(textPayload)"
+              
+              exit 1
+            }
 
       - name: Deploy API to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
