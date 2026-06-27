@@ -136,7 +136,7 @@ export default function MarketingLanding({ setIsLoginModalOpen, setIsWizardOpen 
               <div
                 className="absolute inset-0 z-[1] pointer-events-none"
                 style={{
-                  background: 'linear-gradient(to right, rgba(248,246,255,0.97) 0%, rgba(245,242,255,0.93) 38%, rgba(240,235,255,0.55) 58%, transparent 75%)',
+                  background: 'linear-gradient(to right, rgba(248,246,255,1) 0%, rgba(248,246,255,1) 45%, rgba(248,246,255,0.85) 55%, rgba(248,246,255,0) 70%)',
                 }}
               />
 

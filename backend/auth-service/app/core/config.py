@@ -5,7 +5,9 @@ Phase 5 fix: startup refuses weak/default secrets; validates DB is PostgreSQL.
 import os
 import sys
 from functools import lru_cache
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Optional
 
 
 class Settings(BaseSettings):
@@ -19,6 +21,35 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ALLOWED_ORIGINS: str = ""
     SENTRY_DSN: str = ""
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def assemble_db_url(cls, v: Optional[str]) -> str:
+        if not v:
+            return v
+        if v.startswith("postgres://"):
+            v = v.replace("postgres://", "postgresql://", 1)
+        if v.startswith("postgresql://") and "+asyncpg" not in v:
+            v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        
+        # Sanitize query parameters for asyncpg
+        try:
+            from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
+            parsed = urlparse(v)
+            q_params = dict(parse_qsl(parsed.query))
+            q_params.pop("channel_binding", None)
+            if "sslmode" in q_params:
+                val = q_params.pop("sslmode")
+                if val == "disable":
+                    q_params["ssl"] = "false"
+                else:
+                    q_params["ssl"] = "true"
+            new_query = urlencode(q_params)
+            parsed = parsed._replace(query=new_query)
+            v = urlunparse(parsed)
+        except Exception:
+            pass
+        return v
 
     # RS256 JWT — private key PEM loaded from Secret Manager at runtime
     # Set JWT_PRIVATE_KEY_PEM and JWT_PUBLIC_KEY_PEM as env vars from GCP Secret Manager

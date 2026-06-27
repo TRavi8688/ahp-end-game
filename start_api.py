@@ -264,7 +264,10 @@ async def route_all(request: Request, path: str):
         url = f"{HEALTHCARE_SERVICE_URL}/api/v1/healthcare/patients/{sub}"
 
     # Healthcare core routes
-    elif safe_path.startswith(("healthcare/", "doctors/", "hospitals/", "appointments/")):
+    elif safe_path.startswith("healthcare/"):
+        url = f"{HEALTHCARE_SERVICE_URL}/api/v1/{safe_path}"
+
+    elif safe_path.startswith(("doctors/", "hospitals/", "appointments/")):
         url = f"{HEALTHCARE_SERVICE_URL}/api/v1/healthcare/{safe_path}"
 
     # ── FIX 6: Admin / Super-admin routes ─────────────────────────────────────

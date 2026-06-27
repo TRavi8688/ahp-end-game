@@ -51,6 +51,35 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = None
     SMTP_FROM_EMAIL: Optional[str] = None
 
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def assemble_db_url(cls, v: Optional[str]) -> str:
+        if not v:
+            return v
+        if v.startswith("postgres://"):
+            v = v.replace("postgres://", "postgresql://", 1)
+        if v.startswith("postgresql://") and "+asyncpg" not in v:
+            v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        
+        # Sanitize query parameters for asyncpg
+        try:
+            from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
+            parsed = urlparse(v)
+            q_params = dict(parse_qsl(parsed.query))
+            q_params.pop("channel_binding", None)
+            if "sslmode" in q_params:
+                val = q_params.pop("sslmode")
+                if val == "disable":
+                    q_params["ssl"] = "false"
+                else:
+                    q_params["ssl"] = "true"
+            new_query = urlencode(q_params)
+            parsed = parsed._replace(query=new_query)
+            v = urlunparse(parsed)
+        except Exception:
+            pass
+        return v
+
     @field_validator("JWT_SECRET_KEY")
     @classmethod
     def validate_jwt_secret(cls, v: str) -> str:
