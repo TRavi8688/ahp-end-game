@@ -41,31 +41,34 @@ def upgrade() -> None:
     # We just need to ensure lab_technician is added to staffrole.
     op.execute("ALTER TYPE staffrole ADD VALUE IF NOT EXISTS 'lab_technician'")
 
-    op.create_table(
-        "staff",
-        sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True,
-                   server_default=sa.text("gen_random_uuid()")),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("hospital_id", postgresql.UUID(as_uuid=True),
-                   sa.ForeignKey("hospitals.id", ondelete="RESTRICT"), nullable=False),
-        sa.Column("first_name", sa.String(100), nullable=False),
-        sa.Column("last_name", sa.String(100), nullable=False),
-        sa.Column("phone", sa.String(30), nullable=True),
-        sa.Column("role", staffrole, nullable=False),
-        sa.Column("department", sa.String(100), nullable=True),
-        sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.text("true")),
-        sa.Column("shift_status", shiftstatus, nullable=False, server_default="off_duty"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
-    )
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    if not inspector.has_table("staff"):
+        op.create_table(
+            "staff",
+            sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True,
+                       server_default=sa.text("gen_random_uuid()")),
+            sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=False),
+            sa.Column("hospital_id", postgresql.UUID(as_uuid=True),
+                       sa.ForeignKey("hospitals.id", ondelete="RESTRICT"), nullable=False),
+            sa.Column("first_name", sa.String(100), nullable=False),
+            sa.Column("last_name", sa.String(100), nullable=False),
+            sa.Column("phone", sa.String(30), nullable=True),
+            sa.Column("role", staffrole, nullable=False),
+            sa.Column("department", sa.String(100), nullable=True),
+            sa.Column("is_active", sa.Boolean, nullable=False, server_default=sa.text("true")),
+            sa.Column("shift_status", shiftstatus, nullable=False, server_default="off_duty"),
+            sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+            sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+            sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
+        )
 
-    op.create_index("ix_staff_id", "staff", ["id"])
-    op.create_index("ix_staff_user_id", "staff", ["user_id"])
-    op.create_index("ix_staff_hospital_id", "staff", ["hospital_id"])
-    op.create_index("ix_staff_role", "staff", ["role"])
-    op.create_index("ix_staff_hospital_role", "staff", ["hospital_id", "role"])
-    op.create_index("ix_staff_user_hospital", "staff", ["user_id", "hospital_id"], unique=True)
+        op.create_index("ix_staff_id", "staff", ["id"])
+        op.create_index("ix_staff_user_id", "staff", ["user_id"])
+        op.create_index("ix_staff_hospital_id", "staff", ["hospital_id"])
+        op.create_index("ix_staff_role", "staff", ["role"])
+        op.create_index("ix_staff_hospital_role", "staff", ["hospital_id", "role"])
+        op.create_index("ix_staff_user_hospital", "staff", ["user_id", "hospital_id"], unique=True)
 
 
 def downgrade() -> None:
