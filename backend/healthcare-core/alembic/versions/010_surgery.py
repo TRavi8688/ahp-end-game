@@ -15,7 +15,15 @@ depends_on = None
 
 
 def upgrade():
-    op.execute("CREATE TYPE surgerystatus AS ENUM ('SCHEDULED','IN_PROGRESS','COMPLETED','CANCELLED','POSTPONED')")
+    op.execute("""
+        DO $$ 
+        BEGIN 
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'surgerystatus') THEN 
+                CREATE TYPE surgerystatus AS ENUM ('SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'POSTPONED'); 
+            END IF; 
+        END 
+        $$;
+    """)
     op.create_table(
         'surgeries',
         sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
@@ -29,7 +37,7 @@ def upgrade():
         sa.Column('started_at', sa.DateTime, nullable=True),
         sa.Column('completed_at', sa.DateTime, nullable=True),
         sa.Column('ot_room', sa.String(50), nullable=True),
-        sa.Column('status', sa.Enum('SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'POSTPONED', name='surgerystatus'), nullable=False, server_default='SCHEDULED'),
+        sa.Column('status', postgresql.ENUM('SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'POSTPONED', name='surgerystatus', create_type=False), nullable=False, server_default='SCHEDULED'),
         sa.Column('pre_op_notes', sa.Text, nullable=True),
         sa.Column('post_op_notes', sa.Text, nullable=True),
         sa.Column('consent_obtained', sa.Boolean, nullable=False, server_default='false'),
