@@ -33,7 +33,7 @@ async def get_hospital_modules(
     db: AsyncSession = Depends(get_db),
 ):
     from app.models.hospital import Hospital
-    result = await db.execute(select(Hospital).where(Hospital.owner_user_id == uuid.UUID(current_user.get("sub"))))
+    result = await db.execute(select(Hospital).where(Hospital.owner_user_id == uuid.UUID(current_user.sub)))
     hospital = result.scalar_one_or_none()
     if not hospital:
         raise HTTPException(status_code=404, detail="Hospital not found")
@@ -50,7 +50,7 @@ async def update_hospital_modules(
     db: AsyncSession = Depends(get_db),
 ):
     from app.models.hospital import Hospital
-    result = await db.execute(select(Hospital).where(Hospital.owner_user_id == uuid.UUID(current_user.get("sub"))))
+    result = await db.execute(select(Hospital).where(Hospital.owner_user_id == uuid.UUID(current_user.sub)))
     hospital = result.scalar_one_or_none()
     if not hospital:
         raise HTTPException(status_code=404, detail="Hospital not found")

@@ -182,11 +182,7 @@ async def generate_booking_consent(
 
     from shared.redis_client import set_patient_consent_token
 
-    success = await set_patient_consent_token(str(patient.id), consent_token)
-    if not success:
-        raise HTTPException(
-            status_code=500, detail="Consent token cache generation failed."
-        )
+    await set_patient_consent_token(str(patient.id), consent_token)
 
     log_audit_event(
         action="patient_consent_token_generated",
