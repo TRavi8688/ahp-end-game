@@ -232,7 +232,6 @@ jobs:
             --concurrency=100
             --cpu=1
             --memory=512Mi
-            --service-account=hospyn-api@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
 
       - name: Deploy Gateway to Cloud Run
         uses: google-github-actions/deploy-cloudrun@v2
