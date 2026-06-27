@@ -99,7 +99,7 @@ async def test_doctor_booking_consent_flow(client, db_session):
         "/api/v1/healthcare/appointments/", json=booking_data, headers=doctor_headers
     )
     assert response.status_code == 403
-    assert "consent token is required" in response.json()["message"]
+    assert "consent token is required" in response.json()["detail"].lower()
 
     # 4. Patient generates a consent token via the new endpoint
     consent_response = await client.post(
@@ -116,7 +116,7 @@ async def test_doctor_booking_consent_flow(client, db_session):
     )
     assert response.status_code == 403
     assert (
-        "Invalid or expired patient booking consent token" in response.json()["message"]
+        "invalid or expired patient booking consent token" in response.json()["detail"].lower()
     )
 
     # 6. Doctor tries to book WITH the VALID consent token -> MUST SUCCEED (201)

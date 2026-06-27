@@ -25,6 +25,9 @@ def upgrade() -> None:
     op.add_column('appointments', sa.Column('walkin_request_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('walkin_requests.id', ondelete='SET NULL'), nullable=True))
     op.create_index(op.f('ix_appointments_walkin_request_id'), 'appointments', ['walkin_request_id'], unique=False)
 
+    # 3. Alter existing columns
+    op.alter_column('appointments', 'patient_id', existing_type=postgresql.UUID(as_uuid=True), nullable=True)
+
 
 def downgrade() -> None:
     op.drop_index(op.f('ix_appointments_walkin_request_id'), table_name='appointments')

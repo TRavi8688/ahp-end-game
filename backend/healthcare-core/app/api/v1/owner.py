@@ -27,6 +27,37 @@ from shared.utils.responses import success_response
 router = APIRouter()
 
 
+@router.get("/modules")
+async def get_hospital_modules(
+    current_user: Annotated[TokenPayload, Depends(require_role("owner"))],
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.hospital import Hospital
+    result = await db.execute(select(Hospital).where(Hospital.owner_user_id == uuid.UUID(current_user.get("sub"))))
+    hospital = result.scalar_one_or_none()
+    if not hospital:
+        raise HTTPException(status_code=404, detail="Hospital not found")
+    return success_response(data={"enabled_modules": hospital.enabled_modules})
+
+from pydantic import BaseModel
+class ModulesUpdate(BaseModel):
+    enabled_modules: list[str]
+
+@router.put("/modules")
+async def update_hospital_modules(
+    payload: ModulesUpdate,
+    current_user: Annotated[TokenPayload, Depends(require_role("owner"))],
+    db: AsyncSession = Depends(get_db),
+):
+    from app.models.hospital import Hospital
+    result = await db.execute(select(Hospital).where(Hospital.owner_user_id == uuid.UUID(current_user.get("sub"))))
+    hospital = result.scalar_one_or_none()
+    if not hospital:
+        raise HTTPException(status_code=404, detail="Hospital not found")
+    hospital.enabled_modules = payload.enabled_modules
+    await db.commit()
+    return success_response(data={"enabled_modules": hospital.enabled_modules})
+
 @router.get("/dashboard")
 async def get_owner_dashboard(
     current_user: Annotated[
