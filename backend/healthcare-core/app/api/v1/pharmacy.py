@@ -62,25 +62,36 @@ async def _resolve_pharmacy_hospital_id(
     is normally a single, cheap path. Falls back to the staff-table lookup used
     elsewhere in this codebase (see owner.py) for accounts where it's missing.
     """
+    hospital_id = None
     if current_user.hospital_id:
         try:
-            return uuid.UUID(current_user.hospital_id)
+            hospital_id = uuid.UUID(current_user.hospital_id)
         except ValueError:
             pass
 
-    from sqlalchemy import text
-    result = await db.execute(
-        text("SELECT hospital_id FROM staff WHERE user_id = :uid AND deleted_at IS NULL LIMIT 1"),
-        {"uid": current_user.sub},
-    )
-    row = result.fetchone()
-    if row and row.hospital_id:
-        return row.hospital_id
+    if not hospital_id:
+        from sqlalchemy import text
+        result = await db.execute(
+            text("SELECT hospital_id FROM staff WHERE user_id = :uid AND deleted_at IS NULL LIMIT 1"),
+            {"uid": current_user.sub},
+        )
+        row = result.fetchone()
+        if row and row.hospital_id:
+            hospital_id = row.hospital_id
 
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="No pharmacy/hospital is linked to this account.",
-    )
+    if not hospital_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="No pharmacy/hospital is linked to this account.",
+        )
+
+    from sqlalchemy import select
+    from app.models.hospital import Hospital
+    hospital = await db.scalar(select(Hospital).where(Hospital.id == hospital_id))
+    if hospital and "pharmacy" not in hospital.enabled_modules:
+        raise HTTPException(status_code=403, detail="Pharmacy module is not enabled")
+    
+    return hospital_id
 
 
 def _inventory_to_dict(inv: PharmacyInventory) -> dict:

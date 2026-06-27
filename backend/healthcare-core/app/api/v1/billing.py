@@ -818,7 +818,7 @@ async def list_hospital_invoices(
     """
     # Get hospital_id from the staff profile of the current user
     try:
-        from sqlalchemy import text
+        from sqlalchemy import text, select
         staff_result = await db.execute(
             text("SELECT hospital_id FROM staff WHERE user_id = :uid AND deleted_at IS NULL LIMIT 1"),
             {"uid": current_user.sub},
@@ -827,6 +827,12 @@ async def list_hospital_invoices(
         hospital_id = str(staff_row.hospital_id) if staff_row else None
     except Exception:
         hospital_id = None
+        
+    if hospital_id:
+        from app.models.hospital import Hospital
+        hospital = await db.scalar(select(Hospital).where(Hospital.id == uuid.UUID(hospital_id)))
+        if hospital and "billing" not in hospital.enabled_modules:
+            raise HTTPException(status_code=403, detail="Billing module is not enabled")
 
     if not hospital_id:
         raise HTTPException(status_code=403, detail="Not linked to a hospital")
