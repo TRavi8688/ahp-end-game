@@ -26,6 +26,7 @@ Down revision: 003_hospyn_employees_ticket_hierarchy
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects import postgresql
 
 revision      = "009_hospin_matrix_3"
 down_revision = "008_enterprise_ticket_system"
