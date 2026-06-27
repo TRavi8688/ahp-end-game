@@ -11,20 +11,6 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 
-// Mock the auth store so tests don't touch localStorage
-vi.mock("../store/useAuthStore", () => ({
-  default: vi.fn(() => ({
-    login: vi.fn(),
-    isAuthenticated: false,
-    token: null,
-    user: null,
-  })),
-  useAuthStore: vi.fn(() => ({
-    login: vi.fn(),
-    isAuthenticated: false,
-  })),
-}));
-
 // Mock the API calls
 global.fetch = vi.fn();
 

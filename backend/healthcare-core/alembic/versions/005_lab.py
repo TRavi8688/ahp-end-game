@@ -17,11 +17,11 @@ depends_on = None
 def upgrade() -> None:
     laborderstatus = postgresql.ENUM(
         "ORDERED", "SAMPLE_COLLECTED", "IN_PROGRESS", "COMPLETED", "CANCELLED",
-        name="laborderstatus", create_type=False
+        name="laborderstatus",
     )
     labresultstatus = postgresql.ENUM(
         "PENDING", "NORMAL", "ABNORMAL", "CRITICAL",
-        name="labresultstatus", create_type=False
+        name="labresultstatus",
     )
     laborderstatus.create(op.get_bind(), checkfirst=True)
     labresultstatus.create(op.get_bind(), checkfirst=True)
@@ -69,7 +69,8 @@ def upgrade() -> None:
         sa.Column("result_value", sa.String(500), nullable=True),
         sa.Column("result_status", labresultstatus, nullable=False, server_default="PENDING"),
         sa.Column("resulted_at", sa.DateTime, nullable=True),
-        sa.Column("resulted_by", postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column("resulted_by", postgresql.UUID(as_uuid=True),
+                  sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
     )
     op.create_index("ix_lab_order_items_order_id", "lab_order_items", ["order_id"])
     op.create_index("ix_lab_order_items_test_id", "lab_order_items", ["test_id"])

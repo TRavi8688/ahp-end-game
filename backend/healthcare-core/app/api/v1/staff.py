@@ -121,7 +121,7 @@ def _generate_temp_password(length: int = 12) -> str:
 async def list_staff(
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager", "owner")),
+        Depends(require_role("hospital_admin", "admin", "hr_manager", "owner")),
     ],
     department: Optional[str] = Query(None),
     role: Optional[str] = Query(None),
@@ -216,7 +216,7 @@ async def list_staff(
 async def get_shift_roster(
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager", "owner")),
+        Depends(require_role("hospital_admin", "admin", "hr_manager", "owner")),
     ],
     week_start: Optional[str] = Query(None, description="ISO date for week start, e.g. 2026-06-02"),
     department: Optional[str] = Query(None),
@@ -304,7 +304,7 @@ async def assign_shift(
     payload: ShiftAssignPayload,
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager", "owner")),
+        Depends(require_role("hospital_admin", "admin", "hr_manager", "owner")),
     ],
     db: AsyncSession = Depends(get_db),
 ):
@@ -360,7 +360,7 @@ async def assign_shift(
 async def list_leave_requests(
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager", "owner")),
+        Depends(require_role("hospital_admin", "admin", "hr_manager", "owner")),
     ],
     status: Optional[str] = Query(None, description="PENDING | APPROVED | REJECTED"),
     db: AsyncSession = Depends(get_db),
@@ -430,7 +430,7 @@ async def approve_leave(
     payload: LeaveReviewPayload,
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager", "owner")),
+        Depends(require_role("hospital_admin", "admin", "hr_manager", "owner")),
     ],
     db: AsyncSession = Depends(get_db),
 ):
@@ -470,7 +470,7 @@ async def reject_leave(
     payload: LeaveReviewPayload,
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager", "owner")),
+        Depends(require_role("hospital_admin", "admin", "hr_manager", "owner")),
     ],
     db: AsyncSession = Depends(get_db),
 ):
@@ -509,7 +509,7 @@ async def invite_staff_member(
     payload: StaffInvitePayload,
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_admin", "hospital_owner", "admin", "hr_manager", "owner")),
+        Depends(require_role("hospital_admin", "admin", "hr_manager", "owner")),
     ],
     db: AsyncSession = Depends(get_db),
 ):

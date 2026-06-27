@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, UserCheck, RefreshCw, AlertCircle, Search, ArrowRight, CheckCircle } from 'lucide-react';
 import apiClient from '../../apiClient';
-import { useAuth } from '../../context/AuthContext';
 
 interface Appointment {
   id: string;
@@ -22,7 +21,6 @@ interface Appointment {
  * 2. useEffect dependency was [user] — changed to [] so it doesn't re-fetch on every auth re-render.
  */
 export default function TodaysAppointmentsPage() {
-  const { user } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState<string | null>(null);

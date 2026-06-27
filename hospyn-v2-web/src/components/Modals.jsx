@@ -1,5 +1,5 @@
 /**
- * hospyn-v2-web/src/components/Modals.jsx
+ * hospain-v2-web/src/components/Modals.jsx
  *
  * FIXES:
  *  1. LedgerLoginModal — removed hardcoded mock bypass (owner@apollo.com / mock_token_123)
@@ -26,7 +26,7 @@ export const CredentialsEmailModal = ({ isOpen, onClose, staffRecord }) => {
         <div className="p-6 bg-slate-900 text-white flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Mail className="text-emerald-400" size={20} />
-            <span className="text-xs font-bold uppercase tracking-wider">Hospin Onboarding Mail Dispatcher</span>
+            <span className="text-xs font-bold uppercase tracking-wider">Hospain Onboarding Mail Dispatcher</span>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
             <X size={20} />
@@ -37,7 +37,7 @@ export const CredentialsEmailModal = ({ isOpen, onClose, staffRecord }) => {
           <p><strong>Subject:</strong> [ACTION REQUIRED] Secure Clinical Credentials Provisioned for {staffRecord.hospitalName}</p>
           <hr className="border-slate-200" />
           <p>Dear {staffRecord.name},</p>
-          <p>Your access credentials for <strong>{staffRecord.hospitalName}</strong> have been provisioned on the Hospin clinical grid:</p>
+          <p>Your access credentials for <strong>{staffRecord.hospitalName}</strong> have been provisioned on the Hospain clinical grid:</p>
           <div className="p-4 bg-white border border-slate-200 rounded-xl space-y-2">
             <p>🔑 <strong>Unique Staff ID:</strong> <span className="text-blue-600 font-bold">{staffRecord.staff_id}</span></p>
             <p>🔒 <strong>Temporary Password:</strong> <span className="text-blue-600 font-bold">{staffRecord.temporary_password}</span></p>
@@ -50,7 +50,7 @@ export const CredentialsEmailModal = ({ isOpen, onClose, staffRecord }) => {
           </p>
           <p>You will be prompted to set a permanent password on first sign-in.</p>
           <hr className="border-slate-200" />
-          <p className="text-slate-400">Securely Synchronized via Hospin Ledger. System ID: {staffRecord.staff_id}</p>
+          <p className="text-slate-400">Securely Synchronized via Hospain Ledger. System ID: {staffRecord.staff_id}</p>
         </div>
         <div className="p-6 bg-white flex justify-end">
           <button
@@ -90,7 +90,7 @@ export const LedgerLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
   // Pre-fill email from last session if available
   useEffect(() => {
     if (isOpen) {
-      const saved = localStorage.getItem('hospyn_owner_email');
+      const saved = localStorage.getItem('hospain_owner_email');
       if (saved) setEmail(saved);
     }
   }, [isOpen]);
@@ -225,7 +225,7 @@ export const LedgerLoginModal = ({ isOpen, onClose, onLoginSuccess }) => {
         </form>
 
         <p className="text-center text-[9px] text-slate-400 font-bold uppercase tracking-widest pb-6">
-          Secured by Hospin Healthcare Platform
+          Secured by Hospain Healthcare Platform
         </p>
       </motion.div>
     </div>

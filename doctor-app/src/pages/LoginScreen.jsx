@@ -51,8 +51,12 @@ function ForgotPasswordScreen({ onBack }) {
     const handleVerify = async () => {
         setIsLoading(true); setErrorMsg('');
         try {
-            const data = await authService.verifyPasswordResetOTP(identifier, otp);
-            setResetToken(data.reset_token);
+            const result = await authService.verifyPasswordResetOTP(identifier, otp);
+            // Backend wraps payloads as { success, message, data: {...} } via
+            // success_response() — the reset_token lives at result.data.reset_token,
+            // not result.reset_token directly.
+            const token = result?.data?.reset_token || result?.reset_token;
+            setResetToken(token);
             setStep('reset');
         } catch (err) { setErrorMsg(err.message || 'Invalid or expired code.'); }
         finally { setIsLoading(false); }
@@ -179,12 +183,15 @@ export default function LoginScreen() {
                 throw new Error(e.message || 'Invalid session credentials.');
             }
 
-            localStorage.setItem('isAuthenticated', 'true');
             sessionStorage.setItem('hospain_access_token', data.access_token);
 
-            // Start doctor session — FIX: API_BASE_URL is now properly imported
+            // Start doctor session — FIXED: was POST /doctor/session/start,
+            // which doesn't exist on the backend at all. The real endpoint
+            // (workflow.py's queue_router) is /queue/session/start, mounted
+            // under the /healthcare prefix like everything else in
+            // healthcare-core.
             try {
-                await fetch(`${API_BASE_URL}/doctor/session/start`, {
+                await fetch(`${API_BASE_URL}/healthcare/queue/session/start`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${data.access_token}` }
                 });

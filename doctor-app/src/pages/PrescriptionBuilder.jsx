@@ -5,7 +5,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import MedicationIcon from '@mui/icons-material/Medication';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { API_BASE_URL } from '../api';
+import apiClient from '../services/apiClient';
 import { clinicalService } from '../services/clinicalService';
 
 export default function PrescriptionBuilder() {
@@ -21,8 +21,6 @@ export default function PrescriptionBuilder() {
     const [medications, setMedications] = useState([
         { medication_name: '', dosage: '', frequency: '1-0-1', duration: '5 days', route: 'Oral', instructions: '' }
     ]);
-    const [diagnosis, setDiagnosis] = useState('');
-    const [followUpDate, setFollowUpDate] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [toast, setToast] = useState({ open: false, message: '', type: 'success' });
     
@@ -36,8 +34,10 @@ export default function PrescriptionBuilder() {
             if (searchTerm.length >= 2) {
                 setSearchLoading(true);
                 try {
-                    const res = await fetch(`${API_BASE_URL}/medicines/search?q=${searchTerm}`);
-                    const data = await res.json();
+                    // FIXED: was a raw fetch(`${API_BASE_URL}/medicines/search...`)
+                    // with no /healthcare prefix — always 404'd, silently
+                    // leaving the medication autocomplete permanently empty.
+                    const data = await apiClient.get('/medicines/search', { params: { q: searchTerm } });
                     setOptions(data.results || []);
                 } catch (err) {
                     console.error("Search error", err);
@@ -52,19 +52,29 @@ export default function PrescriptionBuilder() {
     }, [searchTerm]);
 
     useEffect(() => {
-        // Fetch patient details if not passed in state and if patientId exists
+        // Fetch patient details if not passed in state and if patientId exists.
+        // This is a fallback for direct navigation/refresh — both
+        // PatientDetailView.jsx and PatientList.jsx normally pass `patient`
+        // via route state already.
+        //
+        // FIXED: was always calling GET /doctor/patient/{patientId}, which
+        // requires a walkin_id — but patientId here can also be a
+        // Patient.id (when this page was reached from PatientList.jsx,
+        // where there's no active walk-in). Try the by-Patient.id lookup
+        // first since it works for both checked-in and historical
+        // patients, falling back to the walk-in-based one.
         if (!patient && isPatientIdValid) {
             const fetchPatient = async () => {
                 try {
-                    const response = await fetch(`${API_BASE_URL}/doctor/patient/${patientId}`, {
-                        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('hospain_access_token')}` }
-                    });
-                    if (response.ok) {
-                        const data = await response.json();
-                        setPatient(data.profile); // Assuming data.profile has what we need
-                    }
+                    const data = await clinicalService.getPatientDetails(patientId);
+                    setPatient(data?.data?.profile || data?.profile);
                 } catch (error) {
-                    console.error("Error fetching patient", error);
+                    try {
+                        const fallback = await apiClient.get(`/doctor/patient/${patientId}`);
+                        setPatient(fallback?.profile);
+                    } catch (innerError) {
+                        console.error("Error fetching patient", innerError);
+                    }
                 }
             };
             fetchPatient();
@@ -96,26 +106,32 @@ export default function PrescriptionBuilder() {
         // Filter out empty medications
         const validMedications = medications.filter(m => m.medication_name.trim() !== '');
         
-        if (validMedications.length === 0 && !diagnosis.trim()) {
-            setToast({ open: true, message: 'Please add at least one medication or diagnosis.', type: 'error' });
+        // FIXED: backend rejects a prescription with zero items regardless
+        // of whether diagnosis text was entered (PrescriptionCreate.items
+        // is required and non-empty) — the old check let a diagnosis-only
+        // submission through the frontend, where it would then 400 from
+        // the backend with a confusing error.
+        if (validMedications.length === 0) {
+            setToast({ open: true, message: 'Please add at least one medication.', type: 'error' });
             return;
         }
 
         setIsSubmitting(true);
         try {
-            const payload = {
-                diagnosis: diagnosis || 'Clinical Consultation',
-                clinical_notes: `Follow up: ${followUpDate || 'As needed'}`,
-                prescription_items: validMedications.map(m => ({
+            // NOTE: diagnosis/follow-up date are not sent — the backend's
+            // Prescription model has no columns to store them yet (see
+            // clinicalService.createPrescription for details). Sending
+            // them would silently do nothing, so we don't pretend they're
+            // saved.
+            await clinicalService.createPrescription(patientId, {
+                items: validMedications.map(m => ({
                     drug_name: m.medication_name,
                     dosage: m.dosage,
                     frequency: m.frequency,
                     duration: m.duration,
                     instructions: m.instructions
                 }))
-            };
-
-            await clinicalService.createPrescription(patientId, payload);
+            });
             setToast({ open: true, message: 'Prescription drafted securely!', type: 'success' });
             setTimeout(() => {
                 navigate('/');
@@ -155,33 +171,6 @@ export default function PrescriptionBuilder() {
                 </Box>
                 
                 <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.1)' }} />
-
-                <Grid container spacing={3} sx={{ mb: 4 }}>
-                    <Grid item xs={12} md={8}>
-                        <TextField
-                            fullWidth
-                            label="Clinical Diagnosis"
-                            placeholder="e.g. Acute Bronchitis"
-                            value={diagnosis}
-                            onChange={(e) => setDiagnosis(e.target.value)}
-                            InputLabelProps={{ style: { color: '#64748b' } }}
-                            inputProps={{ style: { color: 'white' } }}
-                            sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '12px', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } } }}
-                        />
-                    </Grid>
-                    <Grid item xs={12} md={4}>
-                        <TextField
-                            fullWidth
-                            type="date"
-                            label="Follow-up Date"
-                            value={followUpDate}
-                            onChange={(e) => setFollowUpDate(e.target.value)}
-                            InputLabelProps={{ shrink: true, style: { color: '#64748b' } }}
-                            inputProps={{ style: { color: 'white' } }}
-                            sx={{ '& .MuiOutlinedInput-root': { bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '12px', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } } }}
-                        />
-                    </Grid>
-                </Grid>
 
                 <Typography variant="h6" sx={{ fontWeight: 800, color: '#fff', mb: 2, fontFamily: 'Outfit' }}>Medications</Typography>
                 

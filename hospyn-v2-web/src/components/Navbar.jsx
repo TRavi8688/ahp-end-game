@@ -29,9 +29,9 @@ const Navbar = ({ onOpenWizard }) => {
           
           <Link to="/" className="flex items-center gap-3 group">
             <div className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center group-hover:scale-105 transition-transform duration-500 bg-slate-50 border border-slate-100">
-               <img src={logoImg} alt="Hospyn Original Logo" className="w-8 h-8 object-contain" />
+               <img src={logoImg} alt="Hospain Original Logo" className="w-8 h-8 object-contain" />
             </div>
-            <span className="text-2xl font-black outfit tracking-tighter text-slate-900">HOSPYN<span className="text-primary">.</span></span>
+            <span className="text-2xl font-black outfit tracking-tighter text-slate-900">HOSPAIN<span className="text-primary">.</span></span>
           </Link>
 
           {/* Desktop Links */}

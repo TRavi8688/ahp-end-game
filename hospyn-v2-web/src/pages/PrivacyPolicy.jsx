@@ -44,7 +44,7 @@ export default function PrivacyPolicy() {
           href="/"
           className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-primary transition-colors"
         >
-          <ChevronRight size={12} className="rotate-180" /> Back to Hospin
+          <ChevronRight size={12} className="rotate-180" /> Back to Hospain
         </a>
       </div>
 
@@ -63,7 +63,7 @@ export default function PrivacyPolicy() {
             Privacy Policy
           </h1>
           <p className="text-slate-400 text-base max-w-2xl mx-auto leading-relaxed">
-            Hospyn Technologies Pvt Ltd is committed to protecting the privacy and security of your personal and health data. This policy explains what we collect, why, and how we safeguard it under the <strong className="text-slate-300">Digital Personal Data Protection Act, 2023</strong>.
+            Hospain Technologies Pvt Ltd is committed to protecting the privacy and security of your personal and health data. This policy explains what we collect, why, and how we safeguard it under the <strong className="text-slate-300">Digital Personal Data Protection Act, 2023</strong>.
           </p>
           <div className="flex items-center justify-center gap-2 mt-6 text-[11px] text-slate-600">
             <Clock size={12} />
@@ -73,7 +73,7 @@ export default function PrivacyPolicy() {
 
         {/* Sections */}
         <Section icon={Database} title="1. Data We Collect" delay={0.05}>
-          <p>We collect the following categories of personal and health data when you use Hospin:</p>
+          <p>We collect the following categories of personal and health data when you use Hospain:</p>
           <div className="mt-4 rounded-xl border border-white/5 overflow-hidden bg-white/2">
             <div className="grid grid-cols-2 gap-4 px-4 py-2 bg-white/5 text-[10px] font-black uppercase tracking-widest text-slate-500">
               <span>Data Category</span>
@@ -149,7 +149,7 @@ export default function PrivacyPolicy() {
             ))}
           </ul>
           <p className="mt-4 text-xs">
-            To exercise any of the above rights, email us at <a href="mailto:privacy@hospyn.in" className="text-primary hover:underline">privacy@hospyn.in</a>.
+            To exercise any of the above rights, email us at <a href="mailto:privacy@hospain.in" className="text-primary hover:underline">privacy@hospain.in</a>.
           </p>
         </Section>
 
@@ -205,21 +205,21 @@ export default function PrivacyPolicy() {
           <div className="grid md:grid-cols-2 gap-6 pl-14">
             <div className="rounded-xl bg-white/3 border border-white/5 p-5">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">Data Fiduciary</p>
-              <p className="text-white font-bold">Hospyn Technologies Pvt Ltd</p>
+              <p className="text-white font-bold">Hospain Technologies Pvt Ltd</p>
               <p className="text-slate-400 text-sm mt-1">Hyderabad, Telangana, India</p>
               <div className="mt-3 space-y-1">
-                <a href="mailto:privacy@hospyn.in" className="flex items-center gap-2 text-sm text-primary hover:underline">
-                  <Mail size={13} /> privacy@hospyn.in
+                <a href="mailto:privacy@hospain.in" className="flex items-center gap-2 text-sm text-primary hover:underline">
+                  <Mail size={13} /> privacy@hospain.in
                 </a>
               </div>
             </div>
             <div className="rounded-xl bg-white/3 border border-white/5 p-5">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-3">Grievance Officer</p>
               <p className="text-white font-bold">Chief Privacy Officer</p>
-              <p className="text-slate-400 text-sm mt-1">Hospyn Technologies Pvt Ltd<br />Hyderabad, Telangana — 500001</p>
+              <p className="text-slate-400 text-sm mt-1">Hospain Technologies Pvt Ltd<br />Hyderabad, Telangana — 500001</p>
               <div className="mt-3 space-y-1">
-                <a href="mailto:grievance@hospyn.in" className="flex items-center gap-2 text-sm text-primary hover:underline">
-                  <Mail size={13} /> grievance@hospyn.in
+                <a href="mailto:grievance@hospain.in" className="flex items-center gap-2 text-sm text-primary hover:underline">
+                  <Mail size={13} /> grievance@hospain.in
                 </a>
                 <a href="tel:+914040001234" className="flex items-center gap-2 text-sm text-slate-400 hover:text-primary transition-colors">
                   <Phone size={13} /> +91 40 4000 1234
@@ -232,10 +232,10 @@ export default function PrivacyPolicy() {
 
         <Section icon={Shield} title="8. Changes to This Policy" delay={0.4}>
           <p>
-            We may update this Privacy Policy periodically to reflect changes in law or our practices. Material changes will be communicated via in-app notification at least 15 days before they take effect. Continued use of Hospin after the effective date constitutes acceptance of the revised policy.
+            We may update this Privacy Policy periodically to reflect changes in law or our practices. Material changes will be communicated via in-app notification at least 15 days before they take effect. Continued use of Hospain after the effective date constitutes acceptance of the revised policy.
           </p>
           <p className="mt-3">
-            For questions not covered here, contact us at <a href="mailto:privacy@hospyn.in" className="text-primary hover:underline">privacy@hospyn.in</a>.
+            For questions not covered here, contact us at <a href="mailto:privacy@hospain.in" className="text-primary hover:underline">privacy@hospain.in</a>.
           </p>
         </Section>
       </div>

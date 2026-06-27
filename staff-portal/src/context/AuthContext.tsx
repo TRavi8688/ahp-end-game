@@ -83,8 +83,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (identifier: string, password: string) => {
     setIsLoading(true);
     try {
-      // Determine if identifier is email or phone
-      const isEmail = identifier.includes('@');
+      // Determine if identifier is email or phone.
+      // FIXED (isEmail detection fragile): a bare `.includes('@')` check
+      // would misclassify any phone number that happens to contain an
+      // `@` character. A proper email-shape regex is used instead.
+      const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const isEmail = EMAIL_RE.test(identifier.trim());
       const body = isEmail
         ? { email: identifier, password }
         : { phone: identifier, password };

@@ -39,25 +39,10 @@ INCIDENT_STATUSES   = ("active", "mitigated", "resolved", "postmortem")
 
 def upgrade() -> None:
 
-    # Create ENUMs explicitly (create_type=False is set on inline sa.Enum)
-    op.execute("""
-        DO $$ BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'shift_status_enum') THEN
-                CREATE TYPE shift_status_enum AS ENUM ('online', 'offline', 'break', 'meeting', 'training', 'leave');
-            END IF;
-            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'incident_severity') THEN
-                CREATE TYPE incident_severity AS ENUM ('P1', 'P2', 'P3', 'P4');
-            END IF;
-            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'incident_status') THEN
-                CREATE TYPE incident_status AS ENUM ('active', 'mitigated', 'resolved', 'postmortem');
-            END IF;
-        END $$;
-    """)
-
     # ── 1. Extend hospyn_employees ────────────────────────────────────────────
     op.add_column("hospyn_employees", sa.Column(
         "shift_status",
-        sa.Enum(*SHIFT_STATUSES, name="shift_status_enum", create_type=False),
+        sa.Enum(*SHIFT_STATUSES, name="shift_status_enum"),
         nullable=False,
         server_default="offline",
     ))
@@ -88,29 +73,25 @@ def upgrade() -> None:
         "first_response_at", sa.DateTime(timezone=True), nullable=True
     ))
 
-    # ── 3. Extend hospitals (guard against duplicates) ──────────────────────
-    op.execute("""
-        DO $$ BEGIN
-            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hospitals' AND column_name = 'verified_at') THEN
-                ALTER TABLE hospitals ADD COLUMN verified_at TIMESTAMPTZ;
-            END IF;
-            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hospitals' AND column_name = 'verified_by') THEN
-                ALTER TABLE hospitals ADD COLUMN verified_by VARCHAR(50);
-            END IF;
-            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hospitals' AND column_name = 'monthly_revenue') THEN
-                ALTER TABLE hospitals ADD COLUMN monthly_revenue BIGINT NOT NULL DEFAULT 0;
-            END IF;
-            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hospitals' AND column_name = 'branch_count') THEN
-                ALTER TABLE hospitals ADD COLUMN branch_count INTEGER NOT NULL DEFAULT 1;
-            END IF;
-            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hospitals' AND column_name = 'bed_count') THEN
-                ALTER TABLE hospitals ADD COLUMN bed_count INTEGER;
-            END IF;
-            IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'hospitals' AND column_name = 'complaint_count_7d') THEN
-                ALTER TABLE hospitals ADD COLUMN complaint_count_7d INTEGER NOT NULL DEFAULT 0;
-            END IF;
-        END $$;
-    """)
+    # ── 3. Extend hospitals ───────────────────────────────────────────────────
+    op.add_column("hospitals", sa.Column(
+        "verified_at", sa.DateTime(timezone=True), nullable=True
+    ))
+    op.add_column("hospitals", sa.Column(
+        "verified_by", sa.String(50), nullable=True  # employee_id of verifier
+    ))
+    op.add_column("hospitals", sa.Column(
+        "monthly_revenue", sa.BigInteger(), nullable=False, server_default="0"
+    ))
+    op.add_column("hospitals", sa.Column(
+        "branch_count", sa.Integer(), nullable=False, server_default="1"
+    ))
+    op.add_column("hospitals", sa.Column(
+        "bed_count", sa.Integer(), nullable=True
+    ))
+    op.add_column("hospitals", sa.Column(
+        "complaint_count_7d", sa.Integer(), nullable=False, server_default="0"
+    ))
 
     # ── 4. matrix_incidents ───────────────────────────────────────────────────
     op.create_table(
@@ -119,9 +100,9 @@ def upgrade() -> None:
                   server_default=sa.text("gen_random_uuid()")),
         sa.Column("incident_id",  sa.String(20),  unique=True, nullable=False),
         sa.Column("title",        sa.String(300), nullable=False),
-        sa.Column("severity",     sa.Enum(*INCIDENT_SEVERITIES, name="incident_severity", create_type=False),
+        sa.Column("severity",     sa.Enum(*INCIDENT_SEVERITIES, name="incident_severity"),
                   nullable=False, server_default="P3"),
-        sa.Column("status",       sa.Enum(*INCIDENT_STATUSES, name="incident_status", create_type=False),
+        sa.Column("status",       sa.Enum(*INCIDENT_STATUSES, name="incident_status"),
                   nullable=False, server_default="active"),
         sa.Column("owner_employee_id", sa.String(30), nullable=True),
         sa.Column("team",         sa.String(50),  nullable=True),

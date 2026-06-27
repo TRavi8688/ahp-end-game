@@ -50,20 +50,40 @@ const Layout: React.FC<LayoutProps> = ({ children, role }) => {
     }
   }, [lastMessage, setQueue, addAlert, setSystemStatus]);
 
+  // FIXED: `path: \`/${role}\`` only worked for roles whose route segment
+  // matches the role string exactly (admin, doctor, nurse, owner). For
+  // 'receptionist' it produced '/receptionist' (route is '/reception'),
+  // and 'pharmacist'/'hospital_admin'/'super_admin'/'staff'/'hr' had no
+  // matching route at all. Also, the roles[] arrays below used 'pharmacy'
+  // instead of the real JWT role 'pharmacist', and never included
+  // 'hospital_admin' / 'super_admin' / 'staff', so those users never saw
+  // a "Dashboard" link (or several other relevant nav items) at all.
+  const dashboardPathByRole: Record<string, string> = {
+    admin: '/admin', hospital_admin: '/admin', super_admin: '/admin',
+    doctor: '/doctor',
+    nurse: '/nurse', staff: '/nurse',
+    owner: '/owner',
+    pharmacist: '/pharmacy',
+    lab: '/lab',
+    receptionist: '/reception',
+    hr: '/hr',
+  };
+  const dashboardPath = dashboardPathByRole[userRole] || `/${userRole}`;
+
   const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard',        path: `/${role}`,                    roles: ['admin', 'doctor', 'nurse', 'owner', 'pharmacy', 'lab', 'receptionist'] },
+    { icon: LayoutDashboard, label: 'Dashboard',        path: dashboardPath,                  roles: ['admin', 'hospital_admin', 'super_admin', 'doctor', 'nurse', 'staff', 'owner', 'pharmacist', 'lab', 'receptionist', 'hr'] },
     // Reception
-    { icon: UserCheck,       label: 'Check-In',         path: '/reception/checkin',           roles: ['receptionist', 'admin'] },
-    { icon: UserPlus,        label: 'Walk-In Register', path: '/reception/walkin',            roles: ['receptionist', 'admin'] },
-    { icon: Clock,           label: 'Queue Board',      path: '/reception/queue',             roles: ['receptionist', 'admin'] },
-    { icon: Calendar,        label: 'Appointments',     path: '/reception/appointments',      roles: ['receptionist', 'admin'] },
-    { icon: CreditCard,      label: 'Billing',          path: '/reception/billing',           roles: ['receptionist', 'admin'] },
+    { icon: UserCheck,       label: 'Check-In',         path: '/reception/checkin',           roles: ['receptionist', 'admin', 'hospital_admin'] },
+    { icon: UserPlus,        label: 'Walk-In Register', path: '/reception/walkin',            roles: ['receptionist', 'admin', 'hospital_admin'] },
+    { icon: Clock,           label: 'Queue Board',      path: '/reception/queue',             roles: ['receptionist', 'admin', 'hospital_admin'] },
+    { icon: Calendar,        label: 'Appointments',     path: '/reception/appointments',      roles: ['receptionist', 'admin', 'hospital_admin'] },
+    { icon: CreditCard,      label: 'Billing',          path: '/reception/billing',           roles: ['receptionist', 'admin', 'hospital_admin'] },
     // Other staff
-    { icon: Package,         label: 'Pharmacy',         path: '/pharmacy',                    roles: ['pharmacy', 'admin'] },
+    { icon: Package,         label: 'Pharmacy',         path: '/pharmacy',                    roles: ['pharmacist', 'admin'] },
     { icon: Beaker,          label: 'Diagnostic Lab',   path: '/lab',                         roles: ['lab', 'admin'] },
-    { icon: Users,           label: 'Staff Roster',     path: '/owner',                       roles: ['owner'] },
-    { icon: Building2,       label: 'Hospital Control', path: '/admin',                       roles: ['admin'] },
-    { icon: LifeBuoy,        label: 'Support',          path: '/support',                     roles: ['admin', 'hospital_admin', 'super_admin', 'doctor', 'nurse', 'staff', 'pharmacy', 'pharmacist', 'lab', 'owner', 'hr', 'receptionist'] },
+    { icon: Users,           label: 'Staff Roster',     path: '/owner',                       roles: ['owner', 'hospital_admin'] },
+    { icon: Building2,       label: 'Hospital Control', path: '/admin',                       roles: ['admin', 'hospital_admin', 'super_admin'] },
+    { icon: LifeBuoy,        label: 'Support',          path: '/support',                     roles: ['admin', 'hospital_admin', 'super_admin', 'doctor', 'nurse', 'staff', 'pharmacist', 'lab', 'owner', 'hr', 'receptionist'] },
   ];
 
   const filteredMenu = menuItems.filter((item) => item.roles.includes(userRole));

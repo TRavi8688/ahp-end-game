@@ -82,7 +82,7 @@ class LabOrderItem(Base):
     result_value: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     result_status: Mapped[LabResultStatus] = mapped_column(SQLEnum(LabResultStatus, name="labresultstatus"), nullable=False, default=LabResultStatus.PENDING)
     resulted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    resulted_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
+    resulted_by: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     unit: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     reference_range: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     clinical_remarks: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

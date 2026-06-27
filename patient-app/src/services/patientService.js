@@ -61,7 +61,11 @@ export const patientService = {
     },
 
     getAppointments: async (signal) => {
-        const response = await apiClient.get('/patient/appointments', { signal });
+        // BUG FIX: /patient/appointments doesn't exist anywhere in the
+        // backend. The real "my appointments" endpoint is the top-level
+        // GET /appointments/ (already used by appointmentService.js), which
+        // is scoped server-side to the calling patient.
+        const response = await apiClient.get('/appointments/', { signal });
         return response.data;
     },
 

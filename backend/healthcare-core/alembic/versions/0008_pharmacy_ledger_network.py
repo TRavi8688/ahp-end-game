@@ -12,14 +12,14 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "0008_pharmacy_ledger_network"
-down_revision = "009_hospin_matrix_3"
+down_revision = "0007_doctor_notif"
 branch_labels = None
 depends_on = None
 
 transaction_type_enum = postgresql.ENUM(
     "purchase", "dispense", "adjustment", "return_",
     name="transactiontype",
-    create_type=False,
+    create_type=True,
 )
 
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Tabs, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, Button, Fade, Select, MenuItem, FormControl } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { API_BASE_URL } from '../api';
+import apiClient from '../services/apiClient';
 
 const glassStyle = {
   background: 'rgba(255, 255, 255, 0.03)',
@@ -9,6 +9,35 @@ const glassStyle = {
   border: '1px solid rgba(255, 255, 255, 0.08)',
   boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.37)',
 };
+
+// Backend's GET /doctor/access-history (doctor_extensions.py) returns an
+// audit-log trail: { history: [{ id, action, patient_id, accessed_at,
+// ip_address, metadata }], total }. It does not join patient name, record
+// classification, AI summaries, or consent status — those fields never
+// existed on this endpoint. Map what's real onto display-friendly labels
+// instead of rendering blank/undefined cells for data that was never there.
+function actionToTypeLabel(action) {
+    if (!action) return { label: 'Record', typeRaw: 'other' };
+    if (action.includes('lab')) return { label: 'Laboratory', typeRaw: 'lab' };
+    if (action.includes('prescription') || action.includes('rx')) return { label: 'Prescription', typeRaw: 'rx' };
+    if (action.includes('discharge')) return { label: 'Discharge', typeRaw: 'discharge' };
+    if (action.includes('imaging') || action.includes('radiology')) return { label: 'Imaging', typeRaw: 'imaging' };
+    return { label: 'Patient Record', typeRaw: 'other' };
+}
+
+function normalizeRecord(raw) {
+    const { label, typeRaw } = actionToTypeLabel(raw.action);
+    return {
+        id: raw.id,
+        patient_name: null, // not provided by this endpoint
+        hospyn_id: raw.patient_id || null,
+        type: label,
+        typeRaw,
+        ai_summary: (raw.action || '').replace(/_/g, ' '),
+        date: raw.accessed_at,
+        status: 'active', // this endpoint doesn't track consent/revocation state
+    };
+}
 
 export default function AccessHistory() {
     const navigate = useNavigate();
@@ -20,15 +49,13 @@ export default function AccessHistory() {
     React.useEffect(() => {
         const fetchRecords = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/doctor/access-history`, {
-                    headers: {
-                        'Authorization': `Bearer ${sessionStorage.getItem('hospain_access_token')}`
-                    }
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    setRecords(data);
-                }
+                // FIXED: was a raw fetch(`${API_BASE_URL}/doctor/access-history`)
+                // with no /healthcare prefix (always 404'd), AND treated the
+                // whole response body as the records array — the real shape
+                // is { history: [...], total }.
+                const data = await apiClient.get('/doctor/access-history');
+                const history = Array.isArray(data) ? data : data?.history || [];
+                setRecords(history.map(normalizeRecord));
             } catch (error) {
                 console.error("Failed to fetch access history", error);
             } finally {
@@ -181,8 +208,12 @@ export default function AccessHistory() {
 
                                         {/* Patient */}
                                         <TableCell sx={{ borderBottom: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                                            <Typography variant="body1" sx={{ color: '#fff', fontWeight: 600, fontFamily: 'Outfit' }}>{row.patient_name}</Typography>
-                                            <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'rgba(255, 255, 255, 0.3)', letterSpacing: 1 }}>{row.hospyn_id}</Typography>
+                                            <Typography variant="body1" sx={{ color: '#fff', fontWeight: 600, fontFamily: 'Outfit' }}>
+                                                {row.patient_name || row.hospyn_id || 'Unknown patient'}
+                                            </Typography>
+                                            {row.patient_name && row.hospyn_id && (
+                                                <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'rgba(255, 255, 255, 0.3)', letterSpacing: 1 }}>{row.hospyn_id}</Typography>
+                                            )}
                                         </TableCell>
 
                                         {/* Record Type */}

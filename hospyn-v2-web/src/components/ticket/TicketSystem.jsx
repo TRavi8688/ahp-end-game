@@ -1,5 +1,5 @@
 /**
- * hospyn-v2-web/src/components/ticket/TicketSystem.jsx
+ * hospain-v2-web/src/components/ticket/TicketSystem.jsx
  *
  * Complete ticket system — cross-product, Google/Zomato grade.
  * Components exported:
@@ -42,7 +42,7 @@ async function listenTicketChat(ticketId, callback) {
   try {
     const db = await getFirebaseDb();
     const { ref, onValue } = await import('firebase/database');
-    const chatRef = ref(db, `hospyn_tickets/${ticketId}/messages`);
+    const chatRef = ref(db, `hospain_tickets/${ticketId}/messages`);
     const unsub = onValue(chatRef, snap => {
       const raw = snap.val();
       callback(raw ? Object.entries(raw).map(([k, v]) => ({ id: k, ...v })).sort((a, b) => a.timestamp - b.timestamp) : []);
@@ -58,7 +58,7 @@ async function sendFirebaseMessage(ticketId, message) {
   try {
     const db = await getFirebaseDb();
     const { ref, push, serverTimestamp } = await import('firebase/database');
-    await push(ref(db, `hospyn_tickets/${ticketId}/messages`), { ...message, timestamp: Date.now() });
+    await push(ref(db, `hospain_tickets/${ticketId}/messages`), { ...message, timestamp: Date.now() });
   } catch {
     // Fallback: backend REST will store the message
   }
@@ -82,11 +82,11 @@ const PRIORITIES = [
 ];
 
 const PRODUCTS = [
-  { value: 'hospyn_web',    label: 'Hospin Web (Owner Dashboard)' },
-  { value: 'hospyn_doctor', label: 'Hospin Doctor App' },
-  { value: 'hospyn_erp',    label: 'Hospin ERP Portal' },
-  { value: 'hospyn_nurse',  label: 'Hospin Nurse Console' },
-  { value: 'other',         label: 'Other Hospin Product' },
+  { value: 'hospain_web',    label: 'Hospain Web (Owner Dashboard)' },
+  { value: 'hospain_doctor', label: 'Hospain Doctor App' },
+  { value: 'hospain_erp',    label: 'Hospain ERP Portal' },
+  { value: 'hospain_nurse',  label: 'Hospain Nurse Console' },
+  { value: 'other',         label: 'Other Hospain Product' },
 ];
 
 const STATUS_CONFIG = {
@@ -112,7 +112,7 @@ function NewTicketModal({ isOpen, onClose, onCreated }) {
   const [step, setStep]         = useState(1); // 1=category 2=details 3=success
   const [category, setCategory] = useState('');
   const [priority, setPriority] = useState('medium');
-  const [product, setProduct]   = useState('hospyn_web');
+  const [product, setProduct]   = useState('hospain_web');
   const [subject, setSubject]   = useState('');
   const [description, setDesc]  = useState('');
   const [attachment, setAttach] = useState(null);
@@ -120,15 +120,15 @@ function NewTicketModal({ isOpen, onClose, onCreated }) {
   const [error, setError]       = useState('');
   const [createdTicket, setCreated] = useState(null);
 
-  const reset = () => { setStep(1); setCategory(''); setPriority('medium'); setProduct('hospyn_web'); setSubject(''); setDesc(''); setAttach(null); setError(''); setCreated(null); };
+  const reset = () => { setStep(1); setCategory(''); setPriority('medium'); setProduct('hospain_web'); setSubject(''); setDesc(''); setAttach(null); setError(''); setCreated(null); };
 
   const submit = async () => {
     if (!subject.trim() || subject.trim().length < 5) { setError('Subject must be at least 5 characters.'); return; }
     if (!description.trim() || description.trim().length < 20) { setError('Please describe the issue in at least 20 characters so our team can help effectively.'); return; }
     setLoading(true); setError('');
 
-    const ownerEmail = localStorage.getItem('hospyn_owner_email') || '';
-    const orgName    = localStorage.getItem('hospyn_org_name') || '';
+    const ownerEmail = localStorage.getItem('hospain_owner_email') || '';
+    const orgName    = localStorage.getItem('hospain_org_name') || '';
 
     try {
       let data;
@@ -294,7 +294,7 @@ function TicketChat({ ticket, onBack }) {
   const [rating, setRating]     = useState(0);
   const [rated, setRated]       = useState(false);
   const bottomRef = useRef();
-  const ownerEmail = localStorage.getItem('hospyn_owner_email') || 'owner';
+  const ownerEmail = localStorage.getItem('hospain_owner_email') || 'owner';
 
   useEffect(() => {
     let unsub = () => {};
@@ -361,7 +361,7 @@ function TicketChat({ ticket, onBack }) {
             <div key={msg.id} className={`flex ${isOwner ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[78%] space-y-1 ${isOwner ? 'items-end' : 'items-start'} flex flex-col`}>
                 <p className={`text-[10px] font-bold ${isOwner ? 'text-slate-400 text-right' : 'text-violet-600'}`}>
-                  {isOwner ? 'You' : (msg.sender_label || 'Hospin Support')}
+                  {isOwner ? 'You' : (msg.sender_label || 'Hospain Support')}
                 </p>
                 <div className={`px-4 py-3 rounded-2xl text-sm font-medium leading-relaxed ${isOwner ? 'bg-violet-600 text-white rounded-tr-sm' : 'bg-slate-100 text-slate-800 rounded-tl-sm'}`}>
                   {msg.text}

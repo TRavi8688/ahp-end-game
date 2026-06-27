@@ -387,20 +387,27 @@ const OwnerDashboard: React.FC = () => {
           <h3 className="text-lg font-black uppercase tracking-tighter text-white">Quick Actions</h3>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          {/* FIXED: these three buttons had no onClick at all — clicking did
+              nothing, with no visual indication why. None of these three
+              (a revenue analytics page, an inventory page, a settings page)
+              exist anywhere in staff-portal yet, so rather than wire a fake
+              onClick or silently leave a dead button, they're now disabled
+              and labeled "Coming Soon" so the UI is honest about state. */}
           {[
             { icon: BarChart3,   title: 'Full Revenue Report',  desc: 'View detailed financial analytics & trends', accent: 'emerald' },
             { icon: Building2,   title: 'Manage Inventory',     desc: 'Track stock levels, orders & supplies',     accent: 'blue' },
             { icon: Activity,    title: 'System Settings',      desc: 'Configure hospital modules & preferences',  accent: 'purple' },
           ].map((action, i) => (
-            <button key={i} className={`${panel} p-6 flex items-center gap-5 group text-left w-full hover:border-white/10 transition-all`}>
-              <div className={`p-3 rounded-xl bg-${action.accent}-500/10 border border-${action.accent}-500/20 group-hover:bg-${action.accent}-600/20 transition-all`}>
+            <button key={i} disabled title="Coming soon"
+              className={`${panel} p-6 flex items-center gap-5 text-left w-full opacity-50 cursor-not-allowed`}>
+              <div className={`p-3 rounded-xl bg-${action.accent}-500/10 border border-${action.accent}-500/20`}>
                 <action.icon size={22} className={`text-${action.accent}-500`} />
               </div>
               <div className="flex-1 space-y-1">
                 <h4 className="font-black text-white uppercase tracking-tight text-sm">{action.title}</h4>
                 <p className="text-[10px] text-slate-500 font-bold tracking-wide">{action.desc}</p>
+                <p className="text-[9px] text-slate-600 font-black uppercase tracking-widest">Coming Soon</p>
               </div>
-              <ChevronRight size={18} className="text-slate-700 group-hover:text-white group-hover:translate-x-1 transition-all" />
             </button>
           ))}
         </div>

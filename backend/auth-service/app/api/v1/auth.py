@@ -140,61 +140,6 @@ async def run_auth_migrations():
 
 
 
-@router.get("/db-test")
-async def db_test():
-    import os
-    import asyncpg
-    import traceback
-
-    raw_url = os.getenv("DATABASE_URL", "")
-    if not raw_url:
-        return {"status": "error", "message": "DATABASE_URL env var not set"}
-
-    pg_url = (
-        raw_url
-        .replace("postgresql+asyncpg://", "postgresql://")
-        .replace("postgresql+psycopg2://", "postgresql://")
-    )
-
-    try:
-        conn = await asyncpg.connect(dsn=pg_url)
-        try:
-            # Query columns of users table
-            columns = await conn.fetch(
-                "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'users';"
-            )
-            columns_list = [{"column_name": r["column_name"], "data_type": r["data_type"]} for r in columns]
-
-            # Query list of users
-            users = await conn.fetch(
-                "SELECT id, email, role, is_active, phone_verified, auth_provider FROM users LIMIT 10;"
-            )
-            users_list = [
-                {
-                    "id": str(r["id"]),
-                    "email": r["email"],
-                    "role": r["role"],
-                    "is_active": r["is_active"],
-                    "phone_verified": r["phone_verified"] if "phone_verified" in r else None,
-                    "auth_provider": r["auth_provider"] if "auth_provider" in r else None,
-                }
-                for r in users
-            ]
-            return {
-                "status": "success",
-                "columns": columns_list,
-                "users": users_list,
-            }
-        finally:
-            await conn.close()
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": str(e),
-            "traceback": traceback.format_exc(),
-        }
-
-
 
 
 # ─── Login ───────────────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import apiClient from '../../services/apiClient';
 function AddSupplierModal({ onClose, onSaved }) {
   const [form, setForm] = useState({ name: '', contact_person: '', phone: '', email: '', gstin: '' });
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const submit = async (e) => {
     e.preventDefault();
@@ -16,7 +17,7 @@ function AddSupplierModal({ onClose, onSaved }) {
       onSaved();
       onClose();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Could not save supplier.');
+      setError(err.response?.data?.detail || 'Could not save supplier.');
     } finally {
       setSaving(false);
     }
@@ -30,6 +31,7 @@ function AddSupplierModal({ onClose, onSaved }) {
           <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
         </div>
         <form onSubmit={submit} className="p-4 space-y-3">
+          {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-xl text-sm">{error}</div>}
           <input required placeholder="Supplier name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3 py-2.5 bg-lavender-50 rounded-xl text-sm" />
           <input placeholder="Contact person" value={form.contact_person} onChange={(e) => setForm({ ...form, contact_person: e.target.value })} className="w-full px-3 py-2.5 bg-lavender-50 rounded-xl text-sm" />
           <input placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full px-3 py-2.5 bg-lavender-50 rounded-xl text-sm" />

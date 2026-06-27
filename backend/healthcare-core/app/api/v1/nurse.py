@@ -54,7 +54,7 @@ class TriageCompletePayload(BaseModel):
 
 @router.get("/queue")
 async def get_nurse_queue(
-    current_user: Annotated[TokenPayload, Depends(require_role("staff", "admin"))],
+    current_user: Annotated[TokenPayload, Depends(require_role("staff", "nurse", "admin"))],
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -138,7 +138,7 @@ async def get_nurse_queue(
 @router.patch("/queue/{walkin_id}/start")
 async def start_triage(
     walkin_id: uuid.UUID,
-    current_user: Annotated[TokenPayload, Depends(require_role("staff", "admin"))],
+    current_user: Annotated[TokenPayload, Depends(require_role("staff", "nurse", "admin"))],
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
@@ -181,7 +181,7 @@ async def start_triage(
 async def complete_triage(
     walkin_id: uuid.UUID,
     payload: TriageCompletePayload,
-    current_user: Annotated[TokenPayload, Depends(require_role("staff", "admin"))],
+    current_user: Annotated[TokenPayload, Depends(require_role("staff", "nurse", "admin"))],
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):

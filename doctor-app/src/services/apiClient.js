@@ -95,13 +95,19 @@ apiClient.interceptors.response.use(
                 error.message = 'An internal server error occurred. Our team has been notified.';
                 break;
             default:
-                // General fallback
+                // General fallback.
+                // FIXED: healthcare-core/auth-service's error_response() helper
+                // returns { success, error_code, message } — there is no
+                // "detail" key on those responses. FastAPI's own validation
+                // errors (422s) do use "detail". Check both so real backend
+                // error messages ("Incorrect OTP. 4 attempt(s) remaining.",
+                // etc.) actually reach the user instead of a generic string.
                 if (Array.isArray(data?.detail)) {
                     error.message = data.detail.map(err => `${err.loc ? err.loc.join('.') : 'error'}: ${err.msg}`).join(', ');
                 } else if (typeof data?.detail === 'object') {
                     error.message = JSON.stringify(data.detail);
                 } else {
-                    error.message = data?.detail || 'An unexpected error occurred.';
+                    error.message = data?.detail || data?.message || 'An unexpected error occurred.';
                 }
                 break;
         }

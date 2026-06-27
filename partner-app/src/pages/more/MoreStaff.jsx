@@ -17,7 +17,11 @@ function InviteStaffModal({ onClose, onSaved }) {
       onSaved();
       onClose();
     } catch (err) {
-      setError(err.response?.data?.detail || 'Could not send invite.');
+      if (err.response?.status === 403) {
+        setError('Staff invites require Hospital Admin or Owner access.');
+      } else {
+        setError(err.response?.data?.detail || 'Could not send invite. Try again.');
+      }
     } finally {
       setSaving(false);
     }
@@ -60,7 +64,14 @@ export default function MoreStaff() {
       setStaff(res.data?.data?.staff || res.data?.staff || []);
     } catch (err) {
       console.error(err);
-      setError('Could not load staff directory.');
+      if (err.response?.status === 403) {
+        setError(
+          'Staff management requires Hospital Admin or Owner access. ' +
+          'Contact your HOSPAIN account manager to upgrade your account permissions.'
+        );
+      } else {
+        setError('Could not load staff directory. Check your connection.');
+      }
     } finally {
       setLoading(false);
     }

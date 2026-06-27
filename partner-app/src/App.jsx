@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { setAuthFailureCallback } from './services/apiClient';
+import { setAuthFailureCallback, getToken, clearToken } from './services/apiClient';
 
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
 import VerificationPending from './pages/VerificationPending';
 import Home from './pages/Home';
 import Orders from './pages/Orders';
@@ -26,8 +27,10 @@ function PrivateLayout({ isAuthenticated, onLogout, children }) {
 }
 
 function App() {
+  // Auth state lives in sessionStorage only — nothing persisted to localStorage.
+  // On tab close the session ends; on new tab the user must log in again.
   const [isAuthenticated, setIsAuthenticated] = useState(
-    () => !!localStorage.getItem('token')
+    () => !!getToken()
   );
   const navigate = useNavigate();
 
@@ -44,33 +47,44 @@ function App() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    clearToken();
     setIsAuthenticated(false);
     navigate('/login');
   };
 
-  const wrap = (el) => <PrivateLayout isAuthenticated={isAuthenticated} onLogout={handleLogout}>{el}</PrivateLayout>;
+  const wrap = (el) => (
+    <PrivateLayout isAuthenticated={isAuthenticated} onLogout={handleLogout}>
+      {el}
+    </PrivateLayout>
+  );
 
   return (
     <Routes>
-      <Route path="/login" element={isAuthenticated ? <Navigate to="/home" replace /> : <Login onLogin={handleLogin} />} />
-      <Route path="/register" element={isAuthenticated ? <Navigate to="/home" replace /> : <Register />} />
+      <Route
+        path="/login"
+        element={isAuthenticated ? <Navigate to="/home" replace /> : <Login onLogin={handleLogin} />}
+      />
+      <Route
+        path="/register"
+        element={isAuthenticated ? <Navigate to="/home" replace /> : <Register />}
+      />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/verification-pending" element={<VerificationPending />} />
 
-      <Route path="/home" element={wrap(<Home />)} />
-      <Route path="/orders" element={wrap(<Orders />)} />
-      <Route path="/walkin" element={wrap(<WalkIn />)} />
-      <Route path="/inventory" element={wrap(<Inventory />)} />
-      <Route path="/notifications" element={wrap(<Notifications />)} />
+      <Route path="/home"             element={wrap(<Home />)} />
+      <Route path="/orders"           element={wrap(<Orders />)} />
+      <Route path="/walkin"           element={wrap(<WalkIn />)} />
+      <Route path="/inventory"        element={wrap(<Inventory />)} />
+      <Route path="/notifications"    element={wrap(<Notifications />)} />
 
-      <Route path="/more" element={wrap(<More />)} />
-      <Route path="/more/reports" element={wrap(<MoreReports />)} />
-      <Route path="/more/customers" element={wrap(<MoreCustomers />)} />
-      <Route path="/more/staff" element={wrap(<MoreStaff />)} />
-      <Route path="/more/suppliers" element={wrap(<MoreSuppliers />)} />
-      <Route path="/more/purchases" element={wrap(<MorePurchases />)} />
-      <Route path="/more/finance" element={wrap(<MoreFinance />)} />
-      <Route path="/more/settings" element={wrap(<MoreSettings onLogout={handleLogout} />)} />
+      <Route path="/more"             element={wrap(<More />)} />
+      <Route path="/more/reports"     element={wrap(<MoreReports />)} />
+      <Route path="/more/customers"   element={wrap(<MoreCustomers />)} />
+      <Route path="/more/staff"       element={wrap(<MoreStaff />)} />
+      <Route path="/more/suppliers"   element={wrap(<MoreSuppliers />)} />
+      <Route path="/more/purchases"   element={wrap(<MorePurchases />)} />
+      <Route path="/more/finance"     element={wrap(<MoreFinance />)} />
+      <Route path="/more/settings"    element={wrap(<MoreSettings onLogout={handleLogout} />)} />
 
       <Route path="*" element={<Navigate to={isAuthenticated ? '/home' : '/login'} replace />} />
     </Routes>

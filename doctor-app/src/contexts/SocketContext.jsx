@@ -1,6 +1,24 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { WS_BASE_URL } from '../api';
 
+// IMPORTANT: WS_BASE_URL (see .env / api.jsx) must resolve to
+// .../api/v1/healthcare — the only real-time endpoint on the backend is
+// healthcare-core's GET /healthcare/ws/reception (despite the "reception"
+// name, it authorizes any active Staff record via resolve_any_staff(),
+// not reception-specific roles).
+//
+// KNOWN BACKEND LIMITATION (not fixable from this frontend): that endpoint
+// resolves the connecting user against the `staff` table, but doctor
+// onboarding only creates rows in the separate `doctors` table — the two
+// are not currently linked. A doctor whose user_id was never separately
+// added to `staff` will have every connection attempt closed with code
+// 1008 (auth/policy violation) even with a perfectly valid JWT. This
+// component already treats 1008 as terminal (no retry storm) and the rest
+// of the app is built to keep working via REST polling when isConnected
+// is false — see QueueScreen.jsx's "Reconnecting..." indicator — so this
+// degrades gracefully rather than breaking the app, but live push updates
+// won't actually arrive until that backend gap is closed.
+
 const SocketContext = createContext({
     socket: null,
     lastMessage: null,
@@ -37,14 +55,19 @@ export const SocketProvider = ({ children }) => {
             return;
         }
 
-        const ws = new WebSocket(`${WS_BASE_URL}/ws`);
+        // FIXED: the backend's WebSocket endpoint (healthcare-core's
+        // /healthcare/ws/reception) authenticates via a `token` query
+        // parameter checked *before* accepting the connection — there is
+        // no post-connect handshake message. Sending `{token}` as a first
+        // message (the old approach) did nothing; the server was never
+        // listening for it, and an unauthenticated connection attempt
+        // without the query param closes immediately with code 1008.
+        const ws = new WebSocket(`${WS_BASE_URL}/ws/reception?token=${encodeURIComponent(token)}`);
         socketRef.current = ws;
 
         ws.onopen = () => {
-            console.log('[WS] Connected — completing handshake');
+            console.log('[WS] Connected');
             reconnectAttempts.current = 0;
-            // Send auth token as first message (backend expects this)
-            ws.send(JSON.stringify({ token }));
             setSocket(ws);
             setIsConnected(true);
         };
@@ -52,14 +75,9 @@ export const SocketProvider = ({ children }) => {
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                // Silently handle auth confirmation
-                if (data.type === 'auth_success' || data.type === 'connected') {
-                    console.log('[WS] Auth confirmed');
-                    return;
-                }
-                // Ping/pong keepalive
-                if (data.type === 'ping') {
-                    ws.send(JSON.stringify({ type: 'pong' }));
+                // Server replies to our ping with {"event": "pong", "data": {}}
+                // — not the {"type": "pong"} shape this used to check for.
+                if (data.event === 'pong') {
                     return;
                 }
                 setLastMessage(data);
@@ -72,7 +90,16 @@ export const SocketProvider = ({ children }) => {
             console.error('[WS] Error:', err);
         };
 
+        // The server only replies to pings (it never initiates them), so
+        // send one periodically to detect half-open connections.
+        const pingInterval = setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'ping' }));
+            }
+        }, 30000);
+
         ws.onclose = (event) => {
+            clearInterval(pingInterval);
             setSocket(null);
             setIsConnected(false);
             socketRef.current = null;

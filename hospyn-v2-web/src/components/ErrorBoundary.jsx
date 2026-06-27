@@ -7,7 +7,7 @@
  *   staff-portal/src/components/ErrorBoundary.jsx
  *   reception-portal/src/components/ErrorBoundary.jsx
  *   partner-app/src/components/ErrorBoundary.jsx
- *   hospyn-v2-web/src/components/ErrorBoundary.jsx
+ *   hospain-v2-web/src/components/ErrorBoundary.jsx
  *   hr-portal/src/components/ErrorBoundary.jsx          ← provided in hr-portal/ folder
  *
  * Then in each app's index.jsx / main.jsx, wrap <App />:
@@ -63,7 +63,7 @@ class ErrorBoundary extends React.Component {
           </h2>
           <p style={{ color: "#6b7280", marginBottom: "24px", maxWidth: "400px" }}>
             An unexpected error occurred. Please refresh the page. If the problem
-            persists, contact Hospyn support.
+            persists, contact Hospain support.
           </p>
           <div style={{ display: "flex", gap: "12px" }}>
             <button

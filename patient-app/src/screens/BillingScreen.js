@@ -19,12 +19,19 @@ import {
   StyleSheet, ActivityIndicator, RefreshControl, Alert, Share,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import QRCode from "react-native-qrcode-svg";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
+import { SecurityUtils } from "../utils/security";
+import { API_BASE_URL as API_BASE } from "../api";
+import { patientService } from "../services/patientService";
 
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:8000";
+// BUG FIX: this used to define its own separate API_BASE with a
+// "http://localhost:8000" fallback — fine on a dev machine, but on a real
+// phone in production (no EXPO_PUBLIC_API_BASE_URL baked into the build)
+// that fallback is unreachable, so the whole Billing tab would fail. Now it
+// reuses the same API_BASE_URL the rest of the app uses, which has the
+// correct production Cloud Run URL as its fallback.
 
 // ── Status badge ──────────────────────────────────────────────────────────
 // FIX-B1 (2026-06-24): the backend's InvoiceStatus enum is uppercase
@@ -60,8 +67,18 @@ export default function BillingScreen() {
   const fetchInvoices = useCallback(async (isRefresh = false) => {
     try {
       if (!isRefresh) setLoading(true);
-      const token = await AsyncStorage.getItem("access_token");
-      const pid = patientId || await AsyncStorage.getItem("patient_id");
+      // BUG FIX: "access_token" / "patient_id" were never actually written
+      // to AsyncStorage by anything in this app — the real token lives in
+      // SecureStore under a different key, and there's no separate
+      // "patient_id" cache at all. This made every Billing screen load fail
+      // with "Patient ID not found. Please re-login." for every real user,
+      // even fully logged-in ones.
+      const token = await SecurityUtils.getToken();
+      let pid = patientId;
+      if (!pid) {
+        const profile = await patientService.getProfile();
+        pid = profile?.id;
+      }
       if (!pid) throw new Error("Patient ID not found. Please re-login.");
 
       // FIX-B2 (2026-06-24): API_BASE already includes /api/v1 — this was
@@ -155,7 +172,7 @@ export function BillingDetailScreen({ route }) {
   useEffect(() => {
     const load = async () => {
       try {
-        const token = await AsyncStorage.getItem("access_token");
+        const token = await SecurityUtils.getToken();
         const [invRes, upiRes] = await Promise.all([
           // FIX-B2: removed the duplicate /api/v1 — API_BASE already has it.
           fetch(`${API_BASE}/billing/invoice/${invoiceId}`, {
@@ -205,7 +222,7 @@ export function BillingDetailScreen({ route }) {
   const handleDownloadReceipt = async () => {
     setDownloading(true);
     try {
-      const token = await AsyncStorage.getItem("access_token");
+      const token = await SecurityUtils.getToken();
       const fileUri = `${FileSystem.cacheDirectory}Receipt_${invoice.invoice_number}.pdf`;
       // FIX-B3 (2026-06-24): this is the actual feature the patient app was
       // missing — the only "download" code that existed before lived in a

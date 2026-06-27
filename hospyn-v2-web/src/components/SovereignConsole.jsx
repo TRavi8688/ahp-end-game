@@ -1,5 +1,5 @@
 /**
- * hospyn-v2-web/src/components/SovereignConsole.jsx
+ * hospain-v2-web/src/components/SovereignConsole.jsx
  *
  * Super Admin Panel — complete rewrite.
  * Tabs:
@@ -9,14 +9,14 @@
  *   4. EHR Passports      — patient records (existing backend)
  *   5. Bed Scheduler      — bed matrix (existing backend)
  *   6. Audit Ledger       — audit logs (existing backend)
- *   7. Hospin Team        — create/manage internal Hospin employees
+ *   7. Hospain Team        — create/manage internal Hospain employees
  *
  * FIXES vs original:
  *  - axios → fetch (consistent with rest of codebase)
  *  - Added pending approvals tab wired to /onboarding/hospital-status
  *  - Approve → PATCH /onboarding/admin-approve-hospital/:id
  *  - Reject → POST /onboarding/reject-hospital/:id with reason → sends Twilio SMS + email
- *  - Hospin Team tab → POST /employees/create
+ *  - Hospain Team tab → POST /employees/create
  *  - All api calls use Bearer token from localStorage
  */
 
@@ -42,7 +42,7 @@ const LEVEL_COLOR  = {
 };
 
 function token() {
-  return localStorage.getItem('hospyn_owner_token') || '';
+  return sessionStorage.getItem('hospain_owner_token') || localStorage.getItem('hospain_internal_token') || '';
 }
 
 function authHeaders(extra = {}) {
@@ -179,7 +179,7 @@ function CreateEmployeeModal({ isOpen, onClose, onCreated }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2.5">
             <Users size={17} className="text-violet-600"/>
-            <span className="font-black text-slate-900 text-sm">Create Hospin Employee</span>
+            <span className="font-black text-slate-900 text-sm">Create Hospain Employee</span>
           </div>
           <button onClick={() => { onClose(); reset(); }} className="text-slate-400 hover:text-slate-600 p-1"><X size={16}/></button>
         </div>
@@ -214,7 +214,7 @@ function CreateEmployeeModal({ isOpen, onClose, onCreated }) {
             <>
               {[
                 { key: 'full_name', label: 'Full Name',     placeholder: 'e.g. Rajan Kumar',         type: 'text' },
-                { key: 'email',     label: 'Work Email',    placeholder: 'rajan@hospyn.com',          type: 'email' },
+                { key: 'email',     label: 'Work Email',    placeholder: 'rajan@hospain.in',          type: 'email' },
                 { key: 'phone',     label: 'Phone (optional)', placeholder: '+91 98765 43210',         type: 'tel' },
               ].map(field => (
                 <div key={field.key}>
@@ -394,7 +394,7 @@ export default function SovereignConsole({ onLogout }) {
     { id: 'ehr',       icon: FileText,    label: 'EHR Passports' },
     { id: 'beds',      icon: BedDouble,   label: 'Bed Scheduler' },
     { id: 'audit',     icon: ShieldAlert, label: 'Audit Ledger' },
-    { id: 'team',      icon: Users,       label: 'Hospin Team' },
+    { id: 'team',      icon: Users,       label: 'Hospain Team' },
   ];
 
   return (
@@ -403,8 +403,8 @@ export default function SovereignConsole({ onLogout }) {
       {/* Sidebar */}
       <div className="w-64 bg-white border-r border-slate-200 flex flex-col p-5 shadow-sm z-10 shrink-0">
         <div className="flex items-center gap-2 font-black text-xl tracking-tight mb-8">
-          <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center"><img src={logoImg} alt="Hospin" className="w-full h-full object-contain"/></div>
-          <span>HOSPIN<span className="text-violet-600">.</span></span>
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center"><img src={logoImg} alt="Hospain" className="w-full h-full object-contain"/></div>
+          <span>HOSPAIN<span className="text-violet-600">.</span></span>
           <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded ml-1">ADMIN</span>
         </div>
 
@@ -452,8 +452,8 @@ export default function SovereignConsole({ onLogout }) {
               </h1>
               <p className="text-sm text-slate-400 font-medium mt-1">
                 {activeTab === 'pending'   && `${pending.length} hospital${pending.length !== 1 ? 's' : ''} awaiting review`}
-                {activeTab === 'hospitals' && `${hospitals.length} hospitals on the Hospin network`}
-                {activeTab === 'team'      && `${employees.length} Hospin team members`}
+                {activeTab === 'hospitals' && `${hospitals.length} hospitals on the Hospain network`}
+                {activeTab === 'team'      && `${employees.length} Hospain team members`}
                 {!['pending','hospitals','team'].includes(activeTab) && 'Live data from all verified hospitals'}
               </p>
             </div>
@@ -644,7 +644,7 @@ export default function SovereignConsole({ onLogout }) {
             </div>
           )}
 
-          {/* ── HOSPIN TEAM ───────────────────────────────────────────────── */}
+          {/* ── HOSPAIN TEAM ───────────────────────────────────────────────── */}
           {activeTab === 'team' && (
             <div className="space-y-5">
               <div className="flex justify-end">
@@ -665,7 +665,7 @@ export default function SovereignConsole({ onLogout }) {
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {employees.length === 0 && (
-                      <tr><td colSpan={7} className="p-10 text-center text-slate-400">No Hospin employees yet. Create the first one above.</td></tr>
+                      <tr><td colSpan={7} className="p-10 text-center text-slate-400">No Hospain employees yet. Create the first one above.</td></tr>
                     )}
                     {employees.map(e => (
                       <tr key={e.employee_id} className="hover:bg-slate-50/50 transition-all">

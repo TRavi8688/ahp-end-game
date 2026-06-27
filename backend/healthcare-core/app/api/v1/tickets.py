@@ -625,6 +625,37 @@ async def unread_count(request: Request, db: AsyncSession = Depends(get_db)):
     return {"count": result.scalar() or 0}
 
 
+# ── GET /tickets/{ticket_id}/messages ─────────────────────────────────────────
+# FIXED: SupportPage.tsx's chat thread view called this to load history, but
+# only the POST (send) side existed — there was no way to ever read messages
+# back, so every ticket's chat appeared permanently empty after a refresh.
+
+@router.get("/{ticket_id}/messages")
+async def get_messages(ticket_id: str, db: AsyncSession = Depends(get_db)):
+    await _ticket_or_404(db, ticket_id)
+    result = await db.execute(
+        text("""
+            SELECT id, sender, sender_label, text, created_at
+            FROM ticket_messages
+            WHERE ticket_id = :tid
+            ORDER BY created_at ASC
+        """),
+        {"tid": ticket_id},
+    )
+    rows = result.mappings().all()
+    messages = [
+        {
+            "id": str(row["id"]),
+            "sender": row["sender"],
+            "sender_label": row["sender_label"],
+            "text": row["text"],
+            "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+        }
+        for row in rows
+    ]
+    return {"messages": messages}
+
+
 # ── POST /tickets/{ticket_id}/message ─────────────────────────────────────────
 
 @router.post("/{ticket_id}/message", status_code=201)

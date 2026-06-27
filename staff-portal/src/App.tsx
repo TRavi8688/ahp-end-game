@@ -29,6 +29,21 @@ const OwnerDashboard    = lazy(() => import('./pages/Dashboard/OwnerDashboard'))
 const HRDashboard       = lazy(() => import('./pages/Dashboard/HRDashboard'));
 const ReceptionDashboard = lazy(() => import('./pages/Dashboard/ReceptionDashboard'));
 const SupportPage        = lazy(() => import('./pages/Dashboard/SupportPage'));
+// FIXED: these pages existed, were fully built against real backend
+// endpoints, and were linked from Layout's sidebar nav (/reception/checkin,
+// /reception/billing, /reception/queue, /reception/appointments) — but were
+// never imported or routed anywhere. Every one of those nav links silently
+// fell through to the /reception/* catch-all and just re-rendered
+// ReceptionDashboard instead of the page the user actually clicked.
+const CheckInPage             = lazy(() => import('./pages/Dashboard/CheckInPage'));
+const BillingPage             = lazy(() => import('./pages/Dashboard/BillingPage'));
+const QueueBoardPage          = lazy(() => import('./pages/Dashboard/QueueBoardPage'));
+const TodaysAppointmentsPage  = lazy(() => import('./pages/Dashboard/TodaysAppointmentsPage'));
+// Public, unauthenticated walk-in self-registration form. Patients reach
+// this by scanning the QR code generated in ReceptionDashboard, which
+// encodes `${origin}/walkin/:signedToken` — this route did not exist before,
+// so every scanned QR code 404'd.
+const WalkInPage = lazy(() => import('./pages/WalkInPage'));
 
 function Loading() {
   return (
@@ -173,13 +188,69 @@ export default function App() {
 
             {/* Receptionist */}
             <Route
-              path="/reception/*"
+              path="/reception"
               element={
-                <StaffPage roles={['receptionist']}>
+                <StaffPage roles={['receptionist', 'admin', 'hospital_admin']}>
                   <ReceptionDashboard />
                 </StaffPage>
               }
             />
+            <Route
+              path="/reception/walkin"
+              element={
+                <StaffPage roles={['receptionist', 'admin', 'hospital_admin']}>
+                  <ReceptionDashboard />
+                </StaffPage>
+              }
+            />
+            {/* FIXED: previously unreachable — sidebar linked here but
+                App.tsx had no route, so it fell through to the catch-all
+                and just showed ReceptionDashboard again. */}
+            <Route
+              path="/reception/checkin"
+              element={
+                <StaffPage roles={['receptionist', 'admin', 'hospital_admin']}>
+                  <CheckInPage />
+                </StaffPage>
+              }
+            />
+            <Route
+              path="/reception/billing"
+              element={
+                <StaffPage roles={['receptionist', 'admin', 'hospital_admin']}>
+                  <BillingPage />
+                </StaffPage>
+              }
+            />
+            <Route
+              path="/reception/queue"
+              element={
+                <StaffPage roles={['receptionist', 'admin', 'hospital_admin']}>
+                  <QueueBoardPage />
+                </StaffPage>
+              }
+            />
+            <Route
+              path="/reception/appointments"
+              element={
+                <StaffPage roles={['receptionist', 'admin', 'hospital_admin']}>
+                  <TodaysAppointmentsPage />
+                </StaffPage>
+              }
+            />
+            {/* Catch-all for any other /reception/* deep link */}
+            <Route
+              path="/reception/*"
+              element={
+                <StaffPage roles={['receptionist', 'admin', 'hospital_admin']}>
+                  <ReceptionDashboard />
+                </StaffPage>
+              }
+            />
+
+            {/* Public, unauthenticated patient self-registration via QR
+                scan — must stay outside ProtectedRoute/Layout. */}
+            <Route path="/walkin/:signedToken" element={<WalkInPage />} />
 
             {/* Support — shared across every staff role */}
             <Route

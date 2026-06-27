@@ -73,7 +73,7 @@ class RejectPayload(BaseModel):
 @router.get("/queue")
 async def get_reception_queue(
     current_user: Annotated[
-        TokenPayload, Depends(require_role("staff", "admin", "hospital_admin"))
+        TokenPayload, Depends(require_role("staff", "receptionist", "admin", "hospital_admin"))
     ],
     db: AsyncSession = Depends(get_db),
 ):
@@ -169,7 +169,7 @@ async def get_reception_queue(
 async def manual_intake(
     form: ManualIntakeForm,
     current_user: Annotated[
-        TokenPayload, Depends(require_role("staff", "admin", "hospital_admin"))
+        TokenPayload, Depends(require_role("staff", "receptionist", "admin", "hospital_admin"))
     ],
     request: Request,
     db: AsyncSession = Depends(get_db),
@@ -237,7 +237,7 @@ async def accept_walkin(
     walkin_id: uuid.UUID,
     payload: AcceptPayload,
     current_user: Annotated[
-        TokenPayload, Depends(require_role("staff", "admin", "hospital_admin"))
+        TokenPayload, Depends(require_role("staff", "receptionist", "admin", "hospital_admin"))
     ],
     request: Request,
     db: AsyncSession = Depends(get_db),
@@ -287,7 +287,7 @@ async def reject_walkin(
     walkin_id: uuid.UUID,
     payload: RejectPayload,
     current_user: Annotated[
-        TokenPayload, Depends(require_role("staff", "admin", "hospital_admin"))
+        TokenPayload, Depends(require_role("staff", "receptionist", "admin", "hospital_admin"))
     ],
     request: Request,
     db: AsyncSession = Depends(get_db),
@@ -329,7 +329,7 @@ async def reject_walkin(
 async def search_patients(
     q: str,
     current_user: Annotated[
-        TokenPayload, Depends(require_role("staff", "admin", "hospital_admin"))
+        TokenPayload, Depends(require_role("staff", "receptionist", "admin", "hospital_admin"))
     ],
     db: AsyncSession = Depends(get_db),
 ):
@@ -388,7 +388,7 @@ async def search_patients(
 @router.get("/doctors")
 async def get_doctors_roster(
     current_user: Annotated[
-        TokenPayload, Depends(require_role("staff", "admin", "hospital_admin"))
+        TokenPayload, Depends(require_role("staff", "receptionist", "admin", "hospital_admin"))
     ],
     db: AsyncSession = Depends(get_db),
 ):
@@ -434,7 +434,7 @@ async def get_doctors_roster(
 @router.get("/qr-token")
 async def get_hospital_qr_token(
     current_user: Annotated[
-        TokenPayload, Depends(require_role("staff", "admin", "hospital_admin"))
+        TokenPayload, Depends(require_role("staff", "receptionist", "admin", "hospital_admin"))
     ],
     db: AsyncSession = Depends(get_db),
 ):
@@ -456,7 +456,7 @@ async def pay_walkin(
     walkin_id: uuid.UUID,
     payload: PaymentPayload,
     current_user: Annotated[
-        TokenPayload, Depends(require_role("staff", "admin", "hospital_admin"))
+        TokenPayload, Depends(require_role("staff", "receptionist", "admin", "hospital_admin"))
     ],
     db: AsyncSession = Depends(get_db),
 ):

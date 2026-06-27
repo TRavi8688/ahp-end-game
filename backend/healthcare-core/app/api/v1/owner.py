@@ -31,7 +31,7 @@ router = APIRouter()
 async def get_owner_dashboard(
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("hospital_owner", "hospital_admin", "admin")),
+        Depends(require_role("owner", "hospital_admin", "admin")),
     ],
     branch_id: Optional[str] = Query(None, description="Filter by specific branch UUID"),
     db: AsyncSession = Depends(get_db),

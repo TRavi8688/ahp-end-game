@@ -26,6 +26,10 @@ from app.api.v1.patient_vitals_notifications import router as patient_extras_rou
 from app.api.v1.staff           import router as staff_router
 from app.api.v1.prescriptions   import router as prescriptions_router
 from app.api.v1.lab_results     import router as lab_results_router
+# FIXED: see app/api/v1/lab.py — LabDashboard.tsx's /lab/orders, /lab/orders/{id}/results,
+# and /lab/upload-report calls had nothing to hit; only the unrelated /lab_results/
+# placeholder existed.
+from app.api.v1.lab             import router as lab_router
 from app.api.v1.patient_mobile_api import patient_router as patient_mobile_router, profile_router as profile_mobile_router
 from app.api.v1.consent         import router as consent_router
 from app.api.v1.surgery         import router as surgery_router
@@ -40,6 +44,10 @@ from app.api.v1.onboarding_admin import router as onboarding_admin_router
 from app.api.v1.onboarding_simple import router as onboarding_simple_router
 from app.api.v1.tickets         import router as tickets_router
 from app.api.v1.employees       import router as employees_router
+# FIXED: this module existed (analytics/overview, hospitals pending-verification,
+# verification approve/reject, audit-logs, users) but was never imported or
+# mounted — AdminDashboard.tsx's /admin/audit-logs call 404'd unconditionally.
+from app.api.v1.super_admin     import router as super_admin_router
 
 api_router = APIRouter()
 
@@ -69,6 +77,7 @@ api_router.include_router(doctor_queue_router,  prefix="/doctor",       tags=["D
 api_router.include_router(medicines_router,     prefix="/medicines",    tags=["Medicines"])
 api_router.include_router(prescriptions_router, prefix="/prescriptions",tags=["Prescriptions"])
 api_router.include_router(lab_results_router,   prefix="/lab_results",  tags=["Lab Results"])
+api_router.include_router(lab_router,           prefix="/lab",           tags=["Lab"])
 api_router.include_router(surgery_router,       prefix="/surgery",      tags=["Surgery"])
 
 # ── WebSockets ────────────────────────────────────────────────────────────────
@@ -81,6 +90,7 @@ api_router.include_router(doctor_notif_router, prefix="/doctor", tags=["Doctor N
 api_router.include_router(patient_extras_router, prefix="/patient", tags=["Patient Extras"])
 api_router.include_router(billing_router,        prefix="/billing", tags=["Billing"])
 api_router.include_router(staff_router,          prefix="/staff",   tags=["Staff HR"])
+api_router.include_router(super_admin_router,     prefix="/admin",   tags=["Super Admin"])
 
 # ── DPDP Compliance ───────────────────────────────────────────────────────────
 api_router.include_router(consent_router,        prefix="/consent", tags=["DPDP Compliance"])

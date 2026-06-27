@@ -10,6 +10,7 @@ function AddExpenseModal({ onClose, onSaved }) {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const submit = async (e) => {
     e.preventDefault();
@@ -20,7 +21,7 @@ function AddExpenseModal({ onClose, onSaved }) {
       onSaved();
       onClose();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Could not save expense.');
+      setError(err.response?.data?.detail || 'Could not save expense.');
     } finally {
       setSaving(false);
     }
@@ -31,6 +32,7 @@ function AddExpenseModal({ onClose, onSaved }) {
       <div className="bg-white w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl">
         <div className="px-5 py-4 border-b border-lavender-100"><h2 className="font-bold text-ink-900">Add Expense</h2></div>
         <form onSubmit={submit} className="p-4 space-y-3">
+          {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-xl text-sm">{error}</div>}
           <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full px-3 py-2.5 bg-lavender-50 rounded-xl text-sm capitalize">
             {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>

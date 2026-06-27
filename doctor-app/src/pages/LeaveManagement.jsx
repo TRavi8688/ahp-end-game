@@ -19,16 +19,19 @@ const STATUS_CONFIG = {
     rejected: { label: 'REJECTED', color: '#ef4444', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.2)' },
 };
 
-// Mock data for when backend is not ready
-const MOCK_LEAVES = [
-    { id: 'LV001', leave_type: 'Day Off', start_date: '2026-06-05', end_date: '2026-06-05', reason: 'Personal work', status: 'approved' },
-    { id: 'LV002', leave_type: 'Conference / CME', start_date: '2026-06-12', end_date: '2026-06-13', reason: 'Annual Medical Conference', status: 'pending' },
-    { id: 'LV003', leave_type: 'Vacation', start_date: '2026-06-20', end_date: '2026-06-25', reason: 'Family vacation', status: 'pending' },
-];
-
+// FIXED: this page used to fall back to three hardcoded fake leave entries
+// (MOCK_LEAVES) any time the real fetch failed, and on a failed submit it
+// would optimistically insert a fake "pending" leave into local state and
+// tell the doctor it succeeded. The backend's GET/POST/DELETE
+// /doctor/leave endpoints (doctor_schedule_routes.py) are fully
+// implemented and match what clinicalService already sends — there's no
+// reason this should ever need to fake success. Surfacing real errors is
+// safer than a doctor believing a leave request went through when it
+// didn't.
 export default function LeaveManagement() {
     const [leaves, setLeaves] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState(null);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [cancellingId, setCancellingId] = useState(null);
@@ -48,10 +51,11 @@ export default function LeaveManagement() {
         if (!silent) setIsLoading(true);
         try {
             const data = await clinicalService.getLeaveHistory();
-            setLeaves(Array.isArray(data) ? data : data?.leaves || MOCK_LEAVES);
+            setLeaves(Array.isArray(data) ? data : data?.leaves || []);
+            setLoadError(null);
         } catch (error) {
             console.error('Leave fetch error:', error);
-            setLeaves(MOCK_LEAVES);
+            setLoadError(error.message || 'Could not load leave requests.');
         } finally {
             if (!silent) setIsLoading(false);
         }
@@ -84,15 +88,11 @@ export default function LeaveManagement() {
             fetchLeaves(true);
         } catch (error) {
             console.error('Submit leave error:', error);
-            // Optimistically add to local state if backend isn't ready
-            const newLeave = {
-                id: `LV${Date.now()}`,
-                ...form,
-                status: 'pending',
-            };
-            setLeaves(prev => [newLeave, ...prev]);
-            showToast('Leave request submitted.', 'info');
-            setDialogOpen(false);
+            // FIXED: previously caught this, silently inserted a fake
+            // local "pending" leave, and told the doctor it succeeded —
+            // even though nothing was actually saved server-side. Show
+            // the real error in the dialog instead so they can retry.
+            setFormError(error.message || 'Failed to submit leave request. Please try again.');
         } finally {
             setSubmitting(false);
         }
@@ -105,9 +105,12 @@ export default function LeaveManagement() {
             showToast('Leave cancelled successfully.');
             fetchLeaves(true);
         } catch (error) {
-            // Optimistically remove from local state
-            setLeaves(prev => prev.filter(l => l.id !== leaveId));
-            showToast('Leave cancelled.');
+            // FIXED: previously removed the leave from local state and
+            // claimed success even when the DELETE call failed, which
+            // would make a still-active leave request silently vanish
+            // from the doctor's view while remaining pending server-side.
+            console.error('Cancel leave error:', error);
+            showToast(error.message || 'Failed to cancel leave. Please try again.', 'error');
         } finally {
             setCancellingId(null);
         }
@@ -165,6 +168,10 @@ export default function LeaveManagement() {
 
                 {isLoading ? (
                     <Box sx={{ p: 8, textAlign: 'center' }}><CircularProgress sx={{ color: '#0d9488' }} /></Box>
+                ) : loadError ? (
+                    <Box sx={{ p: 4 }}>
+                        <Alert severity="error" sx={{ borderRadius: 2 }}>{loadError}</Alert>
+                    </Box>
                 ) : leaves.length === 0 ? (
                     <Box sx={{ p: 8, textAlign: 'center' }}>
                         <EventBusyIcon sx={{ fontSize: 48, color: 'rgba(255,255,255,0.1)', mb: 2 }} />

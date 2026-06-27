@@ -5,7 +5,7 @@ import { Target, Compass, Shield, Lock, Globe, ArrowRight } from 'lucide-react';
 const roadmap = [
   { year: '2026', title: 'Sovereign Launch', desc: 'Activating the first 500 clinical nodes across the primary grid.' },
   { year: '2027', title: 'AI Diagnostics', desc: 'Integrating predictive pathology and imaging stratification engines.' },
-  { year: '2028', title: 'National Infrastructure', desc: 'Deploying the Hospin protocol as a sovereign health backbone.' },
+  { year: '2028', title: 'National Infrastructure', desc: 'Deploying the Hospain protocol as a sovereign health backbone.' },
   { year: '2029', title: 'Predictive Emergency', desc: 'AI-assisted city-wide emergency response and coordination.' },
 ];
 
@@ -24,7 +24,7 @@ const Vision = () => {
           The Future of Health.
         </h2>
         <p className="text-slate-400 text-lg max-w-2xl mx-auto font-medium">
-          Hospin was built to reduce the chaos in modern healthcare and return the focus to what matters most: human life.
+          Hospain was built to reduce the chaos in modern healthcare and return the focus to what matters most: human life.
         </p>
       </header>
 
@@ -36,8 +36,8 @@ const Vision = () => {
                   <Compass className="text-primary" />
                </div>
                <div>
-                  <h3 className="text-2xl font-black outfit text-white mb-4">The Story Behind Hospin</h3>
-                  <p className="text-slate-500 leading-relaxed">Hospin was born from a simple observation: Healthcare is broken because it is disconnected. We saw families struggle with paper records and doctors overwhelmed by fragmented systems. We decided to build a billion-dollar OS for life.</p>
+                  <h3 className="text-2xl font-black outfit text-white mb-4">The Story Behind Hospain</h3>
+                  <p className="text-slate-500 leading-relaxed">Hospain was born from a simple observation: Healthcare is broken because it is disconnected. We saw families struggle with paper records and doctors overwhelmed by fragmented systems. We decided to build a billion-dollar OS for life.</p>
                </div>
             </div>
             <div className="flex gap-6 items-start">
@@ -98,7 +98,7 @@ const Vision = () => {
               The Future of Healthcare <br /> Starts with Connection.
             </h2>
             <p className="text-slate-400 text-xl max-w-2xl mx-auto mb-12 font-medium">
-              Hospin is building the infrastructure for a smarter, faster, and more human healthcare future.
+              Hospain is building the infrastructure for a smarter, faster, and more human healthcare future.
             </p>
             <button className="btn-premium flex items-center gap-3 mx-auto">
                Join the Revolution <ArrowRight size={16} />

@@ -14,13 +14,13 @@ branch_labels = None
 depends_on = None
 
 # Enum types
-queue_priority_enum = postgresql.ENUM('NORMAL', 'VIP', 'EMERGENCY', name='queuepriority', create_type=False)
+queue_priority_enum = postgresql.ENUM('NORMAL', 'VIP', 'EMERGENCY', name='queuepriority', create_type=True)
 queue_status_enum = postgresql.ENUM(
     'waiting_reception', 'waiting_triage', 'waiting_doctor', 'consulting',
     'waiting_lab', 'waiting_pharmacy', 'waiting_billing', 'completed', 'rejected',
-    name='queuestatus', create_type=False
+    name='queuestatus', create_type=True
 )
-bed_status_enum = postgresql.ENUM('AVAILABLE', 'OCCUPIED', 'CLEANING', 'MAINTENANCE', name='bedstatus', create_type=False)
+bed_status_enum = postgresql.ENUM('AVAILABLE', 'OCCUPIED', 'CLEANING', 'MAINTENANCE', name='bedstatus', create_type=True)
 
 
 def upgrade() -> None:

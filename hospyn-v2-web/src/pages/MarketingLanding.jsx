@@ -1,10 +1,10 @@
 /**
- * hospin-v2-web/src/pages/MarketingLanding.jsx
- * Hospin brand identity. Formal, trustworthy, fresh.
+ * hospain-v2-web/src/pages/MarketingLanding.jsx
+ * Hospain brand identity. Formal, trustworthy, fresh.
  * Tabs: Ecosystem Hub | How We Service | Our Vision
  *
  * REBRAND CHANGES:
- *  - Hospyn → Hospin everywhere
+ *  - Hospain → Hospain everywhere
  *  - Tagline: "Care beyond today"
  *  - Hero restructured to 2-column: left = value prop, right = interactive
  *    Chitti AI avatar with floating icon animation
@@ -15,10 +15,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Users, Activity, Brain, Lock, CheckCircle,
   ArrowRight, Globe, BarChart3, Heart,
-  TrendingUp, AlertCircle, Cpu, Database
+  TrendingUp, AlertCircle, Database
 } from 'lucide-react';
 import logoImg from '../assets/logo.png';
-import chittiImg from '../assets/chitti_landing.jpg';
+import heroBgImg from '../assets/hero_bg.png';
 
 const STATS = [
   { value: '2,400+', label: 'Hospitals Onboarded' },
@@ -44,9 +44,9 @@ const HOW_STEPS = [
 ];
 
 const VISION_PILLARS = [
-  { icon: Shield, title: 'Every Hospital, Fully Verified', desc: 'We do not sell software to anyone who asks. Every hospital on Hospin is triple-verified against government registries. This protects you, your staff, and every patient who walks through your door.', tag: 'Zero-Compromise Verification' },
+  { icon: Shield, title: 'Every Hospital, Fully Verified', desc: 'We do not sell software to anyone who asks. Every hospital on Hospain is triple-verified against government registries. This protects you, your staff, and every patient who walks through your door.', tag: 'Zero-Compromise Verification' },
   { icon: Globe, title: 'One Network, Every Hospital', desc: 'We are building the clinical nervous system of India. A unified grid where patient data, staff credentials, and financial records move securely between verified nodes — with your consent, always.', tag: 'National Health Network' },
-  { icon: Heart, title: 'Technology That Disappears', desc: 'The best hospital software is the kind nobody notices. Your doctors focus on patients. Your nurses track care. You run the hospital. Hospin runs silently in the background — handling everything else.', tag: 'Invisible Infrastructure' },
+  { icon: Heart, title: 'Technology That Disappears', desc: 'The best hospital software is the kind nobody notices. Your doctors focus on patients. Your nurses track care. You run the hospital. Hospain runs silently in the background — handling everything else.', tag: 'Invisible Infrastructure' },
 ];
 
 export default function MarketingLanding({ setIsLoginModalOpen, setIsWizardOpen }) {
@@ -73,9 +73,9 @@ export default function MarketingLanding({ setIsLoginModalOpen, setIsWizardOpen 
         <div className="max-w-7xl mx-auto px-6 lg:px-10 flex items-center justify-between h-16">
 
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => { setCurrentPage(1); window.scrollTo(0,0); }}>
-            <img src={logoImg} alt="Hospin" className="w-8 h-8 object-contain" />
+            <img src={logoImg} alt="Hospain" className="w-10 h-10 object-contain" />
             <span className="font-black text-slate-900 text-lg tracking-tight" style={{ fontFamily: 'system-ui, sans-serif' }}>
-              HOSPIN<span className="text-violet-600">.</span>
+              HOSPAIN<span className="text-violet-600">.</span>
             </span>
             <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider text-violet-600 bg-violet-50 border border-violet-100">
               Enterprise
@@ -114,129 +114,107 @@ export default function MarketingLanding({ setIsLoginModalOpen, setIsWizardOpen 
         ══════════════════════════════════════════════════════════════ */}
         {currentPage === 1 && (
           <>
-            {/* HERO */}
-            <section className="relative overflow-hidden bg-gradient-to-b from-slate-50 to-white min-h-[90vh] flex items-center">
-              <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 70% 50%, rgba(124,58,237,0.06) 0%, transparent 60%), radial-gradient(circle at 10% 80%, rgba(99,102,241,0.05) 0%, transparent 50%)' }} />
-              <div className="absolute inset-0 pointer-events-none opacity-[0.025]" style={{ backgroundImage: 'linear-gradient(#8B5CF6 1px, transparent 1px), linear-gradient(90deg, #8B5CF6 1px, transparent 1px)', backgroundSize: '56px 56px' }} />
+            {/* ═══ HERO ═══════════════════════════════════════════════════════
+                 Full-bleed hero. Background = hero_bg.png (exact design image)
+                 covering the full section. Left half = text+CTAs on a light
+                 lavender overlay so copy stays readable. Right half is pure image.
+                 On mobile: stacks vertically, image below copy. ══════════════ */}
+            <section className="relative overflow-hidden min-h-[90vh] flex items-center">
 
-              <div className="max-w-7xl mx-auto px-6 lg:px-10 w-full py-20 relative z-10">
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-                  <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55 }} className="lg:col-span-7 space-y-8">
+              {/* ── Full-bleed background image — exact as provided ── */}
+              <div
+                className="absolute inset-0 z-0"
+                style={{
+                  backgroundImage: `url(${heroBgImg})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center right',
+                  backgroundRepeat: 'no-repeat',
+                }}
+              />
 
-                    <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white border border-slate-200 shadow-sm">
+              {/* ── Left-side overlay so text is legible over the purple bg ── */}
+              <div
+                className="absolute inset-0 z-[1] pointer-events-none"
+                style={{
+                  background: 'linear-gradient(to right, rgba(248,246,255,0.97) 0%, rgba(245,242,255,0.93) 38%, rgba(240,235,255,0.55) 58%, transparent 75%)',
+                }}
+              />
+
+              {/* ── Content ── */}
+              <div className="max-w-7xl mx-auto px-6 lg:px-10 w-full py-24 relative z-10">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 items-center">
+
+                  {/* Left: copy — spans 6 of 12 columns */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 28 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.55 }}
+                    className="lg:col-span-6 space-y-8"
+                  >
+                    {/* "Care beyond today" pill */}
+                    <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-white/90 border border-violet-200 shadow-sm backdrop-blur-sm">
                       <span className="relative flex h-2 w-2">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                       </span>
-                      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-600">Care beyond today</span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-700">Care beyond today</span>
                     </div>
 
-                    <div className="space-y-5">
-                      <h1 className="text-[3.4rem] lg:text-[4rem] font-black text-slate-900 leading-[1.02] tracking-tight" style={{ fontFamily: 'system-ui, sans-serif' }}>
+                    {/* Headline */}
+                    <div className="space-y-4">
+                      <h1 className="text-[3.2rem] lg:text-[4rem] font-black text-slate-900 leading-[1.02] tracking-tight" style={{ fontFamily: 'system-ui, sans-serif' }}>
                         Your Entire<br />
                         Hospital.<br />
                         <span className="text-violet-600">One Dashboard.</span>
                       </h1>
-                      <p className="text-slate-500 text-base font-medium leading-relaxed max-w-lg">
-                        Hospin gives hospital owners complete, real-time control over every doctor, every nurse, every patient, and every rupee — from a single verified console.
+                      <p className="text-slate-600 text-base font-medium leading-relaxed max-w-[480px]">
+                        Hospain gives hospital owners complete, real-time control over every doctor, every nurse, every patient, and every rupee — from a single verified console.
                       </p>
                     </div>
 
+                    {/* Compliance badges */}
                     <div className="flex flex-wrap gap-2.5">
                       {['NABH Verified', 'DPDPA Compliant', 'ABDM Ready'].map(t => (
-                        <span key={t} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-100 text-[10px] font-black text-emerald-700 uppercase tracking-wider">
+                        <span key={t} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 border border-emerald-200 text-[10px] font-black text-emerald-700 uppercase tracking-wider backdrop-blur-sm shadow-sm">
                           <CheckCircle size={11} /> {t}
                         </span>
                       ))}
                     </div>
 
-                    <div className="flex gap-3 pt-1">
-                      <button onClick={() => setIsWizardOpen(true)} className="px-7 py-3.5 bg-violet-600 hover:bg-violet-700 text-white font-bold text-[11px] tracking-widest uppercase rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-violet-500/25 flex items-center gap-2">
+                    {/* CTAs */}
+                    <div className="flex gap-3 pt-1 flex-wrap">
+                      <button
+                        onClick={() => setIsWizardOpen(true)}
+                        className="px-7 py-3.5 bg-violet-600 hover:bg-violet-700 text-white font-bold text-[11px] tracking-widest uppercase rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-violet-500/30 flex items-center gap-2"
+                      >
                         Register Your Hospital <ArrowRight size={14} />
                       </button>
-                      <button onClick={() => setIsLoginModalOpen(true)} className="px-7 py-3.5 border border-slate-200 bg-white text-slate-700 font-bold text-[11px] tracking-widest uppercase rounded-xl hover:bg-slate-50 transition-all">
+                      <button
+                        onClick={() => setIsLoginModalOpen(true)}
+                        className="px-7 py-3.5 border border-slate-300 bg-white/90 text-slate-700 font-bold text-[11px] tracking-widest uppercase rounded-xl hover:bg-white transition-all backdrop-blur-sm shadow-sm"
+                      >
                         Access Console
                       </button>
                     </div>
 
-                    <div className="pt-6 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-4 gap-6">
+                    {/* Stats row */}
+                    <div className="pt-6 border-t border-slate-200/60 grid grid-cols-2 sm:grid-cols-4 gap-5">
                       {STATS.map((s, i) => (
                         <div key={i}>
                           <p className="text-2xl font-black text-slate-900" style={{ fontFamily: 'system-ui, sans-serif' }}>{s.value}</p>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">{s.label}</p>
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">{s.label}</p>
                         </div>
                       ))}
                     </div>
+
+                    {/* 2028 disclaimer */}
+                    <p className="text-[9px] text-slate-500 font-medium leading-relaxed max-w-md">
+                      * figures above are targets we are working towards by 2028. as of now, hospain is in early access and growing its verified network. actual current numbers will be updated as we onboard hospitals.
+                    </p>
                   </motion.div>
 
-                  {/* Chitti AI Avatar — interactive, floating */}
-                  <motion.div initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.65, delay: 0.15 }} className="hidden lg:flex lg:col-span-5 items-center justify-center relative">
-
-                    {/* Background glow */}
-                    <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(circle at 50% 45%, rgba(139,92,246,0.18) 0%, transparent 65%)' }} />
-
-                    {/* Floating avatar container */}
-                    <motion.div
-                      animate={{ y: [0, -16, 0] }}
-                      transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
-                      className="relative z-10"
-                    >
-                      <div className="relative w-[320px] h-[320px] rounded-[40px] overflow-hidden border border-white/40 shadow-2xl backdrop-blur-sm" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.6), rgba(255,255,255,0.2))' }}>
-                        <img src={chittiImg} alt="Chitti AI" className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 rounded-[40px] ring-1 ring-inset ring-white/50" />
-                      </div>
-
-                      {/* Floating icon: Brain */}
-                      <motion.div
-                        animate={{ y: [0, -14, 0], rotate: [0, 6, 0] }}
-                        transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
-                        className="absolute -top-6 -left-8 w-12 h-12 bg-white rounded-2xl shadow-xl border border-violet-100 flex items-center justify-center"
-                      >
-                        <Brain size={20} className="text-violet-600" />
-                      </motion.div>
-
-                      {/* Floating icon: Cpu */}
-                      <motion.div
-                        animate={{ y: [0, 12, 0], rotate: [0, -8, 0] }}
-                        transition={{ duration: 3.8, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
-                        className="absolute top-6 -right-10 w-11 h-11 bg-white rounded-2xl shadow-xl border border-indigo-100 flex items-center justify-center"
-                      >
-                        <Cpu size={18} className="text-indigo-600" />
-                      </motion.div>
-
-                      {/* Floating icon: Activity */}
-                      <motion.div
-                        animate={{ y: [0, -10, 0] }}
-                        transition={{ duration: 4.1, repeat: Infinity, ease: 'easeInOut', delay: 0.8 }}
-                        className="absolute bottom-10 -left-10 w-11 h-11 bg-white rounded-2xl shadow-xl border border-cyan-100 flex items-center justify-center"
-                      >
-                        <Activity size={18} className="text-cyan-600" />
-                      </motion.div>
-
-                      {/* Floating icon: Database */}
-                      <motion.div
-                        animate={{ y: [0, 14, 0], rotate: [0, 8, 0] }}
-                        transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut', delay: 1.1 }}
-                        className="absolute -bottom-6 right-2 w-12 h-12 bg-white rounded-2xl shadow-xl border border-blue-100 flex items-center justify-center"
-                      >
-                        <Database size={19} className="text-blue-600" />
-                      </motion.div>
-
-                      {/* Floating icon: Shield */}
-                      <motion.div
-                        animate={{ y: [0, -8, 0] }}
-                        transition={{ duration: 3.0, repeat: Infinity, ease: 'easeInOut', delay: 1.5 }}
-                        className="absolute top-1/2 -right-14 w-10 h-10 bg-white rounded-2xl shadow-xl border border-emerald-100 flex items-center justify-center"
-                      >
-                        <Shield size={16} className="text-emerald-600" />
-                      </motion.div>
-                    </motion.div>
-
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 px-4 py-2 bg-white border border-slate-200 rounded-full shadow-lg flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Chitti AI — Active</span>
-                    </div>
-                  </motion.div>
+                  {/* Right: intentionally empty — hero_bg.png fills this space */}
+                  <div className="hidden lg:block lg:col-span-6" aria-hidden="true" />
                 </div>
               </div>
             </section>
@@ -361,12 +339,13 @@ export default function MarketingLanding({ setIsLoginModalOpen, setIsWizardOpen 
             <section className="py-24 bg-slate-900">
               <div className="max-w-4xl mx-auto px-10 text-center space-y-8">
                 <h2 className="text-4xl font-black text-white tracking-tight leading-tight" style={{ fontFamily: 'system-ui' }}>Ready to Run Your Hospital the Right Way?</h2>
-                <p className="text-slate-400 text-base font-medium max-w-2xl mx-auto leading-relaxed">Join 2,400+ hospitals on the Hospin network. Verification takes 24 hours. Setup takes minutes.</p>
+                <p className="text-slate-400 text-base font-medium max-w-2xl mx-auto leading-relaxed">Be among the first verified hospitals on the Hospain network. Verification takes 24 hours. Setup takes minutes.</p>
                 <div className="flex flex-wrap justify-center gap-4">
                   <button onClick={() => setIsWizardOpen(true)} className="px-10 py-4 bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs tracking-widest uppercase rounded-xl transition-all shadow-xl shadow-violet-500/20 flex items-center gap-2">Register Your Hospital <ArrowRight size={14} /></button>
                   <button onClick={() => setIsLoginModalOpen(true)} className="px-10 py-4 border border-slate-700 text-slate-300 hover:border-slate-500 hover:text-white font-bold text-xs tracking-widest uppercase rounded-xl transition-all">Access Existing Console</button>
                 </div>
                 <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">No subscription until your hospital is fully verified and live.</p>
+                <p className="text-[9px] text-slate-600 font-medium max-w-lg mx-auto">* "2,400+ hospitals" is our growth target by 2028. hospain is currently in early access.</p>
               </div>
             </section>
 
@@ -376,8 +355,8 @@ export default function MarketingLanding({ setIsLoginModalOpen, setIsWizardOpen 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-10 pb-10 border-b border-slate-800">
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
-                      <img src={logoImg} alt="Hospin" className="w-8 h-8 object-contain" />
-                      <span className="font-black text-white text-lg" style={{ fontFamily: 'system-ui' }}>HOSPIN<span className="text-violet-500">.</span></span>
+                      <img src={logoImg} alt="Hospain" className="w-10 h-10 object-contain" />
+                      <span className="font-black text-white text-lg" style={{ fontFamily: 'system-ui' }}>HOSPAIN<span className="text-violet-500">.</span></span>
                     </div>
                     <p className="text-slate-500 text-xs font-medium leading-relaxed">Clinical-grade hospital management infrastructure for verified Indian healthcare providers.</p>
                   </div>
@@ -393,7 +372,7 @@ export default function MarketingLanding({ setIsLoginModalOpen, setIsWizardOpen 
                   ))}
                 </div>
                 <div className="pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                  <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">© 2026 Hospin Technologies Pvt. Ltd. All Rights Reserved.</p>
+                  <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">© 2026 Hospain Technologies Pvt. Ltd. All Rights Reserved.</p>
                   <div className="flex gap-3">
                     {['ISO 27001', 'NABH', 'NHA', 'ABDM'].map(b => <span key={b} className="text-[9px] font-black uppercase tracking-wider text-slate-600 border border-slate-800 rounded px-2 py-0.5">{b}</span>)}
                   </div>
@@ -410,7 +389,7 @@ export default function MarketingLanding({ setIsLoginModalOpen, setIsWizardOpen 
           <section className="min-h-screen bg-white py-24">
             <div className="max-w-7xl mx-auto px-6 lg:px-10 space-y-20">
               <div className="text-center space-y-4 max-w-3xl mx-auto">
-                <span className="inline-flex items-center px-3 py-1 rounded-full border border-violet-100 bg-violet-50 text-[10px] font-black tracking-widest text-violet-600 uppercase">The Hospin Process</span>
+                <span className="inline-flex items-center px-3 py-1 rounded-full border border-violet-100 bg-violet-50 text-[10px] font-black tracking-widest text-violet-600 uppercase">The Hospain Process</span>
                 <h2 className="text-4xl font-black text-slate-900 tracking-tight" style={{ fontFamily: 'system-ui' }}>How We Transform a Hospital Into a Verified Network Node</h2>
                 <p className="text-slate-500 text-sm font-medium leading-relaxed">From registration to daily operations — every step is deliberate, verified, and designed to make your hospital run better.</p>
               </div>
@@ -468,7 +447,7 @@ export default function MarketingLanding({ setIsLoginModalOpen, setIsWizardOpen 
           <section className="min-h-screen bg-white py-24">
             <div className="max-w-7xl mx-auto px-6 lg:px-10 space-y-20">
               <div className="text-center space-y-4 max-w-3xl mx-auto">
-                <span className="inline-flex items-center px-3 py-1 rounded-full border border-indigo-100 bg-indigo-50 text-[10px] font-black tracking-widest text-indigo-600 uppercase">Why Hospin Exists</span>
+                <span className="inline-flex items-center px-3 py-1 rounded-full border border-indigo-100 bg-indigo-50 text-[10px] font-black tracking-widest text-indigo-600 uppercase">Why Hospain Exists</span>
                 <h2 className="text-4xl font-black text-slate-900 tracking-tight leading-tight" style={{ fontFamily: 'system-ui' }}>We Are Building the Clinical Infrastructure India Never Had</h2>
                 <p className="text-slate-500 text-sm font-medium leading-relaxed">India has 1.2 lakh hospitals. Most run on WhatsApp groups, paper registers, and Excel sheets. We are changing that — hospital by hospital, verified by verified.</p>
               </div>
@@ -491,7 +470,7 @@ export default function MarketingLanding({ setIsLoginModalOpen, setIsWizardOpen 
                 <p className="text-2xl font-black text-white leading-relaxed italic" style={{ fontFamily: 'system-ui' }}>
                   "Our mission is to replace friction with flow. Every verified hospital is a node in a national network of safe, trusted, and dignified patient care."
                 </p>
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">— Hospin Leadership Team</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">— Hospain Leadership Team</span>
                 <div className="flex flex-wrap justify-center gap-4 pt-4">
                   <button onClick={() => setIsWizardOpen(true)} className="px-8 py-3.5 bg-violet-600 hover:bg-violet-500 text-white font-bold text-xs tracking-widest uppercase rounded-xl transition-all shadow-lg shadow-violet-500/20">Join the Network →</button>
                   <button onClick={() => setIsLoginModalOpen(true)} className="px-8 py-3.5 border border-slate-700 text-slate-300 hover:border-slate-600 hover:text-white font-bold text-xs tracking-widest uppercase rounded-xl transition-all">Access Your Console →</button>

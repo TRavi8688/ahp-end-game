@@ -17,6 +17,7 @@ import LoginScreen from './pages/LoginScreen';
 import SignupScreen from './pages/SignupScreen';
 import HomeDashboard from './pages/HomeDashboard';
 import PatientDetailView from './pages/PatientDetailView';
+import PatientRecordView from './pages/PatientRecordView';
 import PatientList from './pages/PatientList';
 import AccessHistory from './pages/AccessHistory';
 import Alerts from './pages/Alerts';
@@ -109,22 +110,30 @@ function AppContent() {
         }
     }
 
-    const isAuthenticated = (localStorage.getItem('isAuthenticated') === 'true') && isDoctor;
+    // FIXED: was `(localStorage.getItem('isAuthenticated') === 'true') && isDoctor`.
+    // localStorage persists across tabs/windows; sessionStorage (where the
+    // actual JWT lives) is per-tab. Opening a brand-new tab found
+    // isAuthenticated=true in localStorage but no token in that tab's
+    // sessionStorage, so isDoctor was false and the user got bounced to
+    // /login despite having a perfectly valid session in their other tab.
+    // Auth state now comes entirely from this tab's sessionStorage token,
+    // which is the only thing that's actually authoritative.
+    const isAuthenticated = Boolean(token) && isDoctor;
     const [scanModalOpen, setScanModalOpen] = useState(false);
 
     useEffect(() => {
         if (token && !isDoctor) {
-            localStorage.removeItem('isAuthenticated');
-            localStorage.removeItem('isVerified');
             sessionStorage.removeItem('hospain_access_token');
+            localStorage.removeItem('isAuthenticated'); // legacy key cleanup
+            localStorage.removeItem('isVerified');
             window.location.href = '/login';
         }
     }, [token, isDoctor]);
 
     const handleLogout = () => {
-        localStorage.removeItem('isAuthenticated');
-        localStorage.removeItem('isVerified');
         sessionStorage.removeItem('hospain_access_token');
+        localStorage.removeItem('isAuthenticated'); // legacy key cleanup
+        localStorage.removeItem('isVerified');
         window.location.href = '/login';
     };
 
@@ -157,6 +166,7 @@ function AppContent() {
                             <Route path="/" element={<HomeDashboard onOpenScan={() => setScanModalOpen(true)} />} />
                             <Route path="/queue" element={<QueueScreen />} />
                             <Route path="/patient/:id/*" element={<PatientDetailView />} />
+                            <Route path="/patient-record/:patientId" element={<PatientRecordView />} />
                             <Route path="/patients" element={<PatientList />} />
                             <Route path="/schedule" element={<Schedule />} />
                             <Route path="/history" element={<AccessHistory />} />

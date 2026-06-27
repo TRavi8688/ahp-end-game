@@ -5,6 +5,17 @@ import { SecurityUtils } from '../utils/security';
 // Zero-footprint ephemeral in-memory cache (HIPAA/GDPR compliance)
 const ephemeralClinicalCache = new Map();
 
+// Some backend features used by this app's screens genuinely don't exist
+// yet (confirmed by checking the actual backend routes, not assumed) —
+// calling them throws a clear error instead of silently 404ing or pretending
+// to work. See the per-method notes below for what's missing and why.
+function notBuiltYet(featureName) {
+    return Promise.reject(new Error(
+        `${featureName} isn't available yet — this feature needs backend work that hasn't been built. ` +
+        `(Confirmed: no matching route exists in healthcare-core.)`
+    ));
+}
+
 export const clinicalService = {
     getClinicalSummary: async (signal) => {
         const activeMemberId = await SecurityUtils.getActiveMemberId() || 'primary';
@@ -53,18 +64,20 @@ export const clinicalService = {
             throw e;
         }
     },
-    deleteRecord: async (recordId, password) => {
-        const response = await apiClient.post(`/patient/records/${recordId}/delete`, { password });
-        return response.data;
-    },
+
+    // NOT BUILT YET: there is no per-record delete endpoint anywhere in the
+    // backend (patients.py only has DELETE /{patient_id}, which deletes the
+    // whole patient — not a single record). Needs real backend work before
+    // this can be wired up; not faking it here.
+    deleteRecord: async (_recordId, _password) => notBuiltYet('Deleting a record'),
 
     uploadReport: async (formData) => {
         // Native fetch for large blobs avoiding Axios serialization bugs
         const token = await SecurityUtils.getToken();
         const activeMemberId = await SecurityUtils.getActiveMemberId();
         const randomId = Math.random().toString(36).substring(2, 15);
-        
-        const headers = { 
+
+        const headers = {
             'Authorization': `Bearer ${token}`,
             'X-Idempotency-Key': `hospyn_upload_${Date.now()}_${randomId}`
         };
@@ -72,107 +85,101 @@ export const clinicalService = {
             headers['X-Family-Member-ID'] = activeMemberId;
         }
 
-        const response = await fetch(`${API_BASE_URL}/patient/upload-report`, {
+        // BUG FIX: was /patient/upload-report — the real endpoint lives on
+        // the top-level patients router (plural): /patients/upload-report.
+        const response = await fetch(`${API_BASE_URL}/patients/upload-report`, {
             method: 'POST',
             headers,
             body: formData,
         });
-        
+
         if (!response.ok) {
             throw new Error(`Upload failed with status ${response.status}`);
         }
-        
+
         return await response.json();
     },
 
     confirmReport: async (data) => {
-        const response = await apiClient.post('/patient/confirm-and-save-report', data);
+        // BUG FIX: was /patient/confirm-and-save-report — the real endpoint
+        // is on the top-level patients router (plural): /patients/confirm-and-save-report.
+        const response = await apiClient.post('/patients/confirm-and-save-report', data);
         return response.data;
     },
 
-    getPendingAccess: async (signal) => {
-        const response = await apiClient.get('/patient/pending-access', { signal });
-        return response.data;
-    },
+    // NOT BUILT YET: patient_mobile_api.py only has GET /patient/active-sharing
+    // (who currently has access) — there's no separate "incoming access
+    // requests awaiting my approval" concept/endpoint on the backend.
+    getPendingAccess: async (_signal) => notBuiltYet('Pending access requests'),
+    approveAccess: async (_accessId, _data) => notBuiltYet('Approving access requests'),
 
-    approveAccess: async (accessId, data) => {
-        const response = await apiClient.post(`/patient/approve-access/${accessId}`, data);
+    getActiveSharing: async (signal) => {
+        const response = await apiClient.get('/patient/active-sharing', { signal });
         return response.data;
     },
 
     revokeAccess: async (accessId) => {
-        const response = await apiClient.post(`/patient/revoke-access/${accessId}`);
+        // BUG FIX: backend defines this route as DELETE, not POST — every
+        // revoke attempt was rejected with 405 Method Not Allowed.
+        const response = await apiClient.delete(`/patient/revoke-access/${accessId}`);
         return response.data;
     },
 
-    logMedication: async (medicationId) => {
-        const response = await apiClient.post(`/patient/log-medication?medication_id=${medicationId}`);
-        return response.data;
-    },
+    // NOT BUILT YET: no medication-adherence-logging endpoint/table exists.
+    logMedication: async (_medicationId) => notBuiltYet('Logging a medication dose'),
 
-    scanHospitalQR: async (qrData) => {
-        const response = await apiClient.post('/visit/scan', { qr_data: qrData });
-        return response.data;
-    },
+    // NOT BUILT YET: no /visit/* router exists anywhere in the backend —
+    // hospital QR check-in/visit-creation hasn't been built server-side.
+    scanHospitalQR: async (_qrData) => notBuiltYet('Scanning a hospital QR code'),
+    createVisit: async (_hospital_id, _reason, _symptoms = '', _dept = '', _doctor = '') =>
+        notBuiltYet('Creating a walk-in visit'),
+    getVisits: async (_signal) => notBuiltYet('Visit history'),
 
-    createVisit: async (hospital_id, reason, symptoms = '', dept = '', doctor = '') => {
-        const response = await apiClient.post('/visit/create', { 
-            hospital_id, 
-            visit_reason: reason, 
-            symptoms,
-            department: dept,
-            doctor_name: doctor
-        });
-        return response.data;
-    },
-
-    getAccessHistory: async (signal) => {
-        const response = await apiClient.get('/patient/access-history', { signal });
-        return response.data;
-    },
-
-    getVisits: async (signal) => {
-        const response = await apiClient.get('/visit/my-visits', { signal });
-        return response.data;
-    },
+    // NOT BUILT YET: there's no separate "access history" audit-log
+    // endpoint — only "who currently has access" (getActiveSharing above).
+    getAccessHistory: async (_signal) => notBuiltYet('Access history'),
 
     getPrescriptions: async (signal) => {
-        const response = await apiClient.get('/clinical/prescriptions', { signal });
-        return response.data;
+        // BUG FIX: was /clinical/prescriptions, which is the PHARMACIST
+        // queue view (require_role pharmacist/doctor/admin/hospital_admin)
+        // — patients got 403 on every call. The real "my prescriptions"
+        // endpoint is the top-level /prescriptions/ list, which now scopes
+        // itself to the calling patient automatically.
+        const response = await apiClient.get('/prescriptions/', { signal });
+        const data = response.data?.data || response.data;
+        return { prescriptions: Array.isArray(data) ? data : (data?.items || []) };
     },
 
     getPrescriptionDetail: async (prescriptionId, signal) => {
-        const response = await apiClient.get(`/clinical/prescriptions/${prescriptionId}`, { signal });
-        return response.data;
+        // BUG FIX: was /clinical/prescriptions/{id} (wrong router, 404).
+        const response = await apiClient.get(`/prescriptions/${prescriptionId}`, { signal });
+        return response.data?.data || response.data;
     },
 
-    getLabReports: async (signal) => {
-        const response = await apiClient.get('/lab/reports', { signal });
-        return response.data;
-    },
+    // NOT BUILT YET: lab_results.py is an intentional placeholder (501) —
+    // there is no LabResult model/spec in this codebase yet.
+    getLabReports: async (_signal) => notBuiltYet('Lab reports'),
+    getLabReportDetail: async (_orderId, _signal) => notBuiltYet('Lab report detail'),
 
-    getLabReportDetail: async (orderId, signal) => {
-        const response = await apiClient.get(`/lab/orders/${orderId}/results`, { signal });
-        return response.data;
-    },
-
-    getLatestLabOrder: async (signal) => {
-        const response = await apiClient.get('/referrals/patients/latest-lab-order', { signal });
-        return response.data;
-    },
+    // NOT BUILT YET: there is no /referrals router at all, and no concept of
+    // a "latest lab order" (lab ordering isn't built — see getLabReports).
+    getLatestLabOrder: async (_signal) => notBuiltYet('Latest lab order lookup'),
 
     getLatestPrescription: async (signal) => {
-        const response = await apiClient.get('/referrals/patients/latest-prescription', { signal });
-        return response.data;
+        // BUG FIX: was /referrals/patients/latest-prescription, which never
+        // existed. The real, already-working endpoint is the same patient-
+        // scoped /prescriptions/ list used by getPrescriptions() above —
+        // just take the most recent one (it's already sorted newest-first).
+        const response = await apiClient.get('/prescriptions/', { signal });
+        const data = response.data?.data || response.data;
+        const list = Array.isArray(data) ? data : (data?.items || []);
+        return list[0] || null;
     },
 
-    submitPartnerLabRequest: async (orderId, partnerHospitalId) => {
-        const response = await apiClient.post('/referrals/labs/request', {
-            order_id: orderId,
-            partner_hospital_id: partnerHospitalId
-        });
-        return response.data;
-    },
+    // NOT BUILT YET: same as getLatestLabOrder — lab ordering/referrals
+    // don't exist on the backend.
+    submitPartnerLabRequest: async (_orderId, _partnerHospitalId) =>
+        notBuiltYet('Sharing a lab order with a partner lab'),
 
     submitPartnerPharmacyRequest: async (prescriptionId, partnerPharmacyId) => {
         // FIX-RX1 (2026-06-24): /referrals/pharmacies/request doesn't exist

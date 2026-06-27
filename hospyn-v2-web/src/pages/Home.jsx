@@ -49,7 +49,7 @@ const Home = () => {
           transition={{ delay: 0.4 }}
           className="text-slate-400 text-lg md:text-xl max-w-3xl mb-12 font-medium leading-relaxed"
         >
-          Hospyn transforms fragmented medical data into one intelligent, connected ecosystem for patients, hospitals, doctors, and families. Built on a zero-latency clinical grid.
+          Hospain transforms fragmented medical data into one intelligent, connected ecosystem for patients, hospitals, doctors, and families. Built on a zero-latency clinical grid.
         </motion.p>
 
         <motion.div 

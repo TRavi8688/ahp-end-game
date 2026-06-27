@@ -11,13 +11,18 @@ export default function Profile({ onLogout }) {
   const [me, setMe] = useState(null);
 
   useEffect(() => {
-    apiClient.get('/auth/me').then((res) => setMe(res.data)).catch(() => {});
+    // /auth/me is an internal-only endpoint (not exposed via nginx).
+    // Read the profile cached in sessionStorage at login time instead.
+    try {
+      const stored = sessionStorage.getItem('hospyn_partner_user');
+      if (stored) setMe(JSON.parse(stored));
+    } catch {}
   }, []);
 
   // EXECUTION FIX (carried over from the dashboard rebuild): this used to read
   // localStorage's 'token' key directly here too, which is fine — the real
   // bug was the key mismatch with Login.jsx, already fixed app-wide.
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('hospyn_partner_token');
   let pharmacyId = 'UNKNOWN_PHARMACY';
   if (token) {
     try {

@@ -61,11 +61,14 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'hospyn-staff-storage',
-      storage: createJSONStorage(() => localStorage),
-      // FIXED: queue excluded from persistence — it must be fetched live on mount.
-      // Previously, stale queue data from localStorage was overwriting the live fetch.
+      storage: createJSONStorage(() => sessionStorage),
+      // FIXED (BUG-29 / PHI in localStorage): queue AND alerts are excluded
+      // from persistence. `alerts` can contain patient names, zones, and
+      // critical clinical flags — this is PHI and must never be written to
+      // localStorage (survives browser close, readable indefinitely).
+      // Only non-PHI `systemStatus` persists, now in sessionStorage
+      // (cleared on tab close) for consistency with the auth token storage.
       partialize: (state) => ({
-        alerts:       state.alerts,
         systemStatus: state.systemStatus,
       }),
     }

@@ -91,10 +91,10 @@ def upgrade() -> None:
     leave_type_enum = postgresql.ENUM(
         "day_off", "half_day", "emergency_leave", "conference_cme",
         "personal", "vacation", "sick",
-        name="leavetype", create_type=False,
+        name="leavetype",
     )
     leave_status_enum = postgresql.ENUM(
-        "pending", "approved", "rejected", "cancelled", name="leavestatus", create_type=False
+        "pending", "approved", "rejected", "cancelled", name="leavestatus"
     )
     leave_type_enum.create(op.get_bind(), checkfirst=True)
     leave_status_enum.create(op.get_bind(), checkfirst=True)
@@ -139,7 +139,7 @@ def upgrade() -> None:
     break_type_enum = postgresql.ENUM(
         "bio_break", "lunch_break", "tea_break", "meeting",
         "emergency_pause", "other",
-        name="breaktype", create_type=False,
+        name="breaktype",
     )
     break_type_enum.create(op.get_bind(), checkfirst=True)
 
@@ -164,7 +164,7 @@ def upgrade() -> None:
     # ── doctor_roster_shifts ─────────────────────────────────────────────
     shift_type_enum = postgresql.ENUM(
         "morning", "afternoon", "evening", "night", "on_call", "off",
-        name="shifttypedoctor", create_type=False,
+        name="shifttypedoctor",
     )
     shift_type_enum.create(op.get_bind(), checkfirst=True)
 

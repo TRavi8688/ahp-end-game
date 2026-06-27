@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, Typography, Grid, Card, CardContent } from '@mui/material';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
-import { API_BASE_URL } from '../api';
+import apiClient from '../services/apiClient';
 
 export default function Analytics() {
     const [data, setData] = React.useState(null);
@@ -11,14 +11,13 @@ export default function Analytics() {
     React.useEffect(() => {
         const fetchAnalytics = async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/doctor/analytics`, {
-                    headers: {
-                        'Authorization': `Bearer ${sessionStorage.getItem('hospain_access_token')}`
-                    }
-                });
-                if (response.ok) {
-                    setData(await response.json());
-                }
+                // FIXED: was a raw fetch(`${API_BASE_URL}/doctor/analytics`)
+                // with no /healthcare prefix — healthcare-core mounts
+                // everything under /api/v1/healthcare/*, so this always
+                // 404'd. apiClient already adds that prefix and the
+                // Authorization header.
+                const result = await apiClient.get('/doctor/analytics');
+                setData(result);
             } catch (error) {
                 console.error("Failed to fetch analytics", error);
             } finally {

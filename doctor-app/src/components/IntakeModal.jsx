@@ -27,9 +27,14 @@ export default function IntakeModal({ open, onClose, patientId, onComplete }) {
                 medications,
                 allergies,
                 symptoms: intakeSymptoms,
-                vitals_bp: intakeVitalsBp || "120/80",
-                vitals_hr: intakeVitalsHr || "72",
-                clinic_name: "Hospain Clinic"
+                // FIXED: was defaulting to "120/80" / "72" when left blank
+                // — a fabricated-but-plausible vital sign in a patient's
+                // permanent record is indistinguishable from a real
+                // measurement and is a genuine safety risk. Send null
+                // instead so nothing gets recorded unless it was actually
+                // entered.
+                vitals_bp: intakeVitalsBp || null,
+                vitals_hr: intakeVitalsHr || null,
             };
 
             await ApiService.post(`/doctor/patient/${patientId}/intake`, payload);

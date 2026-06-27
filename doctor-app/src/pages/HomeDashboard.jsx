@@ -12,10 +12,8 @@ import FolderSharedIcon from '@mui/icons-material/FolderShared';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import PauseCircleFilledIcon from '@mui/icons-material/PauseCircleFilled';
 import PlayCircleFilledIcon from '@mui/icons-material/PlayCircleFilled';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
 
-import { API_BASE_URL } from '../api'; // FIX: was missing, caused ReferenceError
 import { doctorService } from '../services/doctorService';
 import { clinicalService } from '../services/clinicalService';
 
@@ -33,22 +31,17 @@ export default function HomeDashboard({ onOpenScan }) {
     const [isOnBreak, setIsOnBreak] = React.useState(false);
     const [breakLoading, setBreakLoading] = React.useState(false);
     const [isEmergency, setIsEmergency] = React.useState(false);
-    const [queueStarted, setQueueStarted] = React.useState(false);
     const [callingNext, setCallingNext] = React.useState(false);
 
+    // FIXED: was a raw fetch(`${API_BASE_URL}/doctor/emergency/broadcast`)
+    // with no /healthcare prefix — healthcare-core mounts everything under
+    // /api/v1/healthcare/*, so this always 404'd silently (the alert()
+    // success message never actually reflected whether staff were notified).
     const handleEmergency = async () => {
         setIsEmergency(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/doctor/emergency/broadcast`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${sessionStorage.getItem('hospain_access_token')}`
-                }
-            });
-            if (response.ok) {
-                alert('🚨 CRITICAL: EMERGENCY BROADCAST SENT. Hospital staff notified immediately.');
-            }
+            await doctorService.broadcastEmergency({});
+            alert('🚨 CRITICAL: EMERGENCY BROADCAST SENT. Hospital staff notified immediately.');
         } catch (error) {
             console.error('Emergency broadcast failed', error);
             alert('Failed to send broadcast. Please use alternative comms.');
@@ -57,20 +50,18 @@ export default function HomeDashboard({ onOpenScan }) {
         }
     };
 
+    // FIXED: same missing-prefix issue as handleEmergency.
+    // doctorService.startBreak()/endBreak() already point at the correct
+    // /healthcare/doctor/session/break/start|end paths.
     const toggleBreak = async () => {
         setBreakLoading(true);
         try {
-            const endpoint = isOnBreak ? '/doctor/session/break/end' : '/doctor/session/break/start';
-            const payload = isOnBreak ? {} : { break_type: 'Bio Break' };
-            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${sessionStorage.getItem('hospain_access_token')}`
-                },
-                body: JSON.stringify(payload)
-            });
-            if (response.ok) setIsOnBreak(!isOnBreak);
+            if (isOnBreak) {
+                await doctorService.endBreak();
+            } else {
+                await doctorService.startBreak();
+            }
+            setIsOnBreak(!isOnBreak);
         } catch (error) {
             console.error(error);
         } finally {
@@ -78,21 +69,21 @@ export default function HomeDashboard({ onOpenScan }) {
         }
     };
 
-    const handleStartQueue = async () => {
-        try {
-            await clinicalService.startQueueSession();
-            setQueueStarted(true);
-        } catch (error) {
-            console.error('Failed to start queue session:', error);
-            // Still mark as started so the UI is usable even if backend call fails
-            setQueueStarted(true);
-        }
-    };
+    // FIXED: there's no "start my queue session" step in the real walk-in
+    // model — a doctor can start any waiting patient's consultation
+    // immediately. "Call Next Patient" now starts that specific patient's
+    // consultation (PATCH /doctor/queue/{walkin_id}/start) instead of
+    // calling a generic "advance" endpoint on an unrelated, never-populated
+    // token table that always silently no-op'd.
+    const nextWaitingPatient = patients.find(
+        p => ['waiting', 'waiting_doctor'].includes(p.queue_state || p.status)
+    );
 
     const handleCallNext = async () => {
+        if (!nextWaitingPatient) return;
         setCallingNext(true);
         try {
-            await clinicalService.callNextPatient();
+            await clinicalService.startConsultation(nextWaitingPatient.id);
             // Refresh queue after calling next
             const queueData = await clinicalService.getActiveQueue();
             setPatients(queueData?.data?.queue || queueData?.queue || []);
@@ -198,51 +189,33 @@ export default function HomeDashboard({ onOpenScan }) {
                         Queue Control
                     </Typography>
                     <Typography variant="body2" sx={{ color: '#64748b' }}>
-                        {queueStarted
-                            ? `Queue active · ${patients.length} patient(s) waiting`
-                            : 'Start your session to begin seeing patients'}
+                        {patients.length > 0
+                            ? `${patients.length} patient(s) in queue`
+                            : 'No patients in queue right now'}
                     </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', gap: 2 }}>
-                    {!queueStarted ? (
-                        <Button
-                            variant="contained"
-                            startIcon={<PlayArrowIcon />}
-                            onClick={handleStartQueue}
-                            sx={{
-                                bgcolor: '#0d9488', fontWeight: 900, borderRadius: '14px', px: 4, py: 1.5,
-                                boxShadow: '0 8px 25px rgba(13, 148, 136, 0.35)',
-                                '&:hover': { bgcolor: '#0f766e', transform: 'translateY(-2px)' },
-                                transition: 'all 0.2s'
-                            }}
-                        >
-                            Start Queue Session
-                        </Button>
-                    ) : (
-                        <>
-                            <Button
-                                variant="contained"
-                                startIcon={<SkipNextIcon />}
-                                onClick={handleCallNext}
-                                disabled={callingNext || patients.length === 0}
-                                sx={{
-                                    bgcolor: '#6366f1', fontWeight: 900, borderRadius: '14px', px: 4, py: 1.5,
-                                    boxShadow: '0 8px 25px rgba(99, 102, 241, 0.35)',
-                                    '&:hover': { bgcolor: '#4f46e5', transform: 'translateY(-2px)' },
-                                    transition: 'all 0.2s'
-                                }}
-                            >
-                                {callingNext ? 'Calling...' : 'Call Next Patient'}
-                            </Button>
-                            <Button
-                                variant="outlined"
-                                onClick={() => navigate('/queue')}
-                                sx={{ borderColor: 'rgba(99,102,241,0.4)', color: '#6366f1', fontWeight: 800, borderRadius: '14px', px: 3 }}
-                            >
-                                Full Queue View
-                            </Button>
-                        </>
-                    )}
+                    <Button
+                        variant="contained"
+                        startIcon={<SkipNextIcon />}
+                        onClick={handleCallNext}
+                        disabled={callingNext || !nextWaitingPatient}
+                        sx={{
+                            bgcolor: '#6366f1', fontWeight: 900, borderRadius: '14px', px: 4, py: 1.5,
+                            boxShadow: '0 8px 25px rgba(99, 102, 241, 0.35)',
+                            '&:hover': { bgcolor: '#4f46e5', transform: 'translateY(-2px)' },
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        {callingNext ? 'Calling...' : 'Call Next Patient'}
+                    </Button>
+                    <Button
+                        variant="outlined"
+                        onClick={() => navigate('/queue')}
+                        sx={{ borderColor: 'rgba(99,102,241,0.4)', color: '#6366f1', fontWeight: 800, borderRadius: '14px', px: 3 }}
+                    >
+                        Full Queue View
+                    </Button>
                 </Box>
             </Box>
 
@@ -313,7 +286,7 @@ export default function HomeDashboard({ onOpenScan }) {
                                     <Grid item xs={6}><MiniStat label="Encounters" value={stats?.patients_count || 0} /></Grid>
                                     <Grid item xs={6}><MiniStat label="Flags" value={stats?.alerts_count || 0} color={stats?.alerts_count > 0 ? '#ef4444' : '#10b981'} /></Grid>
                                     <Grid item xs={6}><MiniStat label="Authored Rx" value={stats?.pending_rx_count || 0} /></Grid>
-                                    <Grid item xs={6}><MiniStat label="Queue" value={queueStarted ? 'Active' : 'Idle'} color={queueStarted ? '#10b981' : '#64748b'} /></Grid>
+                                    <Grid item xs={6}><MiniStat label="Queue" value={patients.length > 0 ? 'Active' : 'Empty'} color={patients.length > 0 ? '#10b981' : '#64748b'} /></Grid>
                                 </Grid>
                             </Box>
                         </Card>

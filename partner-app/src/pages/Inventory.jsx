@@ -162,6 +162,7 @@ function MedicineDetailModal({ item, onClose, onChanged }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ ...item });
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const save = async () => {
     setSaving(true);
@@ -173,7 +174,7 @@ function MedicineDetailModal({ item, onClose, onChanged }) {
       onChanged();
       onClose();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Could not save changes.');
+      setError(err.response?.data?.detail || 'Could not save changes.');
     } finally {
       setSaving(false);
     }
@@ -186,7 +187,7 @@ function MedicineDetailModal({ item, onClose, onChanged }) {
       onChanged();
       onClose();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Could not delete item.');
+      setError(err.response?.data?.detail || 'Could not delete item.');
     }
   };
 
@@ -198,7 +199,8 @@ function MedicineDetailModal({ item, onClose, onChanged }) {
           <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
         </div>
         <div className="p-5">
-          {!editing ? (
+          {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-xl text-sm mb-3">{error}</div>}
+        {!editing ? (
             <>
               <p className="text-lg font-bold text-ink-900">{item.item_name}</p>
               <p className="text-sm text-gray-400 mb-4">{item.generic_name}</p>

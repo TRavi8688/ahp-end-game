@@ -132,13 +132,13 @@ export default function PatientList() {
                         </Box>
                     ) : filteredPatients.map((patient) => {
                         const isRevoked = patient.access_level === 'revoked';
-                        const isSelected = selectedPatientId === patient.hospyn_id && !isRevoked;
+                        const isSelected = selectedPatientId === patient.id && !isRevoked;
 
                         return (
-                            <Tooltip title={isRevoked ? "Restricted: Access revoked by subject" : ""} placement="right" key={patient.hospyn_id}>
+                            <Tooltip title={isRevoked ? "Restricted: Access revoked by subject" : ""} placement="right" key={patient.id}>
                                 <ListItem
                                     button={!isRevoked}
-                                    onClick={() => !isRevoked && setSelectedPatientId(patient.hospyn_id)}
+                                    onClick={() => !isRevoked && setSelectedPatientId(patient.id)}
                                     sx={{
                                         mx: 2,
                                         my: 1,
@@ -290,13 +290,17 @@ export default function PatientList() {
                             <Button
                                 variant="contained"
                                 fullWidth
-                                onClick={() => navigate(`/patient/${selectedPatientData.profile.hospyn_id}`)}
-                                sx={{ 
-                                    bgcolor: '#0d9488', 
+                                onClick={() => navigate(
+                                    selectedPatientData.profile.walkin_id
+                                        ? `/patient/${selectedPatientData.profile.walkin_id}`
+                                        : `/patient-record/${selectedPatientData.profile.id}`
+                                )}
+                                sx={{
+                                    bgcolor: '#0d9488',
                                     transform: 'none',
-                                    '&:hover': { bgcolor: '#0f766e', transform: 'translateY(-2px)' }, 
-                                    textTransform: 'none', 
-                                    py: 2, 
+                                    '&:hover': { bgcolor: '#0f766e', transform: 'translateY(-2px)' },
+                                    textTransform: 'none',
+                                    py: 2,
                                     borderRadius: '16px',
                                     fontWeight: 900,
                                     fontSize: '1rem',
@@ -310,7 +314,7 @@ export default function PatientList() {
                             <Button
                                 variant="outlined"
                                 fullWidth
-                                onClick={() => navigate(`/prescriptions/${selectedPatientData.profile.hospyn_id}`, { state: { patient: selectedPatientData.profile } })}
+                                onClick={() => navigate(`/prescriptions/${selectedPatientData.profile.id}`, { state: { patient: selectedPatientData.profile } })}
                                 sx={{ 
                                     color: '#fff', 
                                     borderColor: 'rgba(255,255,255,0.1)', 

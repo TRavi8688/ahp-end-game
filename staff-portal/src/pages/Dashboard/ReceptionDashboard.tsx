@@ -8,6 +8,7 @@ import {
 // FIXED: import from canonical apiClient
 import apiClient from '../../apiClient';
 import { useAuth } from '../../context/AuthContext';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface WalkInRequest {
   id: string;
@@ -84,6 +85,15 @@ const ReceptionDashboard: React.FC = () => {
   // QR modal
   const [hospitalQrToken, setHospitalQrToken] = useState<string | null>(null);
   const [showQrModal, setShowQrModal]         = useState(false);
+
+  // FIXED: this file still had three raw alert() calls (check-in, route,
+  // and payment failure handlers) while every other dashboard in this app
+  // had already moved to inline toasts. Same pattern, applied here too.
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+  const showToast = (type: 'success' | 'error', msg: string) => {
+    setToast({ type, msg });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   // ── Fetchers ──────────────────────────────────────────────────────────────
 
@@ -254,7 +264,7 @@ const ReceptionDashboard: React.FC = () => {
       setDuplicateMatches([]);
       fetchQueue();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to check in patient.');
+      showToast('error', err.response?.data?.detail || 'Failed to check in patient.');
     }
   };
 
@@ -269,7 +279,7 @@ const ReceptionDashboard: React.FC = () => {
       fetchQueue();
       fetchDoctors();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to route patient.');
+      showToast('error', err.response?.data?.detail || 'Failed to route patient.');
     }
   };
 
@@ -301,7 +311,7 @@ const ReceptionDashboard: React.FC = () => {
       setReceiptToPrint(updated);
       fetchQueue();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Payment failed.');
+      showToast('error', err.response?.data?.detail || 'Payment failed.');
     } finally {
       setIsProcessingPayment(false);
     }
@@ -320,6 +330,16 @@ const ReceptionDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen p-4 md:p-8 lg:p-10 bg-[#050505] text-[#f8fafc] font-sans overflow-x-hidden">
+
+      {toast && (
+        <div className={`fixed top-6 right-6 z-50 px-6 py-4 rounded-2xl border flex items-center gap-3 text-sm font-bold shadow-2xl transition-all ${
+          toast.type === 'success'
+            ? 'bg-emerald-600 border-emerald-500 text-white'
+            : 'bg-rose-600 border-rose-500 text-white'
+        }`}>
+          {toast.msg}
+        </div>
+      )}
 
       {/* Header */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-10">
@@ -727,10 +747,18 @@ const ReceptionDashboard: React.FC = () => {
             <div className="p-6 bg-white rounded-2xl inline-block mx-auto">
               {hospitalQrToken ? (
                 <div className="space-y-3">
-                  <svg className="w-48 h-48 mx-auto" viewBox="0 0 100 100">
-                    <rect width="100" height="100" fill="#fff" />
-                    <path d="M5 5h30v30H5zm5 5h20v20H10zm0 10h10v10H10zm35-20h50v20H45v10H95V5H45zm5 25h10v10H50zm15 0h20v10H65zm-60 30h30v30H5zm5 5h20v20H10zm30 15h15v15H40zm20 5h10v10H60zm15-5h10v15H75zm10-15h10v10H85zm-5 25h15v5H80z" fill="#000" />
-                  </svg>
+                  {/* FIXED: this used to render a hardcoded decorative SVG
+                      path that didn't encode hospitalQrToken at all — the
+                      "QR code" was the same fixed graphic regardless of the
+                      token, so it could never be scanned to anything real.
+                      Now renders an actual QR encoding the public walk-in
+                      URL, which WalkInPage.tsx (mounted at /walkin/:signedToken,
+                      no auth) reads via useParams to submit the walk-in form. */}
+                  <QRCodeSVG
+                    value={`${window.location.origin}/walkin/${hospitalQrToken}`}
+                    size={192}
+                    className="mx-auto"
+                  />
                   <p className="text-[10px] text-slate-400 font-mono break-all max-w-[240px] mx-auto">{hospitalQrToken}</p>
                 </div>
               ) : (

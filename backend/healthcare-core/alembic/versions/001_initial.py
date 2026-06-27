@@ -16,27 +16,6 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Create all ENUM types explicitly (since create_type=False is set on all sa.Enum)
-    op.execute("""
-        DO $$ BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'hospitalstatus') THEN
-                CREATE TYPE hospitalstatus AS ENUM ('pending_verification', 'active', 'suspended', 'deactivated');
-            END IF;
-            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'gender') THEN
-                CREATE TYPE gender AS ENUM ('male', 'female', 'other', 'prefer_not_to_say');
-            END IF;
-            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'bloodgroup') THEN
-                CREATE TYPE bloodgroup AS ENUM ('A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown');
-            END IF;
-            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'appointmenttype') THEN
-                CREATE TYPE appointmenttype AS ENUM ('in_person', 'teleconsultation', 'follow_up', 'emergency');
-            END IF;
-            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'appointmentstatus') THEN
-                CREATE TYPE appointmentstatus AS ENUM ('scheduled', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show');
-            END IF;
-        END $$;
-    """)
-
     # ─── Hospitals ────────────────────────────────────────────────
     op.create_table(
         "hospitals",
@@ -61,7 +40,6 @@ def upgrade() -> None:
                 "suspended",
                 "deactivated",
                 name="hospitalstatus",
-                create_type=False,
             ),
             server_default="pending_verification",
             nullable=False,
@@ -155,7 +133,7 @@ def upgrade() -> None:
         sa.Column("date_of_birth", sa.Date(), nullable=True),
         sa.Column(
             "gender",
-            sa.Enum("male", "female", "other", "prefer_not_to_say", name="gender", create_type=False),
+            sa.Enum("male", "female", "other", "prefer_not_to_say", name="gender"),
             nullable=True,
         ),
         sa.Column(
@@ -171,7 +149,6 @@ def upgrade() -> None:
                 "O-",
                 "Unknown",
                 name="bloodgroup",
-                create_type=False,
             ),
             server_default="Unknown",
             nullable=True,
@@ -233,7 +210,6 @@ def upgrade() -> None:
                 "follow_up",
                 "emergency",
                 name="appointmenttype",
-                create_type=False,
             ),
             server_default="in_person",
         ),
@@ -247,7 +223,6 @@ def upgrade() -> None:
                 "cancelled",
                 "no_show",
                 name="appointmentstatus",
-                create_type=False,
             ),
             server_default="scheduled",
             index=True,

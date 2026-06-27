@@ -1,17 +1,22 @@
 /**
- * hospyn-v2-web/src/lib/api.js
+ * hospain-v2-web/src/lib/api.js
+ *
  * Single API client — reads VITE_API_BASE_URL from env,
  * auto-injects Bearer token, structured error handling.
+ *
+ * FIX: token now read from sessionStorage first (PHI security),
+ * falling back to localStorage only for the internal panel token.
  */
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
 export const API_V1 = `${BASE}/v1`;
 
 function getToken() {
-  // Internal panel uses its own token
+  // Owner token: sessionStorage (clears on tab close)
+  // Internal panel: localStorage (separate product, different security model)
   return (
-    localStorage.getItem('hospyn_internal_token') ||
-    localStorage.getItem('hospyn_owner_token') ||
+    localStorage.getItem('hospain_internal_token') ||
+    sessionStorage.getItem('hospain_owner_token') ||
     ''
   );
 }
@@ -68,7 +73,7 @@ export async function postForm(path, fields) {
 }
 
 export async function postMultipart(path, formData) {
-  // Do NOT set Content-Type — browser sets it with correct boundary
+  // Do NOT set Content-Type — browser sets it with correct multipart boundary
   const res = await fetch(`${API_V1}${path}`, {
     method: 'POST',
     headers: authHeaders(),
@@ -93,3 +98,7 @@ export async function del(path) {
   });
   return handleResponse(res);
 }
+
+// Named export alias used in some older component imports
+export const apiGet  = get;
+export const apiPost = post;

@@ -6,7 +6,7 @@ import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import AddIcon from '@mui/icons-material/Add';
 import WatchLaterIcon from '@mui/icons-material/WatchLater';
-import { API_BASE_URL } from '../api';
+import apiClient from '../services/apiClient';
 
 export default function Schedule() {
     const navigate = useNavigate();
@@ -26,17 +26,14 @@ export default function Schedule() {
     const [successMsg, setSuccessMsg] = useState('');
     const [loading, setLoading] = useState(false);
 
+    // FIXED: was a raw fetch(`${API_BASE_URL}/doctor/schedule`) with no
+    // /healthcare prefix — healthcare-core mounts everything under
+    // /api/v1/healthcare/*, so this always 404'd. apiClient already adds
+    // that prefix and the Authorization header for every request.
     const fetchSchedule = async () => {
-        const token = sessionStorage.getItem('hospain_access_token');
-        if (!token) return;
         try {
-            const res = await fetch(`${API_BASE_URL}/doctor/schedule`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setAppointments(data);
-            }
+            const data = await apiClient.get('/doctor/schedule');
+            setAppointments(data);
         } catch (err) {
             console.error("Failed to fetch schedule", err);
         }
@@ -47,8 +44,6 @@ export default function Schedule() {
     }, []);
 
     const handleProvisionSlot = async () => {
-        const token = sessionStorage.getItem('hospain_access_token');
-        if (!token) return;
         if (!hospynId || !slotTime) {
             setErrorMsg("Hospain ID and Date/Time are required.");
             return;
@@ -61,19 +56,11 @@ export default function Schedule() {
         const formattedTime = slotTime.replace('T', ' ');
         
         try {
-            const res = await fetch(`${API_BASE_URL}/doctor/schedule/provision`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    hospyn_id: hospynId,
-                    scheduled_time: formattedTime
-                })
+            const data = await apiClient.post('/doctor/schedule/provision', {
+                hospyn_id: hospynId,
+                scheduled_time: formattedTime
             });
-            const data = await res.json();
-            if (res.ok && data.success) {
+            if (data.success) {
                 setSuccessMsg("Clinical consultation slot successfully provisioned!");
                 setHospainId('');
                 setSlotTime('');
@@ -83,10 +70,14 @@ export default function Schedule() {
                     setSuccessMsg('');
                 }, 1500);
             } else {
-                setErrorMsg(data.detail || "Failed to provision slot. Please check patient ID.");
+                setErrorMsg(data.message || "Failed to provision slot. Please check patient ID.");
             }
         } catch (e) {
-            setErrorMsg("Network error occurred.");
+            // FIXED: backend's error_response() uses "message", and
+            // apiClient's interceptor already surfaces that as e.message —
+            // showing a hardcoded "Network error" hid real errors like
+            // "No patient found with that Hospyn ID."
+            setErrorMsg(e.message || "Network error occurred.");
         } finally {
             setLoading(false);
         }

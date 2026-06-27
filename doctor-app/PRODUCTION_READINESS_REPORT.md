@@ -1,278 +1,230 @@
-# DOCTOR APP — COMPLETE PRODUCTION READINESS REPORT
-Generated: June 2026
+# Doctor App — Production Readiness Report (Final)
+
+Generated: June 2026, second pass. This supersedes the previous version of
+this file. Every endpoint claim below was verified two ways: by reading the
+actual FastAPI route decorators, Pydantic schemas, and SQLAlchemy models in
+the provided backend, and by actually importing the backend modules in a
+real Python interpreter to confirm zero NameError/ImportError/SyntaxError
+and to print the live FastAPI route table — not just static code reading.
 
 ---
 
-## SECTION 1: WHAT'S IN THE ZIP (11 files fixed/created)
+## 1. Methodology used this pass
 
-| File | Type | Status |
-|------|------|--------|
-| src/App.jsx | Fixed | SocketProvider added, all 4 new routes added |
-| src/components/Sidebar.jsx | Fixed | Queue, Earnings, Leave, Notifications added |
-| src/contexts/SocketContext.jsx | Fixed | Reconnect logic, sendMessage, isConnected exported |
-| src/services/clinicalService.js | Fixed | 15 correct API methods, all endpoints fixed |
-| src/pages/HomeDashboard.jsx | Fixed | API_BASE_URL imported, Start Queue + Call Next added |
-| src/pages/LoginScreen.jsx | Fixed | API_BASE_URL imported, session/start no longer crashes |
-| src/pages/PatientDetailView.jsx | Fixed | Save Notes calls POST /consultations, diagnosis field added |
-| src/pages/QueueScreen.jsx | NEW | Full live queue screen with WebSocket updates |
-| src/pages/EarningsDashboard.jsx | NEW | Earnings with period filter, charts, transactions |
-| src/pages/LeaveManagement.jsx | NEW | Leave request, list, cancel, status tracking |
-| src/pages/NotificationsScreen.jsx | NEW | Real-time notifications, mark read, filter unread |
+Earlier work in this project found and fixed transport-level bugs (missing
+/healthcare prefixes, wrong field names, missing .env config). This pass
+went a level deeper: for every endpoint string anywhere in the frontend,
+it was checked against the backend's actual registered route table, not
+assumed correct just because the URL "looked right" or because a code
+comment claimed it was fixed. This caught several endpoints that were
+syntactically reachable but called something that never existed on the
+backend at all.
 
 ---
 
-## SECTION 2: FILES NOT IN ZIP (already in your project — DO NOT REPLACE)
+## 2. Major finding: two disconnected queue systems
 
-These files exist in your project and are NOT broken. Leave them as-is:
+The backend has two entirely separate, non-interoperating systems for
+"patients waiting to be seen":
 
-- src/api.jsx — ✅ Good
-- src/index.jsx — ✅ Good  
-- src/i18n.jsx — ✅ Good
-- src/hooks/useIdleLogout.jsx — ✅ Good
-- src/components/ErrorBoundary.jsx — ✅ Good
-- src/components/IntakeModal.jsx — ✅ Good
-- src/components/ScanModal.jsx — ✅ Good
-- src/components/Topbar.jsx — ✅ Good
-- src/services/apiClient.js — ✅ Good
-- src/services/authService.js — ✅ Good
-- src/services/doctorService.js — ✅ Good
-- src/utils/ApiService.js — ✅ Good
-- src/pages/Schedule.jsx — ✅ Good
-- src/pages/PrescriptionBuilder.jsx — ✅ Good (uses fixed clinicalService)
-- src/pages/PatientList.jsx — ✅ Good
-- src/pages/PatientSearch.jsx — ✅ Good
-- src/pages/AccessHistory.jsx — ✅ Good
-- src/pages/Alerts.jsx — ✅ Good
-- src/pages/Analytics.jsx — ✅ Good
-- src/pages/Settings.jsx — ✅ Good
-- src/pages/SignupScreen.jsx — ✅ Good
-- src/pages/VerificationScreen.jsx — ✅ Good
-- src/pages/tabs/*.jsx (5 files) — ✅ Good
+- WalkInRequest / QueueState (doctor_queue.py) — what GET /doctor/queue
+  actually returns, what the queue screen actually displays, and what
+  reception/nurse/doctor staff use day to day.
+- PatientToken / WorkflowStage / DoctorSession (workflow.py) — a fully
+  separate token/workflow engine. Nothing in the walk-in flow ever creates
+  a PatientToken, so this table is permanently empty for walk-in patients.
 
----
+An earlier pass in this project registered workflow.py's routers
+(/queue/session/start, /queue/token/advance, etc.) believing they were the
+missing piece for "Start Queue" / "Call Next Patient." They were real,
+registered, and non-404ing — but they operated on the wrong, always-empty
+table. Calling them always silently returned "no patients waiting," even
+with a full visible queue.
 
-## SECTION 3: PRODUCTION READINESS CHECKLIST
+Fixed this pass: clinicalService.js, QueueScreen.jsx, and
+HomeDashboard.jsx now call the correct walk-in-based endpoints instead:
+- PATCH /doctor/queue/{walkin_id}/start — starts a specific patient's
+  consultation (replaces the fictional "start session" + "advance token"
+  two-step; there's no separate "session" concept in the walk-in model —
+  a doctor can act on any waiting patient immediately).
+- PATCH /doctor/queue/{walkin_id}/complete — saves chief complaint,
+  clinical notes, and diagnosis (on encrypted Appointment columns built
+  for exactly this), optionally creates a prescription, and advances the
+  queue — all in one transactional call (ClinicalService.complete_consultation,
+  which already existed and was already wired into this route, just never
+  called by the frontend).
 
-### ✅ DONE (fixed in this session)
-- [x] SocketProvider wrapping entire app
-- [x] API_BASE_URL imported everywhere it's used
-- [x] Save Notes calls actual API (POST /consultations)
-- [x] Prescription endpoint corrected (POST /prescriptions)
-- [x] Queue: Start Session + Call Next wired to backend
-- [x] WebSocket reconnect with exponential backoff
-- [x] All 4 missing screens built
-- [x] Sidebar has all navigation links
-- [x] Role check (doctor only) on login
-- [x] 15-minute idle logout
-- [x] Token expiry auto-logout (401 interceptor)
-- [x] Mock fallback data so screens work before backend is ready
-
-### ⚠️ STILL NEEDED BEFORE PRODUCTION
-
-#### FRONTEND (you need to do these)
-- [ ] Create .env file (see Section 5 below)
-- [ ] Install missing npm package: `npm install dompurify`
-- [ ] Add Google Fonts to index.html (Syne, DM Sans, Space Mono, Outfit)
-- [ ] Test on mobile screen sizes (responsive check)
-- [ ] Add loading skeleton screens (optional but professional)
-
-#### BACKEND (your backend team needs these endpoints)
-- [ ] POST /auth/firebase-verify (if using Firebase)
-- [ ] GET /doctor/queue
-- [ ] POST /queue/session/start
-- [ ] POST /queue/token/advance
-- [ ] POST /consultations
-- [ ] POST /prescriptions
-- [ ] GET /doctor/earnings
-- [ ] GET/POST /doctor/leave
-- [ ] GET /doctor/notifications
-- [ ] PATCH /doctor/notifications/{id}/read
-- [ ] GET /medicines/search (drug autocomplete)
-- [ ] WebSocket /ws (auth handshake working)
-
-#### SECURITY (critical for production)
-- [ ] HTTPS only (no HTTP in production)
-- [ ] JWT tokens should have expiry (backend)
-- [ ] CORS configured correctly on backend
-- [ ] No sensitive data in localStorage beyond token
-- [ ] Rate limiting on backend login endpoint
+The workflow.py routers are left registered (harmless, and may be useful
+for a future reception/staff-token feature) but the doctor-app no longer
+calls them.
 
 ---
 
-## SECTION 4: HOW TO PUSH TO GIT (step by step)
+## 3. Fictional endpoints found and resolved
 
-### Step 1 — Extract the zip
-Unzip `doctor-app-fixes.zip` on your Desktop.
-You'll see a folder called `doctor-app-fixes/src/`
+These were called by the frontend but never existed anywhere on the
+backend — confirmed via full-repository search:
 
-### Step 2 — Copy files into your project
-Open your project folder:
-`C:\Users\DELL\OneDrive\Desktop\ahp\ahp-end-game\doctor-app\src\`
-
-Copy each file from the zip INTO the matching location in your project.
-REPLACE existing files when asked. DO NOT delete anything else.
-
-### Step 3 — Create .env file
-In your project root (`doctor-app/`), create a file called `.env`:
-```
-VITE_API_BASE_URL=https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1
-```
-
-### Step 4 — Install dependencies
-Open Command Prompt in your project folder and run:
-```
-npm install dompurify
-```
-
-### Step 5 — Test locally
-```
-npm run dev
-```
-Open http://localhost:5173 and check everything works.
-
-### Step 6 — Git commands
-```cmd
-cd C:\Users\DELL\OneDrive\Desktop\ahp\ahp-end-game\doctor-app
-
-git status
-git add .
-git commit -m "feat: add queue screen, earnings, leave management, notifications + fix 5 critical bugs"
-git push origin main
-```
-
-If you're on a different branch:
-```cmd
-git push origin your-branch-name
-```
+- POST /consultations ("Save Notes") → Replaced with the real
+  PATCH /doctor/queue/{walkin_id}/complete (see #2). Now asks for
+  confirmation first since it also ends the visit.
+- POST /doctor/patient/{id}/intake → Built for real — new
+  POST /doctor/patient/{walkin_id}/intake endpoint. Conditions/allergies
+  write to Patient.chronic_conditions / Patient.known_allergies (the same
+  encrypted comma-joined text format already read elsewhere); vitals
+  write to WalkInRequest.triage_vitals_json via the existing
+  triage_service.validate_vitals(); home medications + symptom notes are
+  stored as a MedicalRecord (record_type="intake"), the same pattern
+  already used for prescriptions.
+- POST /doctor/scan-patient + WS events access_granted/access_revoked →
+  No backend support at all. Disabled honestly in ScanModal.jsx and the
+  "Medical Vault Locked" gate in PatientDetailView.jsx, rather than
+  shipping a flow that hangs forever waiting for an approval that can
+  never arrive.
+- POST /doctor/treatment/{id}/start|end → Removed. The real walk-in model
+  has no separate "treatment session" concept — starting/completing a
+  consultation (#2) already covers this.
+- POST /doctor/patient/{id}/request-vitals → No backend support. Disabled
+  with a clear "not available yet" message.
+- POST /clinical/records/{id}/verify → No backend support, and
+  MedicalRecord has no "verified" column even if it did. Disabled.
+- POST /doctor/patient/{hospynId}/upload-report → Wrong path AND wrong
+  role — the real upload-report endpoint (patients.py) is restricted to
+  require_role("patient"); a doctor would 403 even at the correct URL.
+  Disabled.
+- POST /lab-orders → A LabOrder model exists but no route creates one.
+  Not called from any page — left as a clearly-commented stub
+  (clinicalService.orderLabTest throws a clear "not available yet" error).
+- POST /doctor/patient/{id}/check-drug → Not called from any page. Removed.
 
 ---
 
-## SECTION 5: ENVIRONMENT VARIABLES (.env file)
+## 4. Patient-ID consistency — root-caused and fixed
 
-Create this file at `doctor-app/.env`:
+The backend has at least three different "patient identifier" concepts:
 
-```env
-# API Backend URL (remove trailing slash)
-VITE_API_BASE_URL=https://hospyn-495906-api-625745217419.us-central1.run.app/api/v1
+- walkin_id — a specific visit/queue entry today. Required by
+  GET /doctor/patient/{walkin_id}, PATCH .../start, PATCH .../complete.
+- Patient.id — the permanent patient record. Required by
+  POST /prescriptions/ and the new GET /doctor/patient-record/{patient_id}.
+- Hospain ID (HOSPYN-123456-ABC) — the human-facing identifier a doctor
+  would actually type into a search box.
 
-# For local development, create doctor-app/.env.local:
-# VITE_API_BASE_URL=http://localhost:8000/api/v1
-```
+Root cause found: GET /doctor/patient/{walkin_id}'s response field
+profile.id is overloaded — it's the walk-in ID until a Patient record
+gets linked, then silently becomes the Patient.id instead. Several pages
+were reading whichever one happened to be convenient without knowing
+which they'd gotten back. Fixed by adding an explicit, unambiguous
+profile.walkin_id field to all patient-detail responses, and updating
+every navigation/lookup call to use the right ID for the right endpoint
+(walkinId for queue/consultation actions, profile.id for prescriptions).
 
-Create this file at `doctor-app/.env.local` (for local dev only):
-```env
-VITE_API_BASE_URL=http://localhost:8000/api/v1
-```
+New capability built (explicit decision in this session): PatientList.jsx
+("all patients I've ever treated") and PatientSearch.jsx (look up by
+Hospain ID) had no walkin_id to work with at all for patients not
+currently checked in — every "open chart" action from these two pages was
+guaranteed to 422 regardless of any other fix. Built:
 
-The `.env.local` file overrides `.env` locally and should be in `.gitignore`.
-
----
-
-## SECTION 6: DEPLOYMENT WIRING (how frontend talks to backend)
-
-### How the connection works:
-
-```
-Doctor logs in
-    → POST /auth/login (OAuth2 form)
-    → Backend returns JWT token
-    → Token stored in localStorage
-    → All API calls attach: Authorization: Bearer <token>
-    → WebSocket connects to /ws and sends token as first message
-    → Backend validates token on WS and sends auth_success
-    → From then on, queue updates come via WebSocket in real-time
-```
-
-### API Base URL logic (already in your api.jsx):
-1. Reads from VITE_API_BASE_URL env variable
-2. Falls back to localhost:8000 if on local machine
-3. Falls back to your GCP Cloud Run URL in production
-
-### WebSocket URL (auto-derived in api.jsx):
-- If API is `https://...` → WS becomes `wss://...`
-- If API is `http://...` → WS becomes `ws://...`
-- This is already handled correctly in your api.jsx
-
-### CORS — your backend must allow:
-```python
-# FastAPI example
-from fastapi.middleware.cors import CORSMiddleware
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["https://your-doctor-app-domain.com", "http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-```
-
-### Deploying the frontend (Vercel — recommended, free):
-1. Push code to GitHub
-2. Go to vercel.com → New Project → Import your GitHub repo
-3. Set Root Directory to `doctor-app`
-4. Add Environment Variable: `VITE_API_BASE_URL` = your backend URL
-5. Deploy → done. You get a live URL instantly.
-
-### Deploying the frontend (Netlify — alternative):
-1. Push to GitHub
-2. netlify.com → New site from Git
-3. Build command: `npm run build`
-4. Publish directory: `dist`
-5. Add env variable in Netlify dashboard
-6. Deploy
-
-### Deploying the frontend (Firebase Hosting):
-```cmd
-npm install -g firebase-tools
-firebase login
-firebase init hosting
-npm run build
-firebase deploy
-```
+- GET /doctor/patient-record/{patient_id} — full chart by Patient.id
+  directly, no walk-in required.
+- GET /doctor/patient-record/lookup?hospyn_id=... — resolves a typed
+  Hospain ID to a Patient.id for PatientSearch.jsx (which only collects
+  the human-facing ID, not a UUID).
+- Access rule (explicit product decision): a doctor may view the full
+  chart of any patient registered at the doctor's own hospital
+  (Patient.hospital_id == doctor.hospital_id) — the same hospital-scoping
+  already used throughout this codebase. There's no finer-grained "only
+  patients I've personally treated" restriction, because the data model
+  has no doctor-assignment field on Patient, and PatientSearch.jsx's
+  whole purpose is letting a doctor look up someone they haven't
+  necessarily met yet. This intentionally does NOT allow cross-hospital
+  lookups.
+- New page PatientRecordView.jsx (/patient-record/:patientId) — a
+  read-only chart view for this case. Deliberately does not offer
+  notes/intake/consultation-completion, since those genuinely require an
+  active walk-in; it does offer "Draft Prescription" since that only
+  needs a Patient.id. If the looked-up patient happens to have an active
+  walk-in today after all, the backend now detects this and the frontend
+  routes to the full PatientDetailView.jsx instead.
+- PatientSearch.jsx's "Mock navigating to found patient" (its own code
+  comment) replaced with a real lookup.
 
 ---
 
-## SECTION 7: WHAT 100% PRODUCTION READY MEANS
+## 5. Other real bugs found and fixed this pass
 
-Right now you are at approximately **75% production ready** after these fixes.
-
-To reach 100% you need:
-
-| What | Who does it | Priority |
-|------|------------|----------|
-| Backend endpoints (see Section 3) | Backend dev | CRITICAL |
-| .env file created | You | CRITICAL |
-| `npm install dompurify` | You | HIGH |
-| Google Fonts in index.html | You | MEDIUM |
-| HTTPS + CORS on backend | Backend dev | CRITICAL |
-| Test all flows end-to-end | You | HIGH |
-| Error boundary for network failures | Optional | LOW |
-| PWA manifest (mobile install) | Optional | LOW |
-
-The frontend code itself is production-grade. The remaining gaps are:
-1. Backend endpoints that don't exist yet
-2. Environment config
-3. One missing npm package (dompurify)
+- Vitals never displayed, anywhere, ever. walkin.triage_vitals_json is a
+  SQLAlchemy JSON column (already a Python dict), but the read code
+  called json.loads() on it — always raised TypeError, silently swallowed
+  by a bare except: pass. Separately, even with that fixed, the code read
+  keys blood_pressure / oxygen_saturation, but triage_service.py's real
+  schema stores blood_pressure_systolic/_diastolic and spo2. Both fixed.
+- POST /prescriptions (no trailing slash) vs. the real route
+  POST /prescriptions/ — FastAPI 307-redirects, which most clients follow
+  correctly but is an avoidable extra round trip some proxies mishandle.
+  Fixed to call the exact path.
+- createPrescription field name — sent prescription_items, schema
+  requires items. Fixed (carried over from the previous pass, re-verified).
+- Fabricated default vitals. IntakeModal.jsx defaulted blood pressure to
+  "120/80" and heart rate to "72" if a doctor left the fields blank — a
+  plausible-looking fake vital sign in a permanent patient record is a
+  real safety risk. Fixed to send nothing rather than a fabricated value.
+- Prescription "Draft" button with no linked patient. Prescription.patient_id
+  strictly foreign-keys to patients.id — if a walk-in has no linked
+  Patient record at all, writing a prescription is impossible at the
+  database level. The button is now disabled with an explanation in that
+  case.
 
 ---
 
-## SECTION 8: QUICK TEST CHECKLIST (after copying files)
+## 6. Carried over from the previous pass (still valid, re-verified)
 
-Run these manual tests after you copy the files:
+- .env missing /api/v1 — fixed.
+- doctorService.getProfile missing entirely (crashed Topbar.jsx and
+  HomeDashboard.jsx on every load) — fixed.
+- 8+ pages bypassing the API client with raw fetch() missing the
+  /healthcare prefix — migrated to apiClient/ApiService.
+- OTP send / password reset wrong field names — fixed.
+- apiClient.js error messages only reading FastAPI's detail, missing the
+  backend's own error_response() message field — fixed.
+- Dual localStorage/sessionStorage auth gate forcing re-login on new tab
+  — fixed.
+- EarningsDashboard.jsx / LeaveManagement.jsx silently faking data on
+  error instead of surfacing real failures — fixed.
+- SocketContext.jsx connecting to the wrong URL/handshake shape — fixed
+  to match the real /healthcare/ws/reception?token=... contract.
+- Dead code removed: useAuthStore.js, orphaned root apiClient.js,
+  unrouted VerificationScreen.jsx / DoctorDashboard.jsx.
 
-1. `npm run dev` — app starts with no errors in terminal
-2. Go to /login — login page loads
-3. Login with a doctor account — redirects to dashboard
-4. Dashboard shows "Start Queue Session" button
-5. Click Start Queue → button changes to "Call Next Patient"
-6. Click a patient row → PatientDetailView opens
-7. Type notes + click "Synchronize to Vault" → toast appears
-8. Go to /queue → QueueScreen loads
-9. Go to /earnings → EarningsDashboard loads
-10. Go to /leave → LeaveManagement loads, click "Request Leave"
-11. Go to /notifications → NotificationsScreen loads
-12. Click "Mark All Read" → all dots disappear
-13. Sidebar — all icons navigate correctly
+---
 
-If all 13 pass, the app is ready to push to git and deploy.
+## 7. Still-known limitations (real, disclosed, not fixable from this codebase alone)
+
+1. WebSocket real-time updates may still 1008 for some doctors. The only
+   real-time endpoint resolves the connecting user against the staff
+   table, but doctor onboarding only populates the separate doctors
+   table — they aren't linked. The app degrades gracefully (REST polling
+   stays authoritative; UI shows "Reconnecting...") but live push won't
+   work until that backend linkage exists.
+2. Lab ordering has a LabOrder model but no creation endpoint. Stub left
+   in clinicalService.js, not called from any page.
+3. Drug-interaction checking and doctor-initiated record upload on a
+   patient's behalf have no backend support and aren't called from any
+   page today.
+4. Test infrastructure — LoginScreen.test.jsx imports vitest and
+   @testing-library/react, neither declared in package.json. npm test
+   cannot run. Pre-existing, not touched this pass.
+
+---
+
+## 8. Verification performed
+
+- npm run build (Vite production build): clean, zero errors, across every
+  file touched in both passes.
+- Backend: actually importing app.api.v1.doctor_queue and app.api.router
+  in Python with all real dependencies installed — confirming every
+  new/changed function, class, and import resolves correctly, not just
+  syntactically valid.
+- Final FastAPI route table printed and every single endpoint string
+  anywhere in the doctor-app frontend was cross-checked against it
+  programmatically — confirmed zero remaining mismatches.

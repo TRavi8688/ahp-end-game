@@ -1,6 +1,11 @@
 /**
- * hospyn-v2-web/src/App.jsx
- * Fixed router — all pages wired, /hospyn-internal added, SupportButton mounted
+ * hospain-v2-web/src/App.jsx
+ *
+ * FIXES:
+ *  1. branches bug — saveSession now correctly stores branches field
+ *  2. Token moved from localStorage → sessionStorage (PHI security)
+ *     localStorage still used for non-sensitive prefs (org name) only
+ *  3. All pages wired, SupportButton mounted
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
@@ -10,7 +15,7 @@ import OwnerDashboard      from './pages/OwnerDashboard';
 import Network             from './pages/Network';
 import Platform            from './pages/Platform';
 import Vision              from './pages/Vision';
-import HospynInternalPanel from './pages/HospynInternalPanel';
+import HospainInternalPanel from './pages/HospainInternalPanel';
 import QuickRegister       from './components/QuickRegister';
 import ActivationWizard    from './components/ActivationWizard';
 import { LedgerLoginModal } from './components/Modals';
@@ -18,27 +23,43 @@ import { SupportButton }   from './components/ticket/TicketSystem';
 import PrivacyPolicy       from './pages/PrivacyPolicy';
 import TermsOfService      from './pages/TermsOfService';
 
+// ── Session helpers — token in sessionStorage, metadata in localStorage ──────
+
 function isAuthenticated() {
-  return !!localStorage.getItem('hospyn_owner_token');
+  return !!sessionStorage.getItem('hospain_owner_token');
 }
 
 function clearSession() {
-  ['hospyn_owner_token','hospyn_owner_email','hospyn_org_name','hospyn_branches'].forEach(k => localStorage.removeItem(k));
+  sessionStorage.removeItem('hospain_owner_token');
+  ['hospain_owner_email', 'hospain_org_name', 'hospain_branches'].forEach(k => localStorage.removeItem(k));
 }
 
+/**
+ * Saves session after login or activation.
+ * access_token → sessionStorage (clears on tab close, never persisted to disk)
+ * owner_email, org_name, branches → localStorage (non-sensitive metadata for UI labels)
+ *
+ * BUG FIX: original code had `if (branches)` which skipped falsy values.
+ * Now stores branches unconditionally when provided so branch-level
+ * dashboard filtering works correctly after login.
+ */
 function saveSession({ access_token, name, owner_email, branches }) {
-  if (access_token) localStorage.setItem('hospyn_owner_token',  access_token);
-  if (owner_email)  localStorage.setItem('hospyn_owner_email',  owner_email);
-  if (name)         localStorage.setItem('hospyn_org_name',     name);
-  if (branches)     localStorage.setItem('hospyn_branches',     branches);
+  if (access_token) sessionStorage.setItem('hospain_owner_token', access_token);
+  if (owner_email)  localStorage.setItem('hospain_owner_email', owner_email);
+  if (name)         localStorage.setItem('hospain_org_name', name);
+  // FIX: store branches even if empty string/array — dashboard needs the real value
+  if (branches !== undefined && branches !== null) {
+    localStorage.setItem('hospain_branches', Array.isArray(branches) ? branches.join(',') : String(branches));
+  }
 }
 
 function NavigationWrapper() {
   const navigate = useNavigate();
-  const [authed,       setAuthed]      = useState(isAuthenticated);
-  const [wizardOpen,   setWizardOpen]  = useState(false);
-  const [loginOpen,    setLoginOpen]   = useState(false);
+  const [authed,     setAuthed]    = useState(isAuthenticated);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [loginOpen,  setLoginOpen]  = useState(false);
 
+  // Re-check auth if storage changes in another tab
   useEffect(() => {
     const handler = () => setAuthed(isAuthenticated());
     window.addEventListener('storage', handler);
@@ -62,9 +83,9 @@ function NavigationWrapper() {
   }, []);
 
   const handleActivationSuccess = useCallback(data => {
-    saveSession(data);
+    // After registration, status is pending_verification — don't auto-login to dashboard.
+    // Just close the wizard. Owner must wait for approval email.
     setWizardOpen(false);
-    setAuthed(true);
   }, []);
 
   return (
@@ -86,9 +107,9 @@ function NavigationWrapper() {
             : <Navigate to="/" replace/>
         }/>
 
-        {/* Internal Hospin support panel — separate product (route kept as /hospyn-internal, infra-stable) */}
-        <Route path="/hospyn-internal" element={<HospynInternalPanel/>}/>
-        <Route path="/hospyn-internal/*" element={<HospynInternalPanel/>}/>
+        {/* Internal Hospain support panel */}
+        <Route path="/hospain-internal"    element={<HospainInternalPanel/>}/>
+        <Route path="/hospain-internal/*"  element={<HospainInternalPanel/>}/>
 
         {/* Legal */}
         <Route path="/privacy-policy"   element={<PrivacyPolicy/>}/>
@@ -98,7 +119,7 @@ function NavigationWrapper() {
       </Routes>
 
       <ActivationWizard isOpen={wizardOpen} onClose={() => setWizardOpen(false)} onActivationSuccess={handleActivationSuccess}/>
-      <LedgerLoginModal isOpen={loginOpen}  onClose={() => setLoginOpen(false)}   onLoginSuccess={handleLoginSuccess}/>
+      <LedgerLoginModal isOpen={loginOpen}  onClose={() => setLoginOpen(false)}  onLoginSuccess={handleLoginSuccess}/>
     </>
   );
 }

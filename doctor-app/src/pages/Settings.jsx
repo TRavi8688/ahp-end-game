@@ -3,7 +3,7 @@ import { Box, Typography, Grid, Card, CardContent, Divider, Switch, Button, Text
 import LockIcon from '@mui/icons-material/Lock';
 import SecurityIcon from '@mui/icons-material/Security';
 import ComputerIcon from '@mui/icons-material/Computer';
-import { API_BASE_URL } from '../api';
+import apiClient from '../services/apiClient';
 
 export default function Settings() {
     const [profile, setProfile] = useState(null);
@@ -27,23 +27,21 @@ export default function Settings() {
     const [phoneLoading, setPhoneLoading] = useState(false);
     const [devOtpInfo, setDevOtpInfo] = useState('');
 
+    // FIXED: every handler below previously used a raw fetch(`${API_BASE_URL}/doctor/...`)
+    // with no /healthcare prefix — healthcare-core mounts everything under
+    // /api/v1/healthcare/*, so every one of these calls 404'd. apiClient
+    // already adds that prefix, the Authorization header, and unwraps
+    // response.data for us.
     const fetchProfile = async () => {
-        const token = sessionStorage.getItem('hospain_access_token');
-        if (!token) return;
         try {
-            const res = await fetch(`${API_BASE_URL}/doctor/profile/me`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setProfile(data);
-                setFirstName(data.first_name || '');
-                setLastName(data.last_name || '');
-                setSpecialty(data.specialty || '');
-                setEmailNotif(data.email_notifications_enabled ?? true);
-                setSmsNotif(data.sms_notifications_enabled ?? false);
-                setTimeoutVal(String(data.session_timeout_minutes ?? 15));
-            }
+            const data = await apiClient.get('/doctor/profile/me');
+            setProfile(data);
+            setFirstName(data.first_name || '');
+            setLastName(data.last_name || '');
+            setSpecialty(data.specialty || '');
+            setEmailNotif(data.email_notifications_enabled ?? true);
+            setSmsNotif(data.sms_notifications_enabled ?? false);
+            setTimeoutVal(String(data.session_timeout_minutes ?? 15));
         } catch (err) {
             console.error("Failed to fetch profile in Settings", err);
         }
@@ -54,92 +52,53 @@ export default function Settings() {
     }, []);
 
     const handleSaveProfile = async () => {
-        const token = sessionStorage.getItem('hospain_access_token');
-        if (!token) return;
         try {
-            const res = await fetch(`${API_BASE_URL}/doctor/profile`, {
-                method: 'PUT',
-                headers: { 
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    first_name: firstName,
-                    last_name: lastName,
-                    specialty: specialty
-                })
+            await apiClient.put('/doctor/profile', {
+                first_name: firstName,
+                last_name: lastName,
+                specialty: specialty
             });
-            if (res.ok) {
-                setAlertMsg("Profile updated successfully!");
-                setAlertSev("success");
-                fetchProfile();
-            } else {
-                const err = await res.json();
-                setAlertMsg(err.detail || "Failed to update profile.");
-                setAlertSev("error");
-            }
+            setAlertMsg("Profile updated successfully!");
+            setAlertSev("success");
+            fetchProfile();
         } catch (e) {
-            setAlertMsg("Network error occurred.");
+            setAlertMsg(e.message || "Failed to update profile.");
             setAlertSev("error");
         }
     };
 
     const handleUpdatePreferences = async () => {
-        const token = sessionStorage.getItem('hospain_access_token');
-        if (!token) return;
         try {
-            const res = await fetch(`${API_BASE_URL}/doctor/settings`, {
-                method: 'PUT',
-                headers: { 
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    email_notifications_enabled: emailNotif,
-                    sms_notifications_enabled: smsNotif,
-                    session_timeout_minutes: parseInt(timeout)
-                })
+            await apiClient.put('/doctor/settings', {
+                email_notifications_enabled: emailNotif,
+                sms_notifications_enabled: smsNotif,
+                session_timeout_minutes: parseInt(timeout)
             });
-            if (res.ok) {
-                setAlertMsg("Notification & Session timeout preferences saved.");
-                setAlertSev("success");
-                fetchProfile();
-            } else {
-                setAlertMsg("Failed to update preferences.");
-                setAlertSev("error");
-            }
+            setAlertMsg("Notification & Session timeout preferences saved.");
+            setAlertSev("success");
+            fetchProfile();
         } catch (e) {
-            setAlertMsg("Network error occurred.");
+            setAlertMsg(e.message || "Failed to update preferences.");
             setAlertSev("error");
         }
     };
 
     const handleSendPhoneOtp = async () => {
-        const token = sessionStorage.getItem('hospain_access_token');
-        if (!token) return;
         setPhoneLoading(true);
         setDevOtpInfo('');
         try {
-            const res = await fetch(`${API_BASE_URL}/doctor/send-phone-otp`, {
-                method: 'POST',
-                headers: { 
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ phone_number: newPhone })
-            });
-            const data = await res.json();
-            if (res.ok && data.success) {
+            const data = await apiClient.post('/doctor/send-phone-otp', { phone_number: newPhone });
+            if (data.success) {
                 setOtpStep(2);
                 if (data.dev_otp) {
                     setDevOtpInfo(`[DEV FALLBACK] Received verification code: ${data.dev_otp}`);
                 }
             } else {
-                setAlertMsg(data.detail || "Failed to send OTP.");
+                setAlertMsg(data.message || "Failed to send OTP.");
                 setAlertSev("error");
             }
         } catch (e) {
-            setAlertMsg("Network error sending OTP.");
+            setAlertMsg(e.message || "Network error sending OTP.");
             setAlertSev("error");
         } finally {
             setPhoneLoading(false);
@@ -147,30 +106,24 @@ export default function Settings() {
     };
 
     const handleVerifyPhoneOtp = async () => {
-        const token = sessionStorage.getItem('hospain_access_token');
-        if (!token) return;
         setPhoneLoading(true);
         try {
-            const res = await fetch(`${API_BASE_URL}/doctor/verify-phone-otp`, {
-                method: 'POST',
-                headers: { 
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ phone_number: newPhone, otp: phoneOtp })
-            });
-            const data = await res.json();
-            if (res.ok && data.success) {
+            const data = await apiClient.post('/doctor/verify-phone-otp', { phone_number: newPhone, otp: phoneOtp });
+            if (data.success) {
                 setAlertMsg("Phone number successfully updated.");
                 setAlertSev("success");
                 setIsPhoneModalOpen(false);
                 fetchProfile();
             } else {
-                setAlertMsg(data.detail || "Invalid verification OTP code.");
+                setAlertMsg(data.message || "Invalid verification OTP code.");
                 setAlertSev("error");
             }
         } catch (e) {
-            setAlertMsg("Network error verifying OTP.");
+            // apiClient's interceptor already turns backend error_response()
+            // bodies (OTP_NOT_FOUND/OTP_EXPIRED/TOO_MANY_ATTEMPTS/INVALID_OTP)
+            // into e.message — surfacing it here instead of a generic string
+            // tells the doctor exactly why verification failed.
+            setAlertMsg(e.message || "Network error verifying OTP.");
             setAlertSev("error");
         } finally {
             setPhoneLoading(false);

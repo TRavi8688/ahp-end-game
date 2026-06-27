@@ -16,7 +16,7 @@ const Login: React.FC = () => {
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
   const navigate = useNavigate();
-  const { login, user } = useAuth();
+  const { login } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,7 +137,7 @@ const Login: React.FC = () => {
 
         <div className="pt-6 border-t border-slate-800 text-center">
           <p className="text-xs text-slate-500">
-            Protected by Hospain Security Engine (RS256 / HS256)
+            Protected by Hospain Security Engine (RS256)
           </p>
         </div>
       </div>

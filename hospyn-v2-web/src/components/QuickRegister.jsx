@@ -1,5 +1,5 @@
 /**
- * hospyn-v2-web/src/components/QuickRegister.jsx
+ * hospain-v2-web/src/components/QuickRegister.jsx
  *
  * FIXES:
  *  1. Uses api.js get/post helpers (env-driven base URL, no hardcoded /api/v1)
@@ -78,7 +78,7 @@ const QuickRegister = () => {
       <div className="w-full max-w-md text-center pt-8 pb-10">
         <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-full mb-6">
           <ShieldCheck size={16} className="text-indigo-600" />
-          <span className="text-[10px] font-black tracking-widest uppercase text-indigo-700">Hospin Secure Check-in</span>
+          <span className="text-[10px] font-black tracking-widest uppercase text-indigo-700">Hospain Secure Check-in</span>
         </div>
         <h1 className="text-3xl font-black text-slate-900 tracking-tight font-outfit mb-3">
           Patient Registration
@@ -86,7 +86,7 @@ const QuickRegister = () => {
         {hospitalInfo ? (
           <p className="text-slate-500 font-semibold flex items-center justify-center gap-2">
             <MapPin size={16} className="text-slate-400" />
-            {hospitalInfo.hospital_name || 'Hospin Partner Clinic'}
+            {hospitalInfo.hospital_name || 'Hospain Partner Clinic'}
           </p>
         ) : (
           <p className="text-slate-500 text-sm font-medium">Scan successful. Please enter your details.</p>
@@ -176,7 +176,7 @@ const QuickRegister = () => {
         </form>
 
         <p className="text-center text-[10px] font-black uppercase tracking-widest text-slate-400 mt-8">
-          Powered by Hospin Immutable Ledger
+          Powered by Hospain Immutable Ledger
         </p>
       </div>
     </div>

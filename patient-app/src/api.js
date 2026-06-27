@@ -15,10 +15,21 @@ const api = axios.create({
 });
 
 // Attach auth token from storage on every request
+import { SecurityUtils } from "./utils/security";
+
 api.interceptors.request.use(
   async (config) => {
-    // Token retrieval stays as-is (uses SecureStore / AsyncStorage)
-    // SEC-7 note: super-admin uses httpOnly cookies; patient-app uses secure token storage
+    try {
+      const token = await SecurityUtils.getToken();
+      if (token) {
+        config.headers = config.headers || {};
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch (e) {
+      // Storage read failed — let the request go out unauthenticated;
+      // the backend will 401 it and the app's normal auth-failure
+      // handling (apiClient.js's response interceptor) takes over.
+    }
     return config;
   },
   (error) => Promise.reject(error)

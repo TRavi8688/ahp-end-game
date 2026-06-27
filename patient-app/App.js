@@ -69,8 +69,6 @@ import {
 // ─── Screens ──────────────────────────────────────────────────────────────────
 import LoginScreen            from './src/screens/LoginScreen';
 import RegisterScreen         from './src/screens/RegisterScreen';
-import ProfileSetupScreen     from './src/screens/ProfileSetupScreen';
-import OnboardingScreen       from './src/screens/OnboardingScreen';
 import RegistrationSuccessScreen from './src/screens/RegistrationSuccessScreen';
 
 import MainTabs               from './src/navigation/MainTabs';
@@ -81,7 +79,6 @@ import NotificationsScreen    from './src/screens/NotificationsScreen';
 import AccessHistoryScreen    from './src/screens/AccessHistoryScreen';
 import UploadScreen           from './src/screens/UploadScreen';
 import BillingScreen, { BillingDetailScreen } from './src/screens/BillingScreen';
-import InvoiceDetailScreen    from './src/screens/InvoiceDetailScreen';
 import PrescriptionScreen     from './src/screens/PrescriptionScreen';
 import PrescriptionDetailScreen from './src/screens/PrescriptionDetailScreen';
 import FamilyProfilesScreen   from './src/screens/FamilyProfilesScreen';
@@ -93,7 +90,6 @@ import AppointmentsScreen     from './src/screens/AppointmentsScreen';
 import ChittiAiScreen         from './src/screens/ChittiAiScreen';
 
 // ─── Phase 6: New Screens ─────────────────────────────────────────────────────
-import AppointmentBookingScreen from './src/screens/AppointmentBookingScreen';
 // Existing booking screens (already registered in original)
 import DoctorSearchScreen     from './src/screens/DoctorSearchScreen';
 import BookAppointmentScreen  from './src/screens/BookAppointmentScreen';
@@ -278,8 +274,6 @@ function AppContent() {
               <>
                 <Stack.Screen name="Login"               component={LoginScreen} />
                 <Stack.Screen name="Register"            component={RegisterScreen} />
-                <Stack.Screen name="ProfileSetup"        component={ProfileSetupScreen} />
-                <Stack.Screen name="Onboarding"          component={OnboardingScreen} />
                 <Stack.Screen name="RegistrationSuccess" component={RegistrationSuccessScreen} />
               </>
             ) : (
@@ -299,7 +293,6 @@ function AppContent() {
                     screen nothing currently navigates to; left in place but
                     not wired up further, see changelog. */}
                 <Stack.Screen name="BillingDetail"        component={BillingDetailScreen} />
-                <Stack.Screen name="InvoiceDetail"       component={InvoiceDetailScreen} />
                 <Stack.Screen name="Prescriptions"       component={PrescriptionScreen} />
                 <Stack.Screen name="PrescriptionDetail"  component={PrescriptionDetailScreen} />
                 <Stack.Screen name="FamilyProfiles"      component={FamilyProfilesScreen} />
@@ -320,7 +313,6 @@ function AppContent() {
 
                 {/* Phase 6: New appointment booking screen */}
                 {/* Navigate here with: navigation.navigate("AppointmentBooking") */}
-                <Stack.Screen name="AppointmentBooking"  component={AppointmentBookingScreen} />
               </>
             )}
           </Stack.Navigator>

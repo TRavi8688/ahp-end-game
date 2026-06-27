@@ -9,7 +9,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "003_billing"
-down_revision = "003_hospyn_emp_tickets"   # UPDATE THIS
+down_revision = "003_hospyn_employees_ticket_hierarchy"   # UPDATE THIS
 branch_labels = None
 depends_on = None
 
@@ -18,15 +18,15 @@ def upgrade() -> None:
     # Enums
     invoicestatus = postgresql.ENUM(
         "DRAFT", "ISSUED", "PAID", "PARTIALLY_PAID", "CANCELLED", "OVERDUE",
-        name="invoicestatus", create_type=False,
+        name="invoicestatus",
     )
     paymentmethod = postgresql.ENUM(
         "CASH", "CARD", "UPI", "NETBANKING", "INSURANCE",
-        name="paymentmethod", create_type=False,
+        name="paymentmethod",
     )
     paymentstatus = postgresql.ENUM(
         "PENDING", "SUCCESS", "FAILED", "REFUNDED",
-        name="paymentstatus", create_type=False,
+        name="paymentstatus",
     )
     invoicestatus.create(op.get_bind(), checkfirst=True)
     paymentmethod.create(op.get_bind(), checkfirst=True)

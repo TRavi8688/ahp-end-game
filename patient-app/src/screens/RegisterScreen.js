@@ -381,8 +381,12 @@ export default function RegisterScreen({ navigation }) {
 
                         <View style={styles.socialContainer}>
                             <TouchableOpacity style={styles.socialBtn} onPress={() => {
-                                if (Platform.OS === 'web') alert('Coming Soon: Google Signup is being integrated!');
-                                else Alert.alert('Coming Soon', 'Google Signup is being integrated!');
+                                // Signing up with Google and logging in with Google hit the same
+                                // backend endpoint (/auth/google), which auto-creates the account
+                                // on first use — so "Sign up with Google" just needs to land on
+                                // the Login screen's already-working Google button instead of
+                                // duplicating that flow here.
+                                navigation.navigate('Login', { promptGoogle: true });
                             }}>
                                 <Ionicons name="logo-google" size={24} color="#EA4335" />
                                 <Text style={styles.socialBtnText}>Sign Up with Google</Text>

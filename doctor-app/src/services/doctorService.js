@@ -1,17 +1,35 @@
 /**
  * doctorService.js
  *
- * FIXED: this file assumed httpOnly-cookie auth ("credentials: include",
- * no Authorization header at all) — but the backend's login endpoint
- * returns a JSON { access_token } body, not a cookie (confirmed in
- * LoginScreen.jsx). No cookie is ever set, so every call through this file
- * always 401'd silently before this fix.
+ * FIXED (this pass):
+ *  - Added getProfile() — Topbar.jsx and HomeDashboard.jsx both call
+ *    doctorService.getProfile() but it never existed on this module, so
+ *    every page load threw a TypeError and silently aborted the
+ *    Promise.all() in HomeDashboard, leaving the dashboard permanently
+ *    empty even when every other call would have succeeded.
+ *  - apiFetch() no longer blanket-prefixes every path with /healthcare.
+ *    /auth/logout lives on auth-service at /api/v1/auth/logout, not under
+ *    healthcare-core's /api/v1/healthcare/*. The old version sent logout
+ *    to a path that doesn't exist.
+ *  - VITE_API_BASE_URL now must already include /api/v1 (see .env) — this
+ *    file no longer assumes a bare host.
  *
- * Also fixed the same missing-prefix issue as Staff Portal: healthcare-core
- * mounts everything under /api/v1/healthcare/*, not /api/v1/*.
+ * Uses the real Bearer-token auth this app actually has (JSON
+ * { access_token } body, stored in sessionStorage by LoginScreen.jsx) —
+ * not httpOnly cookies, which the backend does not issue for this flow.
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1";
+
+// Paths that must NOT get /healthcare prepended — these live on auth-service
+// (mounted at /api/v1/auth/*) or other sibling services, not healthcare-core.
+const PASSTHROUGH_PREFIXES = ['/auth', '/ai', '/notifications', '/healthcare'];
+
+function withHealthcarePrefix(path) {
+  if (!path) return path;
+  if (PASSTHROUGH_PREFIXES.some((p) => path.startsWith(p))) return path;
+  return `/healthcare${path}`;
+}
 
 const headers = (extra = {}) => {
   const token = sessionStorage.getItem('hospain_access_token');
@@ -23,9 +41,7 @@ const headers = (extra = {}) => {
 };
 
 async function apiFetch(path, options = {}) {
-  // FIXED: was `/api/v1${path}` — healthcare-core routes live under
-  // /api/v1/healthcare/*, not directly under /api/v1/*.
-  const res = await fetch(`${API_BASE}/healthcare${path}`, {
+  const res = await fetch(`${API_BASE}${withHealthcarePrefix(path)}`, {
     ...options,
     headers: { ...headers(), ...(options.headers || {}) },
   });
@@ -39,11 +55,15 @@ async function apiFetch(path, options = {}) {
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || `HTTP ${res.status}`);
+    // Backend error_response() shape uses `message`, not `detail` — accept either.
+    throw new Error(err.detail || err.message || `HTTP ${res.status}`);
   }
 
   return res.json();
 }
+
+// ── Profile ────────────────────────────────────────────────────────────────
+export const getProfile = () => apiFetch("/doctor/profile/me");
 
 // ── Doctor stats ──────────────────────────────────────────────────────────
 export const getStats = () => apiFetch("/doctor/stats");
@@ -73,10 +93,14 @@ export const endBreak = () =>
 export const getQueue = () => apiFetch("/doctor/queue");
 
 // ── Auth ──────────────────────────────────────────────────────────────────
+// FIXED: was being routed through /healthcare/auth/logout, which does not
+// exist. /auth/* is on auth-service, reached directly without the
+// /healthcare segment (see PASSTHROUGH_PREFIXES above).
 export const logout = () =>
   apiFetch("/auth/logout", { method: "POST" });
 
 export const doctorService = {
+  getProfile,
   getStats,
   getAlerts,
   getAccessHistory,

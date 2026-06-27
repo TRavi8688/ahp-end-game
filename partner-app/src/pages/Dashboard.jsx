@@ -53,7 +53,7 @@ export default function Dashboard() {
   const [patients, setPatients] = useState([]);
 
   // Extract Pharmacy ID
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('hospyn_partner_token');
   let pharmacyId = 'UNKNOWN_PHARMACY';
   if (token) {
       try {
@@ -62,40 +62,40 @@ export default function Dashboard() {
       } catch(e) {}
   }
 
-  const headers = () => ({ Authorization: `Bearer ${token}` });
+  // Auth headers are injected by apiClient interceptor — no manual headers needed.
   const showMsg = (msg, type='success') => { setToast({msg, type}); setTimeout(() => setToast(null), 3500); };
 
   const fetchOverview = async () => {
     try {
-      const r = await apiClient.get('/pharmacy/stats', { headers: headers() });
+      const r = await apiClient.get('/pharmacy/stats');
       setStats(r.data);
     } catch(e) { console.error(e); }
   };
 
   const fetchInventory = async () => {
     try {
-      const r = await apiClient.get('/pharmacy/inventory', { headers: headers() });
+      const r = await apiClient.get('/pharmacy/inventory');
       setInventory(r.data || []);
     } catch(e) { console.error(e); }
   };
 
   const fetchQueue = async () => {
     try {
-      const r = await apiClient.get('/clinical/prescriptions', { headers: headers() });
+      const r = await apiClient.get('/clinical/prescriptions');
       setPrescriptions((r.data || []).filter(p => p.status === 'pending'));
     } catch(e) { console.error(e); }
   };
 
   const fetchLedger = async () => {
     try {
-      const r = await apiClient.get('/pharmacy/transactions', { headers: headers() });
+      const r = await apiClient.get('/pharmacy/transactions');
       setTransactions(r.data || []);
     } catch(e) { console.error(e); }
   };
 
   const fetchNetworkOrders = async () => {
     try {
-      const r = await apiClient.get('/pharmacy/network-orders', { headers: headers() });
+      const r = await apiClient.get('/pharmacy/network-orders');
       setNetworkOrders(r.data || []);
     } catch(e) { console.error(e); }
   };
@@ -120,7 +120,7 @@ export default function Dashboard() {
     if (!imageSrc) return;
     setIsAiProcessing(true);
     try {
-      const res = await apiClient.post('/pharmacy/ai-scan', { image_base64: imageSrc }, { headers: headers() });
+      const res = await apiClient.post('/pharmacy/ai-scan', { image_base64: imageSrc });
       setAiResult({ ...res.data, stock_quantity: 1 }); // pre-fill qty
     } catch (e) {
       showMsg('Failed to process image. Try again.', 'error');
@@ -130,7 +130,7 @@ export default function Dashboard() {
 
   const saveAiResult = async () => {
     try {
-      await apiClient.post('/pharmacy/inventory', aiResult, { headers: headers() });
+      await apiClient.post('/pharmacy/inventory', aiResult);
       showMsg(`Successfully added ${aiResult.item_name} to inventory!`);
       setShowAiModal(false);
       setAiResult(null);
@@ -155,7 +155,7 @@ export default function Dashboard() {
             unit_price: parseFloat(row.unit_price || row.MRP || 0),
             tax_percent: 12.0
           }));
-          const r = await apiClient.post('/pharmacy/bulk-upload', payload, { headers: headers() });
+          const r = await apiClient.post('/pharmacy/bulk-upload', payload);
           showMsg(`Successfully uploaded ${r.data.items_added} items!`);
           setShowCsvModal(false);
           if (view === 'inventory') fetchInventory();
@@ -170,7 +170,7 @@ export default function Dashboard() {
     if (patientSearch.length < 3) { setPatients([]); return; }
     const t = setTimeout(async () => {
       try {
-        const r = await apiClient.get(`/patients/search?q=${encodeURIComponent(patientSearch)}`, { headers: headers() });
+        const r = await apiClient.get(`/patients/search?q=${encodeURIComponent(patientSearch)}`);
         setPatients(r.data || []);
       } catch (e) {}
     }, 300);
@@ -182,7 +182,7 @@ export default function Dashboard() {
       showMsg('Select patient and items first.', 'error'); return;
     }
     try {
-      await apiClient.post('/pharmacy/dispense', dispenseReq, { headers: headers() });
+      await apiClient.post('/pharmacy/dispense', dispenseReq);
       showMsg('Invoice generated successfully!');
       setShowDispenseModal(false);
       setDispenseReq({ patient_id: '', items: [] });

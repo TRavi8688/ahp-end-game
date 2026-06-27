@@ -5,13 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { appointmentService } from '../services/appointmentService';
-import { billingService }     from '../services/billingService';
-
-const PAYMENT_METHODS = [
-  { id: 'UPI',  label: 'UPI', icon: 'phone-portrait-outline' },
-  { id: 'CARD', label: 'Card', icon: 'card-outline' },
-  { id: 'CASH', label: 'Pay at clinic', icon: 'cash-outline' },
-];
+import { patientService } from '../services/patientService';
 
 function formatDate(d) {
   return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -23,6 +17,32 @@ function addDays(date, n) {
   return d;
 }
 
+// BUG FIX: this screen used to call appointmentService.getDoctorSlots(),
+// which always throws — there is no real-time slot-availability backend
+// (no `doctor_availability` table provisioned), so the slot grid was always
+// empty and nobody could ever finish booking. Until that's built for real,
+// we offer standard half-hour clinic slots and let the backend's own
+// scheduling-conflict check (409 on an exact doctor+time clash) be the
+// source of truth — if a slot turns out to be taken, the user sees a clear
+// error and can pick another time instead of the booking silently failing.
+function generateStandardSlots(date) {
+  const slots = [];
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  for (let hour = 9; hour < 18; hour++) {
+    for (const minute of [0, 30]) {
+      const slotTime = new Date(date);
+      slotTime.setHours(hour, minute, 0, 0);
+      if (isToday && slotTime <= now) continue;
+      slots.push({
+        label: slotTime.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' }),
+        iso: slotTime.toISOString(),
+      });
+    }
+  }
+  return slots;
+}
+
 export default function BookAppointmentScreen({ navigation, route }) {
   const { doctor } = route.params;
 
@@ -32,53 +52,47 @@ export default function BookAppointmentScreen({ navigation, route }) {
   const [selectedDate,   setSelectedDate]   = useState(dates[0]);
   const [slots,          setSlots]          = useState([]);
   const [selectedSlot,   setSelectedSlot]   = useState(null);
-  const [paymentMethod,  setPaymentMethod]  = useState('UPI');
   const [notes,          setNotes]          = useState('');
-  const [loadingSlots,   setLoadingSlots]   = useState(false);
   const [booking,        setBooking]        = useState(false);
 
-  // Load slots whenever selected date changes
+  // Regenerate the candidate time list whenever the selected date changes
   useEffect(() => {
-    let cancelled = false;
-    const iso = selectedDate.toISOString().split('T')[0];
-    setLoadingSlots(true);
-    setSlots([]);
+    setSlots(generateStandardSlots(selectedDate));
     setSelectedSlot(null);
-    appointmentService.getDoctorSlots(doctor.id, iso)
-      .then((data) => { if (!cancelled) setSlots(data.slots || []); })
-      .catch(() => { if (!cancelled) setSlots([]); })
-      .finally(() => { if (!cancelled) setLoadingSlots(false); });
-    return () => { cancelled = true; };
-  }, [selectedDate, doctor.id]);
+  }, [selectedDate]);
 
   const handleBook = async () => {
     if (!selectedSlot) {
-      Alert.alert('Select a slot', 'Please choose an available time slot first.');
+      Alert.alert('Select a time', 'Please choose a time for your visit first.');
       return;
     }
     setBooking(true);
     try {
-      const result = await appointmentService.bookAppointment({
-        doctor_id:      doctor.id,
-        slot_time:      selectedSlot,
-        notes:          notes.trim(),
-        payment_method: paymentMethod,
-      });
-
-      // If UPI, initiate payment
-      if (paymentMethod === 'UPI' && result.payment_url) {
-        // Hand off to billing deep link — handled by OS UPI intent
-        await billingService.payInvoice(result.invoice_id, doctor.consultation_fee, 'UPI');
+      const profile = await patientService.getProfile();
+      if (!profile?.id) {
+        throw new Error('Could not load your patient profile. Please try again.');
       }
 
-      // Navigate to live queue screen
-      navigation.replace('QueueStatus', {
-        queueToken:    result.queue_token,
-        appointmentId: result.appointment_id,
-        doctor,
+      const result = await appointmentService.bookAppointment({
+        patient_id:       profile.id,
+        doctor_id:        doctor.id,
+        hospital_id:      doctor.hospital_id,
+        scheduled_at:     selectedSlot,
+        chief_complaint:  notes.trim() || undefined,
       });
+
+      Alert.alert(
+        'Appointment Booked',
+        `Your appointment with Dr. ${doctor.full_name} on ${formatDate(selectedDate)} is confirmed.`,
+        [{ text: 'OK', onPress: () => navigation.replace('Appointments') }]
+      );
     } catch (e) {
-      Alert.alert('Booking Failed', e?.response?.data?.detail || 'Something went wrong. Please try again.');
+      const detail = e?.response?.data?.detail || e?.response?.data?.message;
+      if (e?.response?.status === 409) {
+        Alert.alert('Time Unavailable', 'That slot was just taken. Please pick another time.');
+      } else {
+        Alert.alert('Booking Failed', detail || e.message || 'Something went wrong. Please try again.');
+      }
     } finally {
       setBooking(false);
     }
@@ -132,32 +146,21 @@ export default function BookAppointmentScreen({ navigation, route }) {
         </ScrollView>
 
         {/* Time slots */}
-        <Text style={styles.sectionLabel}>Available Slots — {formatDate(selectedDate)}</Text>
-        {loadingSlots ? (
-          <ActivityIndicator color="#6366F1" style={{ marginVertical: 20 }} />
-        ) : slots.length === 0 ? (
-          <Text style={styles.noSlots}>No slots available on this date.</Text>
+        <Text style={styles.sectionLabel}>Select a Time — {formatDate(selectedDate)}</Text>
+        {slots.length === 0 ? (
+          <Text style={styles.noSlots}>No times available today — try another date.</Text>
         ) : (
           <View style={styles.slotsGrid}>
             {slots.map((slot, i) => {
-              const isSelected = slot.time === selectedSlot;
+              const isSelected = slot.iso === selectedSlot;
               return (
                 <TouchableOpacity
                   key={i}
-                  style={[
-                    styles.slot,
-                    !slot.available && styles.slotUnavailable,
-                    isSelected && styles.slotSelected,
-                  ]}
-                  onPress={() => slot.available && setSelectedSlot(slot.time)}
-                  disabled={!slot.available}
+                  style={[styles.slot, isSelected && styles.slotSelected]}
+                  onPress={() => setSelectedSlot(slot.iso)}
                 >
-                  <Text style={[
-                    styles.slotText,
-                    !slot.available && styles.slotTextUnavailable,
-                    isSelected && styles.slotTextSelected,
-                  ]}>
-                    {slot.time}
+                  <Text style={[styles.slotText, isSelected && styles.slotTextSelected]}>
+                    {slot.label}
                   </Text>
                 </TouchableOpacity>
               );
@@ -177,22 +180,9 @@ export default function BookAppointmentScreen({ navigation, route }) {
           numberOfLines={3}
         />
 
-        {/* Payment method */}
-        <Text style={styles.sectionLabel}>Payment Method</Text>
-        <View style={styles.payRow}>
-          {PAYMENT_METHODS.map((pm) => (
-            <TouchableOpacity
-              key={pm.id}
-              style={[styles.payChip, paymentMethod === pm.id && styles.payChipActive]}
-              onPress={() => setPaymentMethod(pm.id)}
-            >
-              <Ionicons name={pm.icon} size={18} color={paymentMethod === pm.id ? '#fff' : '#64748B'} />
-              <Text style={[styles.payText, paymentMethod === pm.id && styles.payTextActive]}>
-                {pm.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <Text style={styles.payAtClinicNote}>
+          ₹{doctor.consultation_fee} consultation fee — payable at the hospital/clinic.
+        </Text>
       </ScrollView>
 
       {/* Confirm button */}
@@ -249,6 +239,8 @@ const styles = StyleSheet.create({
   notesInput:         { marginHorizontal: 16, backgroundColor: '#0F172A', borderRadius: 12,
                         borderWidth: 1, borderColor: '#1E293B', color: '#fff', padding: 14,
                         fontSize: 14, textAlignVertical: 'top', minHeight: 80 },
+  payAtClinicNote:    { color: '#64748B', fontSize: 12, textAlign: 'center',
+                        marginTop: 18, marginHorizontal: 24 },
 
   payRow:             { flexDirection: 'row', paddingHorizontal: 16, gap: 10 },
   payChip:            { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',

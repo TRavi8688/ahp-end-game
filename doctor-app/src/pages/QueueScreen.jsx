@@ -7,7 +7,6 @@ import { useNavigate } from 'react-router-dom';
 import { useSocket } from '../contexts/SocketContext';
 import { clinicalService } from '../services/clinicalService';
 
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import SkipNextIcon from '@mui/icons-material/SkipNext';
 import PersonIcon from '@mui/icons-material/Person';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
@@ -31,8 +30,6 @@ export default function QueueScreen() {
 
     const [queue, setQueue] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [queueStarted, setQueueStarted] = useState(false);
-    const [startingQueue, setStartingQueue] = useState(false);
     const [callingNext, setCallingNext] = useState(false);
     const [toast, setToast] = useState({ open: false, message: '', severity: 'success' });
 
@@ -44,8 +41,6 @@ export default function QueueScreen() {
             const data = await clinicalService.getActiveQueue();
             const queueList = data?.data?.queue || data?.queue || data || [];
             setQueue(Array.isArray(queueList) ? queueList : []);
-            // If there are patients, session is likely already started
-            if (queueList.length > 0) setQueueStarted(true);
         } catch (error) {
             console.error('Queue fetch error:', error);
             if (!silent) setQueue([]);
@@ -61,34 +56,30 @@ export default function QueueScreen() {
     // Live WebSocket updates
     useEffect(() => {
         if (!lastMessage) return;
-        const liveEvents = ['queue_update', 'patient_called', 'token_advanced', 'patient_arrived', 'consultation_ended'];
+        const liveEvents = ['queue_update', 'patient_called', 'token_advanced', 'patient_arrived', 'consultation_ended', 'walkin.completed'];
         if (liveEvents.includes(lastMessage.type)) {
             fetchQueue(true);
         }
     }, [lastMessage, fetchQueue]);
 
-    const handleStartQueue = async () => {
-        setStartingQueue(true);
-        try {
-            await clinicalService.startQueueSession();
-            setQueueStarted(true);
-            showToast('Queue session started! Ready to see patients.');
-            fetchQueue(true);
-        } catch (error) {
-            console.error('Start queue error:', error);
-            // Still mark as started — backend may already have a session
-            setQueueStarted(true);
-            showToast('Session activated.', 'info');
-        } finally {
-            setStartingQueue(false);
-        }
-    };
+    const waitingCount = queue.filter(p => ['waiting', 'waiting_doctor'].includes(p.queue_state || p.status)).length;
+    const inConsultCount = queue.filter(p => ['in_consultation', 'with_doctor'].includes(p.queue_state || p.status)).length;
+    const doneCount = queue.filter(p => ['completed', 'done'].includes(p.queue_state || p.status)).length;
+    const currentPatient = queue.find(p => ['in_consultation', 'with_doctor'].includes(p.queue_state || p.status));
+    const nextPatient = queue.find(p => ['waiting', 'waiting_doctor'].includes(p.queue_state || p.status));
 
+    // FIXED: there's no "start my queue session" step in the real walk-in
+    // model — a doctor can start any waiting patient's consultation as
+    // soon as they're logged in (PATCH /doctor/queue/{walkin_id}/start).
+    // "Call Next Patient" now starts *that specific* patient identified by
+    // nextPatient, instead of calling a generic "advance" endpoint on an
+    // unrelated, never-populated token table.
     const handleCallNext = async () => {
+        if (!nextPatient) return;
         setCallingNext(true);
         try {
-            const result = await clinicalService.callNextPatient();
-            showToast('Next patient called! Please ask them to enter.');
+            await clinicalService.startConsultation(nextPatient.id);
+            showToast(`${nextPatient.full_name || 'Patient'} called in! Please ask them to enter.`);
             fetchQueue(true);
         } catch (error) {
             console.error('Call next error:', error);
@@ -97,12 +88,6 @@ export default function QueueScreen() {
             setCallingNext(false);
         }
     };
-
-    const waitingCount = queue.filter(p => ['waiting', 'waiting_doctor'].includes(p.queue_state || p.status)).length;
-    const inConsultCount = queue.filter(p => ['in_consultation', 'with_doctor'].includes(p.queue_state || p.status)).length;
-    const doneCount = queue.filter(p => ['completed', 'done'].includes(p.queue_state || p.status)).length;
-    const currentPatient = queue.find(p => ['in_consultation', 'with_doctor'].includes(p.queue_state || p.status));
-    const nextPatient = queue.find(p => ['waiting', 'waiting_doctor'].includes(p.queue_state || p.status));
 
     return (
         <Box sx={{ maxWidth: 1200, mx: 'auto', px: { xs: 2, md: 4 }, pt: 4, pb: 8 }}>
@@ -125,19 +110,11 @@ export default function QueueScreen() {
                             <RefreshIcon />
                         </IconButton>
                     </Tooltip>
-                    {!queueStarted ? (
-                        <Button variant="contained" startIcon={startingQueue ? <CircularProgress size={18} color="inherit" /> : <PlayArrowIcon />}
-                            onClick={handleStartQueue} disabled={startingQueue}
-                            sx={{ bgcolor: '#0d9488', fontWeight: 900, borderRadius: '14px', px: 4, py: 1.5, boxShadow: '0 8px 25px rgba(13,148,136,0.35)', '&:hover': { bgcolor: '#0f766e' } }}>
-                            {startingQueue ? 'Starting...' : 'Start Queue Session'}
-                        </Button>
-                    ) : (
-                        <Button variant="contained" startIcon={callingNext ? <CircularProgress size={18} color="inherit" /> : <SkipNextIcon />}
-                            onClick={handleCallNext} disabled={callingNext || waitingCount === 0}
-                            sx={{ bgcolor: '#6366f1', fontWeight: 900, borderRadius: '14px', px: 4, py: 1.5, boxShadow: '0 8px 25px rgba(99,102,241,0.35)', '&:hover': { bgcolor: '#4f46e5' } }}>
-                            {callingNext ? 'Calling...' : 'Call Next Patient'}
-                        </Button>
-                    )}
+                    <Button variant="contained" startIcon={callingNext ? <CircularProgress size={18} color="inherit" /> : <SkipNextIcon />}
+                        onClick={handleCallNext} disabled={callingNext || !nextPatient}
+                        sx={{ bgcolor: '#6366f1', fontWeight: 900, borderRadius: '14px', px: 4, py: 1.5, boxShadow: '0 8px 25px rgba(99,102,241,0.35)', '&:hover': { bgcolor: '#4f46e5' } }}>
+                        {callingNext ? 'Calling...' : 'Call Next Patient'}
+                    </Button>
                 </Box>
             </Box>
 
@@ -159,7 +136,7 @@ export default function QueueScreen() {
             </Grid>
 
             {/* Current + Next Patient Spotlight */}
-            {queueStarted && (currentPatient || nextPatient) && (
+            {(currentPatient || nextPatient) && (
                 <Grid container spacing={3} sx={{ mb: 6 }}>
                     {currentPatient && (
                         <Grid item xs={12} md={6}>
@@ -229,7 +206,7 @@ export default function QueueScreen() {
                         <PersonIcon sx={{ fontSize: 48, color: 'rgba(255,255,255,0.1)', mb: 2 }} />
                         <Typography variant="h6" sx={{ color: '#64748b', fontWeight: 700, mb: 1 }}>No patients in queue</Typography>
                         <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.3)' }}>
-                            {queueStarted ? 'The waiting room is empty. Great work!' : 'Start your queue session to begin seeing patients.'}
+                            The waiting room is empty right now.
                         </Typography>
                     </Box>
                 ) : (

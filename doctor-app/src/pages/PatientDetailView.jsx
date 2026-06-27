@@ -2,12 +2,11 @@ import React, { useState } from 'react';
 import {
     Box, Typography, Button, IconButton, Chip, Avatar, Grid, Card,
     CardContent, Divider, TextField, Snackbar, Alert, Dialog,
-    DialogTitle, DialogContent, DialogActions, CircularProgress
+    DialogTitle, DialogContent, DialogActions, CircularProgress, Tooltip
 } from '@mui/material';
 import DOMPurify from 'dompurify';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSocket } from '../contexts/SocketContext';
-import { API_BASE_URL } from '../api';
 import ApiService from '../utils/ApiService';
 import { clinicalService } from '../services/clinicalService';
 import IntakeModal from '../components/IntakeModal';
@@ -19,33 +18,35 @@ import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import LockIcon from '@mui/icons-material/Lock';
 import SaveIcon from '@mui/icons-material/Save';
 
 export default function PatientDetailView() {
-    const { id } = useParams();
+    // `id` here is the walk-in ID (walkin_id) — the route is /patient/:id
+    // and every place that links here (QueueScreen, HomeDashboard) passes
+    // the walk-in's id. This is the ID every queue/consultation action on
+    // this page must use — NOT patient.profile.id, which the backend
+    // overwrites with a different UUID (the linked Patient record's id)
+    // once one exists. See doctor_queue.py's get_patient_details.
+    const { id: walkinId } = useParams();
     const navigate = useNavigate();
     const { lastMessage } = useSocket();
     const [patient, setPatient] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [chiefComplaint, setChiefComplaint] = useState('');
     const [notes, setNotes] = useState('');
     const [diagnosis, setDiagnosis] = useState('');
     const [savingNotes, setSavingNotes] = useState(false);
+    const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
     const [toastOpen, setToastOpen] = useState(false);
     const [toastMsg, setToastMsg] = useState('');
     const [toastSeverity, setToastSeverity] = useState('success');
-    const [isRevoked, setIsRevoked] = useState(false);
-    const [revocationDialogOpen, setRevocationDialogOpen] = useState(false);
     const [uploading, setUploading] = useState(false);
     const fileInputRef = React.useRef(null);
-
-    const [requestSent, setRequestSent] = useState(false);
-    const [isSendingRequest, setIsSendingRequest] = useState(false);
     const [intakeModalOpen, setIntakeModalOpen] = useState(false);
-    const [requestingVitals, setRequestingVitals] = useState(false);
 
     const vitalsRecords = patient?.records?.filter(r => r.type === 'vitals' || r.type === 'Vitals') || [];
     const latestVitals = vitalsRecords[0]?.ai_extracted;
+    const canCompleteConsultation = patient?.profile?.queue_state === 'in_consultation';
 
     const showToast = (msg, severity = 'success') => {
         setToastMsg(msg);
@@ -56,7 +57,7 @@ export default function PatientDetailView() {
     const fetchPatient = async (silent = false) => {
         if (!silent) setIsLoading(true);
         try {
-            const res = await ApiService.get(`/doctor/patient/${id}`);
+            const res = await ApiService.get(`/doctor/patient/${walkinId}`);
             const data = res?.data || res;
             if (data) {
                 data.allergies = data.allergies || [];
@@ -74,111 +75,77 @@ export default function PatientDetailView() {
         }
     };
 
-    React.useEffect(() => { fetchPatient(false); }, [id]);
+    React.useEffect(() => { fetchPatient(false); }, [walkinId]);
 
-    React.useEffect(() => {
-        if (patient?.profile?.id) {
-            ApiService.post(`/doctor/treatment/${patient.profile.id}/start`).catch(console.error);
-            return () => {
-                ApiService.post(`/doctor/treatment/${patient.profile.id}/end`).catch(console.error);
-            };
-        }
-    }, [patient?.profile?.id]);
+    // FIXED: removed the old "treatment start/end" effect — it called
+    // POST /doctor/treatment/{id}/start and /end, neither of which exists
+    // anywhere on the backend. The real equivalent is
+    // PATCH /doctor/queue/{walkin_id}/start, already called when the
+    // doctor uses "Call Next Patient" on the queue screen — by the time a
+    // doctor opens this page the consultation has already been started.
 
     React.useEffect(() => {
         if (!lastMessage) return;
-        if (lastMessage.type === 'access_revoked') {
-            setIsRevoked(true);
-            setRevocationDialogOpen(true);
-            setRequestSent(false);
-        }
-        if (lastMessage.type === 'patient_update' || lastMessage.type === 'access_granted') {
+        if (lastMessage.type === 'patient_update' || lastMessage.type === 'walkin.completed') {
             fetchPatient(true);
             showToast('Patient data updated in real-time');
-            if (lastMessage.type === 'access_granted') setRequestSent(false);
         }
     }, [lastMessage]);
 
-    const handleRequestAccess = async () => {
-        setIsSendingRequest(true);
-        try {
-            await ApiService.post('/doctor/scan-patient', {
-                hospyn_id: patient?.profile?.hospyn_id,
-                clinic_name: 'Hospain Clinic',
-                access_level: 'full'
-            });
-            setRequestSent(true);
-            showToast('Consent request dispatched to patient app ✔');
-        } catch (error) {
-            alert(error.response?.data?.detail || 'Network error, please try again.');
-        } finally {
-            setIsSendingRequest(false);
-        }
-    };
-
-    const handleRequestVitals = async () => {
-        if (!patient?.profile?.id) return;
-        setRequestingVitals(true);
-        try {
-            await ApiService.post(`/doctor/patient/${patient.profile.id}/request-vitals`);
-            showToast('Vitals request sent to nursing staff!');
-        } catch (error) {
-            showToast('Failed to send vitals request.', 'error');
-        } finally {
-            setRequestingVitals(false);
-        }
-    };
-
-    // FIX: handleSaveNotes now actually calls POST /consultations
-    const handleSaveNotes = async () => {
-        if (!notes.trim()) return;
+    // FIXED: "Save Notes" now calls the real, transactional
+    // PATCH /doctor/queue/{walkin_id}/complete (doctor_queue.py +
+    // ClinicalService.complete_consultation) instead of a fictional
+    // POST /consultations that never existed. This endpoint saves chief
+    // complaint, clinical notes, and diagnosis on encrypted Appointment
+    // columns, creates a MedicalRecord, and — importantly — also marks
+    // the visit as completed and advances the queue. Because completing
+    // is a bigger action than just jotting a note, this asks for
+    // confirmation first (see the dialog below) rather than firing
+    // immediately on click.
+    const handleConfirmCompleteConsultation = async () => {
         setSavingNotes(true);
         try {
-            await clinicalService.saveConsultationNotes(
-                patient?.profile?.id || id,
-                notes,
-                diagnosis
-            );
-            showToast('Notes saved to patient Hospain profile ✔');
+            await clinicalService.completeConsultation(walkinId, {
+                chiefComplaint,
+                clinicalNotes: notes,
+                diagnosis,
+            });
+            showToast('Consultation completed and saved to patient record ✔');
             setNotes('');
             setDiagnosis('');
+            setChiefComplaint('');
+            setCompleteConfirmOpen(false);
+            fetchPatient(true);
         } catch (error) {
-            console.error('Save notes error:', error);
-            showToast('Failed to save notes. Please try again.', 'error');
+            console.error('Complete consultation error:', error);
+            showToast(error.message || 'Failed to save. Please try again.', 'error');
         } finally {
             setSavingNotes(false);
         }
     };
 
-    const handleFileUpload = async (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-        setUploading(true);
-        const formData = new FormData();
-        formData.append('file', file);
-        try {
-            await ApiService.client.post(`/doctor/patient/${patient?.profile?.hospyn_id}/upload-report`, formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
-            });
-            showToast('Report uploaded successfully ✔');
-            fetchPatient(true);
-        } catch (error) {
-            showToast('Upload failed. Please try again.', 'error');
-        } finally {
-            setUploading(false);
-        }
+    // FIXED: /doctor/patient/{id}/request-vitals doesn't exist anywhere on
+    // the backend. Disabled honestly rather than silently no-op or 404.
+    const handleRequestVitals = async () => {
+        showToast('Requesting vitals from nursing isn\'t available yet.', 'info');
     };
 
+    // FIXED: the old upload pointed at /doctor/patient/{hospynId}/upload-report,
+    // which doesn't exist — the real upload-report endpoint
+    // (patients.py) lives at a different path AND is restricted to
+    // require_role("patient"); a doctor would get a 403 even at the
+    // correct URL. There's currently no doctor-facing "upload on behalf
+    // of patient" endpoint at all.
+    const handleFileUpload = async (event) => {
+        event.target.value = '';
+        showToast('Uploading records on a patient\'s behalf isn\'t available yet.', 'info');
+    };
+
+    // FIXED: /clinical/records/{id}/verify doesn't exist, and MedicalRecord
+    // has no "verified" column to update even if it did. Disabled rather
+    // than optimistically marking a record verified in local state only.
     const handleVerifyRecord = async (recordId) => {
-        const updatedRecords = patient?.records?.map(r => r.id === recordId ? { ...r, verified: true } : r);
-        setPatient(prev => ({ ...prev, records: updatedRecords }));
-        try {
-            await ApiService.post(`/clinical/records/${recordId}/verify`);
-            showToast('Record verified and signed ✔');
-            fetchPatient(true);
-        } catch (error) {
-            fetchPatient(true);
-        }
+        showToast('Record verification isn\'t available yet.', 'info');
     };
 
     if (isLoading) {
@@ -198,7 +165,13 @@ export default function PatientDetailView() {
         );
     }
 
-    // Consent required state
+    // Consent required state.
+    // FIXED: the old "Request Vault Access" button called
+    // POST /doctor/scan-patient, which doesn't exist anywhere on the
+    // backend (same dead endpoint disabled in ScanModal.jsx). The backend
+    // currently always returns consent_required: false for this endpoint,
+    // so this branch can't trigger today — but if that ever changes,
+    // showing a clear message beats a button wired to nothing.
     if (patient.consent_required) {
         return (
             <Box sx={{ maxWidth: 800, mx: 'auto', mt: 8, pb: 8, px: 2 }}>
@@ -207,32 +180,13 @@ export default function PatientDetailView() {
                     <Typography variant="body1" fontWeight="900" sx={{ color: '#fff', pr: 2 }}>BACK TO ROSTER</Typography>
                 </Box>
                 <Card elevation={0} sx={{ background: 'rgba(255,255,255,0.02)', backdropFilter: 'blur(30px)', color: 'white', borderRadius: '40px', border: '1px solid rgba(255,255,255,0.05)', p: 6, textAlign: 'center' }}>
-                    <Box sx={{ width: 100, height: 100, borderRadius: '35%', bgcolor: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 4, border: '1px solid rgba(99,102,241,0.3)', boxShadow: '0 0 40px rgba(99,102,241,0.2)' }}>
-                        <LockIcon sx={{ color: '#6366f1', fontSize: 45 }} />
-                    </Box>
                     <Typography variant="h3" sx={{ fontWeight: 900, fontFamily: 'Outfit', mb: 2 }}>Medical Vault Locked</Typography>
-                    <Typography variant="body1" sx={{ color: '#64748b', maxWidth: 500, mx: 'auto', mb: 4, lineHeight: 1.8 }}>
-                        You do not have access to this patient's medical records yet. Please request consent to view their history.
+                    <Typography variant="body1" sx={{ color: '#64748b', maxWidth: 500, mx: 'auto', mb: 2, lineHeight: 1.8 }}>
+                        You don't currently have access to this patient's medical records.
                     </Typography>
-                    <Box sx={{ p: 3, bgcolor: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '24px', maxWidth: 450, mx: 'auto', mb: 5 }}>
-                        <Typography variant="caption" sx={{ color: '#475569', fontWeight: 800, display: 'block', mb: 0.5 }}>PATIENT IDENTITY</Typography>
-                        <Typography variant="h5" sx={{ fontWeight: 800, color: '#fff', mb: 1 }}>{patient?.profile?.name}</Typography>
-                        <Typography variant="body2" sx={{ fontFamily: 'monospace', color: '#0d9488', fontWeight: 700 }}>{patient?.profile?.hospyn_id}</Typography>
-                    </Box>
-                    {requestSent ? (
-                        <Box sx={{ py: 2 }}>
-                            <CircularProgress size={60} thickness={2} sx={{ color: '#0d9488', mb: 3 }} />
-                            <Typography variant="h5" sx={{ fontWeight: 900, color: '#2dd4bf', mb: 1 }}>Awaiting Patient Approval...</Typography>
-                            <Typography variant="body2" sx={{ color: '#64748b', maxWidth: 400, mx: 'auto' }}>
-                                A secure request was sent to {patient?.profile?.name}'s Hospain app.
-                            </Typography>
-                        </Box>
-                    ) : (
-                        <Button variant="contained" disabled={isSendingRequest} onClick={handleRequestAccess}
-                            sx={{ bgcolor: '#6366f1', color: '#fff', px: 6, py: 2.2, borderRadius: '20px', fontWeight: 900, fontSize: '1.1rem', boxShadow: '0 10px 25px rgba(99,102,241,0.4)', '&:hover': { bgcolor: '#4f46e5' } }}>
-                            {isSendingRequest ? 'Sending Request...' : 'Request Vault Access'}
-                        </Button>
-                    )}
+                    <Typography variant="body2" sx={{ color: '#475569', maxWidth: 500, mx: 'auto' }}>
+                        Requesting access isn't available yet — check back once that feature ships.
+                    </Typography>
                 </Card>
             </Box>
         );
@@ -248,16 +202,7 @@ export default function PatientDetailView() {
                 <Typography variant="body1" fontWeight="900" sx={{ color: '#fff', pr: 2 }}>BACK TO ROSTER</Typography>
             </Box>
 
-            {isRevoked && (
-                <Box sx={{ bgcolor: '#fee2e2', border: '1px solid #fca5a5', p: 2, borderRadius: 2, mb: 3, display: 'flex', alignItems: 'center' }}>
-                    <WarningAmberIcon sx={{ color: '#dc2626', mr: 2 }} />
-                    <Typography variant="body1" sx={{ color: '#b91c1c', fontWeight: 'bold' }}>
-                        ⚠ Patient has revoked your access. You can only see previously cached data.
-                    </Typography>
-                </Box>
-            )}
-
-            <Box sx={{ opacity: isRevoked ? 0.4 : 1 }} style={{ pointerEvents: isRevoked ? 'none' : 'auto' }}>
+            <Box>
                 {/* Patient Header */}
                 <Card elevation={0} sx={{ background: 'rgba(255,255,255,0.02)', backdropFilter: 'blur(30px)', color: 'white', borderRadius: '40px', mb: 4, border: '1px solid rgba(255,255,255,0.05)', position: 'relative', overflow: 'hidden' }}>
                     <Box sx={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'linear-gradient(90deg, #0d9488, #6366f1)' }} />
@@ -278,11 +223,16 @@ export default function PatientDetailView() {
                                 <Typography component="span" sx={{ color: '#fff', fontFamily: 'monospace', fontWeight: 700 }}>{patient?.profile?.hospyn_id}</Typography>
                             </Box>
                         </Box>
-                        <Button variant="contained" startIcon={<MedicationIcon />}
-                            onClick={() => navigate(`/prescriptions/${id}`, { state: { patient: patient.profile } })}
-                            sx={{ bgcolor: '#0d9488', px: 5, py: 1.8, borderRadius: '18px', fontWeight: 900, fontSize: '1rem', boxShadow: '0 8px 20px rgba(13,148,136,0.3)', '&:hover': { bgcolor: '#0f766e' } }}>
-                            Draft Prescription
-                        </Button>
+                        <Tooltip title={patient.profile.walkin_id && patient.profile.id === patient.profile.walkin_id ? "This visit has no linked patient profile yet, so a prescription can't be attached to a permanent record." : ''}>
+                            <span>
+                                <Button variant="contained" startIcon={<MedicationIcon />}
+                                    disabled={patient.profile.walkin_id && patient.profile.id === patient.profile.walkin_id}
+                                    onClick={() => navigate(`/prescriptions/${patient.profile.id}`, { state: { patient: patient.profile } })}
+                                    sx={{ bgcolor: '#0d9488', px: 5, py: 1.8, borderRadius: '18px', fontWeight: 900, fontSize: '1rem', boxShadow: '0 8px 20px rgba(13,148,136,0.3)', '&:hover': { bgcolor: '#0f766e' } }}>
+                                    Draft Prescription
+                                </Button>
+                            </span>
+                        </Tooltip>
                     </Box>
                 </Card>
 
@@ -384,8 +334,8 @@ export default function PatientDetailView() {
                             ) : (
                                 <Box sx={{ p: 3, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px dashed rgba(255,255,255,0.1)', textAlign: 'center' }}>
                                     <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.5)', mb: 2 }}>No active vitals recorded.</Typography>
-                                    <Button variant="contained" color="primary" fullWidth onClick={handleRequestVitals} disabled={requestingVitals} sx={{ borderRadius: '12px', py: 1.2, fontWeight: 'bold' }}>
-                                        {requestingVitals ? 'Sending Request...' : 'Request Nurse for Vitals'}
+                                    <Button variant="contained" color="primary" fullWidth onClick={handleRequestVitals} sx={{ borderRadius: '12px', py: 1.2, fontWeight: 'bold' }}>
+                                        Request Nurse for Vitals
                                     </Button>
                                 </Box>
                             )}
@@ -495,21 +445,29 @@ export default function PatientDetailView() {
                             )}
                         </Card>
 
-                        {/* FIX: Clinical Memo now actually saves notes via POST /consultations */}
-                        {!isRevoked && (
-                            <Card sx={{ p: 4, bgcolor: 'rgba(13,148,136,0.05)', border: '1px solid rgba(13,148,136,0.15)', borderRadius: '24px' }}>
-                                <Typography variant="h6" sx={{ fontWeight: 900, color: '#fff', mb: 2 }}>CLINICAL MEMO</Typography>
-                                <TextField fullWidth label="Diagnosis" placeholder="e.g. Acute Bronchitis" value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)}
-                                    sx={{ mb: 2, '& .MuiOutlinedInput-root': { color: 'white', bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '12px', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } }, '& .MuiInputLabel-root': { color: '#64748b' } }} />
-                                <TextField fullWidth multiline rows={4} placeholder="Annotate this encounter... Encrypted and synced to Hospain profile." value={notes} onChange={(e) => setNotes(e.target.value)}
-                                    sx={{ mb: 3, '& .MuiOutlinedInput-root': { color: 'white', bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '16px', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } } }} />
-                                <Button variant="contained" fullWidth disableElevation startIcon={savingNotes ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
-                                    sx={{ bgcolor: '#0d9488', '&:hover': { bgcolor: '#0f766e' }, py: 2, borderRadius: '14px', fontWeight: 900, boxShadow: '0 8px 20px rgba(13,148,136,0.2)' }}
-                                    onClick={handleSaveNotes} disabled={!notes.trim() || savingNotes}>
-                                    {savingNotes ? 'SAVING...' : 'SYNCHRONIZE TO VAULT'}
-                                </Button>
-                            </Card>
-                        )}
+                        <Card sx={{ p: 4, bgcolor: 'rgba(13,148,136,0.05)', border: '1px solid rgba(13,148,136,0.15)', borderRadius: '24px' }}>
+                            <Typography variant="h6" sx={{ fontWeight: 900, color: '#fff', mb: 2 }}>CLINICAL MEMO</Typography>
+                            {!canCompleteConsultation && (
+                                <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
+                                    This visit isn't currently in consultation (status: {patient?.profile?.queue_state || 'unknown'}),
+                                    so it can't be completed from here.
+                                </Alert>
+                            )}
+                            <TextField fullWidth label="Chief Complaint" placeholder="e.g. Persistent cough, 3 days" value={chiefComplaint} onChange={(e) => setChiefComplaint(e.target.value)}
+                                disabled={!canCompleteConsultation}
+                                sx={{ mb: 2, '& .MuiOutlinedInput-root': { color: 'white', bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '12px', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } }, '& .MuiInputLabel-root': { color: '#64748b' } }} />
+                            <TextField fullWidth label="Diagnosis" placeholder="e.g. Acute Bronchitis" value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)}
+                                disabled={!canCompleteConsultation}
+                                sx={{ mb: 2, '& .MuiOutlinedInput-root': { color: 'white', bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '12px', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } }, '& .MuiInputLabel-root': { color: '#64748b' } }} />
+                            <TextField fullWidth multiline rows={4} placeholder="Annotate this encounter... Encrypted and synced to Hospain profile." value={notes} onChange={(e) => setNotes(e.target.value)}
+                                disabled={!canCompleteConsultation}
+                                sx={{ mb: 3, '& .MuiOutlinedInput-root': { color: 'white', bgcolor: 'rgba(0,0,0,0.2)', borderRadius: '16px', '& fieldset': { borderColor: 'rgba(255,255,255,0.05)' } } }} />
+                            <Button variant="contained" fullWidth disableElevation startIcon={<SaveIcon />}
+                                sx={{ bgcolor: '#0d9488', '&:hover': { bgcolor: '#0f766e' }, py: 2, borderRadius: '14px', fontWeight: 900, boxShadow: '0 8px 20px rgba(13,148,136,0.2)' }}
+                                onClick={() => setCompleteConfirmOpen(true)} disabled={!canCompleteConsultation || !notes.trim()}>
+                                COMPLETE CONSULTATION & SAVE
+                            </Button>
+                        </Card>
                     </Grid>
                 </Grid>
             </Box>
@@ -518,19 +476,30 @@ export default function PatientDetailView() {
                 <Alert onClose={() => setToastOpen(false)} severity={toastSeverity} sx={{ width: '100%', fontWeight: 'bold' }}>{toastMsg}</Alert>
             </Snackbar>
 
-            <Dialog open={revocationDialogOpen} onClose={() => navigate('/history')} disableEscapeKeyDown>
-                <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#dc2626', fontWeight: 'bold' }}>
-                    <WarningAmberIcon /> Access Revoked
-                </DialogTitle>
+            {/* Confirm before completing — this ends the visit and advances
+                the queue, not just a draft save, so it's worth a checkpoint. */}
+            <Dialog open={completeConfirmOpen} onClose={() => !savingNotes && setCompleteConfirmOpen(false)}>
+                <DialogTitle sx={{ fontWeight: 'bold' }}>Complete this consultation?</DialogTitle>
                 <DialogContent>
-                    <Typography>The patient has revoked your access to their medical records.</Typography>
+                    <Typography sx={{ mb: 2 }}>
+                        This will save your notes and diagnosis, create the patient's record, and mark
+                        this visit as completed — the patient will move out of your active queue.
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        Make sure any prescription has already been written separately if needed — this
+                        does not include prescribed medications.
+                    </Typography>
                 </DialogContent>
                 <DialogActions sx={{ p: 2 }}>
-                    <Button variant="contained" fullWidth onClick={() => navigate('/history')} sx={{ bgcolor: '#dc2626', fontWeight: 'bold' }}>Return to Dashboard</Button>
+                    <Button onClick={() => setCompleteConfirmOpen(false)} disabled={savingNotes}>Cancel</Button>
+                    <Button variant="contained" onClick={handleConfirmCompleteConsultation} disabled={savingNotes}
+                        sx={{ bgcolor: '#0d9488', fontWeight: 'bold' }}>
+                        {savingNotes ? 'Saving...' : 'Yes, Complete Visit'}
+                    </Button>
                 </DialogActions>
             </Dialog>
 
-            <IntakeModal open={intakeModalOpen} onClose={() => setIntakeModalOpen(false)} patientId={id} onComplete={() => { setIntakeModalOpen(false); fetchPatient(true); }} />
+            <IntakeModal open={intakeModalOpen} onClose={() => setIntakeModalOpen(false)} patientId={walkinId} onComplete={() => { setIntakeModalOpen(false); fetchPatient(true); }} />
         </Box>
     );
 }

@@ -162,12 +162,22 @@ export default function AuthScreen({ navigation }) {
         }
     }, [mode]);
 
-    // After successful login, navigate to the main app screen
+    // After successful login, the AuthContext flips isAuthenticated, and
+    // App.js swaps the whole navigator from the unauthenticated stack to
+    // MainTabs on its own — no manual navigation needed here.
+    //
+    // BUG FIX (this was the #1 cause of "random login failures"): this
+    // function used to also call navigation.replace('Home') right after
+    // login(). But 'Home' isn't a screen in *this* stack (it's a tab name
+    // nested inside MainTabs), and by the time this line ran, the stack had
+    // often already swapped away from Login because of the isAuthenticated
+    // change above — so navigation.replace('Home') threw a navigation error.
+    // That error was caught by the caller's try/catch and shown to the user
+    // as "Login Failed: Invalid credentials" even though login had already
+    // succeeded and the token was already saved. Removing it fixes that.
     const handleLoginSuccess = async (accessToken, identifier) => {
         await AsyncStorage.removeItem('mock_profile');
         await login(accessToken, identifier);
-        // Navigate to Home (replace current stack)
-        navigation.replace('Home');
     };
 
     const handleHospynLogin = async () => {

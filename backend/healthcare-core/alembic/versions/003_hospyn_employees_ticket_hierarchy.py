@@ -11,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
-revision = '003_hospyn_emp_tickets'
+revision = '003_hospyn_employees_ticket_hierarchy'
 down_revision = '002_ticket_system'
 branch_labels = None
 depends_on = None
@@ -21,18 +21,6 @@ LEVELS = ('l1', 'team_lead', 'manager', 'super_admin')
 
 
 def upgrade():
-    # Create ENUMs explicitly (create_type=False is set on inline sa.Enum)
-    op.execute("""
-        DO $$ BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'employee_team') THEN
-                CREATE TYPE employee_team AS ENUM ('finance', 'engineering', 'onboarding', 'support', 'data');
-            END IF;
-            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'employee_level') THEN
-                CREATE TYPE employee_level AS ENUM ('l1', 'team_lead', 'manager', 'super_admin');
-            END IF;
-        END $$;
-    """)
-
     # ── hospyn_employees ──────────────────────────────────────────────────────
     op.create_table(
         'hospyn_employees',
@@ -41,8 +29,8 @@ def upgrade():
         sa.Column('full_name',     sa.String(200), nullable=False),
         sa.Column('email',         sa.String(255), unique=True, nullable=False),
         sa.Column('hashed_password', sa.String(255), nullable=False),
-        sa.Column('team',          sa.Enum(*TEAMS,  name='employee_team', create_type=False),  nullable=False),
-        sa.Column('level',         sa.Enum(*LEVELS, name='employee_level', create_type=False), nullable=False),
+        sa.Column('team',          sa.Enum(*TEAMS,  name='employee_team'),  nullable=False),
+        sa.Column('level',         sa.Enum(*LEVELS, name='employee_level'), nullable=False),
         # manager_id → the manager this employee reports to (NULL for managers/super_admin)
         sa.Column('manager_id',    UUID(as_uuid=True), nullable=True),
         # team_lead_id → the TL this L1 reports to (NULL for TLs and above)
@@ -79,7 +67,7 @@ def upgrade():
     op.add_column('support_tickets', sa.Column('assigned_employee_id', sa.String(30), nullable=True))
     op.add_column('support_tickets', sa.Column('assigned_employee_name', sa.String(200), nullable=True))
     op.add_column('support_tickets', sa.Column('escalation_level', sa.String(20), nullable=True, server_default='l1'))
-    # NOTE: owner_phone is NOT added here — it already exists from 002_ticket_system CREATE TABLE.
+    op.add_column('support_tickets', sa.Column('owner_phone', sa.String(20), nullable=True))
     op.create_index('ix_support_tickets_assigned', 'support_tickets', ['assigned_employee_id'])
 
 
@@ -88,7 +76,7 @@ def downgrade():
     op.drop_column('support_tickets', 'escalation_level')
     op.drop_column('support_tickets', 'assigned_employee_name')
     op.drop_column('support_tickets', 'assigned_employee_id')
-    # NOTE: owner_phone is NOT dropped here — it belongs to 002_ticket_system.
+    op.drop_column('support_tickets', 'owner_phone')
     op.drop_table('ticket_assignments')
     op.drop_table('hospyn_employees')
     op.execute('DROP TYPE IF EXISTS employee_team')

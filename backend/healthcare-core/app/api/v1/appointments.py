@@ -23,6 +23,7 @@ from app.core.security import get_current_user, require_role, TokenPayload
 from app.models.appointment import Appointment, AppointmentStatus
 from app.models.doctor import Doctor
 from app.models.patient import Patient
+from app.services.queue_service import resolve_any_staff
 from app.schemas.appointment import (
     AppointmentCreate,
     AppointmentResponse,
@@ -166,8 +167,27 @@ async def list_appointments(
             )
         query = query.where(Appointment.doctor_id == doctor.id)
     else:
-        # Admin / hospital_admin
-        if hospital_id:
+        # FIXED: this branch previously caught every non-patient,
+        # non-doctor role (receptionist, nurse, lab, pharmacist, hr, owner,
+        # ...) and only filtered by hospital_id if the caller happened to
+        # pass one explicitly. TodaysAppointmentsPage.tsx (reception) never
+        # passes hospital_id, so every receptionist saw every hospital's
+        # appointments. Resolve the caller's own hospital via their staff
+        # profile first; true platform admins (role == "admin") still see
+        # everything unless they pass an explicit hospital_id filter.
+        if current_user.role != "admin":
+            staff = await resolve_any_staff(db, current_user.sub)
+            if staff:
+                query = query.where(Appointment.hospital_id == staff.hospital_id)
+            elif hospital_id:
+                query = query.where(Appointment.hospital_id == hospital_id)
+            else:
+                return success_response(
+                    data=AppointmentListResponse(
+                        total=0, page=page, page_size=page_size, items=[]
+                    ).model_dump(mode="json")
+                )
+        elif hospital_id:
             query = query.where(Appointment.hospital_id == hospital_id)
 
     if status_filter:
@@ -184,12 +204,38 @@ async def list_appointments(
     result = await db.execute(query)
     appointments = result.scalars().all()
 
+    # FIXED: join patient/doctor names in one batch instead of leaving the
+    # response schema's name fields permanently empty (see schemas/appointment.py).
+    patient_ids = {a.patient_id for a in appointments}
+    doctor_ids = {a.doctor_id for a in appointments}
+    patients_by_id: dict = {}
+    doctors_by_id: dict = {}
+    if patient_ids:
+        pres = await db.execute(select(Patient).where(Patient.id.in_(patient_ids)))
+        patients_by_id = {p.id: p for p in pres.scalars().all()}
+    if doctor_ids:
+        dres = await db.execute(select(Doctor).where(Doctor.id.in_(doctor_ids)))
+        doctors_by_id = {d.id: d for d in dres.scalars().all()}
+
+    items = []
+    for a in appointments:
+        item = AppointmentResponse.model_validate(a)
+        patient = patients_by_id.get(a.patient_id)
+        doctor = doctors_by_id.get(a.doctor_id)
+        if patient:
+            item.patient_name = patient.full_name
+            item.patient_phone = patient.phone
+        if doctor:
+            item.doctor_name = doctor.full_name
+            item.department = doctor.specialization
+        items.append(item)
+
     return success_response(
         data=AppointmentListResponse(
             total=total,
             page=page,
             page_size=page_size,
-            items=[AppointmentResponse.model_validate(a) for a in appointments],
+            items=items,
         ).model_dump(mode="json")
     )
 
@@ -264,6 +310,44 @@ async def cancel_appointment(
     )
 
     return success_response(message="Appointment cancelled successfully.")
+
+
+@router.post("/{appointment_id}/checkin")
+async def checkin_appointment(
+    appointment_id: uuid.UUID,
+    current_user: Annotated[TokenPayload, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    FIXED: TodaysAppointmentsPage.tsx's "Verify & Check In" button called
+    this endpoint and it didn't exist anywhere in the backend — every
+    check-in attempt 404'd. Marks a scheduled appointment as confirmed
+    (i.e. the patient has physically arrived and been verified at the desk).
+    """
+    result = await db.execute(
+        select(Appointment).where(Appointment.id == appointment_id)
+    )
+    appointment = result.scalars().first()
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+
+    if appointment.status != AppointmentStatus.scheduled:
+        return error_response(
+            "INVALID_STATE",
+            f"Cannot check in an appointment with status '{appointment.status.value}'.",
+            400,
+        )
+
+    appointment.status = AppointmentStatus.confirmed
+    await db.flush()
+
+    log_audit_event(
+        action="appointment_checked_in",
+        actor_id=current_user.sub,
+        target_id=str(appointment.id),
+    )
+
+    return success_response(message="Patient checked in successfully.")
 
 
 @router.patch("/{appointment_id}/clinical-notes")
