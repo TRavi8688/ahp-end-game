@@ -100,8 +100,8 @@ async def test_modular_os_guards_and_transitions(
 ):
     # Tokens
     owner_token = generate_token(str(test_hospital.owner_user_id), "owner")
-    receptionist_token = generate_token(str(test_receptionist.user_id), "staff")
-    nurse_token = generate_token(str(test_nurse.user_id), "staff")
+    receptionist_token = generate_token(str(test_receptionist.user_id), "receptionist")
+    nurse_token = generate_token(str(test_nurse.user_id), "nurse")
     pharmacist_token = generate_token(str(test_pharmacist.user_id), "pharmacist")
 
     owner_headers = {"Authorization": f"Bearer {owner_token}"}
