@@ -55,7 +55,6 @@ async def update_hospital_modules(
     if not hospital:
         raise HTTPException(status_code=404, detail="Hospital not found")
     hospital.enabled_modules = payload.enabled_modules
-    await db.commit()
     return success_response(data={"enabled_modules": hospital.enabled_modules})
 
 @router.get("/dashboard")

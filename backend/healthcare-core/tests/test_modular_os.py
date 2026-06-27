@@ -123,6 +123,9 @@ async def test_modular_os_guards_and_transitions(
     assert update_res.status_code == 200
     assert "nurse" not in update_res.json()["data"]["enabled_modules"]
 
+    # Refresh DB session to ensure changes are read
+    await db_session.refresh(test_hospital)
+
     # 3. Create a walk-in patient request
     qr_token = generate_walkin_token(str(test_hospital.id))
     intake_data = {
