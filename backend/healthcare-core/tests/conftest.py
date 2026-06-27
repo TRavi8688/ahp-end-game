@@ -54,9 +54,17 @@ async def test_engine():
     # Teardown: drop all tables after the session
     async with engine.begin() as conn:
         from sqlalchemy import text
-        await conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
+        await conn.execute(text("DROP SCHEMA public CASCADE"))
+        await conn.execute(text("CREATE SCHEMA public"))
     await engine.dispose()
 
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def setup_mock_redis():
+    """Initialize mock redis for the test session."""
+    from shared.redis_client import init_redis, close_redis
+    init_redis("redis://mock")
+    yield
+    await close_redis()
 
 @pytest_asyncio.fixture
 async def db_session(test_engine):
@@ -73,10 +81,11 @@ async def db_session(test_engine):
 @pytest_asyncio.fixture
 async def client(db_session):
     """FastAPI test client with DB session overridden."""
-    from httpx import AsyncClient
+    from httpx import AsyncClient, ASGITransport
     from app.main import app  # adjust path as needed
 
     app.dependency_overrides[get_db] = lambda: db_session
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.clear()
