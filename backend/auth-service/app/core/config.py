@@ -48,7 +48,7 @@ class Settings(BaseSettings):
                 else:
                     target_val = "require"
             else:
-                target_val = "require"
+                target_val = "disable"
 
             if is_asyncpg:
                 q_params["ssl"] = target_val
