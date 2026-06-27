@@ -34,76 +34,7 @@ def upgrade() -> None:
 
     # (Removed redundant hospital column additions that already exist from 001_initial.py)
 
-    # ─── 4. Extend support_tickets for full enterprise use ────────────────────
-    # The existing table has partner_id FK — add nullable columns for cross-product use
-    op.add_column("support_tickets", sa.Column(
-        "ticket_id",           sa.String(20),  nullable=True
-    ))
-    op.add_column("support_tickets", sa.Column(
-        "product",             sa.String(50),  nullable=True, server_default="'hospyn_web'"
-    ))
-    op.add_column("support_tickets", sa.Column(
-        "team",                sa.String(50),  nullable=True, server_default="'support'"
-    ))
-    op.add_column("support_tickets", sa.Column(
-        "owner_email",         sa.String(255), nullable=True
-    ))
-    op.add_column("support_tickets", sa.Column(
-        "org_name",            sa.String(255), nullable=True
-    ))
-    op.add_column("support_tickets", sa.Column(
-        "sla_hours",           sa.Integer(),   nullable=True, server_default="24"
-    ))
-    op.add_column("support_tickets", sa.Column(
-        "last_message",        sa.Text(),      nullable=True
-    ))
-    op.add_column("support_tickets", sa.Column(
-        "last_message_sender", sa.String(20),  nullable=True
-    ))
-    op.add_column("support_tickets", sa.Column(
-        "call_required",       sa.Boolean(),   nullable=False, server_default="false"
-    ))
-    op.add_column("support_tickets", sa.Column(
-        "rating",              sa.Integer(),   nullable=True
-    ))
-    # Generate ticket_id for existing rows
-    op.execute("""
-        UPDATE support_tickets
-        SET ticket_id = 'HSP-' || EXTRACT(YEAR FROM created_at)::TEXT || '-' || LPAD((RANDOM() * 99999)::INT::TEXT, 5, '0')
-        WHERE ticket_id IS NULL
-    """)
-    op.create_index("ix_support_tickets_ticket_id",    "support_tickets", ["ticket_id"])
-    op.create_index("ix_support_tickets_owner_email",  "support_tickets", ["owner_email"])
-    op.create_index("ix_support_tickets_team",         "support_tickets", ["team"])
-
-    # ─── 5. ticket_messages table ─────────────────────────────────────────────
-    op.create_table(
-        "ticket_messages",
-        sa.Column("id",            postgresql.UUID(as_uuid=True), primary_key=True,
-                  server_default=sa.text("gen_random_uuid()")),
-        sa.Column("ticket_id",     sa.String(20), nullable=False, index=True),
-        sa.Column("sender",        sa.String(20), nullable=False),    # "owner" | "agent"
-        sa.Column("sender_label",  sa.String(100), nullable=True),
-        sa.Column("text",          sa.Text(),    nullable=False),
-        sa.Column("read_by_owner", sa.Boolean(), nullable=False, server_default="false"),
-        sa.Column("read_by_agent", sa.Boolean(), nullable=False, server_default="false"),
-        sa.Column("created_at",    sa.DateTime(timezone=True), nullable=False,
-                  server_default=sa.text("now()")),
-    )
-    op.create_index("ix_ticket_messages_ticket_id",   "ticket_messages", ["ticket_id"])
-    op.create_index("ix_ticket_messages_created_at",  "ticket_messages", ["created_at"])
-
-    # ─── 6. ticket_internal_notes table ──────────────────────────────────────
-    op.create_table(
-        "ticket_internal_notes",
-        sa.Column("id",         postgresql.UUID(as_uuid=True), primary_key=True,
-                  server_default=sa.text("gen_random_uuid()")),
-        sa.Column("ticket_id",  sa.String(20),  nullable=False, index=True),
-        sa.Column("note",       sa.Text(),      nullable=False),
-        sa.Column("author",     sa.String(255), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False,
-                  server_default=sa.text("now()")),
-    )
+    # (Removed redundant support_tickets, ticket_messages, and ticket_internal_notes blocks which were already fully created by 002_ticket_system.py)
 
     # ─── 7. system_alerts table (super-admin EmergencyAlerts page) ─────────────
     op.create_table(
@@ -174,14 +105,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_hospital_branches_hospital_id", "hospital_branches", ["hospital_id"])
 
-    # ─── 11. audit_logs: add hospital_id + details columns if missing ─────────
-    op.add_column("audit_logs", sa.Column(
-        "hospital_id", postgresql.UUID(as_uuid=True), nullable=True
-    ))
-    op.add_column("audit_logs", sa.Column(
-        "details", sa.Text(), nullable=True
-    ))
-    op.create_index("ix_audit_logs_hospital_id", "audit_logs", ["hospital_id"])
+    # (Removed redundant audit_logs alteration since the table is properly created in 009)
 
 
 def downgrade() -> None:
@@ -189,7 +113,4 @@ def downgrade() -> None:
     op.drop_table("hospital_documents")
     op.drop_table("fraud_signals")
     op.drop_table("system_alerts")
-    op.drop_table("ticket_internal_notes")
-    op.drop_table("ticket_messages")
     # Note: enum values and added columns cannot be easily rolled back in PostgreSQL
-    # Manual downgrade: ALTER TABLE users DROP COLUMN full_name, hospital_id; etc.
