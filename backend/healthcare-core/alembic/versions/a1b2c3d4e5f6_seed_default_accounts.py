@@ -14,6 +14,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # Skip seeding during unit tests to avoid test database contamination
+    import sys
+    if "pytest" in sys.modules:
+        return
+
     # 1. Hashed password (Admin@Hospain2024!)
     default_hash = "$2b$12$AC7HVUHGBWXLgQZbJI7PhOGihtjrGbdooHJOzyOMi5WpsZO4CEbxW"
 
