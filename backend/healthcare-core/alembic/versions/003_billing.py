@@ -19,18 +19,22 @@ def upgrade() -> None:
     invoicestatus = postgresql.ENUM(
         "DRAFT", "ISSUED", "PAID", "PARTIALLY_PAID", "CANCELLED", "OVERDUE",
         name="invoicestatus",
+        create_type=False
     )
     paymentmethod = postgresql.ENUM(
         "CASH", "CARD", "UPI", "NETBANKING", "INSURANCE",
         name="paymentmethod",
+        create_type=False
     )
     paymentstatus = postgresql.ENUM(
         "PENDING", "SUCCESS", "FAILED", "REFUNDED",
         name="paymentstatus",
+        create_type=False
     )
-    invoicestatus.create(op.get_bind(), checkfirst=True)
-    paymentmethod.create(op.get_bind(), checkfirst=True)
-    paymentstatus.create(op.get_bind(), checkfirst=True)
+    
+    op.execute("DO $$ BEGIN CREATE TYPE invoicestatus AS ENUM ('DRAFT', 'ISSUED', 'PAID', 'PARTIALLY_PAID', 'CANCELLED', 'OVERDUE'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+    op.execute("DO $$ BEGIN CREATE TYPE paymentmethod AS ENUM ('CASH', 'CARD', 'UPI', 'NETBANKING', 'INSURANCE'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+    op.execute("DO $$ BEGIN CREATE TYPE paymentstatus AS ENUM ('PENDING', 'SUCCESS', 'FAILED', 'REFUNDED'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
 
     op.create_table(
         "invoices",
