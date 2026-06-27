@@ -17,6 +17,10 @@ def upgrade() -> None:
     # 1. Hashed password (Admin@Hospain2024!)
     default_hash = "$2b$12$AC7HVUHGBWXLgQZbJI7PhOGihtjrGbdooHJOzyOMi5WpsZO4CEbxW"
 
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    has_users = inspector.has_table("users")
+
     # 2. Seed Super Admin in hospyn_employees
     op.execute(f"""
         INSERT INTO hospyn_employees 
@@ -61,21 +65,22 @@ def upgrade() -> None:
     """)
 
     # 4. Seed Staff User in users table
-    op.execute(f"""
-        INSERT INTO users
-          (id, email, phone_number, hashed_password, role, is_active, token_version, created_at, updated_at)
-        VALUES (
-          '22222222-2222-2222-2222-222222222222',
-          'admin@sdl05.com',
-          '+919999999999',
-          '{default_hash}',
-          'staff',
-          true,
-          1,
-          NOW(), NOW()
-        )
-        ON CONFLICT (email) DO NOTHING
-    """)
+    if has_users:
+        op.execute(f"""
+            INSERT INTO users
+              (id, email, phone_number, hashed_password, role, is_active, token_version, created_at, updated_at)
+            VALUES (
+              '22222222-2222-2222-2222-222222222222',
+              'admin@sdl05.com',
+              '+919999999999',
+              '{default_hash}',
+              'staff',
+              true,
+              1,
+              NOW(), NOW()
+            )
+            ON CONFLICT (email) DO NOTHING
+        """)
 
     # 5. Seed Staff in staff table
     op.execute("""
@@ -97,21 +102,22 @@ def upgrade() -> None:
     """)
 
     # 6. Seed Doctor User in users table
-    op.execute(f"""
-        INSERT INTO users
-          (id, email, phone_number, hashed_password, role, is_active, token_version, created_at, updated_at)
-        VALUES (
-          '33333333-3333-3333-3333-333333333333',
-          'ravi@hospyn.com',
-          '+919999999998',
-          '{default_hash}',
-          'doctor',
-          true,
-          1,
-          NOW(), NOW()
-        )
-        ON CONFLICT (email) DO NOTHING
-    """)
+    if has_users:
+        op.execute(f"""
+            INSERT INTO users
+              (id, email, phone_number, hashed_password, role, is_active, token_version, created_at, updated_at)
+            VALUES (
+              '33333333-3333-3333-3333-333333333333',
+              'ravi@hospyn.com',
+              '+919999999998',
+              '{default_hash}',
+              'doctor',
+              true,
+              1,
+              NOW(), NOW()
+            )
+            ON CONFLICT (email) DO NOTHING
+        """)
 
     # 7. Seed Doctor in doctors table
     op.execute("""
