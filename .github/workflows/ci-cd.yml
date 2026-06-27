@@ -190,13 +190,10 @@ jobs:
 
       - name: Run database migrations (BEFORE new container takes traffic)
         run: |
-          # Update or create the migration job with the new image, then execute it
-          gcloud run jobs update hospyn-migrations \
-            --image gcr.io/${{ env.PROJECT_ID }}/hospyn-api:${{ github.sha }} \
-            --region $REGION \
-            --project $PROJECT_ID \
-            --command "alembic" --args "upgrade,head" \
-            --set-env-vars="DATABASE_URL=${{ secrets.DATABASE_URL }}" || \
+          # Delete existing job if it exists to clear any conflicting secret bindings
+          gcloud run jobs delete hospyn-migrations --region $REGION --project $PROJECT_ID --quiet || true
+
+          # Create fresh job with env vars
           gcloud run jobs create hospyn-migrations \
             --image gcr.io/${{ env.PROJECT_ID }}/hospyn-api:${{ github.sha }} \
             --region $REGION \
