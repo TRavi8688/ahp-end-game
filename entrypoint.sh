@@ -27,9 +27,8 @@ if [ "${SECRET_KEY}" = "your-secret-key-here" ] || [ "${SECRET_KEY}" = "changeme
 fi
 
 # ─── DATABASE READINESS WAIT ─────────────────────────────────────────────────
-# FIX: Wait for PostgreSQL to be accepting connections before starting uvicorn.
-# Avoids "could not connect to database" errors on fresh deployments.
-if [ -n "${DATABASE_URL:-}" ] && echo "$DATABASE_URL" | grep -q "postgresql"; then
+# Only run database readiness check in non-production environments to avoid Cloud Run boot timeouts
+if [ "${ENV:-production}" != "production" ] && [ -n "${DATABASE_URL:-}" ] && echo "$DATABASE_URL" | grep -q "postgresql"; then
     echo "Waiting for PostgreSQL to be ready..."
     # Extract host and port from DATABASE_URL
     # Format: postgresql+asyncpg://user:pass@host:port/dbname
