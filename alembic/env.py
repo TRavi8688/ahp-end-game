@@ -46,12 +46,16 @@ try:
     parsed = urlparse(_database_url)
     q_params = dict(parse_qsl(parsed.query))
     q_params.pop("channel_binding", None)
-    if "sslmode" in q_params:
-        val = q_params.pop("sslmode")
-        if val in ("disable", "allow", "prefer", "require", "verify-ca", "verify-full"):
-            q_params["ssl"] = val
+    # Extract any ssl or sslmode value
+    ssl_val = q_params.pop("ssl", None) or q_params.pop("sslmode", None)
+    if ssl_val:
+        ssl_val = str(ssl_val).lower().strip()
+        if ssl_val in ("disable", "false", "no", "0"):
+            q_params["sslmode"] = "disable"
         else:
-            q_params["ssl"] = "require"
+            q_params["sslmode"] = "require"
+    else:
+        q_params["sslmode"] = "require"
     new_query = urlencode(q_params)
     parsed = parsed._replace(query=new_query)
     _database_url = urlunparse(parsed)
