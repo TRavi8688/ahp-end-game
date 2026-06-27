@@ -9,6 +9,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 from alembic.config import Config
 from alembic import command
 
@@ -38,11 +39,10 @@ def event_loop():
     yield loop
     loop.close()
 
-
 @pytest_asyncio.fixture(scope="session")
 async def test_engine():
     """Create engine and run Alembic migrations once per test session."""
-    engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+    engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
 
     # Run migrations (equivalent to alembic upgrade head)
     def run_migrations():
