@@ -48,14 +48,20 @@ try:
     q_params.pop("channel_binding", None)
     # Extract any ssl or sslmode value
     ssl_val = q_params.pop("ssl", None) or q_params.pop("sslmode", None)
+    is_asyncpg = "+asyncpg" in parsed.scheme or "postgresql+asyncpg" in _database_url
     if ssl_val:
         ssl_val = str(ssl_val).lower().strip()
         if ssl_val in ("disable", "false", "no", "0"):
-            q_params["sslmode"] = "disable"
+            target_val = "disable"
         else:
-            q_params["sslmode"] = "require"
+            target_val = "require"
     else:
-        q_params["sslmode"] = "require"
+        target_val = "require"
+
+    if is_asyncpg:
+        q_params["ssl"] = target_val
+    else:
+        q_params["sslmode"] = target_val
     new_query = urlencode(q_params)
     parsed = parsed._replace(query=new_query)
     _database_url = urlunparse(parsed)
