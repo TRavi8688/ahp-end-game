@@ -48,8 +48,10 @@ try:
     q_params.pop("channel_binding", None)
     if "sslmode" in q_params:
         val = q_params.pop("sslmode")
-        if val in ("require", "prefer", "allow"):
-            q_params["ssl"] = "true"
+        if val in ("disable", "allow", "prefer", "require", "verify-ca", "verify-full"):
+            q_params["ssl"] = val
+        else:
+            q_params["ssl"] = "require"
     new_query = urlencode(q_params)
     parsed = parsed._replace(query=new_query)
     _database_url = urlunparse(parsed)
