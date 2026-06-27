@@ -25,14 +25,20 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "patients",
-        sa.Column("push_token", sa.String(512), nullable=True),
-    )
-    op.add_column(
-        "patients",
-        sa.Column("push_token_platform", sa.String(20), nullable=True),
-    )
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    columns = [c["name"] for c in inspector.get_columns("patients")]
+
+    if "push_token" not in columns:
+        op.add_column(
+            "patients",
+            sa.Column("push_token", sa.String(512), nullable=True),
+        )
+    if "push_token_platform" not in columns:
+        op.add_column(
+            "patients",
+            sa.Column("push_token_platform", sa.String(20), nullable=True),
+        )
 
 
 def downgrade() -> None:
