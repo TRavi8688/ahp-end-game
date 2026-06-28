@@ -62,9 +62,9 @@ export default function RegisterScreen({ navigation }) {
         const { firstName, lastName, phone, password, confirmPassword } = formData;
         if (!firstName || !lastName || !phone || !password || !confirmPassword) return Alert.alert('Missing Info', 'Please fill in First Name, Last Name, Phone, and Password.');
         if (phone.length < 10) return Alert.alert('Invalid Phone', 'Please enter a valid 10-digit phone number.');
-        const passwordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*.,+=\-_]).{6,}$/;
+        const passwordRegex = /^(?=.*[0-9])(?=.*[!@#$%^&*.,+=\-_]).{8,}$/;
         if (!passwordRegex.test(password)) {
-            return Alert.alert('Weak Password', 'Password must be at least 6 characters and include 1 number and 1 special character.');
+            return Alert.alert('Weak Password', 'Password must be at least 8 characters and include 1 number and 1 special character.');
         }
         if (password !== confirmPassword) return Alert.alert('Mismatch', 'Passwords do not match.');
 
