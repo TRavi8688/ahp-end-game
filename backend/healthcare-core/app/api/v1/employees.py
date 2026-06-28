@@ -347,6 +347,7 @@ async def reactivate_employee(employee_id: str, db: AsyncSession = Depends(get_d
         {"now": datetime.now(timezone.utc), "eid": employee_id},
     )
     await db.flush()
+    await db.commit()
     return {"message": f"Employee {employee_id} reactivated."}
 
 
