@@ -8,7 +8,7 @@ Boots:
 
 PHASE 3 FIXES APPLIED:
 - FIX 1: CORS no longer defaults to wildcard '*'. Requires ALLOWED_ORIGINS env var; fails loudly in production.
-- FIX 2: os.pathsep used instead of hardcoded ';' — Linux/macOS compatible.
+- FIX 2: os.pathsep used instead of hardcoded ';' -- Linux/macOS compatible.
 - FIX 3: shell=True removed from subprocess.Popen.
 - FIX 4: time.sleep(2) replaced with health-check polling loop (no race condition).
 - FIX 5: Hop-by-hop headers stripped before proxying (no HTTP protocol errors).
@@ -24,13 +24,15 @@ import os
 import time
 import subprocess
 import uvicorn
+import dotenv
+dotenv.load_dotenv()
 import httpx
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 
-# ─── Logging ──────────────────────────────────────────────────────────────────
+# --- Logging ------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -38,14 +40,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger("gateway")
 
-# ─── Hop-by-hop headers to strip before proxying (FIX 5) ──────────────────────
+# --- Hop-by-hop headers to strip before proxying (FIX 5) ----------------------
 HOP_BY_HOP_HEADERS = {
     "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
     "te", "trailers", "transfer-encoding", "upgrade", "host",
     "content-length",  # httpx will recompute from body
 }
 
-# ─── CORS configuration (FIX 1) ───────────────────────────────────────────────
+# --- CORS configuration (FIX 1) -----------------------------------------------
 _raw_origins = os.environ.get("ALLOWED_ORIGINS", "")
 IS_PRODUCTION = os.environ.get("ENV", "development").lower() == "production"
 
@@ -58,7 +60,7 @@ if IS_PRODUCTION and not _raw_origins:
 # Fall back to empty list (no CORS) if not set outside production
 _gateway_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()] if _raw_origins else []
 
-# ─── Service URLs ──────────────────────────────────────────────────────────────
+# --- Service URLs --------------------------------------------------------------
 AUTH_SERVICE_URL = os.environ.get("AUTH_SERVICE_URL", "http://localhost:8001")
 HEALTHCARE_SERVICE_URL = os.environ.get("HEALTHCARE_SERVICE_URL", "http://localhost:8002")
 ADMIN_SERVICE_URL = os.environ.get("ADMIN_SERVICE_URL", HEALTHCARE_SERVICE_URL)
@@ -103,7 +105,7 @@ def start_microservices():
     env["PYTHONPATH"] = os.pathsep.join([".", ".."])
     env["PYTHONIOENCODING"] = "utf-8"
 
-    # FIX 3: shell=False (default). Pass list directly — no shell injection risk.
+    # FIX 3: shell=False (default). Pass list directly -- no shell injection risk.
     logger.info("Starting Auth Service on http://localhost:8001...")
     auth_proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "app.main:app",
@@ -136,14 +138,14 @@ def start_microservices():
     logger.info("All microservices ready.")
 
 
-# ─── HTTP client with explicit pool limits (FIX 8) ────────────────────────────
+# --- HTTP client with explicit pool limits (FIX 8) ----------------------------
 client = httpx.AsyncClient(
     limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
     timeout=30.0
 )
 
 
-# ─── Lifespan ──────────────────────────────────────────────────────────────────
+# --- Lifespan ------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     start_microservices()
@@ -162,7 +164,7 @@ async def lifespan(app: FastAPI):
     logger.info("Shutdown complete.")
 
 
-# ─── App ───────────────────────────────────────────────────────────────────────
+# --- App -----------------------------------------------------------------------
 app = FastAPI(
     title="Hospyn 2.0 API Gateway",
     description="Reverse-proxy routing requests to individual microservices.",
@@ -180,7 +182,7 @@ app.add_middleware(
 )
 
 
-# ─── Proxy helper ──────────────────────────────────────────────────────────────
+# --- Proxy helper --------------------------------------------------------------
 async def proxy_request(request: Request, url: str) -> Response:
     # FIX 5: Strip hop-by-hop headers before forwarding
     headers = {
@@ -231,7 +233,7 @@ def _sanitize_path(path: str) -> str:
     return safe
 
 
-# ─── Routes (FIX 6: Admin, HR, Partner, Pharma now wired) ─────────────────────
+# --- Routes (FIX 6: Admin, HR, Partner, Pharma now wired) ---------------------
 @app.api_route(
     "/api/v1/{path:path}",
     methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"]
@@ -250,11 +252,11 @@ async def route_all(request: Request, path: str):
     if safe_path.startswith("auth/"):
         url = f"{AUTH_SERVICE_URL}/api/v1/{safe_path}"
 
-    # Patient login shortcut → auth service
+    # Patient login shortcut -> auth service
     elif safe_path.startswith("patient/login-hospyn"):
         url = f"{AUTH_SERVICE_URL}/api/v1/auth/login"
 
-    # Patient profile setup → healthcare
+    # Patient profile setup -> healthcare
     elif safe_path.startswith("patient/setup-profile"):
         url = f"{HEALTHCARE_SERVICE_URL}/api/v1/healthcare/patients/"
 
@@ -273,19 +275,19 @@ async def route_all(request: Request, path: str):
     elif safe_path.startswith(("doctors/", "hospitals/", "appointments/")):
         url = f"{HEALTHCARE_SERVICE_URL}/api/v1/healthcare/{safe_path}"
 
-    # ── FIX 6: Admin / Super-admin routes ─────────────────────────────────────
+    # -- FIX 6: Admin / Super-admin routes -------------------------------------
     elif safe_path.startswith(("admin/", "super-admin/")):
         url = f"{ADMIN_SERVICE_URL}/api/v1/healthcare/{safe_path}"
 
-    # ── FIX 6: HR portal routes ───────────────────────────────────────────────
+    # -- FIX 6: HR portal routes -----------------------------------------------
     elif safe_path.startswith("hr/"):
         url = f"{HR_SERVICE_URL}/api/v1/{safe_path}"
 
-    # ── FIX 6: Partner app routes ─────────────────────────────────────────────
+    # -- FIX 6: Partner app routes ---------------------------------------------
     elif safe_path.startswith("partner/"):
         url = f"{PARTNER_SERVICE_URL}/api/v1/{safe_path}"
 
-    # ── FIX 6: Pharma / pharmacy routes ───────────────────────────────────────
+    # -- FIX 6: Pharma / pharmacy routes ---------------------------------------
     elif safe_path.startswith(("pharma/", "pharmacy/")):
         url = f"{PHARMA_SERVICE_URL}/api/v1/{safe_path}"
 
@@ -311,7 +313,7 @@ async def route_fallback(request: Request, path: str):
 
 
 
-# ─── Health endpoints ──────────────────────────────────────────────────────────
+# --- Health endpoints ----------------------------------------------------------
 @app.get("/health/auth")
 async def health_auth():
     try:
@@ -335,7 +337,7 @@ async def gateway_health():
     return {"status": "healthy", "service": "gateway"}
 
 
-# ─── Entry point ───────────────────────────────────────────────────────────────
+# --- Entry point ---------------------------------------------------------------
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     # FIX 7: Worker count driven by environment variable; not hardcoded to 1
