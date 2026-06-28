@@ -174,7 +174,9 @@ def get_jwks() -> dict:
     """
     from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
     pub_key: RSAPublicKey = _PUBLIC_KEY
-    pub_numbers = pub_key.public_key().public_numbers() if hasattr(pub_key, "public_key") else pub_key.public_numbers()
+    # BUG-7 FIX: _PUBLIC_KEY is already a public key — calling .public_key() on it
+    # raises AttributeError. Just call .public_numbers() directly.
+    pub_numbers = pub_key.public_numbers()
 
     def _int_to_base64url(n: int) -> str:
         byte_length = (n.bit_length() + 7) // 8

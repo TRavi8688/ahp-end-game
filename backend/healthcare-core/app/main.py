@@ -67,6 +67,15 @@ async def lifespan(application: FastAPI):
         await alert_database_down(str(exc))
         logger.critical("Database unreachable at startup: %s. Service will start but queries will fail.", exc)
 
+    # 4. Start matrix SLA engine background worker
+    try:
+        from app.services.matrix_sla_engine import run_sla_worker
+        import asyncio
+        asyncio.create_task(run_sla_worker())
+        logger.info("Matrix SLA background worker started")
+    except Exception as exc:
+        logger.error("Failed to start Matrix SLA background worker: %s", exc)
+
     yield
 
     # Shutdown

@@ -23,8 +23,10 @@ from app.core.database import get_db
 from shared.redis_client import get_redis_client
 from shared.utils.responses import success_response
 
+from app.core.security import require_role
+
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_role("super_admin", "manager"))])
 
 
 # ─── Overview ─────────────────────────────────────────────────────────────────

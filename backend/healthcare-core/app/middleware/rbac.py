@@ -82,17 +82,20 @@ async def _get_public_keys() -> list[dict]:
 # ── Token models ──────────────────────────────────────────────────────────────
 
 class CurrentUser(BaseModel):
-    user_id: str
-    hospital_id: str
-    role: str
-    token_version: int
-    jti: Optional[str] = None
+    user_id:              str
+    hospital_id:          str
+    role:                 str
+    token_version:        int
+    jti:                  Optional[str] = None
+    employee_id:          str = ""
+    must_change_password: bool = False
 
     def belongs_to_hospital(self, hospital_id: str) -> bool:
         return self.hospital_id == hospital_id
 
     def is_superadmin(self) -> bool:
-        return self.role == "superadmin"
+        # BUG FIX: was "superadmin" only — must include "super_admin" (underscore form used in DB)
+        return self.role in ("super_admin", "superadmin", "admin")
 
 
 # ── Core dependency ───────────────────────────────────────────────────────────
@@ -174,10 +177,12 @@ async def get_current_user(
 
     return CurrentUser(
         user_id=payload["sub"],
-        hospital_id=payload.get("hid", ""),
+        hospital_id=payload.get("hospital_id", "") or "",  # BUG-3 FIX: was "hid"
         role=payload.get("role", ""),
-        token_version=payload.get("ver", 0),
+        token_version=payload.get("token_version", 0) or 0,  # BUG-4 FIX: was "ver"
         jti=jti,
+        employee_id=payload.get("employee_id", "") or "",
+        must_change_password=bool(payload.get("must_change_password", False)),
     )
 
 

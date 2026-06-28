@@ -239,3 +239,66 @@ def verify_reset_token(plain_token: str, hashed_token: str) -> bool:
         return hmac.compare_digest(calculated, hashed_token)
     except Exception:
         return False
+
+
+# ─── Employee ID Generator ────────────────────────────────────────────────────
+#
+# Format: Exactly 6 characters, always contains BOTH 'H' and 'R' (uppercase),
+# remaining 4 positions are a mix of uppercase letters and digits.
+# Examples: H3Rk9T → wait, all must be uppercase or mixed?
+# Spec: "4 numbers and 4 letters mixed up" but "must be 6 letters only"
+# → 6 chars total, always has H and R, remaining 4 are mix of digits+uppercase
+# Examples: H3R9K2, 4HR7N1, 7H2R9K, HRK3N7
+#
+# Guaranteed uniqueness must be checked at DB level (unique constraint on employee_id).
+
+
+import random
+import string as _string
+
+
+def generate_employee_id() -> str:
+    """
+    Generate a 6-character unique Employee ID for Hospain Matrix.
+
+    Rules:
+    - Exactly 6 characters
+    - Must contain uppercase H and uppercase R (Hospain HR branding)
+    - Remaining 4 characters: mix of uppercase letters (A-Z, excl H/R) and digits (0-9)
+    - H and R are placed at random positions within the 6-char string
+    - Result is always uppercase
+
+    Examples: H3RK9N, 7HR2K4, 4H9RK2, H2K9R3
+    """
+    # Pool for the 4 non-HR characters: digits + uppercase letters minus H and R
+    pool = _string.digits + "ABCDEFGIJKLMNOPQSTUVWXYZ"  # excl H, R
+
+    # Pick 4 filler characters - ensure at least 2 are digits and 2 are letters
+    digits_sample = [secrets.choice(_string.digits) for _ in range(2)]
+    letters_sample = [secrets.choice("ABCDEFGIJKLMNOPQSTUVWXYZ") for _ in range(2)]
+    fillers = digits_sample + letters_sample
+
+    # Full 6-char list: H + R + 4 fillers
+    chars = ["H", "R"] + fillers
+
+    # Shuffle to randomise H and R positions
+    random.shuffle(chars)
+
+    return "".join(chars)
+
+
+def generate_temp_password(length: int = 10) -> str:
+    """
+    Generate a temporary password for new employee accounts.
+    Format: 2 uppercase + 2 lowercase + 3 digits + 2 special + filler
+    Always meets password complexity requirements.
+    """
+    uppers   = [secrets.choice(_string.ascii_uppercase) for _ in range(2)]
+    lowers   = [secrets.choice(_string.ascii_lowercase) for _ in range(2)]
+    digits_p = [secrets.choice(_string.digits) for _ in range(3)]
+    specials = [secrets.choice("@#$!") for _ in range(2)]
+    filler   = [secrets.choice(_string.ascii_letters + _string.digits) for _ in range(max(0, length - 9))]
+
+    pwd_chars = uppers + lowers + digits_p + specials + filler
+    random.shuffle(pwd_chars)
+    return "".join(pwd_chars)

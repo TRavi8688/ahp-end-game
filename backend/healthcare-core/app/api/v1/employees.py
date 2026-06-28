@@ -170,9 +170,27 @@ async def create_employee(
     if dup.first():
         raise HTTPException(status_code=409, detail="An employee with this email already exists.")
 
-    # Generate Employee ID
-    seq         = await _next_seq(db, body.team, body.level)
-    employee_id = f"HPN-{TEAM_CODES[body.team]}-{LEVEL_CODES[body.level]}-{seq:03d}"
+    # Generate Employee ID — 6-char format with H and R (Hospain HR branding)
+    # e.g. H3RK9N, 7HR2K4, H2K9R3 (always 6 chars, always contains H and R)
+    import random, string as _str, secrets as _sec
+    def _gen_employee_id():
+        pool = _str.digits + "ABCDEFGIJKLMNOPQSTUVWXYZ"
+        digits_s = [_sec.choice(_str.digits) for _ in range(2)]
+        letters_s = [_sec.choice("ABCDEFGIJKLMNOPQSTUVWXYZ") for _ in range(2)]
+        chars = ["H", "R"] + digits_s + letters_s
+        random.shuffle(chars)
+        return "".join(chars)
+
+    # Retry on collision
+    employee_id = _gen_employee_id()
+    for _ in range(10):
+        dup_eid = await db.execute(
+            text("SELECT id FROM hospyn_employees WHERE employee_id = :eid AND deleted_at IS NULL LIMIT 1"),
+            {"eid": employee_id},
+        )
+        if not dup_eid.first():
+            break
+        employee_id = _gen_employee_id()
 
     # Generate temp password
     temp_password   = _gen_password()
@@ -209,6 +227,7 @@ async def create_employee(
         },
     )
     await db.flush()
+    await db.commit()  # BUG-9 FIX: was missing commit
 
     logger.info("Hospyn employee created: %s (%s)", employee_id, body.email)
 
@@ -313,6 +332,7 @@ async def deactivate_employee(employee_id: str, db: AsyncSession = Depends(get_d
         {"now": datetime.now(timezone.utc), "eid": employee_id},
     )
     await db.flush()
+    await db.commit()  # BUG-9 FIX
     logger.info("Employee deactivated: %s", employee_id)
     return {"message": f"Employee {employee_id} deactivated. They can no longer log in."}
 

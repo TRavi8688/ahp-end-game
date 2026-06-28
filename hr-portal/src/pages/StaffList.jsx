@@ -33,7 +33,7 @@ export default function StaffList() {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    fetch(`${API_BASE}/api/v1/healthcare/staff`, {
+    fetch(`${API_BASE}/api/v1/healthcare/staff/list`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => {

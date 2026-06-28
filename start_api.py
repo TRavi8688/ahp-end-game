@@ -272,7 +272,7 @@ async def route_all(request: Request, path: str):
 
     # ── FIX 6: Admin / Super-admin routes ─────────────────────────────────────
     elif safe_path.startswith(("admin/", "super-admin/")):
-        url = f"{ADMIN_SERVICE_URL}/api/v1/{safe_path}"
+        url = f"{ADMIN_SERVICE_URL}/api/v1/healthcare/{safe_path}"
 
     # ── FIX 6: HR portal routes ───────────────────────────────────────────────
     elif safe_path.startswith("hr/"):

@@ -19,7 +19,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = '003_employee_id_temp_password'
-down_revision = '002_account_verification_fields'
+down_revision = '002_account_verification'
 branch_labels = None
 depends_on = None
 

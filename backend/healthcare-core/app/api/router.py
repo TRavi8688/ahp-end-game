@@ -48,6 +48,8 @@ from app.api.v1.employees       import router as employees_router
 # verification approve/reject, audit-logs, users) but was never imported or
 # mounted — AdminDashboard.tsx's /admin/audit-logs call 404'd unconditionally.
 from app.api.v1.super_admin     import router as super_admin_router
+from app.api.v1.matrix_router   import matrix_router
+from app.api.v1.workflow        import workflow_router, tokens_router, queue_router
 
 api_router = APIRouter()
 
@@ -91,6 +93,10 @@ api_router.include_router(patient_extras_router, prefix="/patient", tags=["Patie
 api_router.include_router(billing_router,        prefix="/billing", tags=["Billing"])
 api_router.include_router(staff_router,          prefix="/staff",   tags=["Staff HR"])
 api_router.include_router(super_admin_router,     prefix="/admin",   tags=["Super Admin"])
+api_router.include_router(matrix_router,          prefix="/matrix",  tags=["Matrix 3.0"])
+api_router.include_router(workflow_router,        prefix="/workflows", tags=["Workflows"])
+api_router.include_router(tokens_router,          prefix="/tokens",    tags=["Workflow Tokens"])
+api_router.include_router(queue_router,           prefix="/queue",     tags=["Workflow Queue"])
 
 # ── DPDP Compliance ───────────────────────────────────────────────────────────
 api_router.include_router(consent_router,        prefix="/consent", tags=["DPDP Compliance"])
