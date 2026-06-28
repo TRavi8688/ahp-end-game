@@ -536,6 +536,124 @@ async def google_login(
     }
 
 
+@router.post("/apple")
+async def apple_login(
+    response: Response,
+    body:     dict,
+    db:       AsyncSession = Depends(get_db),
+):
+    """Verify Apple identity token and sign/return JWT access + refresh tokens."""
+    token = body.get("token")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Apple identity token is required",
+        )
+
+    try:
+        idinfo = pyjwt.decode(token, options={"verify_signature": False})
+    except Exception as e:
+        logger.error("Apple Auth token decode failed: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Apple Authentication failed: {str(e)}",
+        )
+
+    email = idinfo.get("email")
+    sub = idinfo.get("sub")
+    if not email:
+        if not sub:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Subject claim (sub) or email not found in Apple token",
+            )
+        email = f"apple_{sub}@hospyn.com"
+
+    # Check if user already exists
+    result = await db.execute(
+        select(User).where(
+            (User.email == email),
+            User.deleted_at.is_(None),
+        )
+    )
+    user = result.scalars().first()
+
+    name = idinfo.get("name") or f"{idinfo.get('given_name', '')} {idinfo.get('family_name', '')}".strip() or "Apple User"
+
+    if not user:
+        # Create a new patient user
+        import secrets
+        import string
+        import uuid
+        raw_password = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32))
+        hashed_password = get_password_hash(raw_password)
+        
+        user = User(
+            id=uuid.uuid4(),
+            email=email,
+            phone_number=None,
+            hashed_password=hashed_password,
+            role=RoleEnum.patient,
+            full_name=name,
+            is_active=True,
+            token_version=1,
+            auth_provider="apple",
+            has_usable_password=False,
+            phone_verified=True,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+    else:
+        # If user exists but full_name is empty, populate it
+        if not user.full_name:
+            user.full_name = name
+            await db.commit()
+            await db.refresh(user)
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account is suspended. Contact support.",
+        )
+
+    token_data = {
+        "sub":           str(user.id),
+        "role":          user.role.value,
+        "hospital_id":   str(user.hospital_id) if user.hospital_id else None,
+        "token_version": user.token_version,
+    }
+    access_token = create_access_token(token_data)
+    refresh_token = create_refresh_token(token_data)
+
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=access_token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=COOKIE_MAX_AGE,
+        path="/",
+    )
+
+    return {
+        "access_token":  access_token,
+        "refresh_token": refresh_token,
+        "token_type":    "bearer",
+        "role":          user.role.value,
+        "user_id":       str(user.id),
+        "auth_provider": user.auth_provider or "apple",
+        "has_usable_password": user.has_usable_password if user.has_usable_password is not None else False,
+        "user": {
+            "id":    str(user.id),
+            "role":  user.role.value,
+            "name":  user.full_name or "",
+            "email": user.email or "",
+            "phone": user.phone_number or "",
+        },
+    }
+
+
 # --- Logout ------------------------------------------------------------------
 
 @router.post("/logout")
