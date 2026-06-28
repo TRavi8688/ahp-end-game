@@ -130,6 +130,10 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Sync DATABASE_URL to Secret Manager
+        run: |
+          echo -n "${{ secrets.DATABASE_URL }}" | gcloud secrets versions add DATABASE_URL --data-file=- --project=hospyn-495906
+
       - name: Login to Artifact Registry
         uses: docker/login-action@v3
         with:
