@@ -237,9 +237,45 @@ def upgrade() -> None:
     if has_users:
         # Ensure roleenum has all expected values (must run outside transaction block)
         op.execute("COMMIT")
-        for val in ['staff', 'pharmacist', 'super_admin', 'owner', 'receptionist', 'lab', 'hr']:
+        for val in ['staff', 'pharmacist', 'super_admin', 'owner', 'receptionist', 'lab', 'hr',
+                    'manager', 'team_lead', 'l1', 'l2', 'support',
+                    'finance', 'engineering', 'onboarding', 'data',
+                    'verification', 'employee']:
             op.execute(f"ALTER TYPE roleenum ADD VALUE IF NOT EXISTS '{val}'")
         op.execute("BEGIN")
+ 
+        # Reconcile columns on users table
+        users_cols = [c["name"] for c in inspector.get_columns("users")]
+        if "full_name" not in users_cols:
+            op.add_column("users", sa.Column("full_name", sa.String(255), nullable=True))
+        if "phone_number" not in users_cols:
+            op.add_column("users", sa.Column("phone_number", sa.String(20), nullable=True))
+        if "phone_verified" not in users_cols:
+            op.add_column("users", sa.Column("phone_verified", sa.Boolean(), nullable=False, server_default='false'))
+        if "auth_provider" not in users_cols:
+            op.add_column("users", sa.Column("auth_provider", sa.String(20), nullable=False, server_default='local'))
+        if "has_usable_password" not in users_cols:
+            op.add_column("users", sa.Column("has_usable_password", sa.Boolean(), nullable=False, server_default='true'))
+        if "hospital_id" not in users_cols:
+            op.add_column("users", sa.Column("hospital_id", sa.UUID(as_uuid=True), nullable=True))
+        if "updated_at" not in users_cols:
+            op.add_column("users", sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True, server_default=sa.text('now()')))
+        if "deleted_at" not in users_cols:
+            op.add_column("users", sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True))
+        if "employee_id" not in users_cols:
+            op.add_column("users", sa.Column("employee_id", sa.String(10), nullable=True))
+        if "is_temporary_password" not in users_cols:
+            op.add_column("users", sa.Column("is_temporary_password", sa.Boolean(), nullable=False, server_default='false'))
+
+        # Ensure indexes exist
+        try:
+            indexes = [idx["name"] for idx in inspector.get_indexes("users")]
+            if "ix_users_phone_number" not in indexes:
+                op.create_index("ix_users_phone_number", "users", ["phone_number"], unique=True)
+            if "ix_users_employee_id" not in indexes:
+                op.create_index("ix_users_employee_id", "users", ["employee_id"], unique=True)
+        except Exception:
+            pass
 
         # Ensure role column is VARCHAR(50) to support all role strings on shared table
         op.execute("ALTER TABLE users ALTER COLUMN role DROP DEFAULT")
