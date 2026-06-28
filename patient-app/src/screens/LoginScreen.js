@@ -384,12 +384,12 @@ export default function AuthScreen({ navigation }) {
 
                         <View style={styles.inputArea}>
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>HOSPYN ID / EMAIL</Text>
+                                <Text style={styles.label}>EMAIL or PHONE NUMBER</Text>
                                 <View style={styles.inputWrapper}>
                                     <Ionicons name="person-outline" size={18} color="#94A3B8" style={styles.inputIcon} />
                                     <TextInput
                                         style={styles.input}
-                                        placeholder="HOSPYN-000000-XXX"
+                                        placeholder="email@example.com or phone number"
                                         placeholderTextColor="#475569"
                                         value={hospynId}
                                         onChangeText={(t) => setHospynId(t)}
@@ -619,12 +619,12 @@ export default function AuthScreen({ navigation }) {
                             {forgotStep === 1 && (
                                 <View style={styles.setupForm}>
                                     <View style={styles.inputGroup}>
-                                        <Text style={styles.label}>REGISTERED EMAIL / HOSPYN ID</Text>
+                                        <Text style={styles.label}>EMAIL OR PHONE NUMBER</Text>
                                         <View style={styles.inputWrapper}>
                                             <Ionicons name="mail-outline" size={18} color="#94A3B8" style={styles.inputIcon} />
                                             <TextInput
                                                 style={styles.input}
-                                                placeholder="email@example.com or HOSPYN-ID"
+                                                placeholder="email@example.com or phone number"
                                                 placeholderTextColor="#475569"
                                                 value={forgotIdentifier}
                                                 onChangeText={setForgotIdentifier}
