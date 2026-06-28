@@ -14,6 +14,9 @@ export const patientService = {
             // { success, message, data: {...} }.
             const response = await apiClient.get('/patients/me', { signal });
             const profile = response.data?.data || response.data;
+            if (profile && !profile.full_name && profile.first_name) {
+                profile.full_name = `${profile.first_name} ${profile.last_name || ''}`.trim();
+            }
             ephemeralProfileCache.set(activeMemberId, profile);
             return profile;
         } catch (e) {
