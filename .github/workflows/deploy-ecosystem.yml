@@ -161,7 +161,11 @@ jobs:
             --project hospyn-495906 \
             --command "alembic" --args "upgrade,head" \
             --update-secrets "DATABASE_URL=DATABASE_URL:latest"
-          gcloud run jobs execute hospyn-auth-migrations --region asia-south1 --project hospyn-495906 --wait
+          gcloud run jobs execute hospyn-auth-migrations --region asia-south1 --project hospyn-495906 --wait || {
+            echo "=== MIGRATION EXECUTION FAILED ==="
+            gcloud logging read "resource.type=cloud_run_job AND resource.labels.job_name=hospyn-auth-migrations" --limit=50 --project=hospyn-495906 --format="value(textPayload)"
+            exit 1
+          }
 
       - name: Run Healthcare Database Migrations
         run: |
