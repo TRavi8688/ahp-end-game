@@ -226,6 +226,8 @@ def upgrade() -> None:
             op.add_column('doctors', sa.Column('status', postgresql.ENUM('pending_approval', 'active', 'on_leave', 'suspended', 'inactive', name='doctorstatus', create_type=False), nullable=True, server_default='pending_approval'))
         if "is_active" not in doctors_cols:
             op.add_column('doctors', sa.Column('is_active', sa.Boolean(), nullable=True, server_default='true'))
+        if "created_at" not in doctors_cols:
+            op.add_column('doctors', sa.Column('created_at', sa.DateTime(timezone=True), nullable=True, server_default=sa.text('now()')))
         if "updated_at" not in doctors_cols:
             op.add_column('doctors', sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True, server_default=sa.text('now()')))
         if "deleted_at" not in doctors_cols:
@@ -233,6 +235,12 @@ def upgrade() -> None:
 
     has_users = inspector.has_table("users")
     if has_users:
+        # Ensure roleenum has all expected values (must run outside transaction block)
+        op.execute("COMMIT")
+        for val in ['staff', 'pharmacist', 'super_admin', 'owner', 'receptionist', 'lab', 'hr']:
+            op.execute(f"ALTER TYPE roleenum ADD VALUE IF NOT EXISTS '{val}'")
+        op.execute("BEGIN")
+
         # Ensure role column is VARCHAR(50) to support all role strings on shared table
         op.execute("ALTER TABLE users ALTER COLUMN role DROP DEFAULT")
         op.execute("ALTER TABLE users ALTER COLUMN role TYPE VARCHAR(50)")
