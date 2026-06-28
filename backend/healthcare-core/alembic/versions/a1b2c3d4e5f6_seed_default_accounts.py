@@ -132,9 +132,11 @@ def upgrade() -> None:
         if "pin_code" not in hospitals_cols:
             op.add_column('hospitals', sa.Column('pin_code', sa.String(20), nullable=True))
         if "status" not in hospitals_cols:
-            from sqlalchemy.dialects import postgresql
-            op.execute("DO $$ BEGIN CREATE TYPE hospitalstatus AS ENUM ('pending_verification', 'active', 'suspended', 'deactivated'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
-            op.add_column('hospitals', sa.Column('status', postgresql.ENUM('pending_verification', 'active', 'suspended', 'deactivated', name='hospitalstatus', create_type=False), nullable=True, server_default='pending_verification'))
+            op.add_column('hospitals', sa.Column('status', sa.String(50), nullable=True, server_default='pending_verification'))
+        else:
+            op.execute("ALTER TABLE hospitals ALTER COLUMN status DROP DEFAULT")
+            op.execute("ALTER TABLE hospitals ALTER COLUMN status TYPE VARCHAR(50)")
+            op.execute("ALTER TABLE hospitals ALTER COLUMN status SET DEFAULT 'pending_verification'")
         if "is_active" not in hospitals_cols:
             op.add_column('hospitals', sa.Column('is_active', sa.Boolean(), nullable=True, server_default='true'))
         if "description" not in hospitals_cols:
