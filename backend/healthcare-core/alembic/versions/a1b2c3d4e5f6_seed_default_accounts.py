@@ -193,6 +193,43 @@ def upgrade() -> None:
         op.create_index('ix_doctors_hospital_id', 'doctors', ['hospital_id'])
         op.create_index('ix_doctors_email', 'doctors', ['email'])
         op.create_index('ix_doctors_specialization', 'doctors', ['specialization'])
+    else:
+        # If doctors already exists (shared schema), add missing Healthcare Core columns
+        doctors_cols = [c["name"] for c in inspector.get_columns("doctors")]
+        if "hospital_id" not in doctors_cols:
+            op.add_column('doctors', sa.Column('hospital_id', sa.UUID(as_uuid=True), sa.ForeignKey("hospitals.id", ondelete="RESTRICT"), nullable=True))
+        if "first_name" not in doctors_cols:
+            op.add_column('doctors', sa.Column('first_name', sa.String(100), nullable=True))
+        if "last_name" not in doctors_cols:
+            op.add_column('doctors', sa.Column('last_name', sa.String(100), nullable=True))
+        if "email" not in doctors_cols:
+            op.add_column('doctors', sa.Column('email', sa.String(255), unique=True, nullable=True))
+        if "phone" not in doctors_cols:
+            op.add_column('doctors', sa.Column('phone', sa.String(30), nullable=True))
+        if "specialization" not in doctors_cols:
+            op.add_column('doctors', sa.Column('specialization', sa.String(200), nullable=True))
+        if "qualification" not in doctors_cols:
+            op.add_column('doctors', sa.Column('qualification', sa.String(500), nullable=True))
+        if "medical_license_number" not in doctors_cols:
+            op.add_column('doctors', sa.Column('medical_license_number', sa.String(100), unique=True, nullable=True))
+        if "years_of_experience" not in doctors_cols:
+            op.add_column('doctors', sa.Column('years_of_experience', sa.Integer(), server_default='0', nullable=True))
+        if "consultation_fee" not in doctors_cols:
+            op.add_column('doctors', sa.Column('consultation_fee', sa.Integer(), server_default='0', nullable=True))
+        if "bio" not in doctors_cols:
+            op.add_column('doctors', sa.Column('bio', sa.Text(), nullable=True))
+        if "avatar_url" not in doctors_cols:
+            op.add_column('doctors', sa.Column('avatar_url', sa.String(500), nullable=True))
+        if "status" not in doctors_cols:
+            from sqlalchemy.dialects import postgresql
+            op.execute("DO $$ BEGIN CREATE TYPE doctorstatus AS ENUM ('pending_approval', 'active', 'on_leave', 'suspended', 'inactive'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+            op.add_column('doctors', sa.Column('status', postgresql.ENUM('pending_approval', 'active', 'on_leave', 'suspended', 'inactive', name='doctorstatus', create_type=False), nullable=True, server_default='pending_approval'))
+        if "is_active" not in doctors_cols:
+            op.add_column('doctors', sa.Column('is_active', sa.Boolean(), nullable=True, server_default='true'))
+        if "updated_at" not in doctors_cols:
+            op.add_column('doctors', sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True, server_default=sa.text('now()')))
+        if "deleted_at" not in doctors_cols:
+            op.add_column('doctors', sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True))
 
     has_users = inspector.has_table("users")
     if has_users:
@@ -359,25 +396,78 @@ def upgrade() -> None:
         """)
 
     # 7. Seed Doctor in doctors table
-    op.execute("""
-        INSERT INTO doctors
-          (id, user_id, hospital_id, first_name, last_name, email, phone, specialization, medical_license_number, years_of_experience, consultation_fee, status, is_active, created_at, updated_at)
-        VALUES (
-          '33333333-3333-3333-3333-333333333333',
-          '33333333-3333-3333-3333-333333333333',
-          '11111111-1111-1111-1111-111111111111',
-          'Ravi',
-          'Kumar',
-          'ravi@hospyn.com',
-          '+919999999998',
-          'General Medicine',
-          'MC-99999',
-          5,
-          50000,
-          'active',
-          true,
-          NOW(), NOW()
-        )
+    doc_cols = [
+        'id', 'user_id', 'hospital_id', 'first_name', 'last_name', 'email', 'phone',
+        'specialization', 'medical_license_number', 'years_of_experience',
+        'consultation_fee', 'status', 'is_active', 'created_at', 'updated_at'
+    ]
+    doc_vals = [
+        "'33333333-3333-3333-3333-333333333333'",
+        "'33333333-3333-3333-3333-333333333333'",
+        "'11111111-1111-1111-1111-111111111111'",
+        "'Ravi'",
+        "'Kumar'",
+        "'ravi@hospyn.com'",
+        "'+919999999998'",
+        "'General Medicine'",
+        "'MC-99999'",
+        "5",
+        "50000",
+        "'active'",
+        "true",
+        "NOW()", "NOW()"
+    ]
+    
+    if inspector.has_table("doctors"):
+        doctors_db_cols = inspector.get_columns("doctors")
+        db_col_names = [c["name"] for c in doctors_db_cols]
+        
+        # Explicitly handle known columns
+        if "version_id" in db_col_names:
+            doc_cols.append("version_id")
+            doc_vals.append("1")
+        if "license_number" in db_col_names:
+            doc_cols.append("license_number")
+            doc_vals.append("'MC-99999'")
+        if "license_status" in db_col_names:
+            doc_cols.append("license_status")
+            doc_vals.append("'verified'")
+
+        # Dynamically handle other NOT NULL columns with no default
+        for col in doctors_db_cols:
+            col_name = col["name"]
+            if col_name in doc_cols:
+                continue
+            if not col["nullable"] and col.get("default") is None:
+                type_str = str(col["type"]).lower()
+                if "uuid" in type_str:
+                    doc_cols.append(col_name)
+                    doc_vals.append("'00000000-0000-0000-0000-000000000000'")
+                elif "int" in type_str or "numeric" in type_str or "float" in type_str or "bigint" in type_str:
+                    doc_cols.append(col_name)
+                    doc_vals.append("0")
+                elif "bool" in type_str:
+                    doc_cols.append(col_name)
+                    doc_vals.append("false")
+                elif "date" in type_str or "time" in type_str:
+                    doc_cols.append(col_name)
+                    doc_vals.append("NOW()")
+                else:
+                    enum_val = None
+                    if hasattr(col["type"], "enums") and col["type"].enums:
+                        enum_val = col["type"].enums[0]
+                    if enum_val is not None:
+                        doc_cols.append(col_name)
+                        doc_vals.append(f"'{enum_val}'")
+                    else:
+                        doc_cols.append(col_name)
+                        doc_vals.append("'pending'")
+
+    doc_cols_str = ", ".join(doc_cols)
+    doc_vals_str = ", ".join(doc_vals)
+    op.execute(f"""
+        INSERT INTO doctors ({doc_cols_str})
+        VALUES ({doc_vals_str})
         ON CONFLICT (email) DO NOTHING
     """)
 
