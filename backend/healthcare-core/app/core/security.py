@@ -116,6 +116,17 @@ class TokenPayload(BaseModel):
         "receptionist",
         "lab",
         "hr",
+        "manager",
+        "team_lead",
+        "l1",
+        "l2",
+        "support",
+        "finance",
+        "engineering",
+        "onboarding",
+        "data",
+        "verification",
+        "employee",
     ]
     token_version: int = 0
     # EXECUTION FIX: auth-service's /auth/login embeds "hospital_id" directly
