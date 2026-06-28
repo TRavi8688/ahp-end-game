@@ -24,6 +24,88 @@ def upgrade() -> None:
 
     conn = op.get_bind()
     inspector = sa.inspect(conn)
+
+    # --- Self-healing for missing tables/columns from skipped migrations ---
+    
+    # 1. hospyn_employees table
+    if not inspector.has_table("hospyn_employees"):
+        op.execute("DO $$ BEGIN CREATE TYPE employee_team AS ENUM ('finance', 'engineering', 'onboarding', 'support', 'data'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+        op.execute("DO $$ BEGIN CREATE TYPE employee_level AS ENUM ('l1', 'team_lead', 'manager', 'super_admin'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+        op.execute("DO $$ BEGIN CREATE TYPE shift_status_enum AS ENUM ('online', 'offline', 'break', 'meeting', 'training', 'leave'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+        op.create_table(
+            'hospyn_employees',
+            sa.Column('id', sa.UUID(as_uuid=True), primary_key=True),
+            sa.Column('employee_id', sa.String(30), unique=True, nullable=False),
+            sa.Column('full_name', sa.String(200), nullable=False),
+            sa.Column('email', sa.String(255), unique=True, nullable=False),
+            sa.Column('hashed_password', sa.String(255), nullable=False),
+            sa.Column('team', sa.Enum('finance', 'engineering', 'onboarding', 'support', 'data', name='employee_team', create_type=False), nullable=False),
+            sa.Column('level', sa.Enum('l1', 'team_lead', 'manager', 'super_admin', name='employee_level', create_type=False), nullable=False),
+            sa.Column('manager_id', sa.UUID(as_uuid=True), nullable=True),
+            sa.Column('team_lead_id', sa.UUID(as_uuid=True), nullable=True),
+            sa.Column('is_active', sa.Boolean(), nullable=False, server_default='true'),
+            sa.Column('avatar_initials', sa.String(3), nullable=True),
+            sa.Column('phone', sa.String(20), nullable=True),
+            sa.Column('created_by', sa.UUID(as_uuid=True), nullable=True),
+            sa.Column('shift_status', sa.Enum('online', 'offline', 'break', 'meeting', 'training', 'leave', name='shift_status_enum', create_type=False), nullable=False, server_default='offline'),
+            sa.Column('skills', sa.ARRAY(sa.String()), nullable=True),
+            sa.Column('last_seen_at', sa.DateTime(timezone=True), nullable=True),
+            sa.Column('daily_ticket_limit', sa.Integer(), nullable=False, server_default='40'),
+            sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
+            sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
+            sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
+        )
+        op.create_index('ix_hospyn_employees_team', 'hospyn_employees', ['team'])
+        op.create_index('ix_hospyn_employees_level', 'hospyn_employees', ['level'])
+        op.create_index('ix_hospyn_employees_employee_id', 'hospyn_employees', ['employee_id'])
+        op.create_index('ix_hospyn_employees_email', 'hospyn_employees', ['email'])
+
+    # 2. ticket_assignments table
+    if not inspector.has_table("ticket_assignments"):
+        op.create_table(
+            'ticket_assignments',
+            sa.Column('id', sa.UUID(as_uuid=True), primary_key=True),
+            sa.Column('ticket_id', sa.String(20), nullable=False),
+            sa.Column('from_employee_id', sa.String(30), nullable=True),
+            sa.Column('to_employee_id', sa.String(30), nullable=False),
+            sa.Column('action', sa.String(30), nullable=False),
+            sa.Column('note', sa.Text(), nullable=True),
+            sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
+        )
+        op.create_index('ix_ticket_assignments_ticket_id', 'ticket_assignments', ['ticket_id'])
+        op.create_index('ix_ticket_assignments_to', 'ticket_assignments', ['to_employee_id'])
+
+    # 3. support_tickets columns
+    if inspector.has_table("support_tickets"):
+        support_tickets_cols = [c["name"] for c in inspector.get_columns("support_tickets")]
+        if "assigned_employee_id" not in support_tickets_cols:
+            op.add_column('support_tickets', sa.Column('assigned_employee_id', sa.String(30), nullable=True))
+            op.create_index('ix_support_tickets_assigned', 'support_tickets', ['assigned_employee_id'])
+        if "assigned_employee_name" not in support_tickets_cols:
+            op.add_column('support_tickets', sa.Column('assigned_employee_name', sa.String(200), nullable=True))
+        if "escalation_level" not in support_tickets_cols:
+            op.add_column('support_tickets', sa.Column('escalation_level', sa.String(20), nullable=True, server_default='l1'))
+
+    # 4. staff table
+    if not inspector.has_table("staff"):
+        op.execute("DO $$ BEGIN CREATE TYPE staffrole AS ENUM ('receptionist', 'nurse', 'admin', 'lab_technician', 'pharmacist'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+        op.execute("DO $$ BEGIN CREATE TYPE shiftstatus AS ENUM ('on_duty', 'off_duty', 'on_break'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+        op.create_table(
+            "staff",
+            sa.Column("id", sa.UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
+            sa.Column("user_id", sa.UUID(as_uuid=True), nullable=False),
+            sa.Column("hospital_id", sa.UUID(as_uuid=True), sa.ForeignKey("hospitals.id", ondelete="RESTRICT"), nullable=False),
+            sa.Column("first_name", sa.String(100), nullable=False),
+            sa.Column("last_name", sa.String(100), nullable=False),
+            sa.Column("phone", sa.String(30), nullable=True),
+            sa.Column("role", sa.Enum("receptionist", "nurse", "admin", "lab_technician", "pharmacist", name="staffrole", create_type=False), nullable=False),
+            sa.Column("department", sa.String(100), nullable=True),
+            sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
+            sa.Column("shift_status", sa.Enum("on_duty", "off_duty", "on_break", name="shiftstatus", create_type=False), nullable=False, server_default="off_duty"),
+            sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+            sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        )
+
     has_users = inspector.has_table("users")
 
     # 2. Seed Super Admin in hospyn_employees
