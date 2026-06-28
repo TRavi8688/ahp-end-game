@@ -47,6 +47,9 @@ function withHealthcarePrefix(url?: string): string | undefined {
 
 apiClient.interceptors.request.use((config) => {
   config.url = withHealthcarePrefix(config.url);
+  if (config.url && config.url.startsWith('/')) {
+    config.url = config.url.substring(1);
+  }
   return config;
 });
 

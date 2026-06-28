@@ -59,6 +59,10 @@ apiClient.interceptors.request.use((config) => {
     config.url = '/healthcare' + config.url;
   }
 
+  if (config.url && config.url.startsWith('/')) {
+    config.url = config.url.substring(1);
+  }
+
   return config;
 });
 
