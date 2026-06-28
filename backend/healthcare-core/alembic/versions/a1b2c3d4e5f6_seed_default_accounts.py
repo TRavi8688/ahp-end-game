@@ -108,6 +108,90 @@ def upgrade() -> None:
             sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
         )
 
+    # 5. hospitals table columns self-healing
+    if inspector.has_table("hospitals"):
+        hospitals_cols = [c["name"] for c in inspector.get_columns("hospitals")]
+        if "license_number" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('license_number', sa.String(100), unique=True, nullable=True))
+        if "email" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('email', sa.String(255), unique=True, nullable=True))
+        if "phone" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('phone', sa.String(30), nullable=True))
+        if "website" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('website', sa.String(255), nullable=True))
+        if "address_line1" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('address_line1', sa.String(255), nullable=True))
+        if "address_line2" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('address_line2', sa.String(255), nullable=True))
+        if "city" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('city', sa.String(100), nullable=True))
+        if "state" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('state', sa.String(100), nullable=True))
+        if "country" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('country', sa.String(100), nullable=True, server_default='India'))
+        if "pin_code" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('pin_code', sa.String(20), nullable=True))
+        if "status" not in hospitals_cols:
+            from sqlalchemy.dialects import postgresql
+            op.execute("DO $$ BEGIN CREATE TYPE hospitalstatus AS ENUM ('pending_verification', 'active', 'suspended', 'deactivated'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+            op.add_column('hospitals', sa.Column('status', postgresql.ENUM('pending_verification', 'active', 'suspended', 'deactivated', name='hospitalstatus', create_type=False), nullable=True, server_default='pending_verification'))
+        if "is_active" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('is_active', sa.Boolean(), nullable=True, server_default='true'))
+        if "description" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('description', sa.Text(), nullable=True))
+        if "owner_user_id" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('owner_user_id', sa.UUID(as_uuid=True), nullable=True))
+        if "updated_at" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True, server_default=sa.text('now()')))
+        if "deleted_at" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True))
+        if "verified_at" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('verified_at', sa.DateTime(timezone=True), nullable=True))
+        if "verified_by" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('verified_by', sa.String(50), nullable=True))
+        if "monthly_revenue" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('monthly_revenue', sa.BigInteger(), nullable=False, server_default='0'))
+        if "branch_count" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('branch_count', sa.Integer(), nullable=False, server_default='1'))
+        if "bed_count" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('bed_count', sa.Integer(), nullable=True))
+        if "complaint_count_7d" not in hospitals_cols:
+            op.add_column('hospitals', sa.Column('complaint_count_7d', sa.Integer(), nullable=False, server_default='0'))
+        if "enabled_modules" not in hospitals_cols:
+            from sqlalchemy.dialects import postgresql
+            op.add_column('hospitals', sa.Column('enabled_modules', postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default='["reception", "nurse", "doctor", "pharmacy", "laboratory", "billing", "ward", "admin"]'))
+
+    # 6. doctors table self-healing
+    if not inspector.has_table("doctors"):
+        from sqlalchemy.dialects import postgresql
+        op.execute("DO $$ BEGIN CREATE TYPE doctorstatus AS ENUM ('pending_approval', 'active', 'on_leave', 'suspended', 'inactive'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
+        op.create_table(
+            "doctors",
+            sa.Column("id", sa.UUID(as_uuid=True), primary_key=True),
+            sa.Column("user_id", sa.UUID(as_uuid=True), unique=True, nullable=False),
+            sa.Column("hospital_id", sa.UUID(as_uuid=True), sa.ForeignKey("hospitals.id", ondelete="RESTRICT"), nullable=False),
+            sa.Column("first_name", sa.String(100), nullable=False),
+            sa.Column("last_name", sa.String(100), nullable=False),
+            sa.Column("email", sa.String(255), unique=True, nullable=False),
+            sa.Column("phone", sa.String(30), nullable=True),
+            sa.Column("specialization", sa.String(200), nullable=False),
+            sa.Column("qualification", sa.String(500), nullable=True),
+            sa.Column("medical_license_number", sa.String(100), unique=True, nullable=False),
+            sa.Column("years_of_experience", sa.Integer(), server_default=sa.text("0")),
+            sa.Column("consultation_fee", sa.Integer(), server_default=sa.text("0")),
+            sa.Column("bio", sa.Text(), nullable=True),
+            sa.Column("avatar_url", sa.String(500), nullable=True),
+            sa.Column("status", postgresql.ENUM("pending_approval", "active", "on_leave", "suspended", "inactive", name="doctorstatus", create_type=False), server_default="pending_approval", nullable=False),
+            sa.Column("is_active", sa.Boolean(), server_default=sa.text("true"), nullable=False),
+            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+            sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
+            sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
+        )
+        op.create_index('ix_doctors_user_id', 'doctors', ['user_id'])
+        op.create_index('ix_doctors_hospital_id', 'doctors', ['hospital_id'])
+        op.create_index('ix_doctors_email', 'doctors', ['email'])
+        op.create_index('ix_doctors_specialization', 'doctors', ['specialization'])
+
     has_users = inspector.has_table("users")
 
     # 2. Seed Super Admin in hospyn_employees
