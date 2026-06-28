@@ -151,6 +151,30 @@ jobs:
           docker push $HEALTHCARE_IMAGE
           docker push $GATEWAY_IMAGE
 
+      - name: Run Auth Database Migrations
+        run: |
+          AUTH_IMAGE="us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-auth:${{ github.sha }}"
+          gcloud run jobs delete hospyn-auth-migrations --region asia-south1 --project hospyn-495906 --quiet || true
+          gcloud run jobs create hospyn-auth-migrations \
+            --image $AUTH_IMAGE \
+            --region asia-south1 \
+            --project hospyn-495906 \
+            --command "alembic" --args "upgrade,head" \
+            --update-secrets "DATABASE_URL=DATABASE_URL:latest"
+          gcloud run jobs execute hospyn-auth-migrations --region asia-south1 --project hospyn-495906 --wait
+
+      - name: Run Healthcare Database Migrations
+        run: |
+          HEALTHCARE_IMAGE="us-central1-docker.pkg.dev/hospyn-495906/ahp-repo/ahp-healthcare:${{ github.sha }}"
+          gcloud run jobs delete hospyn-hc-migrations --region asia-south1 --project hospyn-495906 --quiet || true
+          gcloud run jobs create hospyn-hc-migrations \
+            --image $HEALTHCARE_IMAGE \
+            --region asia-south1 \
+            --project hospyn-495906 \
+            --command "alembic" --args "upgrade,head" \
+            --update-secrets "DATABASE_URL=DATABASE_URL:latest"
+          gcloud run jobs execute hospyn-hc-migrations --region asia-south1 --project hospyn-495906 --wait
+
       - name: Deploy Auth Service
         id: deploy-auth
         run: |
