@@ -1,5 +1,5 @@
 """
-GCS Storage Service — Async-safe file uploads with local fallback.
+GCS Storage Service -- Async-safe file uploads with local fallback.
 
 All synchronous google-cloud-storage SDK calls are offloaded to a thread
 pool executor so they never block the uvicorn async event loop.
@@ -57,14 +57,14 @@ class GCSStorageService:
             self.local_fallback = True
 
     def _write_local(self, local_path: str, file_content: bytes) -> None:
-        """Synchronous local file write — called inside executor."""
+        """Synchronous local file write -- called inside executor."""
         with open(local_path, "wb") as f:
             f.write(file_content)
 
     def _upload_to_gcs(
         self, bucket_name: str, object_name: str, file_content: bytes, content_type: str
     ) -> str:
-        """Synchronous GCS upload — called inside executor."""
+        """Synchronous GCS upload -- called inside executor."""
         bucket = self.client.bucket(bucket_name)
         blob = bucket.blob(object_name)
         blob.upload_from_string(file_content, content_type=content_type)
@@ -73,7 +73,7 @@ class GCSStorageService:
     def _generate_signed_url(
         self, bucket_name: str, blob_name: str, expires_in: int
     ) -> str:
-        """Synchronous signed URL generation — called inside executor."""
+        """Synchronous signed URL generation -- called inside executor."""
         bucket = self.client.bucket(bucket_name)
         blob = bucket.blob(blob_name)
         return blob.generate_signed_url(

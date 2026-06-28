@@ -1,5 +1,5 @@
 """
-metrics.py — Prometheus metrics and health check endpoint.
+metrics.py -- Prometheus metrics and health check endpoint.
 Phase 12 Fix: wires prometheus-client (already in pyproject.toml) into actual metrics.
 
 Place at: backend/app/api/metrics.py
@@ -24,7 +24,7 @@ from backend.app.core.logging_config import get_logger
 logger = get_logger(__name__)
 metrics_router = APIRouter()
 
-# ─── Metric definitions ───────────────────────────────────────────────────────
+# --- Metric definitions -------------------------------------------------------
 
 # HTTP request metrics
 http_requests_total = Counter(
@@ -60,12 +60,12 @@ redis_connected = Gauge("redis_connected", "Redis connection status (1=up, 0=dow
 active_sessions = Gauge("active_sessions", "Currently active user sessions")
 
 
-# ─── Middleware helper ────────────────────────────────────────────────────────
+# --- Middleware helper --------------------------------------------------------
 
 class MetricsMiddleware:
     """
     Starlette middleware that records request count and duration.
-    Add to main.py: app.add_middleware(MetricsMiddleware)  — BEFORE other middleware
+    Add to main.py: app.add_middleware(MetricsMiddleware)  -- BEFORE other middleware
     """
 
     def __init__(self, app):
@@ -84,7 +84,7 @@ class MetricsMiddleware:
             await self.app(scope, receive, send)
             return
 
-        # Normalize path to avoid high cardinality (e.g. /patients/123 → /patients/{id})
+        # Normalize path to avoid high cardinality (e.g. /patients/123 -> /patients/{id})
         normalized_path = _normalize_path(path)
 
         start_time = time.perf_counter()
@@ -119,7 +119,7 @@ def _normalize_path(path: str) -> str:
     return path
 
 
-# ─── Health check endpoint ────────────────────────────────────────────────────
+# --- Health check endpoint ----------------------------------------------------
 
 @metrics_router.get("/health", tags=["observability"])
 async def health_check() -> Dict[str, Any]:
@@ -132,7 +132,7 @@ async def health_check() -> Dict[str, Any]:
     checks: Dict[str, Any] = {}
     overall_healthy = True
 
-    # ── Database check ─────────────────────────────────────────────────────
+    # -- Database check -----------------------------------------------------
     try:
         from backend.app.core.database import engine
         async with engine.connect() as conn:
@@ -143,7 +143,7 @@ async def health_check() -> Dict[str, Any]:
         overall_healthy = False
         logger.error("health_check_db_failed", error=str(e))
 
-    # ── Redis check ────────────────────────────────────────────────────────
+    # -- Redis check --------------------------------------------------------
     try:
         from backend.app.core.cache import get_redis_client
         redis = await get_redis_client()
@@ -156,7 +156,7 @@ async def health_check() -> Dict[str, Any]:
         redis_connected.set(0)
         logger.error("health_check_redis_failed", error=str(e))
 
-    # ── Encryption key check ───────────────────────────────────────────────
+    # -- Encryption key check -----------------------------------------------
     enc_key = os.environ.get("APP_ENCRYPTION_KEY") or os.environ.get("ENCRYPTION_KEY")
     if enc_key and len(enc_key) >= 44:
         checks["encryption_key"] = {"status": "present"}

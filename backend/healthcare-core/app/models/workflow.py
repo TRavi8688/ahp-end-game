@@ -99,7 +99,7 @@ class TokenStageHistory(Base):
 
 
 class DoctorSession(Base):
-    """Matches Doctor App's POST /queue/session/start (no body) — tracks
+    """Matches Doctor App's POST /queue/session/start (no body) -- tracks
     that a doctor is actively pulling from their queue today."""
     __tablename__ = "doctor_sessions"
 

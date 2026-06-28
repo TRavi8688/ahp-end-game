@@ -1,5 +1,5 @@
 """
-Super Admin Router — backend/healthcare-core/app/api/v1/super_admin.py
+Super Admin Router -- backend/healthcare-core/app/api/v1/super_admin.py
 
 Provides every endpoint the Hospyn super-admin dashboard calls.
 Mounted at /api/v1/admin in main.py.
@@ -7,23 +7,23 @@ Mounted at /api/v1/admin in main.py.
 All endpoints require role="super_admin".
 
 Endpoints:
-  GET  /admin/analytics/overview           — platform-wide metrics
-  GET  /admin/hospitals                    — list all hospitals
-  GET  /admin/hospitals/{id}/dashboard     — full hospital deep-dive
+  GET  /admin/analytics/overview           -- platform-wide metrics
+  GET  /admin/hospitals                    -- list all hospitals
+  GET  /admin/hospitals/{id}/dashboard     -- full hospital deep-dive
   GET  /admin/hospitals/pending-verification
-  PATCH /admin/hospitals/{id}/verify       — approve/reject/suspend
-  GET  /admin/verification/{id}            — detailed verification record
+  PATCH /admin/hospitals/{id}/verify       -- approve/reject/suspend
+  GET  /admin/verification/{id}            -- detailed verification record
   POST /admin/verification/{id}/approve
   POST /admin/verification/{id}/reject
   POST /admin/verification/{id}/request-more-info
-  GET  /admin/audit-logs                   — immutable audit trail (paginated)
-  GET  /admin/users                        — IAM: list all platform users
-  POST /admin/users                        — IAM: invite/create user
-  PUT  /admin/users/{id}/status            — IAM: activate/deactivate
-  DELETE /admin/users/{id}                 — IAM: hard revoke
-  GET  /admin/alerts                       — system alerts
-  PATCH /admin/alerts/{id}/resolve         — resolve an alert
-  GET  /admin/revenue                      — platform revenue ledger
+  GET  /admin/audit-logs                   -- immutable audit trail (paginated)
+  GET  /admin/users                        -- IAM: list all platform users
+  POST /admin/users                        -- IAM: invite/create user
+  PUT  /admin/users/{id}/status            -- IAM: activate/deactivate
+  DELETE /admin/users/{id}                 -- IAM: hard revoke
+  GET  /admin/alerts                       -- system alerts
+  PATCH /admin/alerts/{id}/resolve         -- resolve an alert
+  GET  /admin/revenue                      -- platform revenue ledger
 """
 
 from __future__ import annotations
@@ -46,11 +46,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# ─── Dependency: require super_admin role ─────────────────────────────────────
+# --- Dependency: require super_admin role -------------------------------------
 SuperAdmin = Annotated[TokenPayload, Depends(require_role("super_admin"))]
 
 
-# ─── Helpers ─────────────────────────────────────────────────────────────────
+# --- Helpers -----------------------------------------------------------------
 
 async def _hospital_row_to_dict(h: Hospital) -> dict:
     return {
@@ -68,9 +68,9 @@ async def _hospital_row_to_dict(h: Hospital) -> dict:
     }
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 1. Analytics Overview
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 @router.get("/analytics/overview")
 async def get_analytics_overview(
@@ -172,9 +172,9 @@ async def get_analytics_overview(
     })
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 2. Hospital Network
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 @router.get("/hospitals")
 async def list_all_hospitals(
@@ -222,7 +222,7 @@ async def list_pending_hospitals(
     current_user: SuperAdmin,
     db: AsyncSession = Depends(get_db),
 ):
-    """All hospitals awaiting verification — powers VerificationQueue."""
+    """All hospitals awaiting verification -- powers VerificationQueue."""
     result = await db.execute(
         select(Hospital).where(
             Hospital.status.in_([
@@ -301,7 +301,7 @@ async def get_hospital_dashboard(
             {"hid": hid}
         )
         for row in r.fetchall():
-            staff_list.append({"id": str(row.id), "name": row.name or "—", "role": row.role, "department": row.department})
+            staff_list.append({"id": str(row.id), "name": row.name or "--", "role": row.role, "department": row.department})
     except Exception: pass
 
     # Doctors
@@ -319,7 +319,7 @@ async def get_hospital_dashboard(
         )
         for row in r.fetchall():
             doctors_list.append({
-                "id": str(row.id), "name": row.name or "—",
+                "id": str(row.id), "name": row.name or "--",
                 "specialty": row.specialty,
                 "rating": float(row.rating or 4.8),
                 "patients_treated": int(row.patients_treated or 0),
@@ -473,9 +473,9 @@ async def verify_hospital(
     return success_response(data={"id": str(hospital_id), "status": hospital.status.value}, message=f"Hospital {action}d successfully")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 3. Verification Detail
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 @router.get("/verification/{hospital_id}")
 async def get_verification_detail(
@@ -602,9 +602,9 @@ async def request_more_info(
     return success_response(message="Information request sent to hospital admin")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 4. Audit Logs
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 @router.get("/audit-logs")
 async def get_audit_logs(
@@ -617,7 +617,7 @@ async def get_audit_logs(
     from_: Optional[str] = Query(None, alias="from"),
     to: Optional[str] = Query(None),
 ):
-    """Immutable audit trail — paginated."""
+    """Immutable audit trail -- paginated."""
     where_clauses = ["1=1"]
     params: dict = {}
 
@@ -677,9 +677,9 @@ async def get_audit_logs(
     return success_response(data={"logs": logs, "total": total, "page": page, "pages": pages})
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 5. IAM — Users
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# 5. IAM -- Users
+# -----------------------------------------------------------------------------
 
 @router.get("/users")
 async def list_users(
@@ -804,7 +804,7 @@ async def update_user_status(
             from shared.redis_client import revoke_user_sessions
             await revoke_user_sessions(str(user_id))
         except Exception:
-            pass  # Redis unavailable — proceed anyway
+            pass  # Redis unavailable -- proceed anyway
     except Exception as e:
         logger.error("update user status failed: %s", e)
         raise HTTPException(status_code=500, detail="Failed to update user status")
@@ -841,9 +841,9 @@ async def delete_user(
     return success_response(message="User access revoked successfully")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 6. Alerts
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 @router.get("/alerts")
 async def get_alerts(
@@ -915,9 +915,9 @@ async def resolve_alert(
     return success_response(data={"id": str(alert_id), "resolved": True})
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 7. Revenue
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 
 @router.get("/revenue")
 async def get_revenue(

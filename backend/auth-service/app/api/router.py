@@ -1,5 +1,5 @@
 """
-Auth API Routes — Production-grade authentication endpoints.
+Auth API Routes -- Production-grade authentication endpoints.
 
 Every endpoint uses Depends(get_db) for real database sessions.
 All sensitive operations use proper hashing, stored tokens, and logging.
@@ -47,7 +47,7 @@ bearer_scheme = HTTPBearer(auto_error=True)
 router = APIRouter()
 
 
-# ─── Registration ─────────────────────────────────────────────────
+# --- Registration -------------------------------------------------
 
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
@@ -93,7 +93,7 @@ async def register_user(
     )
 
 
-# ─── Login ────────────────────────────────────────────────────────
+# --- Login --------------------------------------------------------
 
 
 @router.post("/login")
@@ -157,7 +157,7 @@ async def login(
     )
 
 
-# ─── Refresh Token ────────────────────────────────────────────────
+# --- Refresh Token ------------------------------------------------
 
 
 @router.post("/refresh")
@@ -181,7 +181,7 @@ async def refresh_access_token(
             "INVALID_TOKEN", "User not found or inactive", status_code=401
         )
 
-    # Check token_version — if user changed password, old refresh tokens are invalid
+    # Check token_version -- if user changed password, old refresh tokens are invalid
     if decoded.get("token_version") != user.token_version:
         return error_response(
             "TOKEN_REVOKED",
@@ -211,7 +211,7 @@ async def refresh_access_token(
     }
 
 
-# ─── Forgot Password: Request OTP ────────────────────────────────
+# --- Forgot Password: Request OTP --------------------------------
 
 
 @router.post("/forgot-password/request")
@@ -228,7 +228,7 @@ async def request_password_reset(
     user = result.scalars().first()
 
     if not user:
-        # Prevent user enumeration — always return success
+        # Prevent user enumeration -- always return success
         logger.info(
             f"Password reset requested for non-existent identifier: {req.identifier}"
         )
@@ -246,7 +246,7 @@ async def request_password_reset(
     db.add(otp_record)
     await db.flush()
 
-    # ── OTP Delivery ──
+    # -- OTP Delivery --
     # In production, this would dispatch via Twilio SMS or SMTP email.
     # For now, log it securely (never expose in API response).
     logger.info(
@@ -254,13 +254,13 @@ async def request_password_reset(
         f"(otp_id={otp_record.id}, expires_at={otp_record.expires_at.isoformat()})"
     )
     if settings.ENVIRONMENT == "development":
-        # Only log the actual OTP in development — NEVER in production
+        # Only log the actual OTP in development -- NEVER in production
         logger.warning(f"[DEV ONLY] OTP for {req.identifier}: {otp_code}")
 
     return success_response(message="If the account exists, an OTP has been sent.")
 
 
-# ─── Forgot Password: Verify OTP ─────────────────────────────────
+# --- Forgot Password: Verify OTP ---------------------------------
 
 
 @router.post("/forgot-password/verify")
@@ -341,7 +341,7 @@ async def verify_password_reset_otp(
     )
 
 
-# ─── Reset Password ──────────────────────────────────────────────
+# --- Reset Password ----------------------------------------------
 
 
 @router.post("/forgot-password/reset")
@@ -399,7 +399,7 @@ async def reset_password(
     )
 
 
-# ─── Change Password (Authenticated) ─────────────────────────────
+# --- Change Password (Authenticated) -----------------------------
 
 
 @router.post("/change-password")
@@ -451,7 +451,7 @@ async def change_password(
             if remaining > 0:
                 await blacklist_token(jti, remaining)
         except Exception:
-            pass  # Non-critical — token_version bump already invalidates all old tokens
+            pass  # Non-critical -- token_version bump already invalidates all old tokens
 
     # Publish updated token version to Redis cache
     await publish_user_status(str(user.id), user.is_active, user.token_version)
@@ -482,7 +482,7 @@ async def change_password(
     )
 
 
-# ─── Logout ───────────────────────────────────────────────────────
+# --- Logout -------------------------------------------------------
 
 
 @router.post("/logout")

@@ -90,7 +90,7 @@ def _check_encryption_key() -> None:
             'Generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
         )
     if not enc_key:
-        logger.warning("ENCRYPTION_KEY not set — PHI field encryption is DISABLED (dev mode)")
+        logger.warning("ENCRYPTION_KEY not set -- PHI field encryption is DISABLED (dev mode)")
 
 
 def _check_database_url(settings) -> None:
@@ -116,6 +116,6 @@ def _warn_sentry(settings) -> None:
     env = getattr(settings, "ENVIRONMENT", "development").lower()
     if env == "production" and not getattr(settings, "SENTRY_DSN", None):
         logger.warning(
-            "SENTRY_DSN is not set — errors in production will not be tracked. "
+            "SENTRY_DSN is not set -- errors in production will not be tracked. "
             "Set SENTRY_DSN to your Sentry project DSN."
         )

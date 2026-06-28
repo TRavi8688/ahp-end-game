@@ -1,7 +1,7 @@
 """
 Staff HR API Routes
 ====================
-PHASE 3 FIX — HR Portal backend: staff directory, shift roster, leave requests.
+PHASE 3 FIX -- HR Portal backend: staff directory, shift roster, leave requests.
 
 Endpoints:
   GET   /staff/list                    - Staff directory for this hospital
@@ -37,7 +37,7 @@ from shared.audit import log_audit_event
 router = APIRouter()
 
 
-# ─── Schemas ──────────────────────────────────────────────────────────────────
+# --- Schemas ------------------------------------------------------------------
 
 class ShiftAssignPayload(BaseModel):
     staff_id: uuid.UUID
@@ -67,7 +67,7 @@ class StaffInvitePayload(BaseModel):
     job_title: Optional[str] = None
 
 
-# ─── Helpers ──────────────────────────────────────────────────────────────────
+# --- Helpers ------------------------------------------------------------------
 
 async def _get_staff_hospital_id(user_id: str, db: AsyncSession) -> Optional[str]:
     """Get the hospital_id for the authenticated user (staff or owner)."""
@@ -115,7 +115,7 @@ def _generate_temp_password(length: int = 12) -> str:
     return "".join(pwd)
 
 
-# ─── GET /staff/list ──────────────────────────────────────────────────────────
+# --- GET /staff/list ----------------------------------------------------------
 
 @router.get("/list")
 async def list_staff(
@@ -140,11 +140,11 @@ async def list_staff(
         raise HTTPException(status_code=403, detail="Not linked to a hospital")
 
     try:
-        # EXECUTION FIX: this used to `JOIN users u ON u.id = s.user_id` — the
+        # EXECUTION FIX: this used to `JOIN users u ON u.id = s.user_id` -- the
         # users table lives in auth-service's own database
         # (hospyn_auth_db), not this one, so the join could never resolve.
         # It also referenced s.specialty / s.job_title / s.status, none of
-        # which exist on the Staff model (see app/models/staff.py — only
+        # which exist on the Staff model (see app/models/staff.py -- only
         # first_name, last_name, phone, role, department, is_active are
         # real columns). Rewritten against the actual schema. Email isn't
         # available here (it lives in auth-service); not fabricated.
@@ -210,7 +210,7 @@ async def list_staff(
     )
 
 
-# ─── GET /staff/shifts ────────────────────────────────────────────────────────
+# --- GET /staff/shifts --------------------------------------------------------
 
 @router.get("/shifts")
 async def get_shift_roster(
@@ -297,7 +297,7 @@ async def get_shift_roster(
     )
 
 
-# ─── POST /staff/shifts ───────────────────────────────────────────────────────
+# --- POST /staff/shifts -------------------------------------------------------
 
 @router.post("/shifts", status_code=201)
 async def assign_shift(
@@ -354,7 +354,7 @@ async def assign_shift(
     )
 
 
-# ─── GET /staff/leaves ────────────────────────────────────────────────────────
+# --- GET /staff/leaves --------------------------------------------------------
 
 @router.get("/leaves")
 async def list_leave_requests(
@@ -422,7 +422,7 @@ async def list_leave_requests(
     )
 
 
-# ─── PATCH /staff/leaves/{id}/approve ────────────────────────────────────────
+# --- PATCH /staff/leaves/{id}/approve ----------------------------------------
 
 @router.patch("/leaves/{leave_id}/approve")
 async def approve_leave(
@@ -462,7 +462,7 @@ async def approve_leave(
     return success_response(message="Leave request approved")
 
 
-# ─── PATCH /staff/leaves/{id}/reject ─────────────────────────────────────────
+# --- PATCH /staff/leaves/{id}/reject -----------------------------------------
 
 @router.patch("/leaves/{leave_id}/reject")
 async def reject_leave(
@@ -502,7 +502,7 @@ async def reject_leave(
     return success_response(message="Leave request rejected")
 
 
-# ─── POST /staff/invites ──────────────────────────────────────────────────────
+# --- POST /staff/invites ------------------------------------------------------
 
 @router.post("/invites", status_code=201)
 async def invite_staff_member(

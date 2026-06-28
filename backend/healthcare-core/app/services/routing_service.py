@@ -47,7 +47,7 @@ class QueueRoutingService:
         Auto-suggests the best doctor based on specialization, status,
         and active workload (waiting + consultation queue length).
         """
-        # FIX E712: Doctor.is_active == True  →  Doctor.is_active
+        # FIX E712: Doctor.is_active == True  ->  Doctor.is_active
         # FIX E711: Doctor.deleted_at.is_(None) is already correct SQLAlchemy style
         doctor_query = select(Doctor).where(
             Doctor.hospital_id == hospital_id,

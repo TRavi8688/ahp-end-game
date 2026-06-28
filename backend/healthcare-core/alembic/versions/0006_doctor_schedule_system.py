@@ -1,11 +1,11 @@
 """
 0006_doctor_schedule_system.py
-Phase 4 — Doctor App: Profile, Leave, Break, Roster & Holiday tables.
+Phase 4 -- Doctor App: Profile, Leave, Break, Roster & Holiday tables.
 
 DROP-IN INSTRUCTIONS:
   Save as: backend/healthcare-core/alembic/versions/0006_doctor_schedule_system.py
 
-IMPORTANT — YOUR MIGRATION CHAIN HAS A BUG, READ THIS FIRST:
+IMPORTANT -- YOUR MIGRATION CHAIN HAS A BUG, READ THIS FIRST:
   Before applying this migration, your alembic/versions folder has a
   circular reference that will make `alembic upgrade head` fail with
   "Cycle detected":
@@ -18,7 +18,7 @@ IMPORTANT — YOUR MIGRATION CHAIN HAS A BUG, READ THIS FIRST:
         down_revision -> a7f3e9c21b84   <-- points back to the first one
 
   At the same time, d3e4f5a6b7c8_make_appointment_patient_id_nullable.py
-  (the true end of your *other* migration branch) is orphaned — nothing
+  (the true end of your *other* migration branch) is orphaned -- nothing
   continues from it.
 
   FIX REQUIRED (one line, in 20260605_add_performance_indexes.py):
@@ -46,8 +46,8 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # ── FIX: patients.hospyn_id was referenced by reception_service.py and
-    # doctor_queue.py as if it already existed — it never did, in the model
+    # -- FIX: patients.hospyn_id was referenced by reception_service.py and
+    # doctor_queue.py as if it already existed -- it never did, in the model
     # OR in any prior migration. Adding it here since doctor-app's patient
     # lookup (provision_slot, my-patients) depends on it being real.
     op.add_column(
@@ -56,7 +56,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_patients_hospyn_id", "patients", ["hospyn_id"], unique=True)
 
-    # ── doctor_profile_extensions ───────────────────────────────────────
+    # -- doctor_profile_extensions ---------------------------------------
     op.create_table(
         "doctor_profile_extensions",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
@@ -87,7 +87,7 @@ def upgrade() -> None:
         "ix_doctor_profile_ext_hospyn_id", "doctor_profile_extensions", ["hospyn_id"]
     )
 
-    # ── doctor_leaves ────────────────────────────────────────────────────
+    # -- doctor_leaves ----------------------------------------------------
     leave_type_enum = postgresql.ENUM(
         "day_off", "half_day", "emergency_leave", "conference_cme",
         "personal", "vacation", "sick",
@@ -136,7 +136,7 @@ def upgrade() -> None:
     op.create_index("ix_doctor_leaves_end_date", "doctor_leaves", ["end_date"])
     op.create_index("ix_doctor_leaves_status", "doctor_leaves", ["status"])
 
-    # ── doctor_break_logs ────────────────────────────────────────────────
+    # -- doctor_break_logs ------------------------------------------------
     break_type_enum = postgresql.ENUM(
         "bio_break", "lunch_break", "tea_break", "meeting",
         "emergency_pause", "other",
@@ -163,7 +163,7 @@ def upgrade() -> None:
     op.create_index("ix_doctor_break_logs_doctor_id", "doctor_break_logs", ["doctor_id"])
     op.create_index("ix_doctor_break_logs_started_at", "doctor_break_logs", ["started_at"])
 
-    # ── doctor_roster_shifts ─────────────────────────────────────────────
+    # -- doctor_roster_shifts ---------------------------------------------
     shift_type_enum = postgresql.ENUM(
         "morning", "afternoon", "evening", "night", "on_call", "off",
         name="shifttypedoctor",
@@ -204,7 +204,7 @@ def upgrade() -> None:
     op.create_index("ix_doctor_roster_hospital_id", "doctor_roster_shifts", ["hospital_id"])
     op.create_index("ix_doctor_roster_shift_date", "doctor_roster_shifts", ["shift_date"])
 
-    # ── hospital_holidays ────────────────────────────────────────────────
+    # -- hospital_holidays ------------------------------------------------
     op.create_table(
         "hospital_holidays",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),

@@ -3,21 +3,21 @@ Workflow Engine API
 
 Three logical groups, mounted at three different prefixes (see router.py):
 
-  /workflows/...  — hospital-level config (Owner/Admin define their stage graph)
-  /tokens/...      — generic token creation + queue fetch (any stage type)
-  /queue/...       — the EXACT contract Doctor App's clinicalService.js
+  /workflows/...  -- hospital-level config (Owner/Admin define their stage graph)
+  /tokens/...      -- generic token creation + queue fetch (any stage type)
+  /queue/...       -- the EXACT contract Doctor App's clinicalService.js
                      already calls: POST /queue/session/start (no body),
-                     POST /queue/token/advance (no body — "Call Next"),
+                     POST /queue/token/advance (no body -- "Call Next"),
                      POST /queue/token/{id}/complete
 
-Per the Hospain platform plan: hospitals fully define their own stages —
+Per the Hospain platform plan: hospitals fully define their own stages --
 there is no hardcoded Reception->Nurse->Doctor->Billing chain baked into
 the API. A sane default is seeded automatically (see workflow_service.
 ensure_default_workflow) so the system works before any hospital configures
 something custom.
 
 Tenant scoping: every endpoint resolves hospital_id from the staff/doctor
-row tied to the JWT's user id — never trusts a hospital_id from the
+row tied to the JWT's user id -- never trusts a hospital_id from the
 frontend, per the platform plan's security requirement.
 """
 
@@ -47,7 +47,7 @@ tokens_router = APIRouter()
 queue_router = APIRouter()
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+# -- Helpers ------------------------------------------------------------------
 
 async def _resolve_doctor(db: AsyncSession, user_id: str) -> Doctor:
     result = await db.execute(
@@ -63,7 +63,7 @@ async def _resolve_hospital_id_for_staff_or_owner(db: AsyncSession, user_id: str
     staff = await resolve_any_staff(db, user_id)
     if staff:
         return staff.hospital_id
-    # Owners aren't in the staff table — check hospitals.owner_user_id
+    # Owners aren't in the staff table -- check hospitals.owner_user_id
     from app.models.hospital import Hospital
     result = await db.execute(select(Hospital).where(Hospital.owner_user_id == uuid.UUID(user_id)))
     hospital = result.scalars().first()
@@ -115,7 +115,7 @@ async def _load_token(db: AsyncSession, token_id: uuid.UUID) -> PatientToken:
     return token
 
 
-# ── /workflows — hospital config (Owner / Admin) ─────────────────────────────
+# -- /workflows -- hospital config (Owner / Admin) -----------------------------
 
 class StageInput(BaseModel):
     stage_key: str
@@ -152,7 +152,7 @@ async def save_workflow(
     """Replaces the hospital's active workflow with a freshly hospital-defined
     one: a straight linear chain through the given stages, in the order
     submitted (branching/conditional transitions aren't exposed via this
-    endpoint yet — condition_json exists in the schema for that follow-up)."""
+    endpoint yet -- condition_json exists in the schema for that follow-up)."""
     hospital_id = await _resolve_hospital_id_for_staff_or_owner(db, current_user.sub)
 
     # Deactivate any current active workflow (only one active per hospital)
@@ -192,7 +192,7 @@ async def save_workflow(
     return {"data": _serialize_workflow(refreshed)}
 
 
-# ── /tokens — generic token creation + queue fetch ───────────────────────────
+# -- /tokens -- generic token creation + queue fetch ---------------------------
 
 class CreateTokenPayload(BaseModel):
     patient_id: str
@@ -232,7 +232,7 @@ async def get_queue_endpoint(
     return {"data": [_serialize_token(t) for t in tokens]}
 
 
-# ── /queue/session/* and /queue/token/* — Doctor App's exact contract ──────
+# -- /queue/session/* and /queue/token/* -- Doctor App's exact contract ------
 
 @queue_router.post("/session/start")
 async def start_queue_session(
@@ -257,7 +257,7 @@ async def call_next_token(
     current_user: Annotated[TokenPayload, Depends(require_role("doctor"))],
     db: AsyncSession = Depends(get_db),
 ):
-    """'Call Next' — matches Doctor App's POST /queue/token/advance, which
+    """'Call Next' -- matches Doctor App's POST /queue/token/advance, which
     sends no body: the server decides who's next, not the client."""
     doctor = await _resolve_doctor(db, current_user.sub)
     token = await workflow_service.claim_next_token(db, doctor.hospital_id, "doctor", doctor.id)

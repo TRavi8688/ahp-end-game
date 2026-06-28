@@ -78,7 +78,7 @@ class AppointmentResponse(BaseModel):
     completed_at: Optional[datetime]
 
     # FIXED: TodaysAppointmentsPage.tsx (staff-portal) displays patient_name,
-    # patient_phone, doctor_name, and department for every appointment — none
+    # patient_phone, doctor_name, and department for every appointment -- none
     # of these fields existed on this schema, so every row silently fell back
     # to "Anonymous Patient" / "No Phone" / "Dr. Staff (General)" regardless
     # of the real data. Optional + default None so existing callers that

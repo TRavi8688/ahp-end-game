@@ -6,7 +6,7 @@ FIXES:
   - Added run_startup_checks() to catch bad secrets before serving traffic
   - Removed 5 duplicate partner router registrations (double-prefix BUG-8)
   - All core routes (patients, doctors, appointments etc.) now registered
-    through api_router — no longer invisible
+    through api_router -- no longer invisible
   - configure_sentry() now uses shared/alerting.py with PHI scrubbing
   - Health check uses get_redis_client() (not the broken get_redis())
 
@@ -35,14 +35,14 @@ configure_sentry(settings)
 logger = logging.getLogger(__name__)
 
 
-# ── Lifespan ──────────────────────────────────────────────────────────────────
+# -- Lifespan ------------------------------------------------------------------
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    """Startup → validate config, connect Redis. Shutdown → close Redis."""
+    """Startup -> validate config, connect Redis. Shutdown -> close Redis."""
     logger.info("Healthcare Core starting up...")
 
-    # 1. Fail hard on bad config — before accepting any traffic
+    # 1. Fail hard on bad config -- before accepting any traffic
     run_startup_checks(settings)
 
     # 2. Init Redis (required for token blacklist, user-status cache, consent tokens)
@@ -85,11 +85,11 @@ async def lifespan(application: FastAPI):
     await get_engine().dispose()
 
 
-# ── App factory ───────────────────────────────────────────────────────────────
+# -- App factory ---------------------------------------------------------------
 
 app = FastAPI(
     title="Hospyn Healthcare Core API",
-    description="Healthcare management platform — core clinical and operational API",
+    description="Healthcare management platform -- core clinical and operational API",
     version="2.0.0",
     docs_url="/docs" if settings.ENV != "production" else None,
     redoc_url=None,
@@ -97,7 +97,7 @@ app = FastAPI(
 )
 
 
-# ── Correlation-ID / request logging middleware ───────────────────────────────
+# -- Correlation-ID / request logging middleware -------------------------------
 
 @app.middleware("http")
 async def correlation_id_middleware(request: Request, call_next):
@@ -128,7 +128,7 @@ async def correlation_id_middleware(request: Request, call_next):
         structlog.contextvars.clear_contextvars()
 
 
-# ── CORS ──────────────────────────────────────────────────────────────────────
+# -- CORS ----------------------------------------------------------------------
 
 def _configure_cors(application: FastAPI) -> None:
     raw_origins = settings.ALLOWED_ORIGINS.strip()
@@ -149,7 +149,7 @@ def _configure_cors(application: FastAPI) -> None:
 _configure_cors(app)
 
 
-# ── Health check ──────────────────────────────────────────────────────────────
+# -- Health check --------------------------------------------------------------
 
 @app.get("/health", tags=["Health"])
 async def health_check():
@@ -186,7 +186,7 @@ async def health_check():
     )
 
 
-# ── Routers ───────────────────────────────────────────────────────────────────
+# -- Routers -------------------------------------------------------------------
 #
 # FIX BUG-8: Partner routers are registered ONLY inside api_router (router.py).
 # The old main.py registered them AGAIN here directly, causing double-prefix:
@@ -196,5 +196,5 @@ async def health_check():
 # Internal service-to-service routes
 app.include_router(internal_router, prefix="/api/v1/healthcare")
 
-# All core + partner routes — single registration point
+# All core + partner routes -- single registration point
 app.include_router(api_router, prefix="/api/v1/healthcare")

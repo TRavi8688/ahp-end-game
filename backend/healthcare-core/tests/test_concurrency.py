@@ -33,7 +33,7 @@ def generate_token(user_id: str, role: str) -> str:
     )
 
 
-# SQLite cannot handle FOR UPDATE locking — skip if not Postgres
+# SQLite cannot handle FOR UPDATE locking -- skip if not Postgres
 _is_sqlite = settings.DATABASE_URL.startswith("sqlite")
 
 

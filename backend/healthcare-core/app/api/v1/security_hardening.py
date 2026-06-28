@@ -6,17 +6,17 @@ This file contains code SNIPPETS to apply to existing files.
 Each section is labelled with the exact file to edit.
 
 ==========================================================================
-SECTION A — Redis health check at startup
+SECTION A -- Redis health check at startup
 FILE: backend/auth-service/app/main.py
 ADD in the startup_event function:
 ==========================================================================
 """
 
-# ── A. Redis startup health check ─────────────────────────────────────────
+# -- A. Redis startup health check -----------------------------------------
 # Paste inside the @app.on_event("startup") async def startup_event():
 
 REDIS_STARTUP_CHECK = '''
-    # Phase 4: Redis health check — refuse to start if Redis is down
+    # Phase 4: Redis health check -- refuse to start if Redis is down
     # (OTP brute-force protection depends entirely on Redis)
     try:
         import sys
@@ -25,18 +25,18 @@ REDIS_STARTUP_CHECK = '''
         logger.info("Redis health check passed ✓")
     except Exception as redis_err:
         logger.critical(
-            f"STARTUP FAILURE: Redis is unreachable — {redis_err}. "
+            f"STARTUP FAILURE: Redis is unreachable -- {redis_err}. "
             "OTP brute-force protection cannot function. Refusing to start."
         )
         sys.exit(1)
 '''
 
-# ─────────────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------------
 
 
 """
 ==========================================================================
-SECTION B — /health endpoint with Redis status
+SECTION B -- /health endpoint with Redis status
 FILE: backend/auth-service/app/main.py  (add after startup_event)
 ==========================================================================
 """
@@ -83,17 +83,17 @@ async def health_check():
 
 """
 ==========================================================================
-SECTION C — Triage engine feature flag
+SECTION C -- Triage engine feature flag
 FILE: backend/ai-service/app/main.py
 ADD to settings and at the top of the triage endpoint:
 ==========================================================================
 """
 
 TRIAGE_FEATURE_FLAG = '''
-# In settings.py — add:
+# In settings.py -- add:
 ENABLE_TRIAGE_ENGINE: bool = False  # Requires clinical sign-off before enabling
 
-# In ai-service/app/main.py — add to triage endpoint:
+# In ai-service/app/main.py -- add to triage endpoint:
 from fastapi import HTTPException
 
 @router.post("/triage")
@@ -118,7 +118,7 @@ async def triage_patient(payload: dict):
 
 """
 ==========================================================================
-SECTION D — DPDP data_rights router registration check
+SECTION D -- DPDP data_rights router registration check
 FILE: backend/healthcare-core/app/main.py  OR  backend/app/main.py
 ADD if not already present:
 ==========================================================================
@@ -142,7 +142,7 @@ app.include_router(
 
 """
 ==========================================================================
-SECTION E — CORS: set production allowed origins
+SECTION E -- CORS: set production allowed origins
 FILE: backend/auth-service/app/main.py  AND  backend/healthcare-core/app/main.py
 REPLACE the existing CORSMiddleware add call:
 ==========================================================================
@@ -152,7 +152,7 @@ CORS_CONFIG = '''
 import os
 from fastapi.middleware.cors import CORSMiddleware
 
-# Pull from env — comma-separated list
+# Pull from env -- comma-separated list
 _raw_origins = os.environ.get(
     "ALLOWED_ORIGINS",
     "http://localhost:3000,http://localhost:5173"  # dev fallback only
@@ -174,7 +174,7 @@ app.add_middleware(
 
 """
 ==========================================================================
-SECTION F — Sentry initialization
+SECTION F -- Sentry initialization
 FILE: Each service's main.py  (auth-service, healthcare-core, ai-service)
 ADD before app = FastAPI(...):
 ==========================================================================
@@ -197,14 +197,14 @@ if _sentry_dsn:
         send_default_pii=False,          # Never send PII to Sentry
     )
 
-# requirements.txt — add:
+# requirements.txt -- add:
 # sentry-sdk[fastapi]
 '''
 
 
 """
 ==========================================================================
-SECTION G — OTP console-log security fix
+SECTION G -- OTP console-log security fix
 FILE: backend/auth-service/app/services/auth_service.py
 FIND and REPLACE the line that logs OTP plaintext:
 ==========================================================================
@@ -217,14 +217,14 @@ OTP_LOG_FIX = '''
 # REPLACE WITH:
 #   logger.warning(
 #       f"SMTP not configured. OTP email skipped for {email_address[:4]}****"
-#       # NEVER log otp_code — it is a security secret
+#       # NEVER log otp_code -- it is a security secret
 #   )
 '''
 
 
 """
 ==========================================================================
-SECTION H — mock_token_123 removal
+SECTION H -- mock_token_123 removal
 FILE: hospyn-v2-web/src/pages/OwnerDashboard.jsx
 Delete the block roughly lines 56-101 that reads:
 ==========================================================================

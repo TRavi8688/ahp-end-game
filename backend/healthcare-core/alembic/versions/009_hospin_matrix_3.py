@@ -1,7 +1,7 @@
 """
 009_hospin_matrix_3.py
 
-Hospin Matrix 3.0 — new tables required by all 21 modules.
+Hospin Matrix 3.0 -- new tables required by all 21 modules.
 
 New tables:
   - matrix_incidents          Module 15: Incident War Room
@@ -57,7 +57,7 @@ def upgrade() -> None:
         $$;
     """)
 
-    # ── 1. Extend hospyn_employees ────────────────────────────────────────────
+    # -- 1. Extend hospyn_employees --------------------------------------------
     op.add_column("hospyn_employees", sa.Column(
         "shift_status",
         postgresql.ENUM(*SHIFT_STATUSES, name="shift_status_enum", create_type=False),
@@ -74,7 +74,7 @@ def upgrade() -> None:
         "daily_ticket_limit", sa.Integer(), nullable=False, server_default="40"
     ))
 
-    # ── 2. Extend support_tickets with SLA deadline cols ──────────────────────
+    # -- 2. Extend support_tickets with SLA deadline cols ----------------------
     op.add_column("support_tickets", sa.Column(
         "sla_response_due", sa.DateTime(timezone=True), nullable=True
     ))
@@ -91,7 +91,7 @@ def upgrade() -> None:
         "first_response_at", sa.DateTime(timezone=True), nullable=True
     ))
 
-    # ── 3. Extend hospitals ───────────────────────────────────────────────────
+    # -- 3. Extend hospitals ---------------------------------------------------
     op.add_column("hospitals", sa.Column(
         "verified_at", sa.DateTime(timezone=True), nullable=True
     ))
@@ -111,7 +111,7 @@ def upgrade() -> None:
         "complaint_count_7d", sa.Integer(), nullable=False, server_default="0"
     ))
 
-    # ── 4. matrix_incidents ───────────────────────────────────────────────────
+    # -- 4. matrix_incidents ---------------------------------------------------
     op.create_table(
         "matrix_incidents",
         sa.Column("id",           UUID(as_uuid=True), primary_key=True,
@@ -136,7 +136,7 @@ def upgrade() -> None:
     op.create_index("ix_matrix_incidents_status",   "matrix_incidents", ["status"])
     op.create_index("ix_matrix_incidents_severity", "matrix_incidents", ["severity"])
 
-    # ── 5. matrix_incident_timeline ───────────────────────────────────────────
+    # -- 5. matrix_incident_timeline -------------------------------------------
     op.create_table(
         "matrix_incident_timeline",
         sa.Column("id",          UUID(as_uuid=True), primary_key=True,
@@ -151,7 +151,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_incident_timeline_incident_id", "matrix_incident_timeline", ["incident_id"])
 
-    # ── 6. matrix_broadcasts ─────────────────────────────────────────────────
+    # -- 6. matrix_broadcasts -------------------------------------------------
     op.create_table(
         "matrix_broadcasts",
         sa.Column("id",          UUID(as_uuid=True), primary_key=True,
@@ -166,7 +166,7 @@ def upgrade() -> None:
                   server_default=sa.text("now()")),
     )
 
-    # ── 7. matrix_sla_rules (configurable per priority) ───────────────────────
+    # -- 7. matrix_sla_rules (configurable per priority) -----------------------
     op.create_table(
         "matrix_sla_rules",
         sa.Column("id",                   UUID(as_uuid=True), primary_key=True,
@@ -191,7 +191,7 @@ def upgrade() -> None:
         ON CONFLICT (priority) DO NOTHING
     """)
 
-    # ── 8. matrix_sla_breaches ────────────────────────────────────────────────
+    # -- 8. matrix_sla_breaches ------------------------------------------------
     op.create_table(
         "matrix_sla_breaches",
         sa.Column("id",            UUID(as_uuid=True), primary_key=True,
@@ -209,7 +209,7 @@ def upgrade() -> None:
     op.create_index("ix_sla_breaches_ticket_id",  "matrix_sla_breaches", ["ticket_id"])
     op.create_index("ix_sla_breaches_created_at", "matrix_sla_breaches", ["created_at"])
 
-    # ── 9. matrix_shift_log ───────────────────────────────────────────────────
+    # -- 9. matrix_shift_log ---------------------------------------------------
     op.create_table(
         "matrix_shift_log",
         sa.Column("id",          UUID(as_uuid=True), primary_key=True,
@@ -224,7 +224,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_shift_log_employee_id", "matrix_shift_log", ["employee_id"])
 
-    # ── 10. matrix_ai_queries ─────────────────────────────────────────────────
+    # -- 10. matrix_ai_queries -------------------------------------------------
     op.create_table(
         "matrix_ai_queries",
         sa.Column("id",          UUID(as_uuid=True), primary_key=True,
@@ -247,7 +247,7 @@ def downgrade() -> None:
     op.drop_table("matrix_broadcasts")
     op.drop_table("matrix_incident_timeline")
     op.drop_table("matrix_incidents")
-    # Remove added columns — PostgreSQL enums must be dropped separately
+    # Remove added columns -- PostgreSQL enums must be dropped separately
     for col in ("shift_status","skills","last_seen_at","daily_ticket_limit"):
         op.drop_column("hospyn_employees", col)
     for col in ("sla_response_due","sla_resolution_due","sla_response_breached",

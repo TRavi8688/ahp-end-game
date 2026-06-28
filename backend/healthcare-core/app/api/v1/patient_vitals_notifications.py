@@ -1,7 +1,7 @@
 """
 Patient Vitals & Notifications Routes
 ======================================
-PHASE 1.5 FIX — Routes returning 404 that frontend calls:
+PHASE 1.5 FIX -- Routes returning 404 that frontend calls:
   GET /patient/vitals
   GET /patient/notifications
 
@@ -27,7 +27,7 @@ from shared.utils.responses import success_response
 router = APIRouter()
 
 
-# ─── GET /patient/vitals ──────────────────────────────────────────────────────
+# --- GET /patient/vitals ------------------------------------------------------
 
 @router.get("/vitals")
 async def get_patient_vitals(
@@ -56,7 +56,7 @@ async def get_patient_vitals(
     vitals_data = None
 
     try:
-        # Attempt to query vitals — table may exist under different names
+        # Attempt to query vitals -- table may exist under different names
         # depending on which migration was applied
         from sqlalchemy import text
         vitals_query = await db.execute(
@@ -88,11 +88,11 @@ async def get_patient_vitals(
                 "recorded_at": row.recorded_at.isoformat() if row.recorded_at else None,
             }
     except Exception:
-        # Table may not exist yet — return empty vitals structure
+        # Table may not exist yet -- return empty vitals structure
         vitals_data = None
 
     if not vitals_data:
-        # Return an empty-but-valid structure — frontend handles None values gracefully
+        # Return an empty-but-valid structure -- frontend handles None values gracefully
         vitals_data = {
             "blood_pressure": None,
             "heart_rate": None,
@@ -110,7 +110,7 @@ async def get_patient_vitals(
     )
 
 
-# ─── GET /patient/notifications ───────────────────────────────────────────────
+# --- GET /patient/notifications -----------------------------------------------
 
 @router.get("/notifications")
 async def get_patient_notifications(
@@ -206,7 +206,7 @@ async def get_patient_notifications(
     )
 
 
-# ─── POST /patient/notifications/{id}/mark-read ───────────────────────────────
+# --- POST /patient/notifications/{id}/mark-read -------------------------------
 
 @router.post("/notifications/{notification_id}/mark-read")
 async def mark_notification_read(

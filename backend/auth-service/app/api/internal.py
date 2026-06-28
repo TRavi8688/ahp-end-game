@@ -4,14 +4,14 @@ backend/auth-service/app/api/internal.py
 EXECUTION: this file did not exist. Closes a real gap found while wiring the
 partner-app registration flow: healthcare-core's POST /onboarding/register-enterprise
 created a Hospital row but never created a matching login account (owner_user_id
-was a throwaway uuid.uuid4() that was never replaced — see onboarding.py).
+was a throwaway uuid.uuid4() that was never replaced -- see onboarding.py).
 Approving a hospital only flipped its status; it never granted anyone the
 ability to log in.
 
 Per your instruction: account is created immediately at registration
 (is_active=False, "pending"), and unblocked only once the hospital is
 approved. Login already rejects inactive users (see api/v1/auth.py line ~83,
-`if not user.is_active`) — that check already existed, it just had nothing
+`if not user.is_active`) -- that check already existed, it just had nothing
 gating it until now.
 
 Internal-only: requires a signed service-to-service JWT (see

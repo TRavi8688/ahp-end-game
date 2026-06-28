@@ -36,7 +36,7 @@ def upgrade() -> None:
 
     # (Removed redundant support_tickets, ticket_messages, and ticket_internal_notes blocks which were already fully created by 002_ticket_system.py)
 
-    # ─── 7. system_alerts table (super-admin EmergencyAlerts page) ─────────────
+    # --- 7. system_alerts table (super-admin EmergencyAlerts page) -------------
     op.create_table(
         "system_alerts",
         sa.Column("id",          postgresql.UUID(as_uuid=True), primary_key=True,
@@ -57,7 +57,7 @@ def upgrade() -> None:
     op.create_index("ix_system_alerts_hospital_id", "system_alerts", ["hospital_id"])
     op.create_index("ix_system_alerts_created_at",  "system_alerts", ["created_at"])
 
-    # ─── 8. fraud_signals table (VerificationDetail risk score) ──────────────
+    # --- 8. fraud_signals table (VerificationDetail risk score) --------------
     op.create_table(
         "fraud_signals",
         sa.Column("id",           postgresql.UUID(as_uuid=True), primary_key=True,
@@ -71,7 +71,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_fraud_signals_hospital_id", "fraud_signals", ["hospital_id"])
 
-    # ─── 9. hospital_documents table (VerificationDetail documents vault) ────
+    # --- 9. hospital_documents table (VerificationDetail documents vault) ----
     op.create_table(
         "hospital_documents",
         sa.Column("id",            postgresql.UUID(as_uuid=True), primary_key=True,
@@ -88,7 +88,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_hospital_documents_hospital_id", "hospital_documents", ["hospital_id"])
 
-    # ─── 10. hospital_branches table (HospitalDetail branches tab) ───────────
+    # --- 10. hospital_branches table (HospitalDetail branches tab) -----------
     op.create_table(
         "hospital_branches",
         sa.Column("id",          postgresql.UUID(as_uuid=True), primary_key=True,

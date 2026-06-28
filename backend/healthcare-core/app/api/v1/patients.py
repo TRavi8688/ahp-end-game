@@ -72,7 +72,7 @@ async def create_patient(
 ):
     """Register a new patient profile. Links to user_id from auth service."""
     # FIX-P1 (2026-06-24): hospital_id is now optional. Most patients
-    # self-register through the consumer app with no hospital chosen yet —
+    # self-register through the consumer app with no hospital chosen yet --
     # they get a hospital_id later (e.g. their first real visit/booking),
     # not at sign-up. Only validate it when one was actually supplied
     # (reception/walk-in flows still pass a real hospital_id here).
@@ -103,7 +103,7 @@ async def create_patient(
     await db.flush()
     await db.refresh(patient)
 
-    # EXECUTION: per your answer — when someone signs up for real, any walk-in
+    # EXECUTION: per your answer -- when someone signs up for real, any walk-in
     # counter-sale history recorded against the same phone number (no Hospin
     # account at the time) gets linked to their new real Patient record.
     if patient.phone:
@@ -273,7 +273,7 @@ async def search_patients_for_pharmacy(
 ):
     """
     EXECUTION FIX: partner-app/src/pages/Dashboard.jsx already calls
-    GET /patients/search?q=... to look up a patient before dispensing — that
+    GET /patients/search?q=... to look up a patient before dispensing -- that
     route never existed (only GET /patients/?search=... did, and it excludes
     the pharmacist role and returns a wrapped {data: {items: [...]}} shape
     with a `phone` field, not the flat array with `phone_number` the frontend

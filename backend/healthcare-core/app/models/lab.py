@@ -2,7 +2,7 @@
 Lab Models
 
 Maps to tables created in alembic/versions/005_lab.py and extended in
-006_lab_extend.py. lab_results.py (rebuilt — the original file was missing
+006_lab_extend.py. lab_results.py (rebuilt -- the original file was missing
 from the repo, which crashed the whole app's startup) is the API layer on
 top of these.
 """
@@ -40,7 +40,7 @@ class LabResultStatus(str, enum.Enum):
 
 class LabTest(Base):
     """Catalog of orderable lab tests. Created on-the-fly by name if not found
-    (see lab_results.py's _get_or_create_test) — there's no curated catalog
+    (see lab_results.py's _get_or_create_test) -- there's no curated catalog
     UI yet, so this acts as a dedupe table more than a managed price list."""
     __tablename__ = "lab_tests"
 

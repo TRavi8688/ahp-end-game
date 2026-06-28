@@ -1,7 +1,7 @@
 """
-AI Service — Clinical Summarizer
+AI Service -- Clinical Summarizer
 ==================================
-PHASE 2 FIX — Replace the hardcoded placeholder string with a real Gemini API call.
+PHASE 2 FIX -- Replace the hardcoded placeholder string with a real Gemini API call.
 
 The original code at lines 207-209 returned:
   return {"summary": "AI summary placeholder - Gemini integration pending"}
@@ -21,7 +21,7 @@ MANUAL STEP:
   Model: gemini-1.5-flash (fast, cheap, sufficient for clinical summaries)
 """
 
-# ── Replacement for _generate_ai_summary in backend/ai-service/app/main.py ───
+# -- Replacement for _generate_ai_summary in backend/ai-service/app/main.py ---
 #
 # Replace this old function:
 #
@@ -36,26 +36,26 @@ import os
 
 logger = logging.getLogger(__name__)
 
-# ── Settings addition (add these to ai-service/app/config/settings.py) ────────
+# -- Settings addition (add these to ai-service/app/config/settings.py) --------
 GEMINI_API_KEY_ENV = "GEMINI_API_KEY"          # Set this in .env
 GEMINI_MODEL = "gemini-1.5-flash"              # Fast, cost-effective for clinical notes
 GEMINI_MAX_OUTPUT_TOKENS = 600                 # Summary should be concise
 ENABLE_TRIAGE_ENGINE_ENV = "ENABLE_TRIAGE_ENGINE"  # Default False until clinically validated
 
 
-# ── Drop-in replacement function ─────────────────────────────────────────────
+# -- Drop-in replacement function ---------------------------------------------
 
 async def _generate_ai_summary(scrubbed_note: str, context: dict) -> dict:
     """
     Generate a clinical summary using Google Gemini.
 
-    PRIVACY: Only `scrubbed_note` is sent to Gemini — it has PHI removed.
+    PRIVACY: Only `scrubbed_note` is sent to Gemini -- it has PHI removed.
     The original clinical_note with patient identifiers is NEVER sent to any
     external API. This is enforced by the PHI scrubbing step in the calling code.
 
     Args:
         scrubbed_note: Clinical note with all PHI (name, DOB, MRN, address) removed.
-        context: Dict with specialty, visit_type, complaint — no PHI allowed here either.
+        context: Dict with specialty, visit_type, complaint -- no PHI allowed here either.
 
     Returns:
         dict with keys: summary, key_findings, follow_up_suggested, confidence
@@ -96,7 +96,7 @@ Clinical Note (PHI-scrubbed):
 Provide a JSON response with exactly these keys:
 - "summary": A 2-3 sentence clinical summary suitable for the patient record (plain English, no medical jargon)
 - "key_findings": A list of 3-5 key clinical findings as short strings
-- "follow_up_suggested": Boolean — whether follow-up is clinically indicated based on the note
+- "follow_up_suggested": Boolean -- whether follow-up is clinically indicated based on the note
 - "follow_up_note": If follow_up_suggested is true, a one-sentence recommendation (else null)
 
 Respond with ONLY the JSON object, no markdown, no preamble."""
@@ -105,7 +105,7 @@ Respond with ONLY the JSON object, no markdown, no preamble."""
             prompt,
             generation_config=genai.types.GenerationConfig(
                 max_output_tokens=GEMINI_MAX_OUTPUT_TOKENS,
-                temperature=0.2,  # Low temperature for clinical content — deterministic
+                temperature=0.2,  # Low temperature for clinical content -- deterministic
             ),
         )
 
@@ -155,7 +155,7 @@ Respond with ONLY the JSON object, no markdown, no preamble."""
         }
 
 
-# ── Triage Engine guard (add this at the top of the triage endpoint) ──────────
+# -- Triage Engine guard (add this at the top of the triage endpoint) ----------
 #
 # Add to the POST /api/v1/ai/triage endpoint handler:
 #

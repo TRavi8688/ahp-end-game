@@ -1,6 +1,6 @@
 """
-consent.py — DPDP Act 2023 consent management models and service.
-Phase 13 Fix: "No consent management code — DPDP compliance claim is false."
+consent.py -- DPDP Act 2023 consent management models and service.
+Phase 13 Fix: "No consent management code -- DPDP compliance claim is false."
 
 Place at: backend/app/models/consent.py and backend/app/services/consent.py
 """
@@ -27,17 +27,17 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 
-# ─── Import base — adjust path to match your project ─────────────────────────
+# --- Import base -- adjust path to match your project -------------------------
 # from backend.app.models.base import Base
 # Using a placeholder here; replace with your actual Base import
 from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 
 
-# ─── Enums ────────────────────────────────────────────────────────────────────
+# --- Enums --------------------------------------------------------------------
 
 class ConsentPurpose(str, enum.Enum):
-    """DPDP Act §7 — Lawful purposes for processing personal data."""
+    """DPDP Act §7 -- Lawful purposes for processing personal data."""
     MEDICAL_TREATMENT = "medical_treatment"
     PRESCRIPTION_MANAGEMENT = "prescription_management"
     APPOINTMENT_BOOKING = "appointment_booking"
@@ -55,7 +55,7 @@ class ConsentStatus(str, enum.Enum):
     EXPIRED = "expired"
 
 
-# ─── Models ───────────────────────────────────────────────────────────────────
+# --- Models -------------------------------------------------------------------
 
 class ConsentRecord(Base):
     """
@@ -88,7 +88,7 @@ class ConsentRecord(Base):
     ip_address = Column(String(45), nullable=True)   # IPv6 max 45 chars
     user_agent = Column(String(500), nullable=True)
 
-    # Cryptographic integrity — HMAC-SHA256 chain (Blueprint §14.3)
+    # Cryptographic integrity -- HMAC-SHA256 chain (Blueprint §14.3)
     previous_hash = Column(String(64), nullable=True)  # Hash of previous record in chain
     record_hash = Column(String(64), nullable=False)   # Hash of this record
 
@@ -105,7 +105,7 @@ class ConsentRecord(Base):
 class AuditLog(Base):
     """
     Cryptographically chained audit log.
-    Phase 13 Fix: "Cryptographic audit log chaining — Not Implemented (Blueprint §14.3)"
+    Phase 13 Fix: "Cryptographic audit log chaining -- Not Implemented (Blueprint §14.3)"
 
     Each log entry includes the HMAC of the previous entry, creating
     a tamper-evident chain. Any modification invalidates all subsequent entries.
@@ -130,7 +130,7 @@ class AuditLog(Base):
     user_agent = Column(String(500), nullable=True)
     correlation_id = Column(String(36), nullable=True)  # Links to request log
 
-    # Extra context as JSON (sanitized — no PHI)
+    # Extra context as JSON (sanitized -- no PHI)
     metadata_json = Column(Text, nullable=True)
 
     # Timestamp
@@ -148,7 +148,7 @@ class AuditLog(Base):
     )
 
 
-# ─── Service: Consent management ─────────────────────────────────────────────
+# --- Service: Consent management ---------------------------------------------
 
 AUDIT_HMAC_SECRET = os.environ.get("AUDIT_HMAC_SECRET", os.environ.get("SECRET_KEY", ""))
 
@@ -308,7 +308,7 @@ class AuditLogService:
     ) -> AuditLog:
         """
         Append an event to the tamper-evident audit chain.
-        All PHI must be excluded from metadata — use resource_id references only.
+        All PHI must be excluded from metadata -- use resource_id references only.
         """
         from sqlalchemy import select
 
@@ -322,7 +322,7 @@ class AuditLogService:
         last_log = result.scalars().first()
         previous_hash = last_log.record_hash if last_log else None
 
-        # Sanitize metadata — remove any PHI fields
+        # Sanitize metadata -- remove any PHI fields
         safe_metadata = _sanitize_metadata(metadata or {})
 
         record_data = {

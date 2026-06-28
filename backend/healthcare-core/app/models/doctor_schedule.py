@@ -1,6 +1,6 @@
 """
 doctor_schedule.py
-Phase 4 — Doctor App: Profile, Leave, Break, Roster & Holiday models.
+Phase 4 -- Doctor App: Profile, Leave, Break, Roster & Holiday models.
 
 WHY THIS FILE EXISTS:
   The Doctor model (app/models/doctor.py) has no fields for notification
@@ -12,12 +12,12 @@ WHY THIS FILE EXISTS:
 ADDITIONAL BUG FOUND WHILE BUILDING THIS (separate from doctor-app, but
 blocks doctor-app's patient search/schedule features):
   app/services/reception_service.py and app/api/v1/doctor_queue.py both
-  reference `Patient.hospyn_id` as if it's a real column. It is not —
+  reference `Patient.hospyn_id` as if it's a real column. It is not --
   there is no `hospyn_id` column on the `patients` table in the model
   (app/models/patient.py) OR in any Alembic migration. This is a
   pre-existing bug that will throw AttributeError the moment that code
   path runs. This migration adds the missing column (see
-  migrations/0006_doctor_schedule_system.py — the `patients.hospyn_id`
+  migrations/0006_doctor_schedule_system.py -- the `patients.hospyn_id`
   addition is bundled into that same file since both bugs block the same
   doctor-app feature: finding a patient by Hospyn ID).
 
@@ -29,7 +29,7 @@ DROP-IN INSTRUCTIONS:
            DoctorProfileExtension, DoctorLeave, DoctorBreakLog,
            RosterShift, Holiday, LeaveStatus, BreakType, ShiftType,
        )
-  3. IMPORTANT — also add this field to app/models/patient.py's Patient
+  3. IMPORTANT -- also add this field to app/models/patient.py's Patient
      class (it is currently missing, see "ADDITIONAL BUG FOUND" above):
        hospyn_id: Mapped[str] = mapped_column(String(40), unique=True, nullable=True, index=True)
   4. Run the migration in migrations/0006_doctor_schedule_system.py
@@ -96,7 +96,7 @@ class ShiftType(str, enum.Enum):
 
 
 # ---------------------------------------------------------------------------
-# DoctorProfileExtension — 1:1 extension of Doctor, holds fields the
+# DoctorProfileExtension -- 1:1 extension of Doctor, holds fields the
 # original Doctor model is missing. Kept as a separate table (rather than
 # an ALTER on `doctors`) to avoid touching the existing, already-deployed
 # doctors table and any migrations that depend on its exact shape.
@@ -140,7 +140,7 @@ class DoctorProfileExtension(Base):
 
 
 # ---------------------------------------------------------------------------
-# DoctorLeave — day-off / vacation / conference requests
+# DoctorLeave -- day-off / vacation / conference requests
 # ---------------------------------------------------------------------------
 
 class DoctorLeave(Base):
@@ -185,7 +185,7 @@ class DoctorLeave(Base):
 
 
 # ---------------------------------------------------------------------------
-# DoctorBreakLog — every break start/end, typed (lunch, tea, bio, meeting...)
+# DoctorBreakLog -- every break start/end, typed (lunch, tea, bio, meeting...)
 # This is what allows the queue to know *why* a doctor paused, and for how
 # long, and feeds the "doctor is on break" badge + queue auto-pause logic.
 # ---------------------------------------------------------------------------
@@ -215,7 +215,7 @@ class DoctorBreakLog(Base):
 
 
 # ---------------------------------------------------------------------------
-# RosterShift — monthly roster, one row per doctor per day
+# RosterShift -- monthly roster, one row per doctor per day
 # ---------------------------------------------------------------------------
 
 class RosterShift(Base):
@@ -257,7 +257,7 @@ class RosterShift(Base):
 
 
 # ---------------------------------------------------------------------------
-# Holiday — hospital-wide holiday calendar, shared across all doctors at
+# Holiday -- hospital-wide holiday calendar, shared across all doctors at
 # a hospital so roster generation can auto-block these dates.
 # ---------------------------------------------------------------------------
 

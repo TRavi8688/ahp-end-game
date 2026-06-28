@@ -13,7 +13,7 @@ and a report attachment URL on the order. Adding them here rather than
 reshaping 005_lab.py, since it may already be applied in some environments.
 
 NOTE: chained after "0007_doctor_notif" (the actual revision id inside
-0007_doctor_notifications.py — filename and revision id differ here), not
+0007_doctor_notifications.py -- filename and revision id differ here), not
 "005_lab" directly. 0006_doctor_schedule_system.py already branches off
 005_lab, so pointing here at 005_lab too would create two diverging heads
 and break `alembic upgrade head`. Verified the full chain is linear with

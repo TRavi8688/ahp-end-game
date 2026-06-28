@@ -36,7 +36,7 @@ bearer_scheme = HTTPBearer(auto_error=True)
 _logger = logging.getLogger(__name__)
 
 
-# ── JWKS / Key loading ────────────────────────────────────────────────────────
+# -- JWKS / Key loading --------------------------------------------------------
 
 _PUBLIC_KEY = None
 _ALGORITHM = "RS256"
@@ -157,7 +157,7 @@ async def _decode_token(token: str) -> TokenPayload:
             raise
         except Exception as e:
             _logger.error(
-                f"Redis blacklist unavailable — rejecting request: {e}"
+                f"Redis blacklist unavailable -- rejecting request: {e}"
             )
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

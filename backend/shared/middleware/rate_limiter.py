@@ -4,7 +4,7 @@ Redis-Based Rate Limiting Middleware for FastAPI.
 Applies sliding window rate limits per client IP.
 Supports per-route overrides via route_limits config.
 
-Fails open if Redis is unavailable — logs warning but allows request.
+Fails open if Redis is unavailable -- logs warning but allows request.
 """
 
 import logging

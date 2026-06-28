@@ -3,8 +3,8 @@ backend/healthcare-core/app/api/v1/onboarding_admin.py
 
 Super Admin endpoints for hospital approval workflow.
 
-  GET  /onboarding/pending-hospitals       — list all pending hospitals
-  POST /onboarding/reject-hospital/{id}    — reject with reason, send SMS + email
+  GET  /onboarding/pending-hospitals       -- list all pending hospitals
+  POST /onboarding/reject-hospital/{id}    -- reject with reason, send SMS + email
 
 These are in addition to the existing onboarding.py endpoints:
   POST /onboarding/admin-approve-hospital/{id}  ← already exists
@@ -37,7 +37,7 @@ class RejectBody(BaseModel):
     reupload_fields: Optional[List[str]] = None
 
 
-# ── GET /onboarding/pending-hospitals ─────────────────────────────────────────
+# -- GET /onboarding/pending-hospitals -----------------------------------------
 
 @router.get("/pending-hospitals")
 async def pending_hospitals(db: AsyncSession = Depends(get_db)):
@@ -56,7 +56,7 @@ async def pending_hospitals(db: AsyncSession = Depends(get_db)):
     return {"hospitals": rows, "total": len(rows)}
 
 
-# ── POST /onboarding/reject-hospital/{hospital_id} ────────────────────────────
+# -- POST /onboarding/reject-hospital/{hospital_id} ----------------------------
 
 @router.post("/reject-hospital/{hospital_id}")
 async def reject_hospital(
@@ -149,7 +149,7 @@ Hospyn Verification Team
 https://hospyn.com
 """
 
-    # ── Twilio SMS ────────────────────────────────────────────────────────────
+    # -- Twilio SMS ------------------------------------------------------------
     try:
         sid   = os.getenv("TWILIO_ACCOUNT_SID")
         token = os.getenv("TWILIO_AUTH_TOKEN")
@@ -165,7 +165,7 @@ https://hospyn.com
     except Exception as e:
         logger.error("Twilio SMS failed for rejection of %s: %s", hospital_id, e)
 
-    # ── Email via SMTP ────────────────────────────────────────────────────────
+    # -- Email via SMTP --------------------------------------------------------
     try:
         smtp_host = os.getenv("SMTP_HOST")
         smtp_port = int(os.getenv("SMTP_PORT", "587"))
@@ -179,7 +179,7 @@ https://hospyn.com
             from email.mime.multipart import MIMEMultipart
 
             msg = MIMEMultipart("alternative")
-            msg["Subject"] = f"[Action Required] Hospyn Registration — {name}"
+            msg["Subject"] = f"[Action Required] Hospyn Registration -- {name}"
             msg["From"]    = f"Hospyn Verification Team <{from_email}>"
             msg["To"]      = owner_email
             msg.attach(MIMEText(email_body, "plain"))

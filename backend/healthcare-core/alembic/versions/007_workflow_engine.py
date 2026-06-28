@@ -9,7 +9,7 @@ plan): every hospital defines its own stage graph instead of a hardcoded
 Reception->Nurse->Doctor->Billing flow. Patients get a Token that moves
 through stages via Transitions. Includes DoctorSession + token locking to
 match the Doctor App's existing contract (POST /queue/session/start,
-POST /queue/token/advance — both take no body; the server decides "next").
+POST /queue/token/advance -- both take no body; the server decides "next").
 """
 from alembic import op
 import sqlalchemy as sa
@@ -22,7 +22,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # ── workflow_definitions ────────────────────────────────────────────────
+    # -- workflow_definitions ------------------------------------------------
     op.create_table(
         "workflow_definitions",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
@@ -41,19 +41,19 @@ def upgrade() -> None:
         ["hospital_id"], unique=True, postgresql_where=sa.text("is_active = true"),
     )
 
-    # ── workflow_stages ──────────────────────────────────────────────────────
+    # -- workflow_stages ------------------------------------------------------
     op.create_table(
         "workflow_stages",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("workflow_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("stage_key", sa.String(50), nullable=False),  # hospital-chosen slug, e.g. "triage_nurse"
         sa.Column("display_name", sa.String(100), nullable=False),
-        # stage_type drives WHICH role/queue picks this up — still hospital-named,
+        # stage_type drives WHICH role/queue picks this up -- still hospital-named,
         # but the system needs to know "this is fundamentally a doctor-shaped stage"
         # to route it to the right dashboard/app.
         sa.Column("stage_type", sa.String(30), nullable=False),  # reception|nurse|doctor|lab|billing|custom
         sa.Column("order_index", sa.Integer(), nullable=False),
-        sa.Column("assigned_role", sa.String(30), nullable=True),  # e.g. "nurse", "doctor" — JWT role allowed to act here
+        sa.Column("assigned_role", sa.String(30), nullable=True),  # e.g. "nurse", "doctor" -- JWT role allowed to act here
         sa.Column("department_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("assignment_strategy", sa.String(20), nullable=False, server_default="least_busy"),  # round_robin|least_busy|manual|department
         sa.Column("requires_approval", sa.Boolean(), nullable=False, server_default="false"),
@@ -63,7 +63,7 @@ def upgrade() -> None:
     op.create_index("ix_stage_workflow", "workflow_stages", ["workflow_id"])
     op.create_unique_constraint("ux_stage_key_per_workflow", "workflow_stages", ["workflow_id", "stage_key"])
 
-    # ── workflow_transitions ─────────────────────────────────────────────────
+    # -- workflow_transitions -------------------------------------------------
     op.create_table(
         "workflow_transitions",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
@@ -79,7 +79,7 @@ def upgrade() -> None:
     op.create_index("ix_transition_workflow", "workflow_transitions", ["workflow_id"])
     op.create_index("ix_transition_from_stage", "workflow_transitions", ["from_stage_id"])
 
-    # ── patient_tokens ────────────────────────────────────────────────────────
+    # -- patient_tokens --------------------------------------------------------
     op.create_table(
         "patient_tokens",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
@@ -91,7 +91,7 @@ def upgrade() -> None:
         sa.Column("previous_stage_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("assigned_staff_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("status", sa.String(20), nullable=False, server_default="waiting"),  # waiting|in_progress|completed|cancelled
-        # Multi-staff locking — "Nurse A opens Patient #100, system locks; Nurse B sees 'Currently assigned to Nurse A'"
+        # Multi-staff locking -- "Nurse A opens Patient #100, system locks; Nurse B sees 'Currently assigned to Nurse A'"
         sa.Column("locked_by_staff_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("locked_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
@@ -107,7 +107,7 @@ def upgrade() -> None:
     op.create_index("ix_token_assigned_staff", "patient_tokens", ["assigned_staff_id"])
     op.create_unique_constraint("ux_token_code_per_hospital_per_day", "patient_tokens", ["hospital_id", "token_code"])
 
-    # ── token_stage_history ───────────────────────────────────────────────────
+    # -- token_stage_history ---------------------------------------------------
     op.create_table(
         "token_stage_history",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
@@ -122,8 +122,8 @@ def upgrade() -> None:
     )
     op.create_index("ix_history_token", "token_stage_history", ["token_id"])
 
-    # ── doctor_sessions ───────────────────────────────────────────────────────
-    # Matches Doctor App's POST /queue/session/start, which takes no body —
+    # -- doctor_sessions -------------------------------------------------------
+    # Matches Doctor App's POST /queue/session/start, which takes no body --
     # the doctor just clicks "Start Session" and the server tracks that
     # they're actively pulling from the queue.
     op.create_table(

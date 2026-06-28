@@ -1,6 +1,6 @@
 """
-alerting.py — Sentry error tracking + PagerDuty alerting configuration.
-Phase 12 Fix: "No alerting rules configured — outages go undetected."
+alerting.py -- Sentry error tracking + PagerDuty alerting configuration.
+Phase 12 Fix: "No alerting rules configured -- outages go undetected."
 
 Place at: backend/app/core/alerting.py
 Call configure_sentry() in main.py lifespan startup.
@@ -20,9 +20,9 @@ def configure_sentry() -> None:
     Phase 12 Fix: sentry-sdk[fastapi] was in pyproject.toml but never wired up.
 
     Required env vars:
-        SENTRY_DSN         — from Sentry project settings
-        SENTRY_ENVIRONMENT — production / staging / development
-        SENTRY_TRACES_SAMPLE_RATE — 0.1 for prod (10% of requests traced)
+        SENTRY_DSN         -- from Sentry project settings
+        SENTRY_ENVIRONMENT -- production / staging / development
+        SENTRY_TRACES_SAMPLE_RATE -- 0.1 for prod (10% of requests traced)
     """
     dsn = os.environ.get("SENTRY_DSN")
     if not dsn:
@@ -95,11 +95,11 @@ def _strip_phi_from_sentry_event(event: dict, hint: dict) -> Optional[dict]:
     return _scrub(event)
 
 
-# ─── PagerDuty alerting ───────────────────────────────────────────────────────
+# --- PagerDuty alerting -------------------------------------------------------
 
 class AlertManager:
     """
-    Phase 12 Fix: "No PagerDuty configuration — if DB crashes at 2AM, no one is paged."
+    Phase 12 Fix: "No PagerDuty configuration -- if DB crashes at 2AM, no one is paged."
     Sends P0/P1 alerts via PagerDuty Events API v2.
     """
 
@@ -196,10 +196,10 @@ class AlertManager:
 alert_manager = AlertManager()
 
 
-# ─── Pre-defined P0 alert triggers ────────────────────────────────────────────
+# --- Pre-defined P0 alert triggers --------------------------------------------
 
 async def alert_database_down(error: str) -> None:
-    """P0: Database unreachable — hospital workflows completely blocked."""
+    """P0: Database unreachable -- hospital workflows completely blocked."""
     await alert_manager.trigger(
         summary=f"Database unreachable: {error}",
         severity="P0",
@@ -209,9 +209,9 @@ async def alert_database_down(error: str) -> None:
 
 
 async def alert_encryption_key_missing() -> None:
-    """P0: Encryption key missing — PHI at risk."""
+    """P0: Encryption key missing -- PHI at risk."""
     await alert_manager.trigger(
-        summary="APP_ENCRYPTION_KEY / ENCRYPTION_KEY not set — PHI may be stored unencrypted",
+        summary="APP_ENCRYPTION_KEY / ENCRYPTION_KEY not set -- PHI may be stored unencrypted",
         severity="P0",
         component="encryption",
         details={"impact": "CRITICAL: Patient data security compromised"},
@@ -219,7 +219,7 @@ async def alert_encryption_key_missing() -> None:
 
 
 async def alert_redis_down(error: str) -> None:
-    """P1: Redis down — OTP and session management broken."""
+    """P1: Redis down -- OTP and session management broken."""
     await alert_manager.trigger(
         summary=f"Redis unreachable: {error}",
         severity="P1",

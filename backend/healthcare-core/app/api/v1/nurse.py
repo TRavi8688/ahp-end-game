@@ -1,5 +1,5 @@
 """
-Nurse API Routes (Staff Portal — Nurse)
+Nurse API Routes (Staff Portal -- Nurse)
 
 Endpoints:
     GET   /nurse/queue                     - List triage queue for this hospital
@@ -48,7 +48,7 @@ class TriageCompletePayload(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# GET Nurse Queue — WAITING_TRIAGE + IN_TRIAGE for this hospital
+# GET Nurse Queue -- WAITING_TRIAGE + IN_TRIAGE for this hospital
 # ---------------------------------------------------------------------------
 
 
@@ -131,7 +131,7 @@ async def get_nurse_queue(
 
 
 # ---------------------------------------------------------------------------
-# PATCH Start Triage — Nurse picks up patient
+# PATCH Start Triage -- Nurse picks up patient
 # ---------------------------------------------------------------------------
 
 
@@ -142,7 +142,7 @@ async def start_triage(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """Nurse picks up a patient for triage. WAITING_TRIAGE → IN_TRIAGE."""
+    """Nurse picks up a patient for triage. WAITING_TRIAGE -> IN_TRIAGE."""
     staff = await _resolve_nurse(db, current_user.sub)
     walkin = await _get_walkin_for_hospital(db, walkin_id, staff.hospital_id)
 
@@ -173,7 +173,7 @@ async def start_triage(
 
 
 # ---------------------------------------------------------------------------
-# PATCH Complete Triage — Submit vitals and route to doctor
+# PATCH Complete Triage -- Submit vitals and route to doctor
 # ---------------------------------------------------------------------------
 
 
@@ -188,7 +188,7 @@ async def complete_triage(
     """
     Nurse completes triage. Stores vitals and triage notes.
     Auto-escalates priority if vitals are critical.
-    Transitions: IN_TRIAGE → WAITING_DOCTOR.
+    Transitions: IN_TRIAGE -> WAITING_DOCTOR.
     """
     staff = await _resolve_nurse(db, current_user.sub)
     walkin = await _get_walkin_for_hospital(db, walkin_id, staff.hospital_id)

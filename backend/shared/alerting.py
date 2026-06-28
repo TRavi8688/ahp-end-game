@@ -3,7 +3,7 @@ shared/alerting.py
 
 Sentry error tracking + PagerDuty alerting.
 Moved from backend/app/core/alerting.py with fixed imports (removed
-`from backend.app.core.logging_config import get_logger` — uses stdlib).
+`from backend.app.core.logging_config import get_logger` -- uses stdlib).
 
 PLACE AT: backend/shared/alerting.py
 Call configure_sentry(settings) in every service's lifespan startup.
@@ -24,7 +24,7 @@ def configure_sentry(settings) -> None:
     """
     dsn = getattr(settings, "SENTRY_DSN", None) or os.environ.get("SENTRY_DSN")
     if not dsn:
-        logger.warning("SENTRY_DSN not set — error tracking disabled")
+        logger.warning("SENTRY_DSN not set -- error tracking disabled")
         return
 
     try:
@@ -82,7 +82,7 @@ def _strip_phi_from_sentry_event(event: dict, hint: dict) -> Optional[dict]:
     return _scrub(event)
 
 
-# ── PagerDuty alerting ────────────────────────────────────────────────────────
+# -- PagerDuty alerting --------------------------------------------------------
 
 class AlertManager:
     """Sends P0/P1/P2 alerts via PagerDuty Events API v2."""
@@ -157,7 +157,7 @@ async def alert_redis_down(error: str) -> None:
 
 async def alert_encryption_key_missing() -> None:
     await alert_manager.trigger(
-        summary="APP_ENCRYPTION_KEY / ENCRYPTION_KEY not set — PHI may be stored unencrypted",
+        summary="APP_ENCRYPTION_KEY / ENCRYPTION_KEY not set -- PHI may be stored unencrypted",
         severity="P0",
         component="encryption",
         details={"impact": "CRITICAL: Patient data security compromised"},

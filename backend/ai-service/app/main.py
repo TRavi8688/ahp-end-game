@@ -20,10 +20,10 @@ logger = logging.getLogger("hospyn.ai")
 app = FastAPI(
     title="Hospyn AI Service",
     version="1.0.0",
-    description="AI microservice — Phase 10 compliant with PHI scrubbing",
+    description="AI microservice -- Phase 10 compliant with PHI scrubbing",
 )
 
-# ─── CORS ────────────────────────────────────────────────────────────────────
+# --- CORS --------------------------------------------------------------------
 ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
@@ -34,7 +34,7 @@ app.add_middleware(
 )
 
 
-# ─── PHI SCRUBBER ─────────────────────────────────────────────────────────────
+# --- PHI SCRUBBER -------------------------------------------------------------
 # PHASE 10 FIX: All text is scrubbed BEFORE being sent to any external LLM API.
 # This is a MINIMUM safeguard. A production-grade scrubber should use a purpose-
 # built tool (e.g., Microsoft Presidio, AWS Comprehend Medical) with NER models.
@@ -83,7 +83,7 @@ def scrub_phi(text: str) -> tuple[str, int]:
     return scrubbed, count
 
 
-# ─── DATABASE SESSION ─────────────────────────────────────────────────────────
+# --- DATABASE SESSION ---------------------------------------------------------
 # Import your db session - adjust path as needed
 try:
     from app.db.session import get_db
@@ -93,7 +93,7 @@ except ImportError:
         raise HTTPException(status_code=503, detail="Database session not configured")
 
 
-# ─── CONSENT CHECK (SEC-3 FIX - WORKING) ──────────────────────────────────────
+# --- CONSENT CHECK (SEC-3 FIX - WORKING) --------------------------------------
 async def verify_ai_consent(patient_id: str, hospital_id: str, db: AsyncSession) -> bool:
     """
     SEC-3 FIX: Check that the patient has given explicit DPDP consent
@@ -111,7 +111,7 @@ async def verify_ai_consent(patient_id: str, hospital_id: str, db: AsyncSession)
     return record is not None
 
 
-# ─── REQUEST/RESPONSE MODELS ──────────────────────────────────────────────────
+# --- REQUEST/RESPONSE MODELS --------------------------------------------------
 class ClinicalSummaryRequest(BaseModel):
     patient_id: str = Field(..., description="Patient ID for consent verification")
     hospital_id: str = Field(..., description="Hospital ID for ABAC scoping")
@@ -148,13 +148,13 @@ class TriageResponse(BaseModel):
     )
 
 
-# ─── HEALTH ENDPOINT ─────────────────────────────────────────────────────────
+# --- HEALTH ENDPOINT ---------------------------------------------------------
 @app.get("/health")
 async def health():
     return {"status": "healthy", "service": "ai-service"}
 
 
-# ─── CLINICAL NOTE SUMMARIZER (SEC-3 FIX - WITH DB SESSION) ───────────────────
+# --- CLINICAL NOTE SUMMARIZER (SEC-3 FIX - WITH DB SESSION) -------------------
 @app.post("/api/v1/ai/summarize", response_model=ClinicalSummaryResponse)
 async def summarize_clinical_note(
     request: ClinicalSummaryRequest,
@@ -164,7 +164,7 @@ async def summarize_clinical_note(
     """
     Summarize a clinical note using LLM.
 
-    PHASE 10 FIX — CRITICAL SAFETY STEPS:
+    PHASE 10 FIX -- CRITICAL SAFETY STEPS:
     1. Verify DPDP consent before processing
     2. Scrub PHI from the note before sending to LLM
     3. Log the API call for audit trail
@@ -204,7 +204,7 @@ async def summarize_clinical_note(
 
     # Step 4: Call LLM with SCRUBBED text only
     # TODO: Replace with actual Gemini/Groq call using scrubbed_note
-    # IMPORTANT: NEVER pass request.clinical_note (original) to the LLM — always use scrubbed_note
+    # IMPORTANT: NEVER pass request.clinical_note (original) to the LLM -- always use scrubbed_note
     summary = f"[PLACEHOLDER] Clinical note summary. Redacted {redaction_count} identifiers. " \
               f"Implement Gemini API call here using scrubbed_note (NOT clinical_note)."
 
@@ -214,7 +214,7 @@ async def summarize_clinical_note(
     )
 
 
-# ─── TRIAGE ENGINE (SEC-3 FIX - WITH DB SESSION) ──────────────────────────────
+# --- TRIAGE ENGINE (SEC-3 FIX - WITH DB SESSION) ------------------------------
 @app.post("/api/v1/ai/triage", response_model=TriageResponse)
 async def compute_triage_priority(
     request: TriageRequest,
@@ -241,7 +241,7 @@ async def compute_triage_priority(
     flags = []
     priority_score = 0
 
-    # ── CRITICAL: THESE THRESHOLDS ARE NOT CLINICALLY VALIDATED ──────────────
+    # -- CRITICAL: THESE THRESHOLDS ARE NOT CLINICALLY VALIDATED --------------
     # Each threshold must be reviewed by a licensed physician before deployment.
     # Do NOT use these in a live hospital without clinical governance approval.
 
@@ -251,7 +251,7 @@ async def compute_triage_priority(
     hr = vitals.get("hr", 70)
     temp_c = vitals.get("temp_c", 37.0)
 
-    # Hypertensive crisis (unvalidated threshold — REQUIRES CLINICAL REVIEW)
+    # Hypertensive crisis (unvalidated threshold -- REQUIRES CLINICAL REVIEW)
     if bp_sys >= 180 or bp_dia >= 110:
         flags.append("HYPERTENSIVE_CRISIS_UNVALIDATED_THRESHOLD")
         priority_score += 40

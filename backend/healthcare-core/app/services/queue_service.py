@@ -30,7 +30,7 @@ from shared.audit import log_audit_event
 # QR Token Signing (HMAC-SHA256)
 # ---------------------------------------------------------------------------
 
-_QR_TOKEN_TTL_SECONDS = 86400 * 365  # 1 year — hospitals print QR codes physically
+_QR_TOKEN_TTL_SECONDS = 86400 * 365  # 1 year -- hospitals print QR codes physically
 
 
 def generate_walkin_token(hospital_id: str) -> str:
@@ -145,7 +145,7 @@ async def generate_queue_number(db: AsyncSession, hospital_id: uuid.UUID) -> int
 # Queue State Transitions
 # ---------------------------------------------------------------------------
 
-# Valid transition map — prevents illegal state jumps
+# Valid transition map -- prevents illegal state jumps
 VALID_TRANSITIONS = {
     QueueState.waiting_reception: {
         QueueState.waiting_triage,
@@ -200,7 +200,7 @@ async def transition_queue_state(
     """
     if not validate_transition(walkin.queue_state, new_state):
         raise ValueError(
-            f"Invalid transition: {walkin.queue_state.value} → {new_state.value}"
+            f"Invalid transition: {walkin.queue_state.value} -> {new_state.value}"
         )
 
     old_state = walkin.queue_state
@@ -212,7 +212,7 @@ async def transition_queue_state(
         if walkin.accepted_at is None:
             walkin.accepted_at = now
     elif new_state == QueueState.in_triage:
-        pass  # Nurse picks up — no special timestamp
+        pass  # Nurse picks up -- no special timestamp
     elif new_state == QueueState.waiting_doctor:
         walkin.triaged_at = now
     elif new_state == QueueState.in_consultation:

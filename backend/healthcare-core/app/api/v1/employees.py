@@ -1,15 +1,15 @@
 """
 backend/healthcare-core/app/api/v1/employees.py
 
-Hospyn Internal Employee Management — Super Admin only.
+Hospyn Internal Employee Management -- Super Admin only.
 
 Endpoints:
-  POST  /employees/create          — super admin creates a Hospyn employee
-  GET   /employees/list            — list all employees (filterable by team/level)
-  GET   /employees/{employee_id}   — get one employee's profile + workload
-  PATCH /employees/{employee_id}/deactivate  — deactivate employee
-  PATCH /employees/{employee_id}/reactivate  — reactivate employee
-  GET   /employees/my-profile      — employee reads their own profile from JWT
+  POST  /employees/create          -- super admin creates a Hospyn employee
+  GET   /employees/list            -- list all employees (filterable by team/level)
+  GET   /employees/{employee_id}   -- get one employee's profile + workload
+  PATCH /employees/{employee_id}/deactivate  -- deactivate employee
+  PATCH /employees/{employee_id}/reactivate  -- reactivate employee
+  GET   /employees/my-profile      -- employee reads their own profile from JWT
 
 Employee ID Format: HPN-{TEAM}-{LEVEL}-{SEQ}
   HPN-FIN-L1-001   Finance team, L1 agent
@@ -32,7 +32,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 import bcrypt
 from pydantic import BaseModel, Field
 from sqlalchemy import text
@@ -44,7 +44,7 @@ logger   = logging.getLogger(__name__)
 router   = APIRouter()
 # pwd_ctx removed
 
-# ── Team and level codes ──────────────────────────────────────────────────────
+# -- Team and level codes ------------------------------------------------------
 TEAM_CODES  = {"finance": "FIN", "engineering": "ENG", "onboarding": "ONB", "support": "SUP", "data": "DAT"}
 LEVEL_CODES = {"l1": "L1", "team_lead": "TL", "manager": "MGR", "super_admin": "SAD"}
 
@@ -97,7 +97,7 @@ async def _get_employee_or_404(db: AsyncSession, employee_id: str) -> dict:
     return dict(row)
 
 
-# ── Schemas ───────────────────────────────────────────────────────────────────
+# -- Schemas -------------------------------------------------------------------
 
 class CreateEmployeeBody(BaseModel):
     full_name:    str   = Field(..., min_length=2, max_length=200)
@@ -118,7 +118,7 @@ class EscalateBody(BaseModel):
     note: Optional[str] = None
 
 
-# ── Super admin guard ─────────────────────────────────────────────────────────
+# -- Super admin guard ---------------------------------------------------------
 
 async def _require_super_admin(db: AsyncSession, token: str) -> dict:
     """Validate that the request comes from a super_admin employee JWT."""
@@ -138,7 +138,7 @@ async def _require_super_admin(db: AsyncSession, token: str) -> dict:
 
 
 async def _decode_internal_token(db: AsyncSession, token: str) -> dict:
-    """Decode any internal employee JWT — returns employee payload."""
+    """Decode any internal employee JWT -- returns employee payload."""
     import jwt as pyjwt
     secret = os.getenv("HOSPYN_INTERNAL_JWT_SECRET", os.getenv("JWT_SECRET_KEY", ""))
     try:
@@ -147,15 +147,16 @@ async def _decode_internal_token(db: AsyncSession, token: str) -> dict:
         raise HTTPException(status_code=401, detail="Invalid internal token")
 
 
-# ── POST /employees/create ────────────────────────────────────────────────────
+# -- POST /employees/create ----------------------------------------------------
 
 @router.post("/create", status_code=201)
 async def create_employee(
     body:          CreateEmployeeBody,
-    authorization: str = "",
+    authorization: str = Header("", alias="Authorization"),
     db: AsyncSession = Depends(get_db),
 ):
     """Super admin creates a new Hospyn internal employee."""
+    await _require_super_admin(db, authorization.replace("Bearer ", ""))
     # Validate teams and levels
     if body.team not in TEAM_CODES:
         raise HTTPException(status_code=400, detail=f"Invalid team. Must be one of: {list(TEAM_CODES)}")
@@ -170,7 +171,7 @@ async def create_employee(
     if dup.first():
         raise HTTPException(status_code=409, detail="An employee with this email already exists.")
 
-    # Generate Employee ID — 6-char format with H and R (Hospain HR branding)
+    # Generate Employee ID -- 6-char format with H and R (Hospain HR branding)
     # e.g. H3RK9N, 7HR2K4, H2K9R3 (always 6 chars, always contains H and R)
     import random, string as _str, secrets as _sec
     def _gen_employee_id():
@@ -242,7 +243,7 @@ async def create_employee(
     }
 
 
-# ── GET /employees/list ───────────────────────────────────────────────────────
+# -- GET /employees/list -------------------------------------------------------
 
 @router.get("/list")
 async def list_employees(
@@ -284,17 +285,17 @@ async def list_employees(
     return {"employees": rows, "total": len(rows)}
 
 
-# ── GET /employees/my-profile ─────────────────────────────────────────────────
+# -- GET /employees/my-profile -------------------------------------------------
 
 @router.get("/my-profile")
 async def my_profile(db: AsyncSession = Depends(get_db)):
     """Employee reads their own profile. Uses X-Employee-ID header set by internal panel."""
     # In production, decode JWT and extract employee_id
-    # Placeholder — the internal panel sends this header
+    # Placeholder -- the internal panel sends this header
     return {"message": "Use /employees/list with employee_id filter"}
 
 
-# ── GET /employees/{employee_id} ──────────────────────────────────────────────
+# -- GET /employees/{employee_id} ----------------------------------------------
 
 @router.get("/{employee_id}")
 async def get_employee(employee_id: str, db: AsyncSession = Depends(get_db)):
@@ -322,7 +323,7 @@ async def get_employee(employee_id: str, db: AsyncSession = Depends(get_db)):
     return emp
 
 
-# ── PATCH /employees/{employee_id}/deactivate ─────────────────────────────────
+# -- PATCH /employees/{employee_id}/deactivate ---------------------------------
 
 @router.patch("/{employee_id}/deactivate")
 async def deactivate_employee(employee_id: str, db: AsyncSession = Depends(get_db)):
@@ -337,7 +338,7 @@ async def deactivate_employee(employee_id: str, db: AsyncSession = Depends(get_d
     return {"message": f"Employee {employee_id} deactivated. They can no longer log in."}
 
 
-# ── PATCH /employees/{employee_id}/reactivate ─────────────────────────────────
+# -- PATCH /employees/{employee_id}/reactivate ---------------------------------
 
 @router.patch("/{employee_id}/reactivate")
 async def reactivate_employee(employee_id: str, db: AsyncSession = Depends(get_db)):
@@ -349,7 +350,7 @@ async def reactivate_employee(employee_id: str, db: AsyncSession = Depends(get_d
     return {"message": f"Employee {employee_id} reactivated."}
 
 
-# ── POST /tickets/{ticket_id}/assign (called from tickets.py) ─────────────────
+# -- POST /tickets/{ticket_id}/assign (called from tickets.py) -----------------
 
 async def assign_ticket_to_employee(
     ticket_id:      str,
@@ -376,7 +377,7 @@ async def assign_ticket_to_employee(
     from_team  = from_employee.get("team")
     to_team    = dict(to_emp).get("team")
 
-    # ── Hierarchy enforcement ─────────────────────────────────────────────────
+    # -- Hierarchy enforcement -------------------------------------------------
     allowed_levels = ASSIGNMENT_PERMISSIONS.get(from_level, [])
     if to_level not in allowed_levels:
         raise HTTPException(

@@ -5,7 +5,7 @@ Business logic for nurse triage operations.
 Handles vitals storage, priority escalation, and doctor assignment.
 """
 
-# FIX: E402 — 'import uuid' was placed mid-file after function definitions (line 78).
+# FIX: E402 -- 'import uuid' was placed mid-file after function definitions (line 78).
 # All imports must be at the top of the file per PEP 8 / ruff E402.
 import uuid
 from typing import Optional
@@ -54,10 +54,10 @@ def assess_priority_from_vitals(vitals: dict) -> Optional[PriorityLevel]:
     Returns a PriorityLevel if escalation is needed, else None.
 
     Thresholds based on standard clinical emergency criteria:
-    - SpO2 < 90% → EMERGENCY
-    - Heart Rate > 150 or < 40 → EMERGENCY
-    - Systolic BP > 180 or < 80 → URGENT
-    - Temperature > 104°F → URGENT
+    - SpO2 < 90% -> EMERGENCY
+    - Heart Rate > 150 or < 40 -> EMERGENCY
+    - Systolic BP > 180 or < 80 -> URGENT
+    - Temperature > 104°F -> URGENT
     """
     spo2 = vitals.get("spo2")
     hr = vitals.get("heart_rate")

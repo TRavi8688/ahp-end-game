@@ -16,7 +16,7 @@ depends_on = None
 
 
 def upgrade():
-    # ── support_tickets ───────────────────────────────────────────────────────
+    # -- support_tickets -------------------------------------------------------
     op.create_table(
         'support_tickets',
         sa.Column('ticket_id',        sa.String(20),  primary_key=True),
@@ -48,7 +48,7 @@ def upgrade():
     op.create_index('ix_support_tickets_priority',    'support_tickets', ['priority'])
     op.create_index('ix_support_tickets_created_at',  'support_tickets', ['created_at'])
 
-    # ── ticket_messages ───────────────────────────────────────────────────────
+    # -- ticket_messages -------------------------------------------------------
     op.create_table(
         'ticket_messages',
         sa.Column('id',           UUID(as_uuid=True), primary_key=True),
@@ -65,7 +65,7 @@ def upgrade():
 
     op.create_index('ix_ticket_messages_ticket_id', 'ticket_messages', ['ticket_id'])
 
-    # ── ticket_internal_notes ─────────────────────────────────────────────────
+    # -- ticket_internal_notes -------------------------------------------------
     op.create_table(
         'ticket_internal_notes',
         sa.Column('id',        UUID(as_uuid=True), primary_key=True),

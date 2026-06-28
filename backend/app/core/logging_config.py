@@ -1,5 +1,5 @@
 """
-logging_config.py — Structured logging with correlation IDs and PII masking.
+logging_config.py -- Structured logging with correlation IDs and PII masking.
 Phase 12 Fix: replaces ad-hoc print/logging with structlog + JSON output.
 
 Place at: backend/app/core/logging_config.py
@@ -12,10 +12,10 @@ from typing import Any, MutableMapping
 
 import structlog
 
-# ─── Context variable for request correlation ID ──────────────────────────────
+# --- Context variable for request correlation ID ------------------------------
 correlation_id_var: ContextVar[str] = ContextVar("correlation_id", default="")
 
-# ─── PII masking patterns ─────────────────────────────────────────────────────
+# --- PII masking patterns -----------------------------------------------------
 # These patterns mask Indian phone numbers, emails, Aadhaar, PAN, and common PHI
 
 _PII_PATTERNS = [

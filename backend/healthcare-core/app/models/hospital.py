@@ -81,7 +81,7 @@ class Hospital(Base):
     )
     deleted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    # Relationships — use string references to avoid circular imports
+    # Relationships -- use string references to avoid circular imports
     doctors: Mapped[list["Doctor"]] = relationship("Doctor", back_populates="hospital")
     patients: Mapped[list["Patient"]] = relationship(
         "Patient", back_populates="hospital"

@@ -1,5 +1,5 @@
 """
-correlation_middleware.py — Injects X-Request-ID into every request/response.
+correlation_middleware.py -- Injects X-Request-ID into every request/response.
 Phase 12 Fix: wires nginx's X-Request-ID into structlog context so all log lines
 for a single request share the same correlation_id field.
 

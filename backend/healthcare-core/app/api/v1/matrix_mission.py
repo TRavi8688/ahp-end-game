@@ -1,14 +1,14 @@
 """
 backend/healthcare-core/app/api/v1/matrix_mission.py
 
-Mission Control — Module 1
+Mission Control -- Module 1
 Provides real-time ecosystem snapshot for the Mission Control dashboard.
 All endpoints require super_admin or manager role.
 
-GET  /matrix/mission/overview        — full live metrics
-GET  /matrix/mission/system-health   — service status checks
-GET  /matrix/mission/activity-feed   — last N activity events (paginated)
-POST /matrix/mission/activity-feed   — publish an activity event (internal use)
+GET  /matrix/mission/overview        -- full live metrics
+GET  /matrix/mission/system-health   -- service status checks
+GET  /matrix/mission/activity-feed   -- last N activity events (paginated)
+POST /matrix/mission/activity-feed   -- publish an activity event (internal use)
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(dependencies=[Depends(require_role("super_admin", "manager"))])
 
 
-# ─── Overview ─────────────────────────────────────────────────────────────────
+# --- Overview -----------------------------------------------------------------
 
 @router.get("/overview")
 async def mission_overview(db: AsyncSession = Depends(get_db)):
@@ -143,7 +143,7 @@ async def mission_overview(db: AsyncSession = Depends(get_db)):
     })
 
 
-# ─── System Health ────────────────────────────────────────────────────────────
+# --- System Health ------------------------------------------------------------
 
 @router.get("/system-health")
 async def system_health(db: AsyncSession = Depends(get_db)):
@@ -196,7 +196,7 @@ async def system_health(db: AsyncSession = Depends(get_db)):
     })
 
 
-# ─── Activity Feed ────────────────────────────────────────────────────────────
+# --- Activity Feed ------------------------------------------------------------
 
 @router.get("/activity-feed")
 async def activity_feed(

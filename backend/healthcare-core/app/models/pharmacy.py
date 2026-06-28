@@ -1,13 +1,13 @@
 # backend/healthcare-core/app/models/pharmacy.py
 #
 # EXECUTION FIX (critical):
-#   - Was `from app.db.base_class import Base` — that module does not exist
+#   - Was `from app.db.base_class import Base` -- that module does not exist
 #     anywhere in healthcare-core. These models were never registered with
 #     SQLAlchemy's metadata and importing this file raised ModuleNotFoundError,
 #     which is why app/api/router.py couldn't boot.
 #   - `PrescriptionDispense.dispensed_by` had `ForeignKey("users.id")`, but
 #     `users` lives in the auth-service's own Postgres database
-#     (hospyn_auth_db), not healthcare-core's (hospyn_healthcare_db) — see
+#     (hospyn_auth_db), not healthcare-core's (hospyn_healthcare_db) -- see
 #     infra/init-databases.sh. A cross-database FK is impossible in Postgres;
 #     this migration would fail to apply. Fixed to a plain UUID column, same
 #     convention already used in models/staff.py and models/doctor.py for
@@ -16,7 +16,7 @@
 # Added in this pass (previously missing, needed by partner-app Dashboard):
 #   - PharmacyTransaction: ledger rows for the "Transactions Ledger" view.
 #   - PrescriptionShare: links a Prescription to a pharmacy's Hospital row
-#     when a patient scans the pharmacy's QR code — backs the "Network Orders"
+#     when a patient scans the pharmacy's QR code -- backs the "Network Orders"
 #     view. Without this there was no way to represent "patient shared their
 #     prescription with pharmacy X" at all.
 
@@ -86,7 +86,7 @@ class PrescriptionDispense(Base):
     inventory_id = Column(UUID(as_uuid=True), ForeignKey("pharmacy_inventory.id", ondelete="RESTRICT"),
                           nullable=False, index=True)
     quantity_dispensed = Column(Integer, nullable=False)
-    # EXECUTION FIX: was ForeignKey("users.id") — users live in a different
+    # EXECUTION FIX: was ForeignKey("users.id") -- users live in a different
     # service's database. Plain UUID, same as Staff.user_id / Doctor.user_id.
     dispensed_by = Column(UUID(as_uuid=True), nullable=True)
     dispensed_at = Column(DateTime, nullable=False, server_default=func.now())
@@ -127,7 +127,7 @@ class PharmacyTransaction(Base):
 
 class WalkInCustomer(Base):
     """
-    A counter customer with no Hospin account — name + phone only (see
+    A counter customer with no Hospin account -- name + phone only (see
     Patient.user_id being NOT NULL, which makes a bare Patient row impossible
     for someone with no login). Kept separate until they sign up for real;
     POST /patients/ links matching WalkInCustomer rows by phone at that point
@@ -153,7 +153,7 @@ class PaymentMethod(str, enum.Enum):
 
 class PharmacySale(Base):
     """
-    A completed bill — walk-in counter sale OR a fulfilled Hospin order.
+    A completed bill -- walk-in counter sale OR a fulfilled Hospin order.
     Exactly one of patient_id / walkin_customer_id is set. This is the
     invoice-level record (Bill Success screen); stock movement is still
     tracked per-item in PharmacyTransaction as before.

@@ -61,7 +61,7 @@ class Settings(BaseSettings):
             pass
         return v
 
-    # RS256 JWT — private key PEM loaded from Secret Manager at runtime
+    # RS256 JWT -- private key PEM loaded from Secret Manager at runtime
     # Set JWT_PRIVATE_KEY_PEM and JWT_PUBLIC_KEY_PEM as env vars from GCP Secret Manager
     JWT_PRIVATE_KEY_PEM: str = ""
     JWT_PUBLIC_KEY_PEM: str = ""

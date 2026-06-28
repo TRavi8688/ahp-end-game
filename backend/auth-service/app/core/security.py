@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "development")
 
-# ── Key loading ───────────────────────────────────────────────────────────────
+# -- Key loading ---------------------------------------------------------------
 
 def _load_or_generate_rsa_keys():
     """
@@ -41,8 +41,8 @@ def _load_or_generate_rsa_keys():
     To generate and store in GCP Secret Manager:
         openssl genrsa -out private_key.pem 2048
         openssl rsa -in private_key.pem -pubout -out public_key.pem
-        base64 -w0 private_key.pem   # → JWT_PRIVATE_KEY_PEM
-        base64 -w0 public_key.pem    # → JWT_PUBLIC_KEY_PEM
+        base64 -w0 private_key.pem   # -> JWT_PRIVATE_KEY_PEM
+        base64 -w0 public_key.pem    # -> JWT_PUBLIC_KEY_PEM
     """
     private_key_b64 = os.environ.get("JWT_PRIVATE_KEY_PEM")
     public_key_b64 = os.environ.get("JWT_PUBLIC_KEY_PEM")
@@ -66,12 +66,12 @@ def _load_or_generate_rsa_keys():
     if ENVIRONMENT not in ("development", "dev", "test", "testing"):
         logger.critical(
             "JWT_PRIVATE_KEY_PEM and JWT_PUBLIC_KEY_PEM are NOT set in production. "
-            "Generating ephemeral keys — all sessions will be lost on restart. "
+            "Generating ephemeral keys -- all sessions will be lost on restart. "
             "Set these secrets in GCP Secret Manager ASAP."
         )
 
     logger.warning(
-        "JWT keys not found — generating ephemeral pair (DEVELOPMENT ONLY). "
+        "JWT keys not found -- generating ephemeral pair (DEVELOPMENT ONLY). "
         "All sessions invalidated on restart."
     )
 
@@ -117,7 +117,7 @@ PUBLIC_KEY_PEM: bytes = _PUBLIC_KEY.public_bytes(
 ALGORITHM = "RS256"
 
 
-# ── Token creation ────────────────────────────────────────────────────────────
+# -- Token creation ------------------------------------------------------------
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """Create a signed RS256 JWT access token."""
@@ -165,7 +165,7 @@ def decode_refresh_token(token: str) -> dict | None:
         return None
 
 
-# ── JWKS export ───────────────────────────────────────────────────────────────
+# -- JWKS export ---------------------------------------------------------------
 
 def get_jwks() -> dict:
     """
@@ -174,7 +174,7 @@ def get_jwks() -> dict:
     """
     from cryptography.hazmat.primitives.asymmetric.rsa import RSAPublicKey
     pub_key: RSAPublicKey = _PUBLIC_KEY
-    # BUG-7 FIX: _PUBLIC_KEY is already a public key — calling .public_key() on it
+    # BUG-7 FIX: _PUBLIC_KEY is already a public key -- calling .public_key() on it
     # raises AttributeError. Just call .public_numbers() directly.
     pub_numbers = pub_key.public_numbers()
 

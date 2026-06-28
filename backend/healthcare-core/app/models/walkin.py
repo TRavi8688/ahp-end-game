@@ -3,7 +3,7 @@ WalkInRequest Model
 
 The core intake entity for the hospital walk-in flow.
 This is NOT an appointment. Walk-in requests track the patient's journey
-through the hospital queue: Reception → Triage → Doctor Consultation.
+through the hospital queue: Reception -> Triage -> Doctor Consultation.
 
 An Appointment record is only created when the doctor starts consultation.
 """
@@ -49,7 +49,7 @@ class QueueState(str, enum.Enum):
     emergency = "emergency"
 
 
-# States that count as "active" — used for duplicate prevention
+# States that count as "active" -- used for duplicate prevention
 ACTIVE_QUEUE_STATES = {
     QueueState.waiting_reception,
     QueueState.waiting_triage,
@@ -88,7 +88,7 @@ class WalkInRequest(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
 
-    # Hospital scope — every walk-in belongs to exactly one hospital
+    # Hospital scope -- every walk-in belongs to exactly one hospital
     hospital_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("hospitals.id", ondelete="RESTRICT"),
@@ -96,7 +96,7 @@ class WalkInRequest(Base):
         index=True,
     )
 
-    # Patient identity — linked AFTER they have a Hospyn account, nullable for walk-ins
+    # Patient identity -- linked AFTER they have a Hospyn account, nullable for walk-ins
     patient_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("patients.id", ondelete="SET NULL"),

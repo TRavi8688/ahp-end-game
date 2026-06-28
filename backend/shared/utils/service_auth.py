@@ -43,7 +43,7 @@ def _get_internal_secret() -> str:
             )
     elif not secret:
         logger.warning(
-            "INTERNAL_SERVICE_SECRET not set — using insecure default (development only)"
+            "INTERNAL_SERVICE_SECRET not set -- using insecure default (development only)"
         )
         secret = "super-secret-internal-key-change-in-prod"
 
@@ -65,7 +65,7 @@ def generate_internal_token(
     Args:
         service_name: Issuing service name (e.g. "ai-service")
         audience:     Target service name (e.g. "healthcare-core")
-        ttl_seconds:  Token lifetime in seconds (default 60s — single request)
+        ttl_seconds:  Token lifetime in seconds (default 60s -- single request)
 
     Returns:
         Signed JWT string

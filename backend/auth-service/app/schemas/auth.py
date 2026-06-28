@@ -1,5 +1,5 @@
 """
-Auth API Schemas — strict validation at the boundary.
+Auth API Schemas -- strict validation at the boundary.
 """
 
 from pydantic import BaseModel, EmailStr, field_validator

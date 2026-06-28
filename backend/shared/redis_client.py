@@ -114,7 +114,7 @@ async def close_redis() -> None:
         logger.info("Redis pool closed")
 
 
-# ── Generic helpers ───────────────────────────────────────────────────────────
+# -- Generic helpers -----------------------------------------------------------
 
 async def set_with_expiry(key: str, value: Any, ttl_seconds: int) -> bool:
     client = get_redis_client()
@@ -142,7 +142,7 @@ async def increment_counter(key: str, ttl_seconds: int | None = None) -> int:
     return value
 
 
-# ── Rate limiting ─────────────────────────────────────────────────────────────
+# -- Rate limiting -------------------------------------------------------------
 
 async def rate_limit_check(key: str, limit: int, window: int) -> tuple[bool, int]:
     """
@@ -158,7 +158,7 @@ async def rate_limit_check(key: str, limit: int, window: int) -> tuple[bool, int
     return count <= limit, remaining
 
 
-# ── JWT blacklist (token revocation) ─────────────────────────────────────────
+# -- JWT blacklist (token revocation) -----------------------------------------
 
 _BLACKLIST_PREFIX = "jwt:blacklist:"
 _BLACKLIST_TTL = 60 * 60 * 24 * 2  # 2 days (beyond max token lifetime)
@@ -178,14 +178,14 @@ async def is_token_blacklisted(jti: str) -> bool:
     """
     Check if a JWT JTI has been blacklisted.
     Called by healthcare-core on every authenticated request.
-    Fails CLOSED (raises exception) if Redis is unavailable — see SEC-4.
+    Fails CLOSED (raises exception) if Redis is unavailable -- see SEC-4.
     """
     client = get_redis_client()
     result = await client.get(f"{_BLACKLIST_PREFIX}{jti}")
     return result is not None
 
 
-# ── User status cache ─────────────────────────────────────────────────────────
+# -- User status cache ---------------------------------------------------------
 
 _USER_STATUS_PREFIX = "user:status:"
 _USER_STATUS_TTL = 60 * 5  # 5 minutes
@@ -230,7 +230,7 @@ async def invalidate_user_status(user_id: str) -> None:
     await client.delete(f"{_USER_STATUS_PREFIX}{user_id}")
 
 
-# ── Patient consent tokens ────────────────────────────────────────────────────
+# -- Patient consent tokens ----------------------------------------------------
 
 _CONSENT_PREFIX = "consent:token:"
 _CONSENT_TTL = 60 * 60  # 1 hour
@@ -239,7 +239,7 @@ _CONSENT_TTL = 60 * 60  # 1 hour
 async def set_patient_consent_token(patient_id: str, token: str, ttl: int = _CONSENT_TTL) -> None:
     """
     Store a patient's consent token in Redis.
-    Multi-worker safe — no in-memory fallback.
+    Multi-worker safe -- no in-memory fallback.
     Called by healthcare-core patients endpoint after consent is granted.
     """
     client = get_redis_client()
@@ -266,7 +266,7 @@ async def revoke_patient_consent_token(patient_id: str) -> None:
     await client.delete(f"{_CONSENT_PREFIX}{patient_id}")
 
 
-# ── OTP helpers ───────────────────────────────────────────────────────────────
+# -- OTP helpers ---------------------------------------------------------------
 
 _OTP_PREFIX = "otp:hash:"
 _OTP_ATTEMPTS_PREFIX = "otp:attempts:"

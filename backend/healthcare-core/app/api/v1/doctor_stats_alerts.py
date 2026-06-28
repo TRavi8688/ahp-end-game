@@ -1,7 +1,7 @@
 """
 Doctor Stats, Alerts, Access History, Break Management & Emergency Broadcast
 =============================================================================
-PHASE 1.5 FIX — All 6 routes that were returning 404:
+PHASE 1.5 FIX -- All 6 routes that were returning 404:
   GET  /doctor/stats
   GET  /doctor/alerts
   GET  /doctor/access-history
@@ -34,14 +34,14 @@ from shared.audit import log_audit_event
 router = APIRouter()
 
 
-# ─── Schemas ──────────────────────────────────────────────────────────────────
+# --- Schemas ------------------------------------------------------------------
 
 class EmergencyBroadcastPayload(BaseModel):
     message: str
     severity: str = "HIGH"  # HIGH | CRITICAL | LOW
 
 
-# ─── GET /doctor/stats ────────────────────────────────────────────────────────
+# --- GET /doctor/stats --------------------------------------------------------
 
 @router.get("/stats")
 async def get_doctor_stats(
@@ -118,7 +118,7 @@ async def get_doctor_stats(
     )
 
 
-# ─── GET /doctor/alerts ───────────────────────────────────────────────────────
+# --- GET /doctor/alerts -------------------------------------------------------
 
 @router.get("/alerts")
 async def get_doctor_alerts(
@@ -199,7 +199,7 @@ async def get_doctor_alerts(
     )
 
 
-# ─── GET /doctor/access-history ───────────────────────────────────────────────
+# --- GET /doctor/access-history -----------------------------------------------
 
 @router.get("/access-history")
 async def get_doctor_access_history(
@@ -256,7 +256,7 @@ async def get_doctor_access_history(
     )
 
 
-# ─── POST /doctor/emergency/broadcast ─────────────────────────────────────────
+# --- POST /doctor/emergency/broadcast -----------------------------------------
 
 @router.post("/emergency/broadcast")
 async def broadcast_emergency_alert(
@@ -300,7 +300,7 @@ async def broadcast_emergency_alert(
         channel = f"hospital:{doctor.hospital_id}:emergency"
         await redis.publish(channel, json.dumps(alert_data))
     except Exception as e:
-        # Log but don't fail — the doctor sent the alert, we'll store it regardless
+        # Log but don't fail -- the doctor sent the alert, we'll store it regardless
         import logging
         logging.getLogger(__name__).error(f"Redis broadcast failed: {e}")
 
@@ -321,7 +321,7 @@ async def broadcast_emergency_alert(
     )
 
 
-# ─── POST /doctor/session/break/start ─────────────────────────────────────────
+# --- POST /doctor/session/break/start -----------------------------------------
 
 @router.post("/session/break/start")
 async def start_doctor_break(
@@ -366,7 +366,7 @@ async def start_doctor_break(
     )
 
 
-# ─── POST /doctor/session/break/end ───────────────────────────────────────────
+# --- POST /doctor/session/break/end -------------------------------------------
 
 @router.post("/session/break/end")
 async def end_doctor_break(

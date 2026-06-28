@@ -5,13 +5,13 @@ Revises: 009_hospin_matrix_3
 Create Date: 2026-06-26 00:00:00.000000
 
 FIXED: app/models/staff.py (Staff, StaffRole, ShiftStatus) had no migration
-anywhere in this repo — there was no `staff` table in the database at all.
+anywhere in this repo -- there was no `staff` table in the database at all.
 Every endpoint that queries it (nurse.py, reception.py, owner.py, staff.py,
 and the new lab.py) would fail at the DB level for every single request.
 This creates the table to exactly match the existing ORM model.
 
 Note: this intentionally does NOT create `staff_shifts` or staff leave
-tables — those are queried defensively (wrapped in try/except, treated as
+tables -- those are queried defensively (wrapped in try/except, treated as
 "table may not exist yet") by staff.py's HR-only shift-roster/leave
 endpoints, which are out of scope here.
 """

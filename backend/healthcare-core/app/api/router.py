@@ -1,7 +1,7 @@
 """
 backend/healthcare-core/app/api/router.py  (final version)
 
-All routes registered. Prefix is /api/v1 — NOT /api/v1/healthcare.
+All routes registered. Prefix is /api/v1 -- NOT /api/v1/healthcare.
 """
 
 from fastapi import APIRouter
@@ -26,7 +26,7 @@ from app.api.v1.patient_vitals_notifications import router as patient_extras_rou
 from app.api.v1.staff           import router as staff_router
 from app.api.v1.prescriptions   import router as prescriptions_router
 from app.api.v1.lab_results     import router as lab_results_router
-# FIXED: see app/api/v1/lab.py — LabDashboard.tsx's /lab/orders, /lab/orders/{id}/results,
+# FIXED: see app/api/v1/lab.py -- LabDashboard.tsx's /lab/orders, /lab/orders/{id}/results,
 # and /lab/upload-report calls had nothing to hit; only the unrelated /lab_results/
 # placeholder existed.
 from app.api.v1.lab             import router as lab_router
@@ -46,26 +46,26 @@ from app.api.v1.tickets         import router as tickets_router
 from app.api.v1.employees       import router as employees_router
 # FIXED: this module existed (analytics/overview, hospitals pending-verification,
 # verification approve/reject, audit-logs, users) but was never imported or
-# mounted — AdminDashboard.tsx's /admin/audit-logs call 404'd unconditionally.
+# mounted -- AdminDashboard.tsx's /admin/audit-logs call 404'd unconditionally.
 from app.api.v1.super_admin     import router as super_admin_router
 from app.api.v1.matrix_router   import matrix_router
 from app.api.v1.workflow        import workflow_router, tokens_router, queue_router
 
 api_router = APIRouter()
 
-# ── Public: Onboarding ────────────────────────────────────────────────────────
+# -- Public: Onboarding --------------------------------------------------------
 api_router.include_router(onboarding_router,       prefix="/onboarding", tags=["Onboarding"])
 api_router.include_router(onboarding_admin_router, prefix="/onboarding", tags=["Onboarding Admin"])
 api_router.include_router(onboarding_simple_router, prefix="/onboarding", tags=["Onboarding Simple"])
 api_router.include_router(walkin_public_router,    prefix="/walkin",     tags=["Walk-In Public"])
 
-# ── Ticket System ─────────────────────────────────────────────────────────────
+# -- Ticket System -------------------------------------------------------------
 api_router.include_router(tickets_router,   prefix="/tickets",   tags=["Support Tickets"])
 
-# ── Hospyn Internal Employees ─────────────────────────────────────────────────
+# -- Hospyn Internal Employees -------------------------------------------------
 api_router.include_router(employees_router, prefix="/employees", tags=["Hospyn Employees"])
 
-# ── Core Clinical ─────────────────────────────────────────────────────────────
+# -- Core Clinical -------------------------------------------------------------
 api_router.include_router(auth_router,          prefix="/auth",         tags=["Auth"])
 api_router.include_router(hospitals_router,     prefix="/hospitals",    tags=["Hospitals"])
 api_router.include_router(doctors_router,       prefix="/doctors",      tags=["Doctors"])
@@ -82,10 +82,10 @@ api_router.include_router(lab_results_router,   prefix="/lab_results",  tags=["L
 api_router.include_router(lab_router,           prefix="/lab",           tags=["Lab"])
 api_router.include_router(surgery_router,       prefix="/surgery",      tags=["Surgery"])
 
-# ── WebSockets ────────────────────────────────────────────────────────────────
+# -- WebSockets ----------------------------------------------------------------
 api_router.include_router(ws_router)
 
-# ── Owner Dashboard + HR ──────────────────────────────────────────────────────
+# -- Owner Dashboard + HR ------------------------------------------------------
 api_router.include_router(owner_router,          prefix="/owner",   tags=["Owner Dashboard"])
 api_router.include_router(doctor_schedule_router, prefix="/doctor", tags=["Doctor Schedule"])
 api_router.include_router(doctor_notif_router, prefix="/doctor", tags=["Doctor Notifications"])
@@ -98,10 +98,10 @@ api_router.include_router(workflow_router,        prefix="/workflows", tags=["Wo
 api_router.include_router(tokens_router,          prefix="/tokens",    tags=["Workflow Tokens"])
 api_router.include_router(queue_router,           prefix="/queue",     tags=["Workflow Queue"])
 
-# ── DPDP Compliance ───────────────────────────────────────────────────────────
+# -- DPDP Compliance -----------------------------------------------------------
 api_router.include_router(consent_router,        prefix="/consent", tags=["DPDP Compliance"])
 
-# ── Extensions ────────────────────────────────────────────────────────────────
+# -- Extensions ----------------------------------------------------------------
 api_router.include_router(doctor_ext_router,     prefix="/doctor",   tags=["Doctor Ext"])
 api_router.include_router(patient_ext_router,    prefix="/patients", tags=["Patient Ext"])
 api_router.include_router(pharmacy_router,       prefix="/pharmacy", tags=["Pharmacy"])
@@ -109,9 +109,9 @@ api_router.include_router(pharmacy_walkin_router, prefix="/pharmacy", tags=["Pha
 api_router.include_router(pharmacy_orders_router, prefix="/pharmacy", tags=["Pharmacy Order Pipeline"])
 api_router.include_router(pharmacy_ops_router,    prefix="/pharmacy", tags=["Pharmacy Ops (Suppliers/Purchases/Expenses/Reports)"])
 
-# ── HOSPAIN Patient Mobile App API ────────────────────────────────────────────
-# nginx rewrites /api/v1/patient/* → /api/v1/healthcare/patient/*
-# nginx rewrites /api/v1/profile/* → /api/v1/healthcare/profile/*
+# -- HOSPAIN Patient Mobile App API --------------------------------------------
+# nginx rewrites /api/v1/patient/* -> /api/v1/healthcare/patient/*
+# nginx rewrites /api/v1/profile/* -> /api/v1/healthcare/profile/*
 # These routers serve those rewritten paths.
 api_router.include_router(patient_mobile_router, prefix="/patient", tags=["HOSPAIN Patient Mobile"])
 api_router.include_router(profile_mobile_router, prefix="/profile", tags=["HOSPAIN Patient Profile Setup"])

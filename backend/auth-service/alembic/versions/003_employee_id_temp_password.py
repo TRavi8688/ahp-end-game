@@ -5,14 +5,14 @@ Revises: 002_account_verification_fields
 Create Date: 2026-06-26
 
 WHAT THIS MIGRATION DOES:
-  1. Adds employee_id (VARCHAR 10, unique, nullable) — 6-char HR-branded ID
+  1. Adds employee_id (VARCHAR 10, unique, nullable) -- 6-char HR-branded ID
      e.g. H3RK9N, 7HR2K4
-  2. Adds is_temporary_password (BOOLEAN, default FALSE) — forces password
+  2. Adds is_temporary_password (BOOLEAN, default FALSE) -- forces password
      change popup on first login when admin sets a temp password
   3. Adds employee_id index for fast login lookups
   4. Adds missing role enum values for Hospain internal roles
-  5. Fixes RBAC token claim keys: hid→hospital_id, ver→token_version
-     (creates a DB view that maps old claim names — actual fix is in code)
+  5. Fixes RBAC token claim keys: hid->hospital_id, ver->token_version
+     (creates a DB view that maps old claim names -- actual fix is in code)
 """
 
 from alembic import op

@@ -1,6 +1,6 @@
 # backend/healthcare-core/app/models/pharmacy_ops.py
 #
-# Supplier Management, Purchase Entry, and Finance/Expense tracking — the
+# Supplier Management, Purchase Entry, and Finance/Expense tracking -- the
 # "More" tab's Supplier Management, Purchase Entry, and Finance screens had
 # no backing data model anywhere in this codebase before this file.
 

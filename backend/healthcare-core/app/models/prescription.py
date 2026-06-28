@@ -31,7 +31,7 @@ class Prescription(Base):
     )
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
     # Backs the partner-app Order Details "Prescription Image" screen. Nullable
-    # because nothing in this repo populates it yet — the Patient App (a
+    # because nothing in this repo populates it yet -- the Patient App (a
     # separate codebase, not included in what you've shared) is presumably
     # where a photo would be uploaded and this URL set. Until then this is
     # honestly null rather than a fabricated placeholder image.

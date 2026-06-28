@@ -1,8 +1,8 @@
 """
-Lab API Routes (Staff Portal — Lab Technician)
+Lab API Routes (Staff Portal -- Lab Technician)
 
 FIXED: LabDashboard.tsx (staff-portal) called /lab/orders, /lab/orders/{id}/results,
-and /lab/upload-report, but no router in the backend ever served `/lab/*` — only
+and /lab/upload-report, but no router in the backend ever served `/lab/*` -- only
 an unrelated `/lab_results/` placeholder existed (see lab_results.py). The
 LabOrder/LabOrderItem/LabTest models already existed (app/models/lab.py) with no
 API layer on top of them. This file is that API layer.
@@ -65,7 +65,7 @@ async def _resolve_lab_staff(db: AsyncSession, user_id: str):
 
 
 async def _get_or_create_test(db: AsyncSession, name: str) -> LabTest:
-    """Lab tests are created on-the-fly by name — there's no curated test
+    """Lab tests are created on-the-fly by name -- there's no curated test
     catalog UI yet, so this just dedupes by name within a hospital-agnostic
     shared catalog (matches the comment already in app/models/lab.py)."""
     name = name.strip()
@@ -226,7 +226,7 @@ async def submit_lab_results(
         raise HTTPException(status_code=409, detail="Results already submitted for this order")
 
     # FIXED: LabDashboard.tsx uses this same endpoint for two distinct
-    # actions — "Mark Sample Collected" (sends one placeholder row, only
+    # actions -- "Mark Sample Collected" (sends one placeholder row, only
     # available while status is ORDERED) and "Enter Results" (sends real
     # structured rows, only available once status is SAMPLE_COLLECTED or
     # IN_PROGRESS). Distinguish by the order's current status rather than

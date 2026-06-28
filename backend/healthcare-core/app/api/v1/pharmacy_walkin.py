@@ -2,7 +2,7 @@
 backend/healthcare-core/app/api/v1/pharmacy_walkin.py
 
 Backs the Walk-In tab (Screens 10-16): Customer Details -> Prescription
-Upload (optional, stored but not yet OCR'd — see TODO) -> Medicine Entry ->
+Upload (optional, stored but not yet OCR'd -- see TODO) -> Medicine Entry ->
 Billing Cart -> Payment -> Bill Success.
 
 Endpoints:
@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# ── Schemas ───────────────────────────────────────────────────────────────────
+# -- Schemas -------------------------------------------------------------------
 
 class WalkInCustomerIn(BaseModel):
     name: str
@@ -86,7 +86,7 @@ def _sale_to_dict(sale: PharmacySale) -> dict:
     }
 
 
-# ── POST /pharmacy/walkin-customers ──────────────────────────────────────────
+# -- POST /pharmacy/walkin-customers ------------------------------------------
 
 @router.post("/walkin-customers", status_code=status.HTTP_201_CREATED)
 async def create_walkin_customer(
@@ -135,7 +135,7 @@ async def search_walkin_customers(
     return [{"id": str(c.id), "name": c.name, "phone": c.phone} for c in result.scalars().all()]
 
 
-# ── POST /pharmacy/sales (checkout) ──────────────────────────────────────────
+# -- POST /pharmacy/sales (checkout) ------------------------------------------
 
 @router.post("/sales", status_code=status.HTTP_201_CREATED)
 async def checkout(
@@ -174,7 +174,7 @@ async def checkout(
             raise HTTPException(
                 status_code=400,
                 detail=f"Insufficient stock for {inventory.medicine.name if inventory.medicine else 'item'} "
-                       f"— only {inventory.quantity_available} left.",
+                       f"-- only {inventory.quantity_available} left.",
             )
         line_total = (inventory.selling_price or Decimal("0.00")) * line.quantity
         subtotal += line_total
@@ -226,7 +226,7 @@ async def checkout(
     return _sale_to_dict(result.scalars().first())
 
 
-# ── GET /pharmacy/sales ───────────────────────────────────────────────────────
+# -- GET /pharmacy/sales -------------------------------------------------------
 
 @router.get("/sales")
 async def list_sales(

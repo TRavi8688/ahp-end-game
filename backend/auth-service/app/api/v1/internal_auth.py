@@ -1,11 +1,11 @@
 """
 backend/auth-service/app/api/v1/internal_auth.py
 
-Hospyn Internal Employee Authentication — separate from hospital owner auth.
+Hospyn Internal Employee Authentication -- separate from hospital owner auth.
 
 Endpoints:
-  POST /auth/internal/login        — employee logs in with email + password
-  GET  /auth/internal/me           — get own profile from JWT
+  POST /auth/internal/login        -- employee logs in with email + password
+  GET  /auth/internal/me           -- get own profile from JWT
   POST /auth/internal/change-password
 
 JWT payload includes:
@@ -73,7 +73,7 @@ class ChangePasswordBody(BaseModel):
     new_password:     str = Field(..., min_length=8)
 
 
-# ── POST /auth/internal/login ─────────────────────────────────────────────────
+# -- POST /auth/internal/login -------------------------------------------------
 
 @router.post("/internal/login")
 async def internal_login(body: LoginBody, db: AsyncSession = Depends(get_db)):
@@ -120,7 +120,7 @@ async def internal_login(body: LoginBody, db: AsyncSession = Depends(get_db)):
     }
 
 
-# ── GET /auth/internal/me ─────────────────────────────────────────────────────
+# -- GET /auth/internal/me -----------------------------------------------------
 
 @router.get("/internal/me")
 async def internal_me(request: Request, db: AsyncSession = Depends(get_db)):
@@ -163,7 +163,7 @@ async def internal_me(request: Request, db: AsyncSession = Depends(get_db)):
     return emp
 
 
-# ── POST /auth/internal/change-password ───────────────────────────────────────
+# -- POST /auth/internal/change-password ---------------------------------------
 
 @router.post("/internal/change-password")
 async def change_password(

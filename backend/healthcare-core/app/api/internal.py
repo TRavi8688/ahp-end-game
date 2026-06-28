@@ -5,7 +5,7 @@ Internal service-to-service endpoints.
 Only accessible by other microservices using signed internal JWTs.
 
 FIX: Wrong import `from backend.shared.utils.service_auth import ...`
-     → `from shared.utils.service_auth import ...`
+     -> `from shared.utils.service_auth import ...`
 
 PLACE AT: backend/healthcare-core/app/api/internal.py
 """
@@ -33,7 +33,7 @@ async def get_patient_clinical_summary(
     """
     Internal endpoint: allows AI Service to fetch raw clinical data for a patient.
     Secured by short-lived service-to-service JWTs with `aud=healthcare-core` claim.
-    NOT exposed via nginx — only reachable within the Docker/Cloud Run network.
+    NOT exposed via nginx -- only reachable within the Docker/Cloud Run network.
     """
     calling_service = internal_token_payload.get("iss", "unknown")
     allowed_services = {"ai-service", "notification-service"}
@@ -53,7 +53,7 @@ async def get_patient_clinical_summary(
         calling_service, patient_id,
     )
 
-    # Fetch from DB — replace with your actual model queries
+    # Fetch from DB -- replace with your actual model queries
     from sqlalchemy import text
     result = await db.execute(
         text("""

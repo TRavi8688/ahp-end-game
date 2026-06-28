@@ -44,7 +44,7 @@ async def create_appointment(
     db: AsyncSession = Depends(get_db),
 ):
     """Book a new appointment."""
-    # Verify doctor exists and is active — use write-lock to prevent booking concurrency race conditions
+    # Verify doctor exists and is active -- use write-lock to prevent booking concurrency race conditions
     doc_result = await db.execute(
         select(Doctor)
         .where(Doctor.id == payload.doctor_id, Doctor.deleted_at.is_(None))
@@ -320,7 +320,7 @@ async def checkin_appointment(
 ):
     """
     FIXED: TodaysAppointmentsPage.tsx's "Verify & Check In" button called
-    this endpoint and it didn't exist anywhere in the backend — every
+    this endpoint and it didn't exist anywhere in the backend -- every
     check-in attempt 404'd. Marks a scheduled appointment as confirmed
     (i.e. the patient has physically arrived and been verified at the desk).
     """

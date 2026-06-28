@@ -1,5 +1,5 @@
 """
-Reception API Routes (Staff Portal — Receptionist)
+Reception API Routes (Staff Portal -- Receptionist)
 
 Endpoints:
     GET   /reception/queue                  - List pending walk-ins for this hospital
@@ -66,7 +66,7 @@ class RejectPayload(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# GET Queue — Receptionist sees pending walk-ins for their hospital
+# GET Queue -- Receptionist sees pending walk-ins for their hospital
 # ---------------------------------------------------------------------------
 
 
@@ -81,7 +81,7 @@ async def get_reception_queue(
     Fetch all walk-in requests in WAITING_RECEPTION state for this hospital.
     Sorted by: emergency first, then priority desc, then oldest first.
     """
-    # Resolve staff → hospital scope
+    # Resolve staff -> hospital scope
     staff = await _resolve_receptionist(db, current_user.sub)
 
     # Priority ordering: emergency > urgent > normal > low
@@ -161,7 +161,7 @@ async def get_reception_queue(
 
 
 # ---------------------------------------------------------------------------
-# POST Manual Intake — Receptionist enters patient details manually
+# POST Manual Intake -- Receptionist enters patient details manually
 # ---------------------------------------------------------------------------
 
 
@@ -223,7 +223,7 @@ async def manual_intake(
 
 
 # ---------------------------------------------------------------------------
-# PATCH Accept — Route patient to Nurse (triage) or Doctor
+# PATCH Accept -- Route patient to Nurse (triage) or Doctor
 # ---------------------------------------------------------------------------
 
 
@@ -244,8 +244,8 @@ async def accept_walkin(
 ):
     """
     Receptionist accepts a walk-in and routes to:
-    - 'triage' → WAITING_TRIAGE (nurse picks up)
-    - 'doctor' → WAITING_DOCTOR (skip triage, go direct to doctor)
+    - 'triage' -> WAITING_TRIAGE (nurse picks up)
+    - 'doctor' -> WAITING_DOCTOR (skip triage, go direct to doctor)
     """
     staff = await _resolve_receptionist(db, current_user.sub)
     doc_id = (
@@ -278,7 +278,7 @@ async def accept_walkin(
 
 
 # ---------------------------------------------------------------------------
-# PATCH Reject — Cancel walk-in
+# PATCH Reject -- Cancel walk-in
 # ---------------------------------------------------------------------------
 
 
@@ -321,7 +321,7 @@ async def reject_walkin(
 
 
 # ---------------------------------------------------------------------------
-# GET Patient Search — Quick autocomplete lookup
+# GET Patient Search -- Quick autocomplete lookup
 # ---------------------------------------------------------------------------
 
 

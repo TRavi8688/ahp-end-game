@@ -1,10 +1,10 @@
 """
 0007_doctor_notifications.py
-Phase 4 — Doctor App: local notifications table.
+Phase 4 -- Doctor App: local notifications table.
 
 DROP-IN INSTRUCTIONS:
   Save as: backend/healthcare-core/alembic/versions/0007_doctor_notifications.py
-  Chains directly after 0006_doctor_schedule_system.py — apply that one first.
+  Chains directly after 0006_doctor_schedule_system.py -- apply that one first.
 """
 
 from typing import Union

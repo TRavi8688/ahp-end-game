@@ -3,7 +3,7 @@ Staff Model
 
 Represents a hospital staff member (receptionist, nurse, admin).
 Links to user_id from the Auth Service and is scoped to a single hospital.
-Doctors have their own model — this is for operational staff only.
+Doctors have their own model -- this is for operational staff only.
 """
 
 import uuid
@@ -52,12 +52,12 @@ class Staff(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
 
-    # Link to auth-service user — NOT a DB-level FK (cross-service boundary)
+    # Link to auth-service user -- NOT a DB-level FK (cross-service boundary)
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), nullable=False, index=True
     )
 
-    # Hospital scope — every staff member belongs to exactly one hospital
+    # Hospital scope -- every staff member belongs to exactly one hospital
     hospital_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("hospitals.id", ondelete="RESTRICT"),

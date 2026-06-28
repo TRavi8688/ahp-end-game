@@ -1,6 +1,6 @@
 """
-cache.py — Redis client with authentication and connection health check.
-Phase 14 Fix: "Redis unauthenticated (OTP theft possible)" — adds password auth.
+cache.py -- Redis client with authentication and connection health check.
+Phase 14 Fix: "Redis unauthenticated (OTP theft possible)" -- adds password auth.
 
 Place at: backend/app/core/cache.py (replace or create)
 """
@@ -29,7 +29,7 @@ def _build_redis_url() -> str:
     if redis_url:
         # Explicit URL provided (docker-compose or Cloud Run)
         if env in ("production", "staging") and "://:@" not in redis_url and "@" not in redis_url:
-            # URL has no password — warn loudly
+            # URL has no password -- warn loudly
             logger.warning(
                 "redis_no_password_in_url",
                 hint="Set REDIS_URL=redis://:PASSWORD@host:6379/0 for security",
@@ -86,7 +86,7 @@ async def check_redis_health() -> dict:
         return {"status": "unhealthy", "error": str(e)}
 
 
-# ── OTP helpers ───────────────────────────────────────────────────────────────
+# -- OTP helpers ---------------------------------------------------------------
 
 OTP_TTL_SECONDS = 300       # 5 minutes
 OTP_MAX_ATTEMPTS = 5        # Lock after 5 failures
@@ -117,7 +117,7 @@ async def increment_otp_attempts(phone: str) -> int:
     key = f"otp:attempts:{phone}"
     attempts = await client.incr(key)
     if attempts == 1:
-        # First attempt — set TTL for the counter
+        # First attempt -- set TTL for the counter
         await client.expire(key, OTP_LOCKOUT_SECONDS)
     return attempts
 
@@ -136,7 +136,7 @@ async def clear_otp(phone: str) -> None:
     await client.delete(f"otp:hash:{phone}", f"otp:attempts:{phone}")
 
 
-# ── Session helpers ───────────────────────────────────────────────────────────
+# -- Session helpers -----------------------------------------------------------
 
 SESSION_TTL_SECONDS = 60 * 60 * 24 * 7  # 7 days
 

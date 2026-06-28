@@ -3,14 +3,14 @@ backend/healthcare-core/app/api/v1/tickets.py  (complete replacement)
 
 Full ticket system with hierarchy-aware assignment.
 Every assign/escalate call goes through employees.assign_ticket_to_employee()
-which enforces the L1 → TL → Manager permission matrix.
+which enforces the L1 -> TL -> Manager permission matrix.
 
 New endpoints added vs previous version:
-  POST /tickets/{id}/assign-to       — assign with hierarchy check
-  POST /tickets/{id}/escalate        — escalate to next level
-  GET  /tickets/{id}/assignment-log  — full audit trail
-  GET  /tickets/team-queue           — employee sees their team's queue
-  GET  /tickets/my-assigned          — tickets assigned to me
+  POST /tickets/{id}/assign-to       -- assign with hierarchy check
+  POST /tickets/{id}/escalate        -- escalate to next level
+  GET  /tickets/{id}/assignment-log  -- full audit trail
+  GET  /tickets/team-queue           -- employee sees their team's queue
+  GET  /tickets/my-assigned          -- tickets assigned to me
 """
 
 from __future__ import annotations
@@ -77,7 +77,7 @@ def _get_employee_from_request(request: Request) -> Optional[dict]:
     return None
 
 
-# ── Schemas ───────────────────────────────────────────────────────────────────
+# -- Schemas -------------------------------------------------------------------
 
 class CreateTicketBody(BaseModel):
     category:    str
@@ -112,7 +112,7 @@ class RatingBody(BaseModel):
     rating: int = Field(..., ge=1, le=5)
 
 
-# ── POST /tickets/create ──────────────────────────────────────────────────────
+# -- POST /tickets/create ------------------------------------------------------
 
 @router.post("/create", status_code=201)
 async def create_ticket(
@@ -203,7 +203,7 @@ async def _auto_assign_l1(ticket_id: str, team: str, db: AsyncSession):
         logger.warning("Auto-assign failed for %s: %s", ticket_id, e)
 
 
-# ── GET /tickets/team-queue ───────────────────────────────────────────────────
+# -- GET /tickets/team-queue ---------------------------------------------------
 
 @router.get("/team-queue")
 async def team_queue(
@@ -262,7 +262,7 @@ async def team_queue(
     return {"tickets": rows, "total": len(rows), "viewer": {"employee_id": eid, "level": level, "team": team}}
 
 
-# ── GET /tickets/my-assigned ──────────────────────────────────────────────────
+# -- GET /tickets/my-assigned --------------------------------------------------
 
 @router.get("/my-assigned")
 async def my_assigned(request: Request, db: AsyncSession = Depends(get_db)):
@@ -290,7 +290,7 @@ async def my_assigned(request: Request, db: AsyncSession = Depends(get_db)):
     return {"tickets": rows, "total": len(rows)}
 
 
-# ── POST /tickets/{ticket_id}/assign-to ──────────────────────────────────────
+# -- POST /tickets/{ticket_id}/assign-to --------------------------------------
 
 @router.post("/{ticket_id}/assign-to")
 async def assign_to(
@@ -320,7 +320,7 @@ async def assign_to(
     return result
 
 
-# ── POST /tickets/{ticket_id}/escalate ───────────────────────────────────────
+# -- POST /tickets/{ticket_id}/escalate ---------------------------------------
 
 @router.post("/{ticket_id}/escalate")
 async def escalate_ticket(
@@ -332,7 +332,7 @@ async def escalate_ticket(
 ):
     """
     Escalate ticket to the next level in the same team.
-    L1 → Team Lead → Manager.
+    L1 -> Team Lead -> Manager.
     Manager escalation goes to super admin queue.
     """
     emp = _get_employee_from_request(request)
@@ -398,13 +398,13 @@ async def _notify_escalation(ticket_id: str, to_name: str, to_level: str):
             import httpx
             async with httpx.AsyncClient() as c:
                 await c.post(webhook, json={
-                    "text": f"⬆️ Ticket {ticket_id} escalated to {to_level} → {to_name}"
+                    "text": f"⬆️ Ticket {ticket_id} escalated to {to_level} -> {to_name}"
                 }, timeout=5)
         except Exception as e:
             logger.warning("Escalation webhook failed: %s", e)
 
 
-# ── GET /tickets/{ticket_id}/assignment-log ───────────────────────────────────
+# -- GET /tickets/{ticket_id}/assignment-log -----------------------------------
 
 @router.get("/{ticket_id}/assignment-log")
 async def assignment_log(ticket_id: str, db: AsyncSession = Depends(get_db)):
@@ -426,7 +426,7 @@ async def assignment_log(ticket_id: str, db: AsyncSession = Depends(get_db)):
     return {"assignment_log": [dict(r) for r in result.mappings().all()]}
 
 
-# ── GET /tickets/all ──────────────────────────────────────────────────────────
+# -- GET /tickets/all ----------------------------------------------------------
 
 @router.get("/all")
 async def all_tickets(
@@ -459,7 +459,7 @@ async def all_tickets(
         elif level == "manager":
             filters.append("t.team = :team")
             params["team"] = team
-        # super_admin sees everything — no filter
+        # super_admin sees everything -- no filter
 
     if status_f: filters.append("t.status = :status");   params["status"]   = status_f
     if category: filters.append("t.category = :cat");    params["cat"]      = category
@@ -494,14 +494,14 @@ async def all_tickets(
     return {"tickets": rows, "page": page, "limit": limit}
 
 
-# ── GET /tickets/my-tickets (owner) ──────────────────────────────────────────
+# -- GET /tickets/my-tickets (owner) ------------------------------------------
 
 @router.get("/my-tickets")
 async def my_tickets(request: Request, db: AsyncSession = Depends(get_db)):
     """
     FIX-T1 (2026-06-23): previously this only matched on owner_email. Most
     patient-app users register by phone number and never set an email, so
-    they could create a ticket fine but could never see it again — "my
+    they could create a ticket fine but could never see it again -- "my
     tickets" would 401/empty for them. Now accepts X-Owner-Phone as a
     fallback identity header alongside X-Owner-Email.
     """
@@ -539,7 +539,7 @@ async def my_tickets(request: Request, db: AsyncSession = Depends(get_db)):
     return {"tickets": rows, "total": len(rows)}
 
 
-# ── GET /tickets/stats ────────────────────────────────────────────────────────
+# -- GET /tickets/stats --------------------------------------------------------
 
 @router.get("/stats")
 async def ticket_stats(request: Request, db: AsyncSession = Depends(get_db)):
@@ -607,7 +607,7 @@ async def ticket_stats(request: Request, db: AsyncSession = Depends(get_db)):
     }
 
 
-# ── GET /tickets/unread-count ────────────────────────────────────────────────
+# -- GET /tickets/unread-count ------------------------------------------------
 
 @router.get("/unread-count")
 async def unread_count(request: Request, db: AsyncSession = Depends(get_db)):
@@ -625,9 +625,9 @@ async def unread_count(request: Request, db: AsyncSession = Depends(get_db)):
     return {"count": result.scalar() or 0}
 
 
-# ── GET /tickets/{ticket_id}/messages ─────────────────────────────────────────
+# -- GET /tickets/{ticket_id}/messages -----------------------------------------
 # FIXED: SupportPage.tsx's chat thread view called this to load history, but
-# only the POST (send) side existed — there was no way to ever read messages
+# only the POST (send) side existed -- there was no way to ever read messages
 # back, so every ticket's chat appeared permanently empty after a refresh.
 
 @router.get("/{ticket_id}/messages")
@@ -656,7 +656,7 @@ async def get_messages(ticket_id: str, db: AsyncSession = Depends(get_db)):
     return {"messages": messages}
 
 
-# ── POST /tickets/{ticket_id}/message ─────────────────────────────────────────
+# -- POST /tickets/{ticket_id}/message -----------------------------------------
 
 @router.post("/{ticket_id}/message", status_code=201)
 async def send_message(
@@ -704,7 +704,7 @@ async def _notify_owner_reply(ticket_id: str):
             logger.warning("Webhook failed: %s", e)
 
 
-# ── POST /tickets/{ticket_id}/internal-notes ──────────────────────────────────
+# -- POST /tickets/{ticket_id}/internal-notes ----------------------------------
 
 @router.get("/{ticket_id}/internal-notes")
 async def get_internal_notes(ticket_id: str, db: AsyncSession = Depends(get_db)):
@@ -729,7 +729,7 @@ async def add_internal_note(ticket_id: str, body: NoteBody, request: Request, db
     return {"status": "added"}
 
 
-# ── POST /tickets/{ticket_id}/status ──────────────────────────────────────────
+# -- POST /tickets/{ticket_id}/status ------------------------------------------
 
 @router.post("/{ticket_id}/status")
 async def update_status(
@@ -779,7 +779,7 @@ async def _notify_status_change(ticket_id: str, new_status: str):
         logger.warning("Status SMS failed: %s", e)
 
 
-# ── POST /tickets/{ticket_id}/flag-call ───────────────────────────────────────
+# -- POST /tickets/{ticket_id}/flag-call ---------------------------------------
 
 @router.post("/{ticket_id}/flag-call")
 async def flag_call(ticket_id: str, db: AsyncSession = Depends(get_db)):
@@ -792,7 +792,7 @@ async def flag_call(ticket_id: str, db: AsyncSession = Depends(get_db)):
     return {"call_required": True}
 
 
-# ── POST /tickets/{ticket_id}/rate ────────────────────────────────────────────
+# -- POST /tickets/{ticket_id}/rate --------------------------------------------
 
 @router.post("/{ticket_id}/rate")
 async def rate_ticket(ticket_id: str, body: RatingBody, db: AsyncSession = Depends(get_db)):
@@ -805,7 +805,7 @@ async def rate_ticket(ticket_id: str, body: RatingBody, db: AsyncSession = Depen
     return {"rating": body.rating}
 
 
-# ── Background helpers ────────────────────────────────────────────────────────
+# -- Background helpers --------------------------------------------------------
 
 async def _notify_ticket_created(ticket_id: str, body: CreateTicketBody, team: str):
     try:

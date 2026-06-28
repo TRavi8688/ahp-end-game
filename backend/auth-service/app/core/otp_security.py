@@ -2,7 +2,7 @@
 backend/auth-service/app/core/otp_security.py
 ==============================================
 FIXES APPLIED:
-  - OTP brute-force protection (5 attempts → 30-min lockout)
+  - OTP brute-force protection (5 attempts -> 30-min lockout)
   - OTP expiry enforced (5 minutes)
   - Attempt counter stored in Redis (survives server restart)
   - Returns informative but safe error messages
@@ -14,10 +14,10 @@ from fastapi import HTTPException, status
 
 logger = logging.getLogger(__name__)
 
-# ── Configuration ─────────────────────────────────────────────────────────────
+# -- Configuration -------------------------------------------------------------
 MAX_OTP_ATTEMPTS = 5
 LOCKOUT_DURATION_SECONDS = 30 * 60   # 30 minutes
-OTP_EXPIRY_SECONDS = 5 * 60          # 5 minutes — OTP invalid after this
+OTP_EXPIRY_SECONDS = 5 * 60          # 5 minutes -- OTP invalid after this
 OTP_REQUEST_COOLDOWN_SECONDS = 60    # Must wait 60s before requesting new OTP
 
 
@@ -64,10 +64,10 @@ async def verify_otp_with_protection(
     attempt_key = f"otp_attempts:{phone}"
     lockout_key = f"otp_lockout:{phone}"
 
-    # ── Step 1: Check lockout ─────────────────────────────────────────────────
+    # -- Step 1: Check lockout -------------------------------------------------
     await check_otp_lockout(phone, redis)
 
-    # ── Step 2: Get stored OTP data ───────────────────────────────────────────
+    # -- Step 2: Get stored OTP data -------------------------------------------
     otp_data = await redis.hgetall(otp_key)
     if not otp_data:
         raise HTTPException(
@@ -78,7 +78,7 @@ async def verify_otp_with_protection(
     stored_otp = otp_data.get(b"code", b"").decode()
     created_at = float(otp_data.get(b"created_at", b"0").decode())
 
-    # ── Step 3: Check expiry ──────────────────────────────────────────────────
+    # -- Step 3: Check expiry --------------------------------------------------
     age_seconds = time.time() - created_at
     if age_seconds > OTP_EXPIRY_SECONDS:
         await redis.delete(otp_key)
@@ -87,7 +87,7 @@ async def verify_otp_with_protection(
             detail="OTP has expired. Please request a new one.",
         )
 
-    # ── Step 4: Compare OTP ───────────────────────────────────────────────────
+    # -- Step 4: Compare OTP ---------------------------------------------------
     if stored_otp != submitted_otp.strip():
         # Increment attempt counter
         attempts = await redis.incr(attempt_key)
@@ -121,7 +121,7 @@ async def verify_otp_with_protection(
             detail=f"Invalid OTP. {remaining} attempt(s) remaining before lockout.",
         )
 
-    # ── Step 5: Success — clear everything ───────────────────────────────────
+    # -- Step 5: Success -- clear everything -----------------------------------
     await redis.delete(otp_key, attempt_key)
     logger.info("OTP verified successfully", extra={"phone_hash": hash(phone)})
     return True
@@ -134,7 +134,7 @@ async def store_otp(phone: str, otp_code: str, redis) -> None:
     """
     cooldown_key = f"otp_cooldown:{phone}"
 
-    # Check cooldown — prevent OTP spam
+    # Check cooldown -- prevent OTP spam
     if await redis.exists(cooldown_key):
         ttl = await redis.ttl(cooldown_key)
         raise HTTPException(

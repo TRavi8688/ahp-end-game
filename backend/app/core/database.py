@@ -1,5 +1,5 @@
 """
-database.py — Production PostgreSQL configuration with async engine + PgBouncer.
+database.py -- Production PostgreSQL configuration with async engine + PgBouncer.
 Phase 14 Fix: replaces SQLite (which "corrupts under write load at 100 users")
 with async PostgreSQL + connection pooling.
 
@@ -21,7 +21,7 @@ from backend.app.core.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-# ─── Connection URL ───────────────────────────────────────────────────────────
+# --- Connection URL -----------------------------------------------------------
 
 def _get_database_url() -> str:
     """
@@ -56,7 +56,7 @@ def _get_database_url() -> str:
     return db_url
 
 
-# ─── Engine configuration ─────────────────────────────────────────────────────
+# --- Engine configuration -----------------------------------------------------
 
 def _create_engine() -> AsyncEngine:
     """
@@ -121,7 +121,7 @@ def _create_engine() -> AsyncEngine:
     return engine
 
 
-# ─── Session factory ──────────────────────────────────────────────────────────
+# --- Session factory ----------------------------------------------------------
 
 engine: AsyncEngine = _create_engine()
 
@@ -134,7 +134,7 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 
-# ─── FastAPI dependency ───────────────────────────────────────────────────────
+# --- FastAPI dependency -------------------------------------------------------
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
@@ -156,7 +156,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
-# ─── Health check helper ──────────────────────────────────────────────────────
+# --- Health check helper ------------------------------------------------------
 
 async def check_db_health() -> dict:
     """Used by /health endpoint (Phase 12)."""
@@ -170,7 +170,7 @@ async def check_db_health() -> dict:
         return {"status": "unhealthy", "error": str(e)}
 
 
-# ─── Startup/shutdown lifecycle ───────────────────────────────────────────────
+# --- Startup/shutdown lifecycle -----------------------------------------------
 
 async def startup_db() -> None:
     """Call in FastAPI lifespan startup."""
@@ -178,7 +178,7 @@ async def startup_db() -> None:
     if health["status"] != "healthy":
         from backend.app.core.alerting import alert_database_down
         await alert_database_down(health.get("error", "unknown"))
-        raise RuntimeError("Database is unreachable at startup — aborting.")
+        raise RuntimeError("Database is unreachable at startup -- aborting.")
     logger.info("database_connected", url=_get_database_url().split("@")[-1])  # Log host only, not credentials
 
 

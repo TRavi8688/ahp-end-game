@@ -180,7 +180,7 @@ async def share_prescription_with_pharmacy(
 ):
     """
     Called when a patient scans a pharmacy's QR code (the QR encodes the
-    pharmacy's hospital_id — see Dashboard.jsx's "Universal Receiving QR").
+    pharmacy's hospital_id -- see Dashboard.jsx's "Universal Receiving QR").
     Creates the PrescriptionShare row that /pharmacy/network-orders reads.
     """
     try:

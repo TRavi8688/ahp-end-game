@@ -7,7 +7,7 @@ Create Date: 2026-06-26 00:00:00.000000
 FIXED: 008_enterprise_ticket_system.py's down_revision pointed at
 "007_queue_lab_support", a revision id that does not exist anywhere in this
 directory (likely a typo/leftover from a renamed or deleted file). That
-broke `alembic upgrade head` outright — Alembic can't locate that revision,
+broke `alembic upgrade head` outright -- Alembic can't locate that revision,
 so migrations would fail to run at all from a fresh database.
 
 The repo actually has two independent migration branches both forking off

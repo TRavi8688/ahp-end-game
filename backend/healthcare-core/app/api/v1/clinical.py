@@ -19,7 +19,7 @@ router = APIRouter()
 
 # EXECUTION FIX: partner-app/src/pages/Dashboard.jsx already calls
 # GET /clinical/prescriptions to populate the "Clinical Queue" view, but no
-# route handled it anywhere in this file (or anywhere else) — every request
+# route handled it anywhere in this file (or anywhere else) -- every request
 # was a 404. Scoped to the calling pharmacist's own hospital so one pharmacy
 # can't see another's queue.
 @router.get("/prescriptions")

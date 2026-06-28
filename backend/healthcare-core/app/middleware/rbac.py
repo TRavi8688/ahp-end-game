@@ -5,7 +5,7 @@ RS256 JWT validation using JWKS from auth-service.
 Token blacklist check via Redis.
 
 FIXES:
-  - `from jose import jwt, JWTError` → PyJWT (python-jose not in requirements)
+  - `from jose import jwt, JWTError` -> PyJWT (python-jose not in requirements)
   - JWKS cache is now a module-level dict (was fine) but TTL refresh is async-safe
   - Added Redis blacklist check (was missing in this file; core/security.py had it,
     but rbac.py is used by some partner routes that bypass core/security.py)
@@ -31,9 +31,9 @@ logger = logging.getLogger(__name__)
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
-# ── JWKS cache ────────────────────────────────────────────────────────────────
+# -- JWKS cache ----------------------------------------------------------------
 # Module-level (shared across requests in the same process).
-# On Cloud Run, each instance has its own cache — this is fine; each instance
+# On Cloud Run, each instance has its own cache -- this is fine; each instance
 # fetches once per hour at most.
 
 _jwks_cache: dict = {}
@@ -79,7 +79,7 @@ async def _get_public_keys() -> list[dict]:
     return _jwks_cache.get("keys", [])
 
 
-# ── Token models ──────────────────────────────────────────────────────────────
+# -- Token models --------------------------------------------------------------
 
 class CurrentUser(BaseModel):
     user_id:              str
@@ -94,18 +94,18 @@ class CurrentUser(BaseModel):
         return self.hospital_id == hospital_id
 
     def is_superadmin(self) -> bool:
-        # BUG FIX: was "superadmin" only — must include "super_admin" (underscore form used in DB)
+        # BUG FIX: was "superadmin" only -- must include "super_admin" (underscore form used in DB)
         return self.role in ("super_admin", "superadmin", "admin")
 
 
-# ── Core dependency ───────────────────────────────────────────────────────────
+# -- Core dependency -----------------------------------------------------------
 
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
 ) -> CurrentUser:
     """
     Validate the Bearer token using auth-service JWKS (RS256).
-    Checks Redis blacklist on every request — fail-closed if Redis is down.
+    Checks Redis blacklist on every request -- fail-closed if Redis is down.
     """
     if not credentials:
         raise HTTPException(
@@ -155,7 +155,7 @@ async def get_current_user(
             detail="Only access tokens are accepted here",
         )
 
-    # ── Redis blacklist check (fail-closed) ───────────────────────────────────
+    # -- Redis blacklist check (fail-closed) -----------------------------------
     jti = payload.get("jti")
     if jti:
         try:
@@ -169,7 +169,7 @@ async def get_current_user(
         except HTTPException:
             raise
         except Exception as exc:
-            logger.error("Redis blacklist unavailable — rejecting request: %s", exc)
+            logger.error("Redis blacklist unavailable -- rejecting request: %s", exc)
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Authentication service temporarily unavailable",
@@ -186,7 +186,7 @@ async def get_current_user(
     )
 
 
-# ── Role guards ───────────────────────────────────────────────────────────────
+# -- Role guards ---------------------------------------------------------------
 
 def require_roles(*allowed_roles: str):
     """Factory: returns a dependency that enforces role membership."""
@@ -220,7 +220,7 @@ def require_same_hospital(hospital_id_param: str = "hospital_id"):
     return _check
 
 
-# ── Convenience shorthands ────────────────────────────────────────────────────
+# -- Convenience shorthands ----------------------------------------------------
 require_doctor       = require_roles("doctor", "admin", "superadmin")
 require_nurse        = require_roles("nurse", "doctor", "admin", "superadmin")
 require_admin        = require_roles("admin", "superadmin")

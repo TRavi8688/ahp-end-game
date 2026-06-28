@@ -1,18 +1,18 @@
 """
 backend/healthcare-core/app/api/v1/matrix_ops.py
 
-Operations APIs — Modules 5-7, 12, 13, 14, 15, 16, 17, 18, 19, 20
+Operations APIs -- Modules 5-7, 12, 13, 14, 15, 16, 17, 18, 19, 20
 
 Mounted at /matrix:
 
-  /matrix/employees          — shift management, workload
-  /matrix/incidents          — incident war room
-  /matrix/broadcasts         — emergency broadcast
-  /matrix/iam                — identity & access management
-  /matrix/verification       — verification command
-  /matrix/financial          — financial command
-  /matrix/audit              — audit & compliance
-  /matrix/ai                 — AI copilot query log
+  /matrix/employees          -- shift management, workload
+  /matrix/incidents          -- incident war room
+  /matrix/broadcasts         -- emergency broadcast
+  /matrix/iam                -- identity & access management
+  /matrix/verification       -- verification command
+  /matrix/financial          -- financial command
+  /matrix/audit              -- audit & compliance
+  /matrix/ai                 -- AI copilot query log
 """
 from __future__ import annotations
 

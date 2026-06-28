@@ -170,7 +170,7 @@ async def get_patient_notifications(
                 }
             )
     except Exception:
-        # notifications table may not exist — return empty list, not 500
+        # notifications table may not exist -- return empty list, not 500
         pass
 
     unread_count = sum(1 for n in notifications if not n.get("is_read"))
@@ -226,7 +226,7 @@ async def register_device_token(
         )
         await db.commit()
     except Exception:
-        # Table may not exist yet — create it in a migration (see alembic section)
+        # Table may not exist yet -- create it in a migration (see alembic section)
         await db.rollback()
 
     return {"status": "token_registered", "patient_id": str(patient.id)}

@@ -5,7 +5,7 @@ EXECUTION FIX: this file did not exist at all. app/api/router.py already
 imported `from app.api.v1.pharmacy import router as pharmacy_router`, which
 meant the whole backend failed to boot (ModuleNotFoundError) before any
 request could ever be served. partner-app/src/pages/Dashboard.jsx already
-calls every endpoint below — they're implemented to match its exact request/
+calls every endpoint below -- they're implemented to match its exact request/
 response shapes (verified directly against the frontend code, not guessed).
 
 Endpoints:
@@ -51,7 +51,7 @@ router = APIRouter()
 PHARMACY_ROLES = ("pharmacist", "admin", "hospital_admin", "owner")
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# -- Helpers -------------------------------------------------------------------
 
 async def _resolve_pharmacy_hospital_id(
     current_user: TokenPayload, db: AsyncSession
@@ -148,12 +148,12 @@ def _to_decimal(value, default: str = "0.00") -> Decimal:
         return Decimal(default)
 
 
-# ── Schemas ───────────────────────────────────────────────────────────────────
+# -- Schemas -------------------------------------------------------------------
 
 class InventoryItemIn(BaseModel):
     item_name: str
     generic_name: Optional[str] = ""
-    category: Optional[str] = "Other"  # Tablet | Syrup | Injection | Other — drives Inventory's category tiles
+    category: Optional[str] = "Other"  # Tablet | Syrup | Injection | Other -- drives Inventory's category tiles
     batch_number: str
     expiry_date: str
     unit_price: float = 0
@@ -175,7 +175,7 @@ class AiScanRequest(BaseModel):
     image_base64: str
 
 
-# ── GET /pharmacy/stats ─────────────────────────────────────────────────────
+# -- GET /pharmacy/stats -----------------------------------------------------
 
 @router.get("/stats")
 async def get_pharmacy_stats(
@@ -234,7 +234,7 @@ async def get_pharmacy_stats(
     }
 
 
-# ── GET /pharmacy/inventory ──────────────────────────────────────────────────
+# -- GET /pharmacy/inventory --------------------------------------------------
 
 @router.get("/inventory")
 async def list_inventory(
@@ -266,7 +266,7 @@ async def list_inventory(
     return [_inventory_to_dict(i) for i in items]
 
 
-# ── POST /pharmacy/inventory ─────────────────────────────────────────────────
+# -- POST /pharmacy/inventory -------------------------------------------------
 
 @router.post("/inventory", status_code=status.HTTP_201_CREATED)
 async def add_inventory_item(
@@ -305,7 +305,7 @@ async def add_inventory_item(
     return _inventory_to_dict(inventory)
 
 
-# ── POST /pharmacy/bulk-upload ───────────────────────────────────────────────
+# -- POST /pharmacy/bulk-upload -----------------------------------------------
 
 @router.post("/bulk-upload")
 async def bulk_upload_inventory(
@@ -347,7 +347,7 @@ async def bulk_upload_inventory(
     return {"items_added": added}
 
 
-# ── GET /pharmacy/transactions ───────────────────────────────────────────────
+# -- GET /pharmacy/transactions -----------------------------------------------
 
 @router.get("/transactions")
 async def list_transactions(
@@ -375,7 +375,7 @@ async def list_transactions(
     ]
 
 
-# ── GET /pharmacy/network-orders ─────────────────────────────────────────────
+# -- GET /pharmacy/network-orders ---------------------------------------------
 
 @router.get("/network-orders")
 async def list_network_orders(
@@ -420,7 +420,7 @@ async def list_network_orders(
     return orders
 
 
-# ── POST /pharmacy/ai-scan ───────────────────────────────────────────────────
+# -- POST /pharmacy/ai-scan ---------------------------------------------------
 
 @router.post("/ai-scan")
 async def ai_scan_medicine(
@@ -432,12 +432,12 @@ async def ai_scan_medicine(
     photo of a medicine strip/box using Gemini vision.
 
     EXECUTION NOTE: there was no AI-scan capability anywhere in the codebase to
-    reuse — ai-service only does clinical-note summarization and vitals triage
+    reuse -- ai-service only does clinical-note summarization and vitals triage
     (see ai-service/app/main.py), nothing for OCR/vision on medicine packaging.
     Rather than fabricate plausible-looking fake data (actively dangerous for
     a feature that pre-fills expiry dates and prices into a pharmacy's stock),
     this calls Gemini directly when GEMINI_API_KEY is configured, and returns
-    a clear 503 — not a guess — when it isn't.
+    a clear 503 -- not a guess -- when it isn't.
     """
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -501,7 +501,7 @@ async def ai_scan_medicine(
     }
 
 
-# ── POST /pharmacy/dispense ──────────────────────────────────────────────────
+# -- POST /pharmacy/dispense --------------------------------------------------
 
 @router.post("/dispense")
 async def dispense_items(
@@ -575,8 +575,8 @@ async def dispense_items(
     }
 
 
-# ── GET/PATCH/DELETE /pharmacy/inventory/{id} ────────────────────────────────
-# Backs Screen 19 (Medicine Details — Edit/Delete) and Screen 20 (Add Medicine
+# -- GET/PATCH/DELETE /pharmacy/inventory/{id} --------------------------------
+# Backs Screen 19 (Medicine Details -- Edit/Delete) and Screen 20 (Add Medicine
 # uses the existing POST /pharmacy/inventory above).
 
 class InventoryItemUpdate(BaseModel):
@@ -662,9 +662,9 @@ async def delete_inventory_item(
     await db.flush()
 
 
-# ── GET /pharmacy/notifications ───────────────────────────────────────────────
+# -- GET /pharmacy/notifications -----------------------------------------------
 # Backs the Home tab's Notifications screen. Built from real data (low stock,
-# near-expiry, new prescriptions) — NOT including "Payment Reminder" since no
+# near-expiry, new prescriptions) -- NOT including "Payment Reminder" since no
 # credit-sales/recurring-billing system exists anywhere in this codebase to
 # honestly generate one from (would be fabricated, not real).
 

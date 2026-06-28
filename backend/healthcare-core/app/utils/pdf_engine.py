@@ -127,7 +127,7 @@ def build_invoice_pdf(data: InvoiceData) -> io.BytesIO:
     )
     from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 
-    # ── Colors ────────────────────────────────────────────────────────────────
+    # -- Colors ----------------------------------------------------------------
     navy    = colors.HexColor(BRAND_NAVY)
     blue    = colors.HexColor(BRAND_BLUE)
     light   = colors.HexColor(BRAND_LIGHT)
@@ -135,7 +135,7 @@ def build_invoice_pdf(data: InvoiceData) -> io.BytesIO:
     green   = colors.HexColor("#15803D")
     red     = colors.HexColor("#DC2626")
 
-    # ── Document ──────────────────────────────────────────────────────────────
+    # -- Document --------------------------------------------------------------
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=A4,
@@ -144,7 +144,7 @@ def build_invoice_pdf(data: InvoiceData) -> io.BytesIO:
     )
     width = A4[0] - 36*mm
 
-    # ── Styles ────────────────────────────────────────────────────────────────
+    # -- Styles ----------------------------------------------------------------
     def ps(name, **kw):
         return ParagraphStyle(name, **kw)
 
@@ -160,7 +160,7 @@ def build_invoice_pdf(data: InvoiceData) -> io.BytesIO:
 
     story = []
 
-    # ── Header: Logo + Brand + Pharmacy name ─────────────────────────────────
+    # -- Header: Logo + Brand + Pharmacy name ---------------------------------
     logo_cell = ""
     if os.path.exists(HOSPAIN_LOGO_PATH):
         try:
@@ -193,7 +193,7 @@ def build_invoice_pdf(data: InvoiceData) -> io.BytesIO:
     story.append(HRFlowable(width="100%", thickness=2, color=navy))
     story.append(Spacer(1, 3*mm))
 
-    # ── Invoice type + number + date row ─────────────────────────────────────
+    # -- Invoice type + number + date row -------------------------------------
     meta_left = [
         [Paragraph(f"<b>{data.invoice_type}</b>", ps("inv_type", fontSize=14, textColor=navy, fontName="Helvetica-Bold"))],
         [Paragraph(f"<b>Invoice #:</b> {data.invoice_number}", normal_bold)],
@@ -233,7 +233,7 @@ def build_invoice_pdf(data: InvoiceData) -> io.BytesIO:
     story.append(meta_outer)
     story.append(Spacer(1, 4*mm))
 
-    # ── Patient row ───────────────────────────────────────────────────────────
+    # -- Patient row -----------------------------------------------------------
     if data.patient_name or data.patient_hospain_id:
         patient_parts = []
         if data.patient_name:
@@ -248,7 +248,7 @@ def build_invoice_pdf(data: InvoiceData) -> io.BytesIO:
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#CBD5E1")))
     story.append(Spacer(1, 3*mm))
 
-    # ── Line Items Table ──────────────────────────────────────────────────────
+    # -- Line Items Table ------------------------------------------------------
     story.append(Paragraph("<b>Items</b>", section_hdr))
 
     col_widths = [width*0.38, width*0.08, width*0.14, width*0.12, width*0.14, width*0.14]
@@ -261,9 +261,9 @@ def build_invoice_pdf(data: InvoiceData) -> io.BytesIO:
         elif item.discount_percent:
             disc_str = f"{item.discount_percent:.1f}%"
         else:
-            disc_str = "—"
+            disc_str = "--"
 
-        gst_str = f"₹{item.gst_amount:.2f}" if item.gst_amount else "—"
+        gst_str = f"₹{item.gst_amount:.2f}" if item.gst_amount else "--"
         item_rows.append([
             Paragraph(item.description + (f"\n<font size=7 color='#6B7280'>{item.category}</font>" if item.category else ""), normal),
             str(int(item.quantity) if item.quantity == int(item.quantity) else f"{item.quantity:.1f}"),
@@ -295,7 +295,7 @@ def build_invoice_pdf(data: InvoiceData) -> io.BytesIO:
     story.append(items_table)
     story.append(Spacer(1, 4*mm))
 
-    # ── Summary block ─────────────────────────────────────────────────────────
+    # -- Summary block ---------------------------------------------------------
     summary_rows = []
     if data.total_item_discount > 0:
         summary_rows.append(["Item Discounts", f"- ₹{data.total_item_discount:.2f}"])
@@ -324,16 +324,16 @@ def build_invoice_pdf(data: InvoiceData) -> io.BytesIO:
     story.append(summary_table)
     story.append(Spacer(1, 5*mm))
 
-    # ── Notes ─────────────────────────────────────────────────────────────────
+    # -- Notes -----------------------------------------------------------------
     if data.notes:
         story.append(Paragraph(f"<b>Notes:</b> {data.notes}", small_grey))
         story.append(Spacer(1, 3*mm))
 
-    # ── Footer ────────────────────────────────────────────────────────────────
+    # -- Footer ----------------------------------------------------------------
     story.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#E2E8F0")))
     story.append(Spacer(1, 3*mm))
     story.append(Paragraph(
-        f"<b>{BRAND_NAME}</b> — {BRAND_TAGLINE}  |  This is a computer-generated invoice and requires no signature.",
+        f"<b>{BRAND_NAME}</b> -- {BRAND_TAGLINE}  |  This is a computer-generated invoice and requires no signature.",
         footer_s,
     ))
     story.append(Paragraph(

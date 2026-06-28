@@ -1,7 +1,7 @@
 """
 backend/healthcare-core/app/core/config.py
 Phase 5: startup validation + JWKS-based token verification.
-Healthcare-core never holds the JWT private key — it fetches the public key
+Healthcare-core never holds the JWT private key -- it fetches the public key
 from auth-service's JWKS endpoint and verifies tokens locally.
 """
 import sys
@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: str = ""
     SENTRY_DSN: str = ""
 
-    # Auth service JWKS URL — healthcare-core fetches public key from here
+    # Auth service JWKS URL -- healthcare-core fetches public key from here
     AUTH_SERVICE_URL: str = "http://auth-service:8001"
 
     @property

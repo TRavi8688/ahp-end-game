@@ -5,7 +5,7 @@ EXECUTION FIX: this file did not exist. app/api/router.py already imported
 `from app.api.v1.surgery import router as surgery_router`, which broke the
 backend's boot (ModuleNotFoundError) before any request could be served.
 
-SCOPE NOTE: same situation as lab_results.py — no Surgery model exists and
+SCOPE NOTE: same situation as lab_results.py -- no Surgery model exists and
 no spec for the workflow (OT scheduling, consent forms, surgeon/anesthetist
 assignment, post-op notes). This is a minimal placeholder so the app boots,
 not a fabricated feature. Tell me the fields/workflow you need and I'll build

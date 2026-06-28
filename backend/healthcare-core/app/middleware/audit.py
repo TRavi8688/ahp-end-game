@@ -4,7 +4,7 @@ backend/healthcare-core/app/middleware/audit.py
 FIXES APPLIED:
   - Logs all PHI access (READ and WRITE) with actor identity
   - Covers all patient-facing routes
-  - Async — does not slow down API responses
+  - Async -- does not slow down API responses
   - Required for DPDP Act compliance
 """
 
@@ -54,7 +54,7 @@ class PhiAuditMiddleware(BaseHTTPMiddleware):
 
         if _is_phi_route(request.url.path):
             # Only log successful responses (2xx) and auth failures (401/403)
-            # Skip 404s — they don't involve actual data access
+            # Skip 404s -- they don't involve actual data access
             if response.status_code not in (404, 405, 422):
                 actor = getattr(request.state, "user", None)
                 actor_id = str(actor.id) if actor else "anonymous"
@@ -76,7 +76,7 @@ class PhiAuditMiddleware(BaseHTTPMiddleware):
                     "request_id": request.headers.get("x-request-id", ""),
                 }
 
-                # Structured log — picked up by Cloud Logging / ELK / Datadog
+                # Structured log -- picked up by Cloud Logging / ELK / Datadog
                 logger.info("PHI_AUDIT", extra=audit_entry)
 
                 # TODO (Phase 2): Also write to phi_audit_log DB table

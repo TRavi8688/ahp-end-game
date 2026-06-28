@@ -12,7 +12,7 @@ router = APIRouter(tags=["auth-jwks"])
 @router.get("/.well-known/jwks.json")
 async def jwks():
     """
-    JSON Web Key Set — public keys for RS256 token verification.
+    JSON Web Key Set -- public keys for RS256 token verification.
     Other services fetch this once and cache it to validate JWTs locally.
     """
     return get_jwks()

@@ -75,7 +75,7 @@ def _patient_to_dict(p: Patient) -> dict:
     }
 
 
-# ── POST /patient/login-hospyn ────────────────────────────────────────────────
+# -- POST /patient/login-hospyn ------------------------------------------------
 
 class LoginHospainRequest(BaseModel):
     hospain_id: Optional[str] = None
@@ -92,7 +92,7 @@ async def login_hospain(
     after they've already authenticated via OTP (so they have a valid JWT but
     no patient row yet in this service). Returns the patient record for the
     HOSPAIN ID entered on the login screen, so the patient-app can display
-    their profile. This does NOT issue a new token — the OTP token is still valid.
+    their profile. This does NOT issue a new token -- the OTP token is still valid.
     """
     hid = payload.hospain_id or payload.hospyn_id or ""
     if not hid:
@@ -111,7 +111,7 @@ async def login_hospain(
     return {"patient": _patient_to_dict(patient)}
 
 
-# ── GET /patient/profile ──────────────────────────────────────────────────────
+# -- GET /patient/profile ------------------------------------------------------
 
 @patient_router.get("/profile")
 async def get_patient_profile(
@@ -137,7 +137,7 @@ async def get_patient_profile(
     return {"patient": _patient_to_dict(patient)}
 
 
-# ── POST /profile/setup ───────────────────────────────────────────────────────
+# -- POST /profile/setup -------------------------------------------------------
 
 class ProfileSetupRequest(BaseModel):
     first_name: str
@@ -163,7 +163,7 @@ async def setup_profile(
     """
     user_uuid = uuid.UUID(current_user.sub)
 
-    # Idempotent — if profile already exists, return it
+    # Idempotent -- if profile already exists, return it
     existing = await db.execute(
         select(Patient).where(Patient.user_id == user_uuid, Patient.deleted_at.is_(None))
     )
@@ -213,7 +213,7 @@ async def setup_profile(
     return {"patient": _patient_to_dict(patient), "already_existed": False}
 
 
-# ── GET /patient/records ──────────────────────────────────────────────────────
+# -- GET /patient/records ------------------------------------------------------
 
 @patient_router.get("/records")
 async def get_patient_records(
@@ -238,7 +238,7 @@ async def get_patient_records(
     prescriptions = rx_result.scalars().all()
 
     return {
-        "records": [],  # Lab/imaging records — lab_results module (stub) owns these
+        "records": [],  # Lab/imaging records -- lab_results module (stub) owns these
         "prescriptions": [
             {
                 "id": str(rx.id),
@@ -256,7 +256,7 @@ async def get_patient_records(
     }
 
 
-# ── GET /patient/active-sharing ───────────────────────────────────────────────
+# -- GET /patient/active-sharing -----------------------------------------------
 
 @patient_router.get("/active-sharing")
 async def get_active_sharing(
@@ -315,7 +315,7 @@ async def get_active_sharing(
     }
 
 
-# ── POST /patient/share-record ────────────────────────────────────────────────
+# -- POST /patient/share-record ------------------------------------------------
 
 class ShareRecordRequest(BaseModel):
     pharmacy_hospital_id: str
@@ -328,7 +328,7 @@ async def share_record(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Patient scans pharmacy QR code → app calls this to share their
+    Patient scans pharmacy QR code -> app calls this to share their
     prescription(s) with that pharmacy.
     """
     patient_result = await db.execute(
@@ -388,7 +388,7 @@ async def share_record(
     return {"shared": len(created), "share_ids": created}
 
 
-# ── DELETE /patient/revoke-access/{access_id} ─────────────────────────────────
+# -- DELETE /patient/revoke-access/{access_id} ---------------------------------
 
 @patient_router.delete("/revoke-access/{access_id}")
 async def revoke_access(
@@ -430,7 +430,7 @@ async def revoke_access(
     return {"revoked": True, "share_id": access_id}
 
 
-# ── GET /patient/clinical-summary ─────────────────────────────────────────────
+# -- GET /patient/clinical-summary ---------------------------------------------
 
 @patient_router.get("/clinical-summary")
 async def get_clinical_summary(
@@ -492,7 +492,7 @@ async def get_clinical_summary(
     }
 
 
-# ── POST /patient/chat ────────────────────────────────────────────────────────
+# -- POST /patient/chat --------------------------------------------------------
 
 class ChatRequest(BaseModel):
     message: str
@@ -504,7 +504,7 @@ async def patient_chat(
     current_user: Annotated[TokenPayload, Depends(get_current_user)],
     db: AsyncSession = Depends(get_db),
 ):
-    """AI health chat — proxies to ai-service with patient context."""
+    """AI health chat -- proxies to ai-service with patient context."""
     if not payload.message or not payload.message.strip():
         raise HTTPException(status_code=400, detail="message is required.")
 

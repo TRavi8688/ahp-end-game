@@ -4,7 +4,7 @@ shared/utils/event_bus.py
 Async Event Bus using Redis Streams with Dead Letter Queue support.
 
 FIX: Wrong import path `from backend.shared.redis_client import get_redis`
-     → `from shared.redis_client import get_redis_client`
+     -> `from shared.redis_client import get_redis_client`
 
 PLACE AT: backend/shared/utils/event_bus.py
 """
@@ -55,7 +55,7 @@ class EventBus:
         """
         Consume events from a topic as part of a consumer group.
         Failed events are routed to a DLQ after max_retries.
-        Runs indefinitely — call from a background task.
+        Runs indefinitely -- call from a background task.
         """
         try:
             redis = get_redis_client()

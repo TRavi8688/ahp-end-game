@@ -1,6 +1,6 @@
 """
 doctor_notifications_routes.py
-Phase 4 — Doctor App: Notifications list + Phone Number Change via OTP.
+Phase 4 -- Doctor App: Notifications list + Phone Number Change via OTP.
 
 WHY THIS FILE EXISTS:
   doctor-app's Settings.jsx and NotificationsScreen.jsx call:
@@ -15,7 +15,7 @@ SCOPE NOTE (read before wiring):
   Your real notification delivery system lives in the separate
   notification-service microservice, and OTP/SMS infrastructure lives
   in auth-service (app/core/otp_security.py). This file does NOT call
-  either of those services — I don't have visibility into their
+  either of those services -- I don't have visibility into their
   internal request/response contracts or your service-to-service auth
   setup beyond shared/utils/service_auth.py, so wiring this file to
   call them for real would be guessing.
@@ -26,7 +26,7 @@ SCOPE NOTE (read before wiring):
       healthcare-core (notifications can be inserted by other parts of
       this same service, e.g. when a lab result completes).
     - Phone OTP: generates and validates a 6-digit OTP stored in
-      healthcare-core directly (NOT sent via real SMS yet — the
+      healthcare-core directly (NOT sent via real SMS yet -- the
       response includes `dev_otp` in development so you can test the
       flow end-to-end immediately). To send real SMS, replace the
       `_send_sms_otp` function body with a call to your
@@ -35,11 +35,11 @@ SCOPE NOTE (read before wiring):
 
 DROP-IN INSTRUCTIONS:
   1. Save as: backend/healthcare-core/app/api/v1/doctor_notifications_routes.py
-  2. Add a `notifications` table migration (see migrations file —
+  2. Add a `notifications` table migration (see migrations file --
      a minimal one is included as part of 0006_doctor_schedule_system.py
      companion migration 0007 below, OR reuse an existing notifications
      table if healthcare-core already has equivalent infrastructure
-     for other roles — check before applying to avoid a duplicate table).
+     for other roles -- check before applying to avoid a duplicate table).
   3. In router.py:
        from app.api.v1.doctor_notifications_routes import router as doctor_notif_router
        api_router.include_router(doctor_notif_router, prefix="/doctor", tags=["Doctor Notifications"])
@@ -72,7 +72,7 @@ OTP_TTL_SECONDS = 300  # 5 minutes
 
 
 async def _get_doctor(db: AsyncSession, user_id_str: str) -> Doctor:
-    """Matches the existing pattern in doctor_queue.py's _resolve_doctor —
+    """Matches the existing pattern in doctor_queue.py's _resolve_doctor --
     TokenPayload.sub is a plain string, must cast to uuid.UUID."""
     from sqlalchemy import select
     result = await db.execute(

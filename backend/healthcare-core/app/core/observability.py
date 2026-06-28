@@ -21,11 +21,11 @@ def setup_sentry(settings) -> None:
     Call this FIRST in main.py, before creating the FastAPI app.
 
     FIXED: Previously SENTRY_DSN was in pyproject.toml dependencies
-    but was never actually configured — so errors were silently lost.
+    but was never actually configured -- so errors were silently lost.
     """
     if not settings.SENTRY_DSN:
         logger.warning(
-            "SENTRY_DSN not configured — errors will not be tracked. "
+            "SENTRY_DSN not configured -- errors will not be tracked. "
             "Set SENTRY_DSN in your environment or Secret Manager."
         )
         return
@@ -130,7 +130,7 @@ def setup_prometheus(app: FastAPI) -> None:
 
     except ImportError:
         logger.warning(
-            "prometheus-client not installed — /metrics endpoint disabled. "
+            "prometheus-client not installed -- /metrics endpoint disabled. "
             "Add it to requirements.txt: prometheus-client"
         )
 
@@ -141,7 +141,7 @@ def _normalise_path(path: str) -> str:
     Prevents high-cardinality Prometheus labels.
 
     Example:
-        /api/v1/patients/abc-123-def/records → /api/v1/patients/{id}/records
+        /api/v1/patients/abc-123-def/records -> /api/v1/patients/{id}/records
     """
     import re
     # Replace UUIDs

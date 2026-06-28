@@ -21,7 +21,7 @@ LEVELS = ('l1', 'team_lead', 'manager', 'super_admin')
 
 
 def upgrade():
-    # ── hospyn_employees ──────────────────────────────────────────────────────
+    # -- hospyn_employees ------------------------------------------------------
     op.create_table(
         'hospyn_employees',
         sa.Column('id',            UUID(as_uuid=True), primary_key=True),
@@ -31,9 +31,9 @@ def upgrade():
         sa.Column('hashed_password', sa.String(255), nullable=False),
         sa.Column('team',          sa.Enum(*TEAMS,  name='employee_team'),  nullable=False),
         sa.Column('level',         sa.Enum(*LEVELS, name='employee_level'), nullable=False),
-        # manager_id → the manager this employee reports to (NULL for managers/super_admin)
+        # manager_id -> the manager this employee reports to (NULL for managers/super_admin)
         sa.Column('manager_id',    UUID(as_uuid=True), nullable=True),
-        # team_lead_id → the TL this L1 reports to (NULL for TLs and above)
+        # team_lead_id -> the TL this L1 reports to (NULL for TLs and above)
         sa.Column('team_lead_id',  UUID(as_uuid=True), nullable=True),
         sa.Column('is_active',     sa.Boolean(), nullable=False, server_default='true'),
         sa.Column('avatar_initials', sa.String(3), nullable=True),
@@ -48,7 +48,7 @@ def upgrade():
     op.create_index('ix_hospyn_employees_employee_id','hospyn_employees', ['employee_id'])
     op.create_index('ix_hospyn_employees_email',      'hospyn_employees', ['email'])
 
-    # ── ticket_assignments  (full audit trail) ────────────────────────────────
+    # -- ticket_assignments  (full audit trail) --------------------------------
     op.create_table(
         'ticket_assignments',
         sa.Column('id',            UUID(as_uuid=True), primary_key=True),
@@ -63,7 +63,7 @@ def upgrade():
     op.create_index('ix_ticket_assignments_ticket_id', 'ticket_assignments', ['ticket_id'])
     op.create_index('ix_ticket_assignments_to',        'ticket_assignments', ['to_employee_id'])
 
-    # ── Add columns to support_tickets ────────────────────────────────────────
+    # -- Add columns to support_tickets ----------------------------------------
     op.add_column('support_tickets', sa.Column('assigned_employee_id', sa.String(30), nullable=True))
     op.add_column('support_tickets', sa.Column('assigned_employee_name', sa.String(200), nullable=True))
     op.add_column('support_tickets', sa.Column('escalation_level', sa.String(20), nullable=True, server_default='l1'))

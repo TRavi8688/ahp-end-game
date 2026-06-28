@@ -2,10 +2,10 @@
 backend/auth-service/app/middleware/rbac.py
 
 FIXES APPLIED:
-  BUG-2 FIX: Changed `from jose import JWTError` → `import jwt as pyjwt` (PyJWT)
+  BUG-2 FIX: Changed `from jose import JWTError` -> `import jwt as pyjwt` (PyJWT)
               python-jose was not installed and caused 500 on every auth'd request.
-  BUG-3 FIX: Token claim key was `hid` but JWT writes `hospital_id` → fixed to hospital_id
-  BUG-4 FIX: Token claim key was `ver` but JWT writes `token_version` → fixed to token_version
+  BUG-3 FIX: Token claim key was `hid` but JWT writes `hospital_id` -> fixed to hospital_id
+  BUG-4 FIX: Token claim key was `ver` but JWT writes `token_version` -> fixed to token_version
   BUG-19 FIX (Matrix): Role check now uses exact equality, not substring match.
            "super_employee" no longer passes as "employee".
 
@@ -72,10 +72,10 @@ async def get_current_user(
 
     return CurrentUser(
         user_id=payload["sub"],
-        # BUG-3 FIX: was payload.get("hid", "") — JWT writes "hospital_id"
+        # BUG-3 FIX: was payload.get("hid", "") -- JWT writes "hospital_id"
         hospital_id=payload.get("hospital_id", "") or "",
         role=payload.get("role", ""),
-        # BUG-4 FIX: was payload.get("ver", 0) — JWT writes "token_version"
+        # BUG-4 FIX: was payload.get("ver", 0) -- JWT writes "token_version"
         token_version=payload.get("token_version", 0) or 0,
         employee_id=payload.get("employee_id", "") or "",
         must_change_password=bool(payload.get("must_change_password", False)),
@@ -93,7 +93,7 @@ def require_roles(*allowed_roles: str):
         async def delete_patient(user=Depends(require_roles("admin", "super_admin"))):
     """
     async def _check(user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
-        # Exact equality check (fixes audit bug #19 — substring match)
+        # Exact equality check (fixes audit bug #19 -- substring match)
         if user.role not in allowed_roles and not user.is_superadmin():
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

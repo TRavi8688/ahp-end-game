@@ -1,7 +1,7 @@
 """
 auth-service/app/main.py
 
-Auth Service — FastAPI application factory.
+Auth Service -- FastAPI application factory.
 FIXES:
   - Added lifespan with init_redis() + close_redis() (was missing entirely)
   - Added startup_checks to catch bad secrets before serving traffic
@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
-# ── Lifespan ──────────────────────────────────────────────────────────────────
+# -- Lifespan ------------------------------------------------------------------
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
@@ -68,7 +68,7 @@ async def lifespan(application: FastAPI):
     await close_redis()
 
 
-# ── Application factory ───────────────────────────────────────────────────────
+# -- Application factory -------------------------------------------------------
 
 def create_app() -> FastAPI:
     application = FastAPI(
@@ -89,7 +89,7 @@ def create_app() -> FastAPI:
     return application
 
 
-# ── X-Request-ID middleware ───────────────────────────────────────────────────
+# -- X-Request-ID middleware ---------------------------------------------------
 
 def _add_request_id_middleware(application: FastAPI) -> None:
     @application.middleware("http")
@@ -113,7 +113,7 @@ def _add_request_id_middleware(application: FastAPI) -> None:
         return response
 
 
-# ── CORS ──────────────────────────────────────────────────────────────────────
+# -- CORS ----------------------------------------------------------------------
 
 def _configure_cors(application: FastAPI) -> None:
     raw_origins = os.environ.get("ALLOWED_ORIGINS", "").strip()
@@ -126,7 +126,7 @@ def _configure_cors(application: FastAPI) -> None:
                 "http://localhost:19000",
                 "http://localhost:19006",
             ]
-            logger.warning("CORS: using dev defaults — set ALLOWED_ORIGINS in production")
+            logger.warning("CORS: using dev defaults -- set ALLOWED_ORIGINS in production")
         else:
             raise RuntimeError("ALLOWED_ORIGINS must be set in production")
     else:
@@ -141,13 +141,13 @@ def _configure_cors(application: FastAPI) -> None:
     )
 
 
-# ── Routers ───────────────────────────────────────────────────────────────────
+# -- Routers -------------------------------------------------------------------
 
 def _register_routers(application: FastAPI) -> None:
 
     @application.get("/health", tags=["health"])
     async def health() -> dict:
-        """Deep health check — DB + Redis. Returns 503 if either is down."""
+        """Deep health check -- DB + Redis. Returns 503 if either is down."""
         from app.core.database import get_db
         from sqlalchemy import text
 
@@ -179,15 +179,15 @@ def _register_routers(application: FastAPI) -> None:
             status_code=200 if db_status == "connected" else 503,
         )
 
-    # v1 router — OTP, login, register (with rate limiting)
+    # v1 router -- OTP, login, register (with rate limiting)
     application.include_router(auth_v1.router, prefix="/api/v1/auth", tags=["Auth v1"])
     application.include_router(jwks_v1.router, prefix="/api/v1/auth", tags=["JWKS"])
 
-    # Legacy router — password reset, refresh token, logout with blacklist
+    # Legacy router -- password reset, refresh token, logout with blacklist
     # These endpoints exist in app/api/router.py and were never registered before
     application.include_router(legacy_router.router, prefix="/api/v1/auth", tags=["Auth"])
 
-    # Internal service-to-service — NOT exposed via nginx (see nginx.conf), only
+    # Internal service-to-service -- NOT exposed via nginx (see nginx.conf), only
     # reachable within the Docker/Cloud Run network. Lets healthcare-core's
     # onboarding flow actually create/activate the partner's login account.
     application.include_router(internal_router.router, prefix="/api/v1")

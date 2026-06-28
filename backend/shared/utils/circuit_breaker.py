@@ -4,9 +4,9 @@ shared/utils/circuit_breaker.py
 Redis-backed Circuit Breaker for HTTP calls.
 
 FIXES:
-  - Wrong import: `from backend.shared.redis_client` → `from shared.redis_client`
-  - Wrong function name: `get_redis()` → `get_redis_client()`
-  - In-memory state (broken on Cloud Run horizontal scaling) →
+  - Wrong import: `from backend.shared.redis_client` -> `from shared.redis_client`
+  - Wrong function name: `get_redis()` -> `get_redis_client()`
+  - In-memory state (broken on Cloud Run horizontal scaling) ->
     state now stored in Redis so all instances share one view.
 
 PLACE AT: backend/shared/utils/circuit_breaker.py
@@ -34,9 +34,9 @@ class CircuitBreaker:
     Redis-backed Circuit Breaker for HTTP calls.
 
     State is stored in Redis so all Cloud Run instances share
-    the same circuit state — fixes the in-memory isolation bug.
+    the same circuit state -- fixes the in-memory isolation bug.
 
-    States: CLOSED → OPEN → HALF-OPEN → CLOSED
+    States: CLOSED -> OPEN -> HALF-OPEN -> CLOSED
 
     Args:
         name:               Unique name (used as Redis key prefix).
@@ -61,7 +61,7 @@ class CircuitBreaker:
         self.recovery_timeout = recovery_timeout
         self.cache_ttl = cache_ttl
 
-    # ── Redis key helpers ─────────────────────────────────────────────────────
+    # -- Redis key helpers -----------------------------------------------------
 
     def _state_key(self) -> str:
         return f"cb:state:{self.name}"
@@ -72,7 +72,7 @@ class CircuitBreaker:
     def _cache_key(self, url: str) -> str:
         return f"cb:cache:{self.name}:{url}"
 
-    # ── State accessors (Redis-backed) ────────────────────────────────────────
+    # -- State accessors (Redis-backed) ----------------------------------------
 
     async def _get_state(self) -> dict:
         """Return {'state': str, 'opened_at': float}. Defaults to CLOSED."""
@@ -99,7 +99,7 @@ class CircuitBreaker:
             redis = get_redis_client()
             count = await redis.incr(self._failures_key())
             if count == 1:
-                # First failure — start TTL window
+                # First failure -- start TTL window
                 await redis.expire(self._failures_key(), self.recovery_timeout * 2)
             return count
         except Exception as e:
@@ -113,7 +113,7 @@ class CircuitBreaker:
         except Exception as e:
             logger.warning("CircuitBreaker._reset_failures failed: %s", e)
 
-    # ── Main call ─────────────────────────────────────────────────────────────
+    # -- Main call -------------------------------------------------------------
 
     async def call(
         self,
@@ -171,7 +171,7 @@ class CircuitBreaker:
 
             raise
 
-    # ── Fallback ──────────────────────────────────────────────────────────────
+    # -- Fallback --------------------------------------------------------------
 
     async def _handle_fallback(self, request: httpx.Request) -> httpx.Response:
         """Serve stale cache for GETs; return 503 for writes."""

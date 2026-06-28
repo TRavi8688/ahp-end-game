@@ -1,7 +1,7 @@
 """
 Billing & UPI Payment Routes
 ==============================
-PHASE 2 FIX — Complete billing API ported from archive/old-monolith,
+PHASE 2 FIX -- Complete billing API ported from archive/old-monolith,
 adapted to microservice structure with UPI deep-link support.
 
 Endpoints:
@@ -41,7 +41,7 @@ from shared.audit import log_audit_event
 router = APIRouter()
 
 
-# ─── Pydantic Schemas ─────────────────────────────────────────────────────────
+# --- Pydantic Schemas ---------------------------------------------------------
 
 class InvoiceLineItemIn(BaseModel):
     description: str = Field(..., max_length=300)
@@ -60,7 +60,7 @@ class MarkPaidRequest(BaseModel):
     upi_transaction_ref: str = Field(..., min_length=4, max_length=100, description="UPI transaction ID from patient's GPay/PhonePe confirmation")
 
 
-# ─── Helpers ──────────────────────────────────────────────────────────────────
+# --- Helpers ------------------------------------------------------------------
 
 async def _get_hospital_upi_vpa(hospital_id: uuid.UUID, db: AsyncSession) -> Optional[str]:
     """Fetch the hospital's UPI VPA from hospital_settings table."""
@@ -85,11 +85,11 @@ def _build_upi_url(vpa: str, name: str, amount: float, invoice_number: str, desc
     """
     # Sanitise amount to exactly 2 decimal places
     amount_str = f"{amount:.2f}"
-    # Sanitise description — UPI spec: max 50 chars, no special chars
+    # Sanitise description -- UPI spec: max 50 chars, no special chars
     safe_desc = description[:50].replace("&", "and").replace("=", "-")
-    # Transaction reference — your internal invoice number
+    # Transaction reference -- your internal invoice number
     safe_ref = invoice_number.replace(" ", "-")[:50]
-    # Payee name — max 50 chars
+    # Payee name -- max 50 chars
     safe_name = name[:50]
 
     upi_url = (
@@ -117,7 +117,7 @@ async def _get_or_create_invoice_model(db: AsyncSession):
         return None, None, None
 
 
-# ─── POST /billing/invoice ────────────────────────────────────────────────────
+# --- POST /billing/invoice ----------------------------------------------------
 
 @router.post("/invoice", status_code=201)
 async def create_invoice(
@@ -162,7 +162,7 @@ async def create_invoice(
         if existing.fetchone():
             return error_response("INVOICE_EXISTS", "Invoice already exists for this appointment", 409)
     except Exception:
-        pass  # Table may not exist yet — first invoice
+        pass  # Table may not exist yet -- first invoice
 
     # Build line items
     line_items = payload.line_items or []
@@ -279,7 +279,7 @@ async def create_invoice(
     )
 
 
-# ─── GET /billing/invoice/{id} ────────────────────────────────────────────────
+# --- GET /billing/invoice/{id} ------------------------------------------------
 
 @router.get("/invoice/{invoice_id}")
 async def get_invoice(
@@ -382,7 +382,7 @@ async def get_invoice(
     )
 
 
-# ─── GET /billing/invoice/{id}/upi-url ───────────────────────────────────────
+# --- GET /billing/invoice/{id}/upi-url ---------------------------------------
 
 @router.get("/invoice/{invoice_id}/upi-url")
 async def get_invoice_upi_url(
@@ -453,7 +453,7 @@ async def get_invoice_upi_url(
     )
 
 
-# ─── GET /billing/invoice/{id}/upi-qr ────────────────────────────────────────
+# --- GET /billing/invoice/{id}/upi-qr ----------------------------------------
 
 @router.get("/invoice/{invoice_id}/upi-qr")
 async def get_invoice_upi_qr(
@@ -542,7 +542,7 @@ async def get_invoice_upi_qr(
     )
 
 
-# ─── PATCH /billing/invoice/{id}/mark-paid ───────────────────────────────────
+# --- PATCH /billing/invoice/{id}/mark-paid -----------------------------------
 
 @router.patch("/invoice/{invoice_id}/mark-paid")
 async def mark_invoice_paid(
@@ -624,7 +624,7 @@ async def mark_invoice_paid(
     )
 
 
-# ─── GET /billing/invoice/{id}/receipt ───────────────────────────────────────
+# --- GET /billing/invoice/{id}/receipt ---------------------------------------
 
 @router.get("/invoice/{invoice_id}/receipt")
 async def download_receipt(
@@ -723,11 +723,11 @@ async def download_receipt(
                 "total_amount": float(inv.total_amount),
                 "note": "Install reportlab>=4.0.0 to enable PDF generation.",
             },
-            message="PDF not available — reportlab not installed",
+            message="PDF not available -- reportlab not installed",
         )
 
 
-# ─── GET /billing/patient/{patient_id}/invoices ───────────────────────────────
+# --- GET /billing/patient/{patient_id}/invoices -------------------------------
 
 @router.get("/patient/{patient_id}/invoices")
 async def list_patient_invoices(
@@ -797,7 +797,7 @@ async def list_patient_invoices(
     )
 
 
-# ─── GET /billing/hospital/invoices ──────────────────────────────────────────
+# --- GET /billing/hospital/invoices ------------------------------------------
 
 @router.get("/hospital/invoices")
 async def list_hospital_invoices(

@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 router              = APIRouter()
 walkin_public_router = APIRouter()
 
-# ── In-memory OTP store (replace with Redis in production) ────────────────────
+# -- In-memory OTP store (replace with Redis in production) --------------------
 # { hospital_id: { "govt_otp": "123456", "bank_otp": "654321" } }
 _otp_store: dict[str, dict] = {}
 
@@ -61,7 +61,7 @@ async def _hospital_or_404(db: AsyncSession, hospital_id: str) -> Hospital:
     try:
         uid = uuid.UUID(hospital_id)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid hospital_id — must be a UUID")
+        raise HTTPException(status_code=400, detail="Invalid hospital_id -- must be a UUID")
     result = await db.execute(select(Hospital).where(Hospital.id == uid))
     h = result.scalars().first()
     if not h:
@@ -73,7 +73,7 @@ async def _call_auth_internal(path: str, json_body: dict | None = None) -> dict:
     """
     Calls auth-service's internal-only endpoints (app/api/internal.py) with a
     short-lived signed service token. Used to actually create/activate the
-    pharmacy owner's login account — see register_enterprise and
+    pharmacy owner's login account -- see register_enterprise and
     admin_approve_hospital below.
     """
     token = generate_internal_token(service_name="healthcare-core", audience="auth-service")
@@ -96,7 +96,7 @@ async def _call_auth_internal(path: str, json_body: dict | None = None) -> dict:
     return response.json()
 
 
-# ── 1. Register enterprise ────────────────────────────────────────────────────
+# -- 1. Register enterprise ----------------------------------------------------
 
 @router.post("/register-enterprise", status_code=201)
 async def register_enterprise(
@@ -156,9 +156,9 @@ async def register_enterprise(
     hospyn_id   = _hospyn_id(name)
 
     # EXECUTION FIX: owner_user_id used to be `uuid.uuid4()` with a comment
-    # saying "replaced once auth-service creates the user" — nothing ever
+    # saying "replaced once auth-service creates the user" -- nothing ever
     # replaced it, so an approved hospital's owner had no way to log in at
-    # all. Now actually creates the account (inactive/pending — login is
+    # all. Now actually creates the account (inactive/pending -- login is
     # blocked until admin_approve_hospital activates it below).
     auth_result = await _call_auth_internal(
         "/internal/create-partner-user",
@@ -226,7 +226,7 @@ async def _upload_to_gcs(hospital_id: str, label: str, filename: str, contents: 
     """Upload document to GCS. Logs in dev, actually uploads in production."""
     bucket = os.getenv("GCP_STORAGE_BUCKET")
     if not bucket:
-        logger.info("[DEV] GCS upload skipped — %s for hospital %s (%d bytes)", label, hospital_id, len(contents))
+        logger.info("[DEV] GCS upload skipped -- %s for hospital %s (%d bytes)", label, hospital_id, len(contents))
         return
     try:
         from google.cloud import storage
@@ -238,7 +238,7 @@ async def _upload_to_gcs(hospital_id: str, label: str, filename: str, contents: 
         logger.error("GCS upload failed for %s: %s", label, e)
 
 
-# ── 2. Send govt PAN OTP ──────────────────────────────────────────────────────
+# -- 2. Send govt PAN OTP ------------------------------------------------------
 
 @router.post("/send-government-pan-otp/{hospital_id}")
 async def send_government_pan_otp(
@@ -259,7 +259,7 @@ async def send_government_pan_otp(
     }
 
 
-# ── 3. Verify govt PAN OTP ────────────────────────────────────────────────────
+# -- 3. Verify govt PAN OTP ----------------------------------------------------
 
 @router.post("/verify-government-pan-otp/{hospital_id}")
 async def verify_government_pan_otp(
@@ -275,7 +275,7 @@ async def verify_government_pan_otp(
     return {"message": "OTP verified. Proceed to payment setup."}
 
 
-# ── 4a. Generate Razorpay UPI QR ─────────────────────────────────────────────
+# -- 4a. Generate Razorpay UPI QR ---------------------------------------------
 
 @router.post("/generate-razorpay-qr/{hospital_id}")
 async def generate_razorpay_qr(
@@ -292,7 +292,7 @@ async def generate_razorpay_qr(
     return {"upi_intent_uri": uri, "reference_id": ref, "amount": "2.00", "currency": "INR"}
 
 
-# ── 4b. Submit UPI VPA (collect request) ──────────────────────────────────────
+# -- 4b. Submit UPI VPA (collect request) --------------------------------------
 
 @router.post("/submit-upi-vpa/{hospital_id}")
 async def submit_upi_vpa(
@@ -308,7 +308,7 @@ async def submit_upi_vpa(
     return {"message": f"Collect request sent to {upi_id}. Approve ₹2 in your UPI app.", "status": "pending"}
 
 
-# ── 4c. Submit card payment ───────────────────────────────────────────────────
+# -- 4c. Submit card payment ---------------------------------------------------
 
 @router.post("/submit-card-payment/{hospital_id}")
 async def submit_card_payment(
@@ -332,7 +332,7 @@ async def submit_card_payment(
     }
 
 
-# ── 4d. Verify card OTP ───────────────────────────────────────────────────────
+# -- 4d. Verify card OTP -------------------------------------------------------
 
 @router.post("/verify-card-otp/{hospital_id}")
 async def verify_card_otp(
@@ -351,21 +351,21 @@ async def verify_card_otp(
     return {"message": "Payment verified. Hospital node is now active!", "status": "active"}
 
 
-# ── 5a. Admin force-approve ───────────────────────────────────────────────────
+# -- 5a. Admin force-approve ---------------------------------------------------
 
 @router.post("/admin-approve-hospital/{hospital_id}")
 async def admin_approve_hospital(
     hospital_id: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """Dev/superadmin bypass — sets hospital to active and unblocks the owner's login."""
+    """Dev/superadmin bypass -- sets hospital to active and unblocks the owner's login."""
     hospital = await _hospital_or_404(db, hospital_id)
     hospital.status = HospitalStatus.active
     db.add(hospital)
     await db.flush()
 
     # EXECUTION FIX: this used to only flip the hospital's status. The owner's
-    # account (created inactive at registration — see register_enterprise)
+    # account (created inactive at registration -- see register_enterprise)
     # was never activated, so approval didn't actually grant login access.
     if hospital.owner_user_id:
         await _call_auth_internal(f"/internal/activate-user/{hospital.owner_user_id}")
@@ -374,7 +374,7 @@ async def admin_approve_hospital(
     return {"message": "Hospital approved and activated.", "status": "active"}
 
 
-# ── 5b. Hospital status polling ───────────────────────────────────────────────
+# -- 5b. Hospital status polling -----------------------------------------------
 
 @router.get("/hospital-status/{hospital_id}")
 async def get_hospital_status(
@@ -394,14 +394,14 @@ async def get_hospital_status(
     }
 
 
-# ── Public: Hospital info for QR scan page ────────────────────────────────────
+# -- Public: Hospital info for QR scan page ------------------------------------
 
 @router.get("/hospital-public-info/{hospital_id}")
 async def hospital_public_info(
     hospital_id: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """Minimal info for patient walk-in QR page — no auth required."""
+    """Minimal info for patient walk-in QR page -- no auth required."""
     hospital = await _hospital_or_404(db, hospital_id)
     if hospital.status != HospitalStatus.active:
         raise HTTPException(status_code=403, detail="This hospital is not yet active on Hospyn.")
@@ -412,7 +412,7 @@ async def hospital_public_info(
     }
 
 
-# ── Public: Patient walk-in quick register ────────────────────────────────────
+# -- Public: Patient walk-in quick register ------------------------------------
 
 class QuickRegisterPayload(BaseModel):
     hospital_id: str
@@ -475,7 +475,7 @@ async def walkin_quick_register(
     }
 
 
-# ── Twilio SMS helper ─────────────────────────────────────────────────────────
+# -- Twilio SMS helper ---------------------------------------------------------
 
 async def _send_sms(to: str, body: str):
     """Send SMS via Twilio. Logs in dev if credentials not set."""

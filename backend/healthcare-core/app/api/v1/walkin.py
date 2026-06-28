@@ -116,7 +116,7 @@ async def submit_walkin(
             detail="Hospital not found or inactive.",
         )
 
-    # 3. Duplicate prevention — same phone + same hospital + active queue
+    # 3. Duplicate prevention -- same phone + same hospital + active queue
     is_duplicate = await check_duplicate_walkin(db, form.phone, hospital_id)
     if is_duplicate:
         raise HTTPException(

@@ -104,7 +104,7 @@ class Appointment(Base):
     prescription: Mapped[str] = mapped_column(EncryptedText, nullable=True)
     diagnosis: Mapped[str] = mapped_column(EncryptedText, nullable=True)
 
-    # Walk-in provenance — links back to the intake pipeline
+    # Walk-in provenance -- links back to the intake pipeline
     source_type: Mapped[AppointmentSource] = mapped_column(
         SQLEnum(AppointmentSource), default=AppointmentSource.scheduled, nullable=False
     )
@@ -132,7 +132,7 @@ class Appointment(Base):
         DateTime(timezone=True), nullable=True
     )
 
-    # Relationships — string references, no circular imports
+    # Relationships -- string references, no circular imports
     patient: Mapped["Patient"] = relationship("Patient", back_populates="appointments")
     doctor: Mapped["Doctor"] = relationship("Doctor", back_populates="appointments")
 

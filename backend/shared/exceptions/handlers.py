@@ -1,4 +1,4 @@
-# FIX: E402 — module-level import not at top of file.
+# FIX: E402 -- module-level import not at top of file.
 # 'from fastapi.encoders import jsonable_encoder' was placed after function
 # definitions on line 17. All imports moved to the top.
 from fastapi import Request

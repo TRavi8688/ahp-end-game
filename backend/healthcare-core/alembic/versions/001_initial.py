@@ -16,7 +16,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # ─── Hospitals ────────────────────────────────────────────────
+    # --- Hospitals ------------------------------------------------
     op.create_table(
         "hospitals",
         sa.Column("id", sa.UUID(as_uuid=True), primary_key=True),
@@ -59,7 +59,7 @@ def upgrade() -> None:
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
     )
 
-    # ─── Doctors ──────────────────────────────────────────────────
+    # --- Doctors --------------------------------------------------
     op.create_table(
         "doctors",
         sa.Column("id", sa.UUID(as_uuid=True), primary_key=True),
@@ -112,7 +112,7 @@ def upgrade() -> None:
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
     )
 
-    # ─── Patients ─────────────────────────────────────────────────
+    # --- Patients -------------------------------------------------
     op.create_table(
         "patients",
         sa.Column("id", sa.UUID(as_uuid=True), primary_key=True),
@@ -173,7 +173,7 @@ def upgrade() -> None:
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
     )
 
-    # ─── Appointments ─────────────────────────────────────────────
+    # --- Appointments ---------------------------------------------
     op.create_table(
         "appointments",
         sa.Column("id", sa.UUID(as_uuid=True), primary_key=True),

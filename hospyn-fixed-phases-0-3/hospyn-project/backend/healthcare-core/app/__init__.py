@@ -1,1 +1,0 @@
-# Healthcare Core App Package

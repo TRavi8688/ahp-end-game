@@ -43,7 +43,7 @@ class Doctor(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True
     )
 
-    # Link to auth-service user — NOT a foreign key (cross-service boundary)
+    # Link to auth-service user -- NOT a foreign key (cross-service boundary)
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), unique=True, nullable=False, index=True
     )
@@ -95,7 +95,7 @@ class Doctor(Base):
     )
     deleted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    # Relationships — string references
+    # Relationships -- string references
     hospital: Mapped["Hospital"] = relationship("Hospital", back_populates="doctors")
     appointments: Mapped[list["Appointment"]] = relationship(
         "Appointment", back_populates="doctor"

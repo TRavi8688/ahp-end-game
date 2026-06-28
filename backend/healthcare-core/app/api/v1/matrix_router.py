@@ -1,7 +1,7 @@
 """
 backend/healthcare-core/app/api/v1/matrix_router.py
 
-Hospin Matrix 3.0 — Master Router
+Hospin Matrix 3.0 -- Master Router
 Mounts all Matrix module endpoints under /api/v1/matrix/
 
 ADD TO: backend/healthcare-core/app/api/router.py

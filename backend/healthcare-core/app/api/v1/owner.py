@@ -1,7 +1,7 @@
 """
 Owner Dashboard API
 ====================
-PHASE 1.4 + PHASE 2 FIX — Real endpoint for GET /owner/dashboard.
+PHASE 1.4 + PHASE 2 FIX -- Real endpoint for GET /owner/dashboard.
 
 The OwnerDashboard.jsx (after mock bypass removal) calls this.
 Returns real data from the database scoped to the hospital owner's hospital.
@@ -69,9 +69,9 @@ async def get_owner_dashboard(
 ):
     """
     Returns complete hospital dashboard telemetry for the owner console.
-    All data is scoped to the current owner's hospital(s) — no cross-tenant leakage.
+    All data is scoped to the current owner's hospital(s) -- no cross-tenant leakage.
     """
-    # ── 1. Find the owner's hospital ────────────────────────────────────────
+    # -- 1. Find the owner's hospital ----------------------------------------
     try:
         staff_result = await db.execute(
             text("SELECT hospital_id FROM staff WHERE user_id = :uid AND deleted_at IS NULL LIMIT 1"),
@@ -116,14 +116,14 @@ async def get_owner_dashboard(
     now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    # ── 2. Hospital info ─────────────────────────────────────────────────────
+    # -- 2. Hospital info -----------------------------------------------------
     hosp_result = await db.execute(
         select(Hospital).where(Hospital.id == uuid.UUID(active_hospital_id))
     )
     hospital = hosp_result.scalars().first()
     hospital_name = hospital.name if hospital else "Your Hospital"
 
-    # ── 3. Revenue today ─────────────────────────────────────────────────────
+    # -- 3. Revenue today -----------------------------------------------------
     income_today = 0.0
     try:
         rev_result = await db.execute(
@@ -141,7 +141,7 @@ async def get_owner_dashboard(
     except Exception:
         pass
 
-    # ── 4. Staff count ───────────────────────────────────────────────────────
+    # -- 4. Staff count -------------------------------------------------------
     staff_list = []
     try:
         staff_query = await db.execute(
@@ -168,7 +168,7 @@ async def get_owner_dashboard(
     except Exception:
         pass
 
-    # ── 5. Bed occupancy ─────────────────────────────────────────────────────
+    # -- 5. Bed occupancy -----------------------------------------------------
     beds_total = 0
     beds_occupied = 0
     try:
@@ -189,7 +189,7 @@ async def get_owner_dashboard(
     except Exception:
         pass
 
-    # ── 6. Low stock count ───────────────────────────────────────────────────
+    # -- 6. Low stock count ---------------------------------------------------
     low_stock_count = 0
     try:
         stock_result = await db.execute(
@@ -205,7 +205,7 @@ async def get_owner_dashboard(
     except Exception:
         pass
 
-    # ── 7. Active queue count ────────────────────────────────────────────────
+    # -- 7. Active queue count ------------------------------------------------
     queue_count = 0
     try:
         queue_result = await db.execute(
@@ -221,7 +221,7 @@ async def get_owner_dashboard(
     except Exception:
         pass
 
-    # ── 8. Recent activity feed ───────────────────────────────────────────────
+    # -- 8. Recent activity feed -----------------------------------------------
     activity_feed = []
     try:
         activity_result = await db.execute(
@@ -246,12 +246,12 @@ async def get_owner_dashboard(
                 "timestamp": row.timestamp.isoformat() if row.timestamp else now.isoformat(),
                 "actor_name": row.actor_name or "System",
                 "actor_role": row.actor_role or "System",
-                "patient": str(row.patient) if row.patient else "—",
+                "patient": str(row.patient) if row.patient else "--",
             })
     except Exception:
         pass
 
-    # ── 9. Recent ledger ──────────────────────────────────────────────────────
+    # -- 9. Recent ledger ------------------------------------------------------
     ledger = []
     try:
         ledger_result = await db.execute(
@@ -284,7 +284,7 @@ async def get_owner_dashboard(
     except Exception:
         pass
 
-    # ── 10. Branch list ───────────────────────────────────────────────────────
+    # -- 10. Branch list -------------------------------------------------------
     branches = []
     try:
         branch_result = await db.execute(
@@ -297,7 +297,7 @@ async def get_owner_dashboard(
         # If no branches table, return the hospital itself as the single "branch"
         branches = [{"id": hospital_id, "name": hospital_name, "city": "Main"}]
 
-    # ── Determine scale ───────────────────────────────────────────────────────
+    # -- Determine scale -------------------------------------------------------
     scale = "Low"
     if len(staff_list) > 50 or beds_total > 100:
         scale = "High"

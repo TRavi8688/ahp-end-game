@@ -1,7 +1,7 @@
 """
 backend/healthcare-core/app/services/matrix_sla_engine.py
 
-SLA Engine — Modules 8 & 9
+SLA Engine -- Modules 8 & 9
 
 Two responsibilities:
   1. Background worker (run via asyncio task at startup):
@@ -11,10 +11,10 @@ Two responsibilities:
        - Publishes to Redis stream matrix:sla:breached for real-time UI
 
   2. FastAPI router (mounted at /matrix/sla):
-       GET  /matrix/sla/rules          — configurable SLA rules
-       PUT  /matrix/sla/rules/{priority} — update rule (super_admin only)
-       GET  /matrix/sla/breaches       — recent breaches (paginated)
-       GET  /matrix/sla/risk           — tickets at risk (approaching breach)
+       GET  /matrix/sla/rules          -- configurable SLA rules
+       PUT  /matrix/sla/rules/{priority} -- update rule (super_admin only)
+       GET  /matrix/sla/breaches       -- recent breaches (paginated)
+       GET  /matrix/sla/risk           -- tickets at risk (approaching breach)
 """
 from __future__ import annotations
 
@@ -45,7 +45,7 @@ DEFAULT_SLA = {
 }
 
 
-# ─── Background Worker ────────────────────────────────────────────────────────
+# --- Background Worker --------------------------------------------------------
 
 async def run_sla_worker():
     """
@@ -199,7 +199,7 @@ async def _auto_escalate(db, ticket, now):
         UPDATE matrix_sla_breaches SET auto_escalated = true
         WHERE ticket_id = :tid ORDER BY created_at DESC LIMIT 1
     """), {"tid": ticket["ticket_id"]})
-    logger.info("SLA auto-escalated %s → %s %s", ticket["ticket_id"], next_level, target["employee_id"])
+    logger.info("SLA auto-escalated %s -> %s %s", ticket["ticket_id"], next_level, target["employee_id"])
 
 
 async def _publish_breach_event(ticket_id, breach_type, priority, overage):
@@ -217,7 +217,7 @@ async def _publish_breach_event(ticket_id, breach_type, priority, overage):
         logger.warning("SLA breach publish failed: %s", e)
 
 
-# ─── set SLA deadlines when a ticket is created ───────────────────────────────
+# --- set SLA deadlines when a ticket is created -------------------------------
 
 async def stamp_sla_deadlines(db: AsyncSession, ticket_id: str, priority: str, created_at: datetime):
     """
@@ -247,7 +247,7 @@ async def stamp_sla_deadlines(db: AsyncSession, ticket_id: str, priority: str, c
     """), {"resp_due": resp_due, "res_due": res_due, "tid": ticket_id})
 
 
-# ─── API Router ───────────────────────────────────────────────────────────────
+# --- API Router ---------------------------------------------------------------
 
 @router.get("/rules")
 async def get_sla_rules(db: AsyncSession = Depends(get_db)):

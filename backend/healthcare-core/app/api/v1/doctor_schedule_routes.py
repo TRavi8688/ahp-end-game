@@ -1,6 +1,6 @@
 """
 doctor_schedule_routes.py
-Phase 4 — Doctor App: Profile, Schedule, Settings, Analytics, Leave,
+Phase 4 -- Doctor App: Profile, Schedule, Settings, Analytics, Leave,
 Break (with types), Roster & Holiday routes.
 
 WHY THIS FILE EXISTS:
@@ -29,10 +29,10 @@ WHY THIS FILE EXISTS:
   fragile and will break the moment import order changes.
 
   RECOMMENDATION: delete doctor_stats_alerts.py entirely (it is a
-  stale duplicate — doctor_extensions.py is the newer, kept version)
+  stale duplicate -- doctor_extensions.py is the newer, kept version)
   and ALSO move the break/break-end endpoints out of doctor_extensions.py
   into this file, since this file's version supports break TYPES,
-  duration estimates, and queue auto-pause — the old one only flips a
+  duration estimates, and queue auto-pause -- the old one only flips a
   boolean. See "MIGRATION NOTE" at the bottom of this docstring.
 
 DROP-IN INSTRUCTIONS:
@@ -49,7 +49,7 @@ DROP-IN INSTRUCTIONS:
             from app.api.v1.doctor_schedule_routes import router as doctor_schedule_router
             api_router.include_router(doctor_schedule_router, prefix="/doctor", tags=["Doctor Schedule"])
   3. Run the migration in migrations/0006_doctor_schedule_system.py first
-     (read its docstring — there's a pre-existing circular migration bug
+     (read its docstring -- there's a pre-existing circular migration bug
      that must be fixed before this will apply).
   4. Add the new models to app/models/__init__.py (see doctor_schedule.py
      header for the exact import line).
@@ -57,7 +57,7 @@ DROP-IN INSTRUCTIONS:
 MIGRATION NOTE (manual step, not code):
   After deleting the break endpoints from doctor_extensions.py, doctor
   status changes (DoctorStatus.on_break / .active) used by those old
-  endpoints are now handled here instead — same enum, same behavior,
+  endpoints are now handled here instead -- same enum, same behavior,
   plus break-type logging and queue auto-pause.
 """
 
@@ -100,7 +100,7 @@ router = APIRouter()
 async def _get_doctor(db: AsyncSession, user_id_str: str) -> Doctor:
     """Resolves the authenticated user (TokenPayload.sub, a string) to their
     Doctor row. Matches the exact pattern used in doctor_queue.py's
-    _resolve_doctor — TokenPayload.sub is a plain string and must be cast
+    _resolve_doctor -- TokenPayload.sub is a plain string and must be cast
     to uuid.UUID before comparing against the UUID column."""
     result = await db.execute(
         select(Doctor).where(
@@ -690,9 +690,9 @@ async def cancel_leave_request(
 
 
 # ===========================================================================
-# BREAK SYSTEM — typed breaks + queue auto-pause
+# BREAK SYSTEM -- typed breaks + queue auto-pause
 # (Replaces the boolean-only break/start, break/end in doctor_extensions.py
-#  — same route paths, now records break TYPE and pauses the live queue.)
+#  -- same route paths, now records break TYPE and pauses the live queue.)
 # ===========================================================================
 
 @router.post("/session/break/start")
@@ -815,7 +815,7 @@ async def get_today_breaks(
 
 
 # ===========================================================================
-# ROSTER — monthly view, per-day shift CRUD
+# ROSTER -- monthly view, per-day shift CRUD
 # ===========================================================================
 
 @router.get("/roster")
@@ -949,7 +949,7 @@ async def delete_roster_shift(
 
 
 # ===========================================================================
-# HOLIDAYS — hospital-wide calendar
+# HOLIDAYS -- hospital-wide calendar
 # ===========================================================================
 
 @router.get("/holidays")

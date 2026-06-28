@@ -1,5 +1,5 @@
 """
-Doctor Queue API Routes (Staff Portal — Doctor)
+Doctor Queue API Routes (Staff Portal -- Doctor)
 
 Endpoints:
     GET   /doctor/queue                    - List patients waiting for consultation
@@ -54,14 +54,14 @@ class ConsultationCompletePayload(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# GET Doctor Queue — WAITING_DOCTOR for this hospital (or assigned to this doc)
+# GET Doctor Queue -- WAITING_DOCTOR for this hospital (or assigned to this doc)
 # ---------------------------------------------------------------------------
 
 # (Keep get_doctor_queue implementation and start_consultation implementation, replacing complete_consultation)
 
 
 # ---------------------------------------------------------------------------
-# GET Doctor Queue — WAITING_DOCTOR for this hospital (or assigned to this doc)
+# GET Doctor Queue -- WAITING_DOCTOR for this hospital (or assigned to this doc)
 # ---------------------------------------------------------------------------
 
 
@@ -297,7 +297,7 @@ async def get_patient_details(
 
 
 # ---------------------------------------------------------------------------
-# PATCH Start Consultation — Doctor picks up patient
+# PATCH Start Consultation -- Doctor picks up patient
 # ---------------------------------------------------------------------------
 
 
@@ -310,7 +310,7 @@ async def start_consultation(
 ):
     """
     Doctor picks up a patient for consultation.
-    WAITING_DOCTOR → IN_CONSULTATION.
+    WAITING_DOCTOR -> IN_CONSULTATION.
     Creates an Appointment record linked to this WalkInRequest.
     """
     doctor = await _resolve_doctor(db, current_user.sub)
@@ -333,7 +333,7 @@ async def start_consultation(
         ip_address=request.client.host if request.client else None,
     )
 
-    # Create the Appointment record — this is the only place appointments are created from walk-ins
+    # Create the Appointment record -- this is the only place appointments are created from walk-ins
     now = datetime.now(timezone.utc)
     appointment = Appointment(
         patient_id=walkin.patient_id,  # May be None for anonymous walk-ins
@@ -372,7 +372,7 @@ async def start_consultation(
 
 
 # ---------------------------------------------------------------------------
-# PATCH Complete Consultation — Doctor finishes and writes notes
+# PATCH Complete Consultation -- Doctor finishes and writes notes
 # ---------------------------------------------------------------------------
 
 
@@ -387,7 +387,7 @@ async def complete_consultation(
     """
     Doctor completes consultation. Stores clinical notes in the Appointment and MedicalRecord.
     Creates structured Prescription items.
-    IN_CONSULTATION → COMPLETED.
+    IN_CONSULTATION -> COMPLETED.
     """
     doctor = await _resolve_doctor(db, current_user.sub)
     walkin = await _get_walkin_for_hospital(db, walkin_id, doctor.hospital_id)

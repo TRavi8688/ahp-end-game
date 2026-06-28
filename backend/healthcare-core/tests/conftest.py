@@ -16,14 +16,14 @@ from alembic import command
 from app.core.database import Base, get_db    # adjust path as needed
 
 # ---------------------------------------------------------------------------
-# Use TEST_DATABASE_URL — NEVER sqlite:///:memory:
+# Use TEST_DATABASE_URL -- NEVER sqlite:///:memory:
 # ---------------------------------------------------------------------------
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
     "postgresql+asyncpg://test:test@localhost:5432/hospyn_test",
 )
 
-# Fail fast — don't let tests silently run against the wrong DB
+# Fail fast -- don't let tests silently run against the wrong DB
 if "sqlite" in TEST_DATABASE_URL:
     raise RuntimeError(
         "TEST_DATABASE_URL must be a PostgreSQL URL. "
@@ -75,7 +75,7 @@ async def db_session(test_engine):
     async with async_session() as session:
         async with session.begin():
             yield session
-            await session.rollback()  # roll back after each test — no state leaks
+            await session.rollback()  # roll back after each test -- no state leaks
 
 
 @pytest_asyncio.fixture

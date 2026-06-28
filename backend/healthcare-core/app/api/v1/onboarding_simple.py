@@ -1,11 +1,11 @@
 """
 backend/healthcare-core/app/api/v1/onboarding_simple.py
 
-Simplified hospital registration — NO documents, NO payment.
+Simplified hospital registration -- NO documents, NO payment.
 Used by the rebuilt ActivationWizard (Hospin rebrand, payment removed).
 
 Flow:
-  POST /onboarding/register-enterprise-simple   — Step 1 (create OR update pending hospital)
+  POST /onboarding/register-enterprise-simple   -- Step 1 (create OR update pending hospital)
   (reuses existing /onboarding/send-government-pan-otp/{id})
   (reuses existing /onboarding/verify-government-pan-otp/{id})
 
@@ -81,7 +81,7 @@ async def register_enterprise_simple(
     state    = parts[-2] if len(parts) >= 2 else "Unknown"
     pin_code = parts[-1] if parts else "000000"
 
-    # ── Re-edit path: update existing pending hospital ─────────────────────────
+    # -- Re-edit path: update existing pending hospital -------------------------
     if body.hospital_id:
         try:
             existing_uid = uuid.UUID(body.hospital_id)
@@ -112,7 +112,7 @@ async def register_enterprise_simple(
             }
         # If hospital_id given but not found / not pending, fall through to create new
 
-    # ── Duplicate registration_number check (only for brand new submissions) ──
+    # -- Duplicate registration_number check (only for brand new submissions) --
     dup = await db.execute(
         text("""
             SELECT id FROM hospitals

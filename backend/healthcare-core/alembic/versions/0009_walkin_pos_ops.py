@@ -27,14 +27,14 @@ def upgrade() -> None:
     op.execute("DO $$ BEGIN CREATE TYPE paymentmethod AS ENUM ('cash', 'upi', 'card'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
     op.execute("DO $$ BEGIN CREATE TYPE expensecategory AS ENUM ('rent', 'salaries', 'utilities', 'purchase', 'other'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
 
-    # ── Order pipeline additions ────────────────────────────────────────────
+    # -- Order pipeline additions --------------------------------------------
     op.add_column("prescription_shares", sa.Column("token_number", sa.Integer, nullable=True))
     op.add_column("prescription_shares", sa.Column(
         "updated_at", sa.DateTime, nullable=False, server_default=sa.text("now()")
     ))
     op.add_column("prescriptions", sa.Column("image_url", sa.String(500), nullable=True))
 
-    # ── walkin_customers ─────────────────────────────────────────────────────
+    # -- walkin_customers -----------------------------------------------------
     op.create_table(
         "walkin_customers",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True,
@@ -51,7 +51,7 @@ def upgrade() -> None:
     op.create_index("ix_walkin_customers_phone", "walkin_customers", ["phone"])
     op.create_index("ix_walkin_customers_merged_patient_id", "walkin_customers", ["merged_patient_id"])
 
-    # ── pharmacy_sales / pharmacy_sale_items ────────────────────────────────
+    # -- pharmacy_sales / pharmacy_sale_items --------------------------------
     op.create_table(
         "pharmacy_sales",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True,
@@ -89,7 +89,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_pharmacy_sale_items_sale_id", "pharmacy_sale_items", ["sale_id"])
 
-    # ── pharmacy_suppliers / purchase orders ────────────────────────────────
+    # -- pharmacy_suppliers / purchase orders --------------------------------
     op.create_table(
         "pharmacy_suppliers",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True,
@@ -136,7 +136,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_purchase_order_items_po_id", "pharmacy_purchase_order_items", ["purchase_order_id"])
 
-    # ── pharmacy_expenses ────────────────────────────────────────────────────
+    # -- pharmacy_expenses ----------------------------------------------------
     op.create_table(
         "pharmacy_expenses",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True,

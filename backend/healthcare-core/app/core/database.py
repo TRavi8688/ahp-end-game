@@ -2,9 +2,9 @@
 healthcare-core/app/core/database.py
 
 FIXES:
-  - pool_size: 10 → 20, max_overflow: 20 → 40 (Cloud Run 10k req/s)
+  - pool_size: 10 -> 20, max_overflow: 20 -> 40 (Cloud Run 10k req/s)
   - statement_timeout=30s to prevent hung queries blocking pool
-  - pool_recycle and pool_pre_ping already present — kept
+  - pool_recycle and pool_pre_ping already present -- kept
   - Added pool size env-var overrides for easy tuning without code changes
   - Removed SQLite fallback in production (enforced by startup_checks)
 
@@ -35,14 +35,14 @@ from app.config.settings import settings
 logger = logging.getLogger(__name__)
 
 
-# ── ORM Base ──────────────────────────────────────────────────────────────────
+# -- ORM Base ------------------------------------------------------------------
 
 class Base(DeclarativeBase):
     """Base class for all SQLAlchemy ORM models in healthcare-core."""
     pass
 
 
-# ── Engine factory ────────────────────────────────────────────────────────────
+# -- Engine factory ------------------------------------------------------------
 
 _engine: AsyncEngine | None = None
 _AsyncSessionLocal: async_sessionmaker | None = None
@@ -52,7 +52,7 @@ def _build_engine_kwargs(database_url: str) -> dict:
     kwargs: dict = {"echo": settings.ENVIRONMENT == "development"}
 
     if "sqlite" in database_url:
-        # Test only — SQLite doesn't support pool options
+        # Test only -- SQLite doesn't support pool options
         kwargs["connect_args"] = {"check_same_thread": False}
         return kwargs
 
@@ -110,7 +110,7 @@ class _LazySessionFactory:
 AsyncSessionLocal = _LazySessionFactory()
 
 
-# ── Global soft-delete filter ─────────────────────────────────────────────────
+# -- Global soft-delete filter -------------------------------------------------
 
 @event.listens_for(Session, "do_orm_execute")
 def _add_soft_delete_filter(execute_state):
@@ -132,7 +132,7 @@ def _add_soft_delete_filter(execute_state):
         )
 
 
-# ── FastAPI dependency ────────────────────────────────────────────────────────
+# -- FastAPI dependency --------------------------------------------------------
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
@@ -150,7 +150,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             await session.close()
 
 
-# ── Health check ──────────────────────────────────────────────────────────────
+# -- Health check --------------------------------------------------------------
 
 async def check_db_health() -> dict:
     try:

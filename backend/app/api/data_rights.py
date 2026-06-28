@@ -1,6 +1,6 @@
 """
-data_rights.py — DPDP Act 2023 data rights: erasure, portability, access.
-Phase 13 Fix: right to erasure endpoint was "unverified" — this implements it.
+data_rights.py -- DPDP Act 2023 data rights: erasure, portability, access.
+Phase 13 Fix: right to erasure endpoint was "unverified" -- this implements it.
 
 Place at: backend/app/api/data_rights.py
 Register router in main.py.
@@ -17,7 +17,7 @@ logger = get_logger(__name__)
 data_rights_router = APIRouter(prefix="/api/v1/account", tags=["data-rights"])
 
 
-# ─── Request/Response schemas ─────────────────────────────────────────────────
+# --- Request/Response schemas -------------------------------------------------
 
 class ErasureRequest(BaseModel):
     reason: Optional[str] = None
@@ -39,7 +39,7 @@ class DataPortabilityResponse(BaseModel):
     generated_at: datetime
 
 
-# ─── Endpoints ────────────────────────────────────────────────────────────────
+# --- Endpoints ----------------------------------------------------------------
 
 @data_rights_router.delete("/delete", response_model=ErasureResponse)
 async def request_data_erasure(
@@ -49,7 +49,7 @@ async def request_data_erasure(
     # db: AsyncSession = Depends(get_db),               # Uncomment when DB is wired
 ) -> ErasureResponse:
     """
-    DPDP Act 2023 §13 — Right to erasure.
+    DPDP Act 2023 §13 -- Right to erasure.
     Erases all personal data for the authenticated patient.
 
     Audit-logged. PHI is zeroed or pseudonymized (not physically deleted,
@@ -70,7 +70,7 @@ async def request_data_erasure(
     import uuid
     erasure_id = str(uuid.uuid4())
 
-    # ── Data erasure steps ────────────────────────────────────────────────
+    # -- Data erasure steps ------------------------------------------------
     erased_categories = []
 
     # 1. Pseudonymize PII in user record
@@ -120,7 +120,7 @@ async def export_patient_data(
     # db: AsyncSession = Depends(get_db),
 ) -> DataPortabilityResponse:
     """
-    DPDP Act 2023 §12 — Right to access and data portability.
+    DPDP Act 2023 §12 -- Right to access and data portability.
     Returns all personal data held about the patient in machine-readable JSON.
     """
     # patient_id = current_user["id"]
@@ -154,7 +154,7 @@ async def list_my_consents(
     # db: AsyncSession = Depends(get_db),
 ) -> dict:
     """
-    DPDP Act 2023 §12 — Right to access consent records.
+    DPDP Act 2023 §12 -- Right to access consent records.
     Lists all purposes the patient has consented to.
     """
     # patient_id = current_user["id"]
@@ -174,7 +174,7 @@ async def withdraw_consent(
     # db: AsyncSession = Depends(get_db),
 ) -> dict:
     """
-    DPDP Act 2023 §6(4) — Right to withdraw consent.
+    DPDP Act 2023 §6(4) -- Right to withdraw consent.
     Must be as easy as granting consent.
     """
     # patient_id = current_user["id"]

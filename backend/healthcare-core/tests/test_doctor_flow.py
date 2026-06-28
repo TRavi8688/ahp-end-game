@@ -100,7 +100,7 @@ async def test_doctor_registration_approval_and_booking(client, db_session):
     assert response.status_code == 201, f"Create doctor failed: {response.text}"
     doctor_id = response.json()["data"]["id"]
 
-    # 5. List active doctors as patient — should be empty (doctor is pending)
+    # 5. List active doctors as patient -- should be empty (doctor is pending)
     response = await client.get("/api/v1/healthcare/doctors/", headers=patient_headers)
     assert response.status_code == 200
     assert len(response.json()["data"]["items"]) == 0
@@ -115,7 +115,7 @@ async def test_doctor_registration_approval_and_booking(client, db_session):
     assert response.status_code == 200, f"Approve doctor failed: {response.text}"
     assert response.json()["data"]["status"] == "active"
 
-    # 7. List active doctors as patient — should find the doctor now
+    # 7. List active doctors as patient -- should find the doctor now
     response = await client.get("/api/v1/healthcare/doctors/", headers=patient_headers)
     assert response.status_code == 200
     doctors = response.json()["data"]["items"]

@@ -8,7 +8,7 @@ the backend's boot (ModuleNotFoundError) before any request could be served.
 SCOPE NOTE: this is intentionally a minimal, honest placeholder, not a full
 lab-results feature. There is no LabResult model anywhere in this codebase
 and no spec for what fields/workflow it needs (which lab partners, report
-formats, who can release results to a patient, etc.) — building that out
+formats, who can release results to a patient, etc.) -- building that out
 would mean guessing at a clinical data model, which isn't something to
 fabricate. This file exists so the app boots; the single endpoint below
 returns 501 rather than silently pretending to be a working feature.

@@ -1,5 +1,5 @@
 """
-tracing.py — OpenTelemetry distributed tracing setup.
+tracing.py -- OpenTelemetry distributed tracing setup.
 Phase 12 Fix: "OpenTelemetry-ready hooks" in README becomes actual OTEL export.
 Exports traces to Google Cloud Trace (production) or Jaeger (dev).
 
@@ -51,7 +51,7 @@ def configure_tracing(
     provider = TracerProvider(resource=resource)
 
     if env == "production":
-        # ── Google Cloud Trace via OTLP ────────────────────────────────────
+        # -- Google Cloud Trace via OTLP ------------------------------------
         try:
             from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
@@ -70,7 +70,7 @@ def configure_tracing(
             provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
 
     elif env in ("staging", "development", "test"):
-        # ── Console exporter (dev/test) ────────────────────────────────────
+        # -- Console exporter (dev/test) ------------------------------------
         if env != "test":  # Don't spam in pytest runs
             provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
             logger.info("otel_tracing_configured", exporter="console")
@@ -99,7 +99,7 @@ def instrument_app(app, engine=None) -> None:
         excluded_urls="/health,/metrics",  # Don't trace health checks
     )
 
-    # SQLAlchemy: traces every query (with sanitized SQL — no PHI in spans)
+    # SQLAlchemy: traces every query (with sanitized SQL -- no PHI in spans)
     if engine is not None:
         SQLAlchemyInstrumentor().instrument(
             engine=engine.sync_engine,
@@ -121,7 +121,7 @@ def get_tracer(name: str = "hospyn") -> trace.Tracer:
     return trace.get_tracer(name)
 
 
-# ─── Usage example ────────────────────────────────────────────────────────────
+# --- Usage example ------------------------------------------------------------
 # In main.py:
 #
 # from backend.app.core.tracing import configure_tracing, instrument_app

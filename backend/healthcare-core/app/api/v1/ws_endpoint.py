@@ -33,7 +33,7 @@ def _check_rate_limit(redis_client: redis_lib.Redis, ip: str) -> bool:
             redis_client.expire(key, 60)
         return count <= WS_MAX_CONNECTIONS_PER_IP_PER_MINUTE
     except redis_lib.RedisError:
-        logger.error("Redis unavailable for WS rate limit check — denying connection")
+        logger.error("Redis unavailable for WS rate limit check -- denying connection")
         return False
 
 @router.websocket("/ws/reception")

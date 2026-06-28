@@ -23,7 +23,7 @@ transaction_type_enum = postgresql.ENUM(
 )
 
 def upgrade() -> None:
-    # 004_pharmacy created pharmacy_inventory without created_at — model now
+    # 004_pharmacy created pharmacy_inventory without created_at -- model now
     # declares it, so the column needs to exist for ORM inserts to succeed.
     op.add_column(
         "pharmacy_inventory",

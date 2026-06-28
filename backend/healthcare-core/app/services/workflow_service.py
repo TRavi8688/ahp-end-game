@@ -9,20 +9,20 @@ Core logic for the dynamic, hospital-defined workflow system:
     entry stage, generating a token code.
   - advance_token(): moves a token to the next stage per the workflow's
     transitions (or marks it completed if there's no next stage).
-  - claim_next_token(): the "Call Next" operation — finds the next
+  - claim_next_token(): the "Call Next" operation -- finds the next
     unlocked, waiting token at a given stage_type for this hospital, locks
     it to the calling staff member, and returns it. This is what backs
-    Doctor App's POST /queue/token/advance (which takes no body — the
+    Doctor App's POST /queue/token/advance (which takes no body -- the
     server decides who's "next").
   - Locking: a token can only be locked by one staff member at a time
     (Multi-Staff Locking System in the platform plan). Attempting to claim
     an already-locked token raises a clear 409, not a silent overwrite.
 
-NOTE — current limitation, flagged honestly: assignment_strategy on
+NOTE -- current limitation, flagged honestly: assignment_strategy on
 WorkflowStage (round_robin / least_busy / manual / department) is stored
 but only "least_busy"-equivalent FIFO-by-wait-time is actually implemented
 in claim_next_token() right now. Round-robin and department-based routing
-need a follow-up pass — they require tracking last-assigned-staff per stage
+need a follow-up pass -- they require tracking last-assigned-staff per stage
 and department membership respectively, which is more than this slice of
 work covers.
 """
@@ -42,7 +42,7 @@ from app.models.workflow import (
 )
 
 
-# ── Default workflow (used until a hospital configures its own) ────────────
+# -- Default workflow (used until a hospital configures its own) ------------
 
 _DEFAULT_STAGES = [
     ("registration", "Registration", "reception", "reception", "manual"),
@@ -115,7 +115,7 @@ async def get_next_stage_id(workflow: WorkflowDefinition, current_stage_id: Opti
 
 async def _next_token_code(db: AsyncSession, hospital_id: uuid.UUID, prefix: str) -> str:
     """Sequential per-hospital token code, e.g. A001, A002. Resets are not
-    time-boxed yet (no daily reset) — flagging as a follow-up if you want
+    time-boxed yet (no daily reset) -- flagging as a follow-up if you want
     tokens to restart at 001 each day rather than growing forever."""
     result = await db.execute(
         select(func.count()).select_from(PatientToken).where(PatientToken.hospital_id == hospital_id)
@@ -145,7 +145,7 @@ async def create_token(db: AsyncSession, hospital_id: uuid.UUID, patient_id: uui
 async def claim_next_token(
     db: AsyncSession, hospital_id: uuid.UUID, stage_type: str, staff_id: uuid.UUID,
 ) -> Optional[PatientToken]:
-    """'Call Next' — finds the oldest unlocked, waiting token whose current
+    """'Call Next' -- finds the oldest unlocked, waiting token whose current
     stage matches stage_type for this hospital, locks it to staff_id."""
     result = await db.execute(
         select(PatientToken)
@@ -174,7 +174,7 @@ async def claim_next_token(
 
 
 async def lock_token(db: AsyncSession, token: PatientToken, staff_id: uuid.UUID) -> PatientToken:
-    """Explicit lock (e.g. opening a patient record) — raises 409 if someone
+    """Explicit lock (e.g. opening a patient record) -- raises 409 if someone
     else already holds the lock, per the Multi-Staff Locking System spec."""
     if token.locked_by_staff_id and token.locked_by_staff_id != staff_id:
         raise HTTPException(

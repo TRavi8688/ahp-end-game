@@ -1,11 +1,11 @@
 """
-PHI Encryption at Rest — Fernet-based SQLAlchemy TypeDecorators
+PHI Encryption at Rest -- Fernet-based SQLAlchemy TypeDecorators
 
 Provides EncryptedString and EncryptedText column types that transparently
 encrypt on write and decrypt on read using Fernet symmetric encryption.
 
 Key management:
-  • ENCRYPTION_KEY env var — base64-encoded Fernet key(s), comma-separated for rotation.
+  • ENCRYPTION_KEY env var -- base64-encoded Fernet key(s), comma-separated for rotation.
   • First key is always used for encryption; all keys are tried on decryption.
   • In production (ENVIRONMENT=production), missing key raises ValueError at import time.
   • In dev, a deterministic dev-only key is used with a loud warning.
@@ -50,7 +50,7 @@ def _load_fernet_keys() -> list[Fernet]:
         if keys:
             return keys
 
-    # Key is missing — behaviour depends on environment
+    # Key is missing -- behaviour depends on environment
     environment = os.environ.get("ENVIRONMENT", "development").lower()
     if environment == "production":
         logger.critical(
@@ -60,9 +60,9 @@ def _load_fernet_keys() -> list[Fernet]:
             "Set FERNET_KEY in GitHub Secrets ASAP."
         )
     else:
-        # Dev-only deterministic key — NEVER use in production
+        # Dev-only deterministic key -- NEVER use in production
         logger.warning(
-            "⚠️  ENCRYPTION_KEY is not set — using a deterministic DEV-ONLY key. "
+            "⚠️  ENCRYPTION_KEY is not set -- using a deterministic DEV-ONLY key. "
             "DO NOT use this in production!"
         )
     dev_seed = b"hospyn-dev-only-encryption-seed-do-not-use-in-prod"
@@ -97,7 +97,7 @@ def _decrypt(token: str, keys: Sequence[Fernet] = _FERNET_KEYS) -> str:
         except (InvalidToken, Exception):
             continue
 
-    # None of the keys worked — treat as already-unencrypted (migration period)
+    # None of the keys worked -- treat as already-unencrypted (migration period)
     logger.debug(
         "Value could not be decrypted with any key; returning as plaintext "
         "(migration period)."
@@ -126,13 +126,13 @@ class EncryptedString(TypeDecorator):
         super().__init__(*args, **kwargs)
         self.impl = String(length)
 
-    # ------ bind (Python → DB) ------
+    # ------ bind (Python -> DB) ------
     def process_bind_param(self, value: Optional[str], dialect) -> Optional[str]:
         if value is None:
             return None
         return _encrypt(value)
 
-    # ------ result (DB → Python) ------
+    # ------ result (DB -> Python) ------
     def process_result_value(self, value: Optional[str], dialect) -> Optional[str]:
         if value is None:
             return None
@@ -151,13 +151,13 @@ class EncryptedText(TypeDecorator):
     impl = Text
     cache_ok = True
 
-    # ------ bind (Python → DB) ------
+    # ------ bind (Python -> DB) ------
     def process_bind_param(self, value: Optional[str], dialect) -> Optional[str]:
         if value is None:
             return None
         return _encrypt(value)
 
-    # ------ result (DB → Python) ------
+    # ------ result (DB -> Python) ------
     def process_result_value(self, value: Optional[str], dialect) -> Optional[str]:
         if value is None:
             return None

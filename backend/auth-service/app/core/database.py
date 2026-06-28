@@ -90,11 +90,11 @@ AsyncSessionLocal = _LazySessionFactory()
 
 
 # ---------------------------------------------------------------------------
-# Global soft-delete filter (SQLAlchemy 2.0+ compatible) — FIXED
+# Global soft-delete filter (SQLAlchemy 2.0+ compatible) -- FIXED
 # ---------------------------------------------------------------------------
 # BUG WAS: lambda cls: getattr(cls, "deleted_at", None) is None
-#   → getattr returns the Column object (truthy), so `is None` → Python False
-#   → SQLAlchemy emits AND 0=1 → all queries return zero rows
+#   -> getattr returns the Column object (truthy), so `is None` -> Python False
+#   -> SQLAlchemy emits AND 0=1 -> all queries return zero rows
 #
 # FIX: Use hasattr() guard then .is_(None) for a proper SQL IS NULL expression.
 # Event registered on Session (sync base class), NOT on async_sessionmaker.
@@ -128,7 +128,7 @@ def _add_filtering_criteria(execute_state):
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
-    FastAPI dependency — provides a transactional database session.
+    FastAPI dependency -- provides a transactional database session.
     Commits automatically on success; rolls back on any exception.
     """
     async with get_session_factory()() as session:

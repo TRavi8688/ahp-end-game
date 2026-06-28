@@ -5,7 +5,7 @@ Backs the More tab: Reports (Screens 24-25), Supplier Management (29),
 Purchase Entry (30), and Finance (31). Customer Management (26-27) reuses
 existing /patients endpoints + the new /pharmacy/sales history, so it isn't
 duplicated here. Staff Management (28) reuses the existing /staff endpoints
-(see app/api/v1/staff.py) — also not duplicated.
+(see app/api/v1/staff.py) -- also not duplicated.
 
 GET  /pharmacy/suppliers
 POST /pharmacy/suppliers
@@ -40,7 +40,7 @@ from app.api.v1.pharmacy import _resolve_pharmacy_hospital_id, PHARMACY_ROLES, _
 router = APIRouter()
 
 
-# ── Suppliers ─────────────────────────────────────────────────────────────────
+# -- Suppliers -----------------------------------------------------------------
 
 class SupplierIn(BaseModel):
     name: str
@@ -81,7 +81,7 @@ async def create_supplier(
     return _supplier_to_dict(supplier)
 
 
-# ── Purchase Entry ────────────────────────────────────────────────────────────
+# -- Purchase Entry ------------------------------------------------------------
 
 class PurchaseLine(BaseModel):
     inventory_item_id: Optional[str] = None  # existing item being restocked
@@ -177,7 +177,7 @@ async def create_purchase_order(
     po.total_amount = total
     db.add(Expense(
         id=uuid.uuid4(), hospital_id=hospital_id, category=ExpenseCategory.purchase,
-        description=f"Stock purchase — PO {str(po.id)[:8]}", amount=total,
+        description=f"Stock purchase -- PO {str(po.id)[:8]}", amount=total,
         created_by=uuid.UUID(current_user.sub),
     ))
     await db.flush()
@@ -192,7 +192,7 @@ async def create_purchase_order(
     }
 
 
-# ── Expenses ──────────────────────────────────────────────────────────────────
+# -- Expenses ------------------------------------------------------------------
 
 class ExpenseIn(BaseModel):
     category: str = "other"
@@ -237,7 +237,7 @@ async def create_expense(
     return {"id": str(expense.id), "category": expense.category.value, "amount": float(expense.amount)}
 
 
-# ── Reports ───────────────────────────────────────────────────────────────────
+# -- Reports -------------------------------------------------------------------
 
 @router.get("/reports/sales")
 async def sales_report(

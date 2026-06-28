@@ -1,5 +1,5 @@
 """
-Auth Service — Core Authentication Logic.
+Auth Service -- Core Authentication Logic.
 
 Handles password hashing, JWT token creation (access + refresh),
 OTP generation, and secure token generation for password resets.
@@ -30,7 +30,7 @@ from email.message import EmailMessage
 logger = logging.getLogger(__name__)
 
 
-# ─── Password Hashing ────────────────────────────────────────────
+# --- Password Hashing --------------------------------------------
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -51,7 +51,7 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
 
-# ─── JWT Token Creation ──────────────────────────────────────────
+# --- JWT Token Creation ------------------------------------------
 # FIX-JWT: Delegate to app.core.security which uses RS256 with RSA keys.
 # The old implementation used jose + HS256 + settings.JWT_SECRET_KEY,
 # but security.py's decode_token uses PyJWT + RS256 + RSA public key.
@@ -77,7 +77,7 @@ def decode_refresh_token(token: str) -> dict | None:
     return _decode(token)
 
 
-# ─── OTP ──────────────────────────────────────────────────────────
+# --- OTP ----------------------------------------------------------
 
 
 def generate_otp() -> str:
@@ -106,7 +106,7 @@ def send_otp_sms(phone_number: str, otp_code: str) -> bool:
     Send OTP via Twilio SMS.
 
     Returns True on success, False on failure.
-    NEVER logs the OTP value itself — only masked phone number.
+    NEVER logs the OTP value itself -- only masked phone number.
     """
     if not all([
         settings.TWILIO_ACCOUNT_SID,
@@ -114,7 +114,7 @@ def send_otp_sms(phone_number: str, otp_code: str) -> bool:
         settings.TWILIO_FROM_NUMBER,
     ]):
         logger.error(
-            "Twilio credentials not fully configured — OTP SMS NOT sent. "
+            "Twilio credentials not fully configured -- OTP SMS NOT sent. "
             "Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER in .env"
         )
         return False
@@ -147,14 +147,14 @@ def send_otp_email(email_address: str, otp_code: str) -> bool:
     Send OTP via SMTP email.
 
     Returns True on success, False if SMTP not configured or on failure.
-    NEVER logs the OTP value — only logs masked email.
+    NEVER logs the OTP value -- only logs masked email.
     """
     masked_email = email_address[:3] + "****" + email_address[email_address.find("@"):]
 
     if not settings.SMTP_HOST or not settings.SMTP_USER:
         # SECURITY FIX: Do NOT log the OTP. Just log that it couldn't be sent.
         logger.warning(
-            f"SMTP not configured — OTP email NOT sent to {masked_email}. "
+            f"SMTP not configured -- OTP email NOT sent to {masked_email}. "
             "Set SMTP_HOST and SMTP_USER in .env to enable email OTP delivery."
         )
         return False
@@ -185,7 +185,7 @@ def deliver_otp(phone_number: str | None, email_address: str | None, otp_code: s
     """
     Deliver OTP via the best available channel.
 
-    Priority: SMS (Twilio) → Email (SMTP).
+    Priority: SMS (Twilio) -> Email (SMTP).
     Returns True if at least one delivery succeeded.
 
     This is the single function that router.py should call.
@@ -193,7 +193,7 @@ def deliver_otp(phone_number: str | None, email_address: str | None, otp_code: s
     sms_ok = False
     email_ok = False
 
-    # Try SMS first (preferred — faster, more reliable for medical OTPs)
+    # Try SMS first (preferred -- faster, more reliable for medical OTPs)
     if phone_number:
         sms_ok = send_otp_sms(phone_number, otp_code)
 
@@ -217,7 +217,7 @@ def deliver_otp(phone_number: str | None, email_address: str | None, otp_code: s
     return True
 
 
-# ─── Reset Token ──────────────────────────────────────────────────
+# --- Reset Token --------------------------------------------------
 
 
 def generate_reset_token() -> str:
@@ -241,13 +241,13 @@ def verify_reset_token(plain_token: str, hashed_token: str) -> bool:
         return False
 
 
-# ─── Employee ID Generator ────────────────────────────────────────────────────
+# --- Employee ID Generator ----------------------------------------------------
 #
 # Format: Exactly 6 characters, always contains BOTH 'H' and 'R' (uppercase),
 # remaining 4 positions are a mix of uppercase letters and digits.
-# Examples: H3Rk9T → wait, all must be uppercase or mixed?
+# Examples: H3Rk9T -> wait, all must be uppercase or mixed?
 # Spec: "4 numbers and 4 letters mixed up" but "must be 6 letters only"
-# → 6 chars total, always has H and R, remaining 4 are mix of digits+uppercase
+# -> 6 chars total, always has H and R, remaining 4 are mix of digits+uppercase
 # Examples: H3R9K2, 4HR7N1, 7H2R9K, HRK3N7
 #
 # Guaranteed uniqueness must be checked at DB level (unique constraint on employee_id).
