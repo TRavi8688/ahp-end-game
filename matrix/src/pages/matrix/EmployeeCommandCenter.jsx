@@ -110,22 +110,20 @@ function CreateEmployeeModal({ onClose, onCreated }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const handleCreate = async () => {
-    if (!form.full_name || !form.email || !form.temp_password) {
-      setError('Name, email and temporary password are required.'); return;
+    if (!form.full_name || !form.email) {
+      setError('Name and email are required.'); return;
     }
     setSaving(true); setError('');
     try {
-      const res = await api.post('/api/v1/matrix/employees/create', {
+      const res = await api.post('/api/v1/employees/create', {
         full_name:    form.full_name,
         email:        form.email.toLowerCase(),
         phone:        form.phone || undefined,
-        role:         form.role,
+        level:        form.role,
         team:         form.team,
-        password:     form.temp_password,
-        employee_id:  form.employee_id || undefined,
       });
-      setSuccess(`✓ Employee created! They can now log in at /login with email: ${form.email} and the temporary password you set.`);
-      setTimeout(() => { onCreated?.(); onClose(); }, 3000);
+      setSuccess(`✓ Employee created! They can now log in at /login with email: ${form.email} and the temporary password: ${res.temp_password}`);
+      setTimeout(() => { onCreated?.(); onClose(); }, 5000);
     } catch (err) {
       setError(err.message || 'Failed to create employee. Check backend connection.');
     } finally {
