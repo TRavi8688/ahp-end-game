@@ -217,25 +217,47 @@ def upgrade() -> None:
     """)
 
     # 3. Seed Default Hospital
-    op.execute("""
-        INSERT INTO hospitals
-          (id, name, registration_number, email, phone, address_line1, city, state, country, pin_code, status, is_active, owner_user_id, created_at, updated_at)
-        VALUES (
-          '11111111-1111-1111-1111-111111111111',
-          'Hospyn Test Hospital',
-          'HSP-TEST-999',
-          'admin@sdl05.com',
-          '+919999999999',
-          'Test Street, Bangalore, Karnataka, 560001',
-          'Bangalore',
-          'Karnataka',
-          'India',
-          '560001',
-          'active',
-          true,
-          '22222222-2222-2222-2222-222222222222',
-          NOW(), NOW()
-        )
+    insert_cols = ['id', 'name', 'registration_number', 'email', 'phone', 'address_line1', 'city', 'state', 'country', 'pin_code', 'status', 'is_active', 'owner_user_id', 'created_at', 'updated_at']
+    insert_vals = [
+        "'11111111-1111-1111-1111-111111111111'",
+        "'Hospyn Test Hospital'",
+        "'HSP-TEST-999'",
+        "'admin@sdl05.com'",
+        "'+919999999999'",
+        "'Test Street, Bangalore, Karnataka, 560001'",
+        "'Bangalore'",
+        "'Karnataka'",
+        "'India'",
+        "'560001'",
+        "'active'",
+        "true",
+        "'22222222-2222-2222-2222-222222222222'",
+        "NOW()", "NOW()"
+    ]
+    
+    if inspector.has_table("hospitals"):
+        hospitals_cols = [c["name"] for c in inspector.get_columns("hospitals")]
+        if "hospyn_id" in hospitals_cols:
+            insert_cols.append("hospyn_id")
+            insert_vals.append("'HPN-HOSP-111'")
+        if "short_code" in hospitals_cols:
+            insert_cols.append("short_code")
+            insert_vals.append("'HPN-TST'")
+        if "org_type" in hospitals_cols:
+            insert_cols.append("org_type")
+            insert_vals.append("'hospital'")
+        if "version_id" in hospitals_cols:
+            insert_cols.append("version_id")
+            insert_vals.append("1")
+        if "subscription_status" in hospitals_cols:
+            insert_cols.append("subscription_status")
+            insert_vals.append("'active'")
+
+    cols_str = ", ".join(insert_cols)
+    vals_str = ", ".join(insert_vals)
+    op.execute(f"""
+        INSERT INTO hospitals ({cols_str})
+        VALUES ({vals_str})
         ON CONFLICT (registration_number) DO NOTHING
     """)
 
