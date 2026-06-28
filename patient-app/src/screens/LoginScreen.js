@@ -457,6 +457,12 @@ export default function AuthScreen({ navigation }) {
                                 </View>
                             )}
 
+                            <TouchableOpacity onPress={() => navigation.navigate('Register')} style={styles.registerLink}>
+                                <Text style={styles.registerLinkText}>
+                                    Don't have an account? <Text style={{ color: '#6366F1', fontWeight: 'bold' }}>Register here</Text>
+                                </Text>
+                            </TouchableOpacity>
+
                             <Text style={styles.encryptedNotice}>
                                 <Ionicons name="lock-closed" size={12} color="#94A3B8" /> End-to-end encrypted session
                             </Text>
@@ -709,6 +715,16 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#050810',
+    },
+    registerLink: {
+        alignSelf: 'center',
+        marginTop: 16,
+        marginBottom: 8,
+    },
+    registerLinkText: {
+        color: '#94A3B8',
+        fontSize: 14,
+        fontFamily: Theme.fonts.body,
     },
     scrollContent: {
         flexGrow: 1,
