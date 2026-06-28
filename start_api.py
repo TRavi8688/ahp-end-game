@@ -261,7 +261,10 @@ async def route_all(request: Request, path: str):
     # General patient routes
     elif safe_path.startswith("patient/"):
         sub = safe_path.removeprefix("patient/")
-        url = f"{HEALTHCARE_SERVICE_URL}/api/v1/healthcare/patients/{sub}"
+        if sub.startswith(("profile", "active-sharing", "share-record", "revoke-access", "clinical-summary", "chat")):
+            url = f"{HEALTHCARE_SERVICE_URL}/api/v1/healthcare/patient/{sub}"
+        else:
+            url = f"{HEALTHCARE_SERVICE_URL}/api/v1/healthcare/patients/{sub}"
 
     # Healthcare core routes
     elif safe_path.startswith("healthcare/"):

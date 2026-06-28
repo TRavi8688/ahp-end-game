@@ -122,7 +122,7 @@ export default function AuthScreen({ navigation }) {
                                 }
                             } catch (e) {
                                 if (e.message !== "Handled403") {
-                                    const errorMsg = e.response?.data?.message || e.response?.data?.detail || 'Google Auth verification failed.';
+                                    const errorMsg = e.response?.data?.message || e.response?.data?.detail || e.message || 'Google Auth verification failed.';
                                     Alert.alert('Google Authentication Error', errorMsg);
                                 }
                             } finally {
@@ -190,7 +190,7 @@ export default function AuthScreen({ navigation }) {
                 await handleLoginSuccess(data.access_token, identifier);
             }
         } catch (e) {
-            const errorMsg = e.response?.data?.message || e.response?.data?.detail || 'Invalid credentials.';
+            const errorMsg = e.response?.data?.message || e.response?.data?.detail || e.message || 'Invalid credentials.';
             Alert.alert('Login Failed', errorMsg);
         } finally {
             setLoading(false);
@@ -237,7 +237,7 @@ export default function AuthScreen({ navigation }) {
                     }
                 }
             } catch (e) {
-                const errorMsg = e.response?.data?.message || e.response?.data?.detail || 'Apple Auth verification failed on server.';
+                const errorMsg = e.response?.data?.message || e.response?.data?.detail || e.message || 'Apple Auth verification failed on server.';
                 Alert.alert('Apple Authentication Error', errorMsg);
             } finally {
                 setLoading(false);
@@ -303,7 +303,7 @@ export default function AuthScreen({ navigation }) {
             await login(tempAuthToken, tempEmail);
             setSetupModalVisible(false);
         } catch (e) {
-            const errorMsg = e.response?.data?.message || e.response?.data?.detail || 'Failed to initialize health profile.';
+            const errorMsg = e.response?.data?.message || e.response?.data?.detail || e.message || 'Failed to initialize health profile.';
             Alert.alert('Setup Failed', errorMsg);
         } finally {
             setSetupLoading(false);
@@ -319,7 +319,7 @@ export default function AuthScreen({ navigation }) {
             Alert.alert('OTP Dispatched', `A 6-digit verification code has been sent to the linked email: ${data.target}`);
             setForgotStep(2);
         } catch (e) {
-            const errorMsg = e.response?.data?.message || e.response?.data?.detail || 'No account matched this identifier.';
+            const errorMsg = e.response?.data?.message || e.response?.data?.detail || e.message || 'No account matched this identifier.';
             Alert.alert('Request Failed', errorMsg);
         } finally {
             setForgotLoading(false);
@@ -334,7 +334,7 @@ export default function AuthScreen({ navigation }) {
             setForgotResetToken(data.reset_token);
             setForgotStep(3);
         } catch (e) {
-            const errorMsg = e.response?.data?.message || e.response?.data?.detail || 'Invalid or expired OTP.';
+            const errorMsg = e.response?.data?.message || e.response?.data?.detail || e.message || 'Invalid or expired OTP.';
             Alert.alert('Verification Failed', errorMsg);
         } finally {
             setForgotLoading(false);
@@ -363,7 +363,7 @@ export default function AuthScreen({ navigation }) {
             setForgotNewPassword('');
             setForgotConfirmPassword('');
         } catch (e) {
-            const errorMsg = e.response?.data?.message || e.response?.data?.detail || 'Password reset failed.';
+            const errorMsg = e.response?.data?.message || e.response?.data?.detail || e.message || 'Password reset failed.';
             Alert.alert('Reset Failed', errorMsg);
         } finally {
             setForgotLoading(false);

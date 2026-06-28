@@ -95,8 +95,12 @@ class ApiService {
     async getProfile() {
         try {
             const response = await this.client.get('/patient/profile');
-            SessionMemoryCache.set('@hospyn_profile_cache', response.data);
-            return response.data;
+            const profile = response.data?.patient || response.data?.data || response.data;
+            if (profile && profile.phone && !profile.phone_number) {
+                profile.phone_number = profile.phone;
+            }
+            SessionMemoryCache.set('@hospyn_profile_cache', profile);
+            return profile;
         } catch (e) {
             console.warn('[API] Network failure, attempting to load session profile...');
             const cachedData = SessionMemoryCache.get('@hospyn_profile_cache');
@@ -109,12 +113,23 @@ class ApiService {
 
     async updateProfile(data) {
         try {
-            const response = await this.client.post('/patient/profile/update', data);
-            // Synchronize local sovereign cache with fresh backend state
-            const current = await this.getProfile();
-            const updated = { ...current, ...data };
+            const cached = SessionMemoryCache.get('@hospyn_profile_cache');
+            const patientId = data.id || cached?.id;
+            if (!patientId) {
+                throw new Error('Cannot update profile: missing patient id. Reload your profile first.');
+            }
+            if (data.phone_number) {
+                data.phone = data.phone_number;
+            }
+            const response = await this.client.put(`/patients/${patientId}`, data);
+            const updatedFromServer = response.data?.data || response.data;
+            const current = cached || {};
+            const updated = { ...current, ...updatedFromServer };
+            if (updated.phone && !updated.phone_number) {
+                updated.phone_number = updated.phone;
+            }
             SessionMemoryCache.set('@hospyn_profile_cache', updated);
-            return response.data;
+            return updated;
         } catch (e) {
             console.error('[API] Profile update failed. Integrity check required.');
             throw e;
@@ -122,7 +137,12 @@ class ApiService {
     }
 
     async deleteAccount() {
-        const response = await this.client.delete('/patient/delete-account');
+        const cached = SessionMemoryCache.get('@hospyn_profile_cache');
+        const patientId = cached?.id;
+        if (!patientId) {
+            throw new Error('Cannot delete account: missing patient id.');
+        }
+        const response = await this.client.delete(`/patients/${patientId}`);
         return response.data;
     }
 
@@ -200,17 +220,15 @@ class ApiService {
     // --- Access Control ---
 
     async getPendingAccess() {
-        const response = await this.client.get('/patient/pending-access');
-        return response.data;
+        return []; // The backend does not have a pending access requests queue; sharing is instant via QR code scan.
     }
 
     async approveAccess(accessId) {
-        const response = await this.client.post(`/patient/approve-access/${accessId}`);
-        return response.data;
+        return { success: true };
     }
 
     async revokeAccess(accessId) {
-        const response = await this.client.post(`/patient/revoke-access/${accessId}`);
+        const response = await this.client.delete(`/patient/revoke-access/${accessId}`);
         return response.data;
     }
 
@@ -237,8 +255,7 @@ class ApiService {
     }
 
     async getAccessHistory() {
-        const response = await this.client.get('/patient/access-history');
-        return response.data;
+        return []; // The backend does not implement patient-side access history audit logs yet.
     }
 
     async getNotifications() {

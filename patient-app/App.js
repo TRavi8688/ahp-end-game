@@ -87,7 +87,7 @@ import ActivityLogScreen      from './src/screens/ActivityLogScreen';
 import CEODashboardScreen     from './src/screens/CEODashboardScreen';
 import MedsScreen             from './src/screens/MedsScreen';
 import AppointmentsScreen     from './src/screens/AppointmentsScreen';
-import ChittiAiScreen         from './src/screens/ChittiAiScreen';
+import ChittiAiScreen         from './src/screens/AiAssistScreen';
 
 // ─── Phase 6: New Screens ─────────────────────────────────────────────────────
 // Existing booking screens (already registered in original)
