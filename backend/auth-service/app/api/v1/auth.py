@@ -3,14 +3,14 @@ backend/auth-service/app/api/v1/auth.py
 
 FIXES:
   FIX-A1: login() now accepts body.get("phone_number") in addition to
-           "phone"/"username"/"email" — super-admin and staff portal send different keys.
+           "phone"/"username"/"email" -- super-admin and staff portal send different keys.
   FIX-A2: Returns access_token + role + user_id in JSON body (frontend reads these).
            Also sets httpOnly cookie for browser-based apps.
   FIX-A3: login() uses async DB session (was sync Depends(get_db)).
   FIX-A4: OTP send/verify endpoints added for patient mobile app.
   FIX-A5: /register endpoint creates user with correct role from body.
 
-  FIX-A6 (2026-06-23) — permanent fix for the recurring registration/login bugs:
+  FIX-A6 (2026-06-23) -- permanent fix for the recurring registration/login bugs:
     - register() no longer hard-blocks on an existing-but-unverified account.
       It resumes that registration (updates the pending record + re-sends OTP)
       instead of leaving the user permanently stuck between "can't register
@@ -97,7 +97,7 @@ COOKIE_MAX_AGE = 60 * 60 * 8   # 8 hours
 @router.get("/run-auth-migrations")
 async def run_auth_migrations(request: Request):
     """
-    One-shot endpoint — adds missing columns to the users table.
+    One-shot endpoint -- adds missing columns to the users table.
     BUG-9 FIX: Now requires X-Migration-Secret header to prevent
     unauthenticated access from triggering schema changes in production.
     Set MIGRATION_SECRET env var on the server.
@@ -110,8 +110,7 @@ async def run_auth_migrations(request: Request):
             status_code=403,
             detail="Migration endpoint requires X-Migration-Secret header. Set MIGRATION_SECRET env var."
         )
-    Safe to call multiple times (IF NOT EXISTS guard on every statement).
-    """
+    # Safe to call multiple times (IF NOT EXISTS guard on every statement).
     import os
     import asyncpg
 
@@ -119,7 +118,7 @@ async def run_auth_migrations(request: Request):
     if not raw_url:
         return {"status": "error", "message": "DATABASE_URL env var not set"}
 
-    # asyncpg expects postgresql:// — strip any SQLAlchemy driver prefix
+    # asyncpg expects postgresql:// -- strip any SQLAlchemy driver prefix
     pg_url = (
         raw_url
         .replace("postgresql+asyncpg://", "postgresql://")
@@ -156,7 +155,7 @@ async def run_auth_migrations(request: Request):
 
 
 
-# ─── Login ───────────────────────────────────────────────────────────────────
+# --- Login -------------------------------------------------------------------
 
 @router.post("/login")
 @limiter.limit("10/minute")
@@ -168,7 +167,7 @@ async def login(
     """
     EMPLOYEE ID LOGIN (Primary for Hospain Matrix internal employees):
       - employee_id + password (e.g. H3RK9N + temp/permanent password)
-      - On first login with temp password → returns must_change_password: true
+      - On first login with temp password -> returns must_change_password: true
 
     LEGACY LOGIN (for patients, doctors, partners):
       - email/phone + password (backwards compatible)
@@ -204,7 +203,7 @@ async def login(
             detail="Employee ID (or email/phone) and password are required",
         )
 
-    # Look up user — employee_id first, then email/phone fallback
+    # Look up user -- employee_id first, then email/phone fallback
     user = None
     if employee_id_input:
         # Primary path: Employee ID login (Matrix internal employees)
@@ -319,7 +318,7 @@ async def change_password(
     creds:   "HTTPAuthorizationCredentials" = Depends(_bearer_scheme),
 ):
     """
-    Change password — used in two cases:
+    Change password -- used in two cases:
     1. Forced change after first login with temporary password
     2. Voluntary change from Settings page
 
@@ -536,7 +535,7 @@ async def google_login(
     }
 
 
-# ─── Logout ──────────────────────────────────────────────────────────────────
+# --- Logout ------------------------------------------------------------------
 
 @router.post("/logout")
 def logout(response: Response):
@@ -544,7 +543,7 @@ def logout(response: Response):
     return {"status": "logged_out"}
 
 
-# ─── Register ────────────────────────────────────────────────────────────────
+# --- Register ----------------------------------------------------------------
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 @limiter.limit("3/minute")
@@ -577,19 +576,19 @@ async def register(
     except ValueError:
         raise HTTPException(status_code=422, detail=f"Invalid role: {role_str}")
 
-    # FIX-A6: Duplicate check — but distinguish "fully verified" from
+    # FIX-A6: Duplicate check -- but distinguish "fully verified" from
     # "registered, never finished OTP" instead of hard-blocking both cases.
     #
     # OLD BEHAVIOR (the root cause of the recurring registration complaints):
     # if /register succeeded but the OTP step never completed (SMS delayed,
     # app closed, send-otp silently failed), the phone/email was permanently
-    # "taken" with no way back in — check-user said "already registered" and
+    # "taken" with no way back in -- check-user said "already registered" and
     # every future register attempt 409'd. The user could technically log in
     # with the password they'd set, but nothing in the UI told them that, so
     # it looked like the app was broken.
     #
     # NEW BEHAVIOR: if the existing row is unverified, treat this as a
-    # resume — update it in place and let the caller continue to OTP.
+    # resume -- update it in place and let the caller continue to OTP.
     existing_user = None
     if email:
         existing = await db.execute(select(User).where(User.email == email, User.deleted_at.is_(None)))
@@ -644,7 +643,7 @@ async def register(
     }
 
 
-# ─── Send OTP ────────────────────────────────────────────────────────────────
+# --- Send OTP ----------------------------------------------------------------
 
 OTP_RESEND_COOLDOWN_SECONDS = 45
 
@@ -660,7 +659,7 @@ async def send_otp(
     """Send OTP to phone or email for patient app authentication.
 
     FIX-A6: previously this endpoint always returned 202 "OTP sent" even when
-    deliver_otp() reported total failure across every channel — the frontend
+    deliver_otp() reported total failure across every channel -- the frontend
     had no way to know the code never arrived, so the user just sat on a
     blank OTP screen with no recourse. It now:
       1. Enforces a short resend cooldown so the frontend can show a
@@ -676,7 +675,7 @@ async def send_otp(
 
     identifier = phone or email
 
-    # Cooldown check — look at the most recent OTP we issued for this identifier
+    # Cooldown check -- look at the most recent OTP we issued for this identifier
     recent = await db.execute(
         select(OTPVerification)
         .where(OTPVerification.identifier == identifier)
@@ -721,7 +720,7 @@ async def send_otp(
     }
 
 
-# ─── Verify OTP ──────────────────────────────────────────────────────────────
+# --- Verify OTP --------------------------------------------------------------
 
 @router.post("/verify-otp")
 @router.post("/otp/verify")
@@ -787,13 +786,13 @@ async def verify_otp_endpoint(
             token_version=1,
             phone_verified=True,
             auth_provider="local",
-            has_usable_password=False,  # empty password — not a real usable credential
+            has_usable_password=False,  # empty password -- not a real usable credential
         )
         db.add(user)
         await db.flush()
         await db.commit()  # BUG-9 FIX: was missing commit
     else:
-        # FIX-A6: this is the step that used to never run — completing OTP
+        # FIX-A6: this is the step that used to never run -- completing OTP
         # now actually marks the account verified, so /check-user and a
         # future /register attempt see this account as done, not stuck.
         user.phone_verified = True
@@ -823,7 +822,7 @@ async def verify_otp_endpoint(
     }
 
 
-# ─── Check user exists ────────────────────────────────────────────────────────
+# --- Check user exists --------------------------------------------------------
 
 @router.get("/check-user")
 @limiter.limit("20/minute")
@@ -848,7 +847,7 @@ async def check_user(
     }
 
 
-# ─── Set Password (for Google/Apple-only accounts) ───────────────────────────
+# --- Set Password (for Google/Apple-only accounts) ---------------------------
 
 @router.post("/set-password", status_code=status.HTTP_200_OK)
 @limiter.limit("5/minute")
@@ -899,7 +898,7 @@ async def set_password(
     }
 
 
-# ─── Employee Account Creation (Admin/HR only) ────────────────────────────────
+# --- Employee Account Creation (Admin/HR only) --------------------------------
 
 @router.post("/employees/create", status_code=status.HTTP_201_CREATED)
 async def create_employee_account(
@@ -913,14 +912,14 @@ async def create_employee_account(
 
     Body: {
       "full_name": "Jane Doe",
-      "email": "jane@hospain.in",       (optional — for credential delivery)
+      "email": "jane@hospain.in",       (optional -- for credential delivery)
       "phone_number": "+919876543210",   (optional)
       "role": "l1",                      (employee role)
     }
 
     Returns: {
-      "employee_id": "H3RK9N",          (6-char ID — give this to the employee)
-      "temp_password": "TempXx@123",    (give this to the employee — they MUST change on first login)
+      "employee_id": "H3RK9N",          (6-char ID -- give this to the employee)
+      "temp_password": "TempXx@123",    (give this to the employee -- they MUST change on first login)
       "message": "Account created. Share employee_id and temp_password with the employee."
     }
 
@@ -1035,7 +1034,7 @@ async def validate_employee_id(employee_id: str, db: AsyncSession = Depends(get_
     """
     Quick check if an employee_id exists (for login page UX).
     Returns 200 if found, 404 if not.
-    Does NOT reveal whether the account is active — security measure.
+    Does NOT reveal whether the account is active -- security measure.
     """
     result = await db.execute(
         select(User.id).where(
