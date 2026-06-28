@@ -61,6 +61,7 @@ MIGRATION NOTE (manual step, not code):
   plus break-type logging and queue auto-pause.
 """
 
+import logging
 import uuid
 from datetime import datetime, date, time, timezone, timedelta
 from typing import Annotated, Optional
@@ -91,6 +92,7 @@ from shared.utils.responses import success_response, error_response
 from shared.audit import log_audit_event
 
 router = APIRouter()
+_logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -214,8 +216,8 @@ async def get_doctor_profile(
         )
         row = result.first()
         hospital_name = row[0] if row else None
-    except Exception:
-        pass
+    except Exception as e:
+        _logger.exception("Failed to fetch hospital name for doctor %s", doctor.id)
 
     return {
         "id": str(doctor.id),
@@ -525,8 +527,8 @@ async def get_doctor_analytics(
                     "status": row["status"],
                 }
             )
-    except Exception:
-        pass
+    except Exception as e:
+        _logger.exception("Failed to fetch drug interaction alerts for doctor %s", doctor.id)
 
     return {
         "total_patients": total_patients,
@@ -722,8 +724,8 @@ async def start_break(
             text("UPDATE doctor_queue SET availability = FALSE WHERE doctor_id = :doc_id"),
             {"doc_id": str(doctor.id)},
         )
-    except Exception:
-        pass
+    except Exception as e:
+        _logger.exception("Failed to update queue availability to False during break start for doctor %s", doctor.id)
 
     await db.commit()
     await db.refresh(break_log)
@@ -771,8 +773,8 @@ async def end_break(
             text("UPDATE doctor_queue SET availability = TRUE WHERE doctor_id = :doc_id"),
             {"doc_id": str(doctor.id)},
         )
-    except Exception:
-        pass
+    except Exception as e:
+        _logger.exception("Failed to update queue availability to True during break end for doctor %s", doctor.id)
 
     await db.commit()
 
@@ -1064,8 +1066,8 @@ async def get_availability(
         row = result.first()
         if row:
             return {"slots": row.slots}
-    except Exception:
-        pass
+    except Exception as e:
+        _logger.exception("Failed to fetch availability slots for doctor %s", doctor.id)
     return {"slots": []}
 
 
