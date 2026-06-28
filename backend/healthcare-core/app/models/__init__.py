@@ -29,6 +29,15 @@ from app.models.pharmacy_ops import (
 # and were never registered either, despite api/v1/billing.py depending on them.
 from app.models.billing import Invoice, Payment, InvoiceStatus, PaymentMethod as InvoicePaymentMethod, PaymentStatus
 
+# Missing models registrations
+from app.models.lab import LabTest, LabOrder, LabOrderItem
+from app.models.surgery import Surgery
+from app.models.workflow import (
+    WorkflowDefinition, WorkflowStage, WorkflowTransition,
+    PatientToken, TokenStageHistory, DoctorSession,
+)
+from app.models.consent_stub import ConsentRecord, DataDeletionRequest, LabResult
+
 __all__ = [
     "Hospital",
     "Doctor",
@@ -69,4 +78,17 @@ __all__ = [
     "InvoiceStatus",
     "InvoicePaymentMethod",
     "PaymentStatus",
+    "LabTest",
+    "LabOrder",
+    "LabOrderItem",
+    "Surgery",
+    "WorkflowDefinition",
+    "WorkflowStage",
+    "WorkflowTransition",
+    "PatientToken",
+    "TokenStageHistory",
+    "DoctorSession",
+    "ConsentRecord",
+    "DataDeletionRequest",
+    "LabResult",
 ]
