@@ -195,6 +195,11 @@ def upgrade() -> None:
         op.create_index('ix_doctors_specialization', 'doctors', ['specialization'])
 
     has_users = inspector.has_table("users")
+    if has_users:
+        # Ensure role column is VARCHAR(50) to support all role strings on shared table
+        op.execute("ALTER TABLE users ALTER COLUMN role DROP DEFAULT")
+        op.execute("ALTER TABLE users ALTER COLUMN role TYPE VARCHAR(50)")
+        op.execute("ALTER TABLE users ALTER COLUMN role SET DEFAULT 'patient'")
 
     # 2. Seed Super Admin in hospyn_employees
     op.execute(f"""
