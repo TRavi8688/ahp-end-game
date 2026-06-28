@@ -38,13 +38,32 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        version_table="alembic_version_auth",
     )
     with context.begin_transaction():
         context.run_migrations()
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    import sqlalchemy as sa
+    from sqlalchemy import inspect
+    
+    inspector = inspect(connection)
+    tables = inspector.get_table_names()
+    
+    if "users" in tables and "alembic_version_auth" not in tables:
+        connection.execute(sa.text(
+            "CREATE TABLE alembic_version_auth (version_num VARCHAR(32) NOT NULL, PRIMARY KEY (version_num))"
+        ))
+        connection.execute(sa.text(
+            "INSERT INTO alembic_version_auth (version_num) VALUES ('004_make_email_nullable')"
+        ))
+
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        version_table="alembic_version_auth",
+    )
     with context.begin_transaction():
         context.run_migrations()
 
