@@ -29,6 +29,7 @@ def upgrade() -> None:
     
     # 1. hospyn_employees table
     if not inspector.has_table("hospyn_employees"):
+        from sqlalchemy.dialects import postgresql
         op.execute("DO $$ BEGIN CREATE TYPE employee_team AS ENUM ('finance', 'engineering', 'onboarding', 'support', 'data'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
         op.execute("DO $$ BEGIN CREATE TYPE employee_level AS ENUM ('l1', 'team_lead', 'manager', 'super_admin'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
         op.execute("DO $$ BEGIN CREATE TYPE shift_status_enum AS ENUM ('online', 'offline', 'break', 'meeting', 'training', 'leave'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
@@ -39,15 +40,15 @@ def upgrade() -> None:
             sa.Column('full_name', sa.String(200), nullable=False),
             sa.Column('email', sa.String(255), unique=True, nullable=False),
             sa.Column('hashed_password', sa.String(255), nullable=False),
-            sa.Column('team', sa.Enum('finance', 'engineering', 'onboarding', 'support', 'data', name='employee_team', create_type=False), nullable=False),
-            sa.Column('level', sa.Enum('l1', 'team_lead', 'manager', 'super_admin', name='employee_level', create_type=False), nullable=False),
+            sa.Column('team', postgresql.ENUM('finance', 'engineering', 'onboarding', 'support', 'data', name='employee_team', create_type=False), nullable=False),
+            sa.Column('level', postgresql.ENUM('l1', 'team_lead', 'manager', 'super_admin', name='employee_level', create_type=False), nullable=False),
             sa.Column('manager_id', sa.UUID(as_uuid=True), nullable=True),
             sa.Column('team_lead_id', sa.UUID(as_uuid=True), nullable=True),
             sa.Column('is_active', sa.Boolean(), nullable=False, server_default='true'),
             sa.Column('avatar_initials', sa.String(3), nullable=True),
             sa.Column('phone', sa.String(20), nullable=True),
             sa.Column('created_by', sa.UUID(as_uuid=True), nullable=True),
-            sa.Column('shift_status', sa.Enum('online', 'offline', 'break', 'meeting', 'training', 'leave', name='shift_status_enum', create_type=False), nullable=False, server_default='offline'),
+            sa.Column('shift_status', postgresql.ENUM('online', 'offline', 'break', 'meeting', 'training', 'leave', name='shift_status_enum', create_type=False), nullable=False, server_default='offline'),
             sa.Column('skills', sa.ARRAY(sa.String()), nullable=True),
             sa.Column('last_seen_at', sa.DateTime(timezone=True), nullable=True),
             sa.Column('daily_ticket_limit', sa.Integer(), nullable=False, server_default='40'),
@@ -88,6 +89,7 @@ def upgrade() -> None:
 
     # 4. staff table
     if not inspector.has_table("staff"):
+        from sqlalchemy.dialects import postgresql
         op.execute("DO $$ BEGIN CREATE TYPE staffrole AS ENUM ('receptionist', 'nurse', 'admin', 'lab_technician', 'pharmacist'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
         op.execute("DO $$ BEGIN CREATE TYPE shiftstatus AS ENUM ('on_duty', 'off_duty', 'on_break'); EXCEPTION WHEN duplicate_object THEN null; END $$;")
         op.create_table(
@@ -98,10 +100,10 @@ def upgrade() -> None:
             sa.Column("first_name", sa.String(100), nullable=False),
             sa.Column("last_name", sa.String(100), nullable=False),
             sa.Column("phone", sa.String(30), nullable=True),
-            sa.Column("role", sa.Enum("receptionist", "nurse", "admin", "lab_technician", "pharmacist", name="staffrole", create_type=False), nullable=False),
+            sa.Column("role", postgresql.ENUM("receptionist", "nurse", "admin", "lab_technician", "pharmacist", name="staffrole", create_type=False), nullable=False),
             sa.Column("department", sa.String(100), nullable=True),
             sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
-            sa.Column("shift_status", sa.Enum("on_duty", "off_duty", "on_break", name="shiftstatus", create_type=False), nullable=False, server_default="off_duty"),
+            sa.Column("shift_status", postgresql.ENUM("on_duty", "off_duty", "on_break", name="shiftstatus", create_type=False), nullable=False, server_default="off_duty"),
             sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
             sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
         )
