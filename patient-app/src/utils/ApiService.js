@@ -96,6 +96,9 @@ class ApiService {
         try {
             const response = await this.client.get('/patient/profile');
             const profile = response.data?.patient || response.data?.data || response.data;
+            if (profile && !profile.full_name && profile.first_name) {
+                profile.full_name = `${profile.first_name} ${profile.last_name || ''}`.trim();
+            }
             if (profile && profile.phone && !profile.phone_number) {
                 profile.phone_number = profile.phone;
             }
@@ -201,7 +204,7 @@ class ApiService {
         const token = await SecurityUtils.getToken();
         const randomId = Math.random().toString(36).substring(2, 15);
         
-        const response = await fetch(`${API_BASE_URL}/patient/upload-report`, {
+        const response = await fetch(`${API_BASE_URL}/patients/upload-report`, {
             method: 'POST',
             headers: { 
                 'Authorization': `Bearer ${token}`,
@@ -213,7 +216,7 @@ class ApiService {
     }
 
     async confirmReport(data) {
-        const response = await this.client.post('/patient/confirm-and-save-report', data);
+        const response = await this.client.post('/patients/confirm-and-save-report', data);
         return response.data;
     }
 
