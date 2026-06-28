@@ -53,7 +53,7 @@ export default function HRDashboard() {
           </p>
         </div>
         <a 
-          href="http://localhost:5174" 
+          href={import.meta.env.VITE_HR_PORTAL_URL || "https://hospyn-hr-portal.web.app"} 
           target="_blank" 
           rel="noopener noreferrer" 
           className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition shrink-0"
