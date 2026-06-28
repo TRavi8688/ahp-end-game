@@ -24,11 +24,11 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'https://hospyn-495906-api-625745217419.us-central1.run.app',
+        target: 'https://hospyn-495906-api-625745217419.asia-south1.run.app',
         changeOrigin: true,
       },
       '/ws': {
-        target: 'https://hospyn-495906-api-625745217419.us-central1.run.app',
+        target: 'https://hospyn-495906-api-625745217419.asia-south1.run.app',
         changeOrigin: true,
         ws: true,
       },

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const PROD_API = 'https://hospyn-495906-api-625745217419.us-central1.run.app'
+const PROD_API = 'https://hospyn-495906-api-625745217419.asia-south1.run.app'
 
 import { createRequire } from 'module'
 
