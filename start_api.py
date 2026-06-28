@@ -24,8 +24,11 @@ import os
 import time
 import subprocess
 import uvicorn
-import dotenv
-dotenv.load_dotenv()
+try:
+    import dotenv
+    dotenv.load_dotenv()
+except ImportError:
+    pass
 import httpx
 import logging
 from contextlib import asynccontextmanager
