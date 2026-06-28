@@ -236,22 +236,59 @@ def upgrade() -> None:
     ]
     
     if inspector.has_table("hospitals"):
-        hospitals_cols = [c["name"] for c in inspector.get_columns("hospitals")]
-        if "hospyn_id" in hospitals_cols:
+        hospitals_cols = inspector.get_columns("hospitals")
+        col_names = [c["name"] for c in hospitals_cols]
+        
+        # Explicitly handle known columns first
+        if "hospyn_id" in col_names:
             insert_cols.append("hospyn_id")
             insert_vals.append("'HPN-HOSP-111'")
-        if "short_code" in hospitals_cols:
+        if "short_code" in col_names:
             insert_cols.append("short_code")
             insert_vals.append("'HPN-TST'")
-        if "org_type" in hospitals_cols:
+        if "org_type" in col_names:
             insert_cols.append("org_type")
             insert_vals.append("'hospital'")
-        if "version_id" in hospitals_cols:
+        if "version_id" in col_names:
             insert_cols.append("version_id")
             insert_vals.append("1")
-        if "subscription_status" in hospitals_cols:
+        if "subscription_status" in col_names:
             insert_cols.append("subscription_status")
             insert_vals.append("'active'")
+
+        # Dynamically handle any other NOT NULL columns with no default values
+        for col in hospitals_cols:
+            col_name = col["name"]
+            if col_name in insert_cols:
+                continue
+            if not col["nullable"] and col.get("default") is None:
+                if col_name == "verification_status":
+                    insert_cols.append(col_name)
+                    insert_vals.append("'pending'")
+                else:
+                    type_str = str(col["type"]).lower()
+                    if "uuid" in type_str:
+                        insert_cols.append(col_name)
+                        insert_vals.append("'00000000-0000-0000-0000-000000000000'")
+                    elif "int" in type_str or "numeric" in type_str or "float" in type_str or "bigint" in type_str:
+                        insert_cols.append(col_name)
+                        insert_vals.append("0")
+                    elif "bool" in type_str:
+                        insert_cols.append(col_name)
+                        insert_vals.append("false")
+                    elif "date" in type_str or "time" in type_str:
+                        insert_cols.append(col_name)
+                        insert_vals.append("NOW()")
+                    else:
+                        enum_val = None
+                        if hasattr(col["type"], "enums") and col["type"].enums:
+                            enum_val = col["type"].enums[0]
+                        if enum_val is not None:
+                            insert_cols.append(col_name)
+                            insert_vals.append(f"'{enum_val}'")
+                        else:
+                            insert_cols.append(col_name)
+                            insert_vals.append("'pending'")
 
     cols_str = ", ".join(insert_cols)
     vals_str = ", ".join(insert_vals)
