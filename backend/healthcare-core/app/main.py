@@ -210,6 +210,61 @@ async def debug_patient_query():
         }
 
 
+# -- Run Healthcare Migrations Endpoint ----------------------------------------
+@app.get("/api/v1/healthcare/run-healthcare-migrations", tags=["Debug"])
+async def run_healthcare_migrations(request: Request):
+    import os
+    import asyncpg
+
+    provided = request.headers.get("X-Migration-Secret", "")
+    if provided != "hospyn-migration-2026":
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    raw_url = os.getenv("DATABASE_URL", "")
+    if not raw_url:
+        return {"status": "error", "message": "DATABASE_URL env var not set"}
+
+    pg_url = (
+        raw_url
+        .replace("postgresql+asyncpg://", "postgresql://")
+        .replace("postgresql+psycopg2://", "postgresql://")
+    )
+
+    migrations = [
+        ("first_name",              "ALTER TABLE patients ADD COLUMN IF NOT EXISTS first_name VARCHAR(100)"),
+        ("last_name",               "ALTER TABLE patients ADD COLUMN IF NOT EXISTS last_name VARCHAR(100)"),
+        ("email",                   "ALTER TABLE patients ADD COLUMN IF NOT EXISTS email VARCHAR(255)"),
+        ("phone",                   "ALTER TABLE patients ADD COLUMN IF NOT EXISTS phone VARCHAR(30)"),
+        ("known_allergies",         "ALTER TABLE patients ADD COLUMN IF NOT EXISTS known_allergies TEXT"),
+        ("chronic_conditions",      "ALTER TABLE patients ADD COLUMN IF NOT EXISTS chronic_conditions TEXT"),
+        ("emergency_contact_name",  "ALTER TABLE patients ADD COLUMN IF NOT EXISTS emergency_contact_name VARCHAR(200)"),
+        ("emergency_contact_phone", "ALTER TABLE patients ADD COLUMN IF NOT EXISTS emergency_contact_phone VARCHAR(30)"),
+        ("address",                 "ALTER TABLE patients ADD COLUMN IF NOT EXISTS address TEXT"),
+        ("city",                    "ALTER TABLE patients ADD COLUMN IF NOT EXISTS city VARCHAR(100)"),
+        ("state",                   "ALTER TABLE patients ADD COLUMN IF NOT EXISTS state VARCHAR(100)"),
+        ("pin_code",                "ALTER TABLE patients ADD COLUMN IF NOT EXISTS pin_code VARCHAR(20)"),
+        ("is_active",               "ALTER TABLE patients ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true NOT NULL"),
+        ("deleted_at",              "ALTER TABLE patients ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE"),
+    ]
+    
+    results = {}
+    try:
+        conn = await asyncpg.connect(dsn=pg_url)
+        try:
+            for col, sql in migrations:
+                try:
+                    await conn.execute(sql)
+                    results[col] = "ok"
+                except Exception as col_err:
+                    results[col] = str(col_err)
+        finally:
+            await conn.close()
+        return {"status": "done", "columns": results}
+    except Exception as e:
+        return {"status": "error", "message": str(e), "partial": results}
+
+
+
 # -- Routers -------------------------------------------------------------------
 #
 # FIX BUG-8: Partner routers are registered ONLY inside api_router (router.py).
