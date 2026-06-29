@@ -207,7 +207,37 @@ async def debug_patient_query():
             "error_type": type(exc).__name__,
             "error_detail": str(exc),
             "traceback": traceback.format_exc()
-        }
+# -- Wipe Database Schema Endpoint ---------------------------------------------
+@app.get("/api/v1/healthcare/wipe-database-schema", tags=["Debug"])
+async def wipe_database_schema(request: Request):
+    import os
+    import asyncpg
+
+    provided = request.headers.get("X-Migration-Secret", "")
+    if provided != "hospyn-migration-2026":
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    raw_url = os.getenv("DATABASE_URL", "")
+    if not raw_url:
+        return {"status": "error", "message": "DATABASE_URL env var not set"}
+
+    pg_url = (
+        raw_url
+        .replace("postgresql+asyncpg://", "postgresql://")
+        .replace("postgresql+psycopg2://", "postgresql://")
+    )
+
+    try:
+        conn = await asyncpg.connect(dsn=pg_url)
+        try:
+            await conn.execute("DROP SCHEMA public CASCADE")
+            await conn.execute("CREATE SCHEMA public")
+            await conn.execute("GRANT ALL ON SCHEMA public TO public")
+        finally:
+            await conn.close()
+        return {"status": "success", "message": "Database schema wiped successfully"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 
 # -- Run Healthcare Migrations Endpoint ----------------------------------------
