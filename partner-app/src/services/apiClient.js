@@ -59,6 +59,8 @@ apiClient.interceptors.request.use((config) => {
     config.url = '/healthcare' + config.url;
   }
 
+  // Strip leading slash — axios baseURL is already set to /api/v1 (with no trailing slash)
+  // so the path must NOT start with / or axios will treat it as absolute from root
   if (config.url && config.url.startsWith('/')) {
     config.url = config.url.substring(1);
   }

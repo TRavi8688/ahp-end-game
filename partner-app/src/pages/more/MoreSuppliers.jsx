@@ -24,7 +24,7 @@ function AddSupplierModal({ onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-ink-900/60 z-30 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 bg-ink-900/60 z-40 flex items-end sm:items-center justify-center">
       <div className="bg-white w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl">
         <div className="px-5 py-4 flex items-center justify-between border-b border-lavender-100">
           <h2 className="font-bold text-ink-900">Add Supplier</h2>

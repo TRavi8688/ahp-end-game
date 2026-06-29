@@ -8,6 +8,8 @@ function CustomerProfileModal({ customer, onClose }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Fetch all sales and filter by this customer.
+    // The /pharmacy/sales endpoint returns up to 100 most recent by default.
     apiClient.get('/pharmacy/sales?limit=100').then((res) => {
       const all = res.data || [];
       const filtered = all.filter((s) =>
@@ -16,10 +18,10 @@ function CustomerProfileModal({ customer, onClose }) {
       );
       setSales(filtered);
     }).catch(() => {}).finally(() => setLoading(false));
-  }, [customer]);
+  }, [customer.id, customer.type]);
 
   return (
-    <div className="fixed inset-0 bg-ink-900/60 z-30 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 bg-ink-900/60 z-40 flex items-end sm:items-center justify-center">
       <div className="bg-white w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl max-h-[85vh] overflow-y-auto">
         <div className="px-5 py-4 flex items-center justify-between border-b border-lavender-100 sticky top-0 bg-white">
           <h2 className="font-bold text-ink-900">Customer Profile</h2>
@@ -93,7 +95,7 @@ export default function MoreCustomers() {
               <p className="text-xs font-bold text-gray-400 uppercase mb-2">HOSPAIN Patients</p>
               <div className="space-y-2">
                 {patients.map((p) => (
-                  <button key={p.id} onClick={() => setSelected({ type: 'patient', id: p.id, name: `${p.first_name} ${p.last_name}`, phone: p.phone_number, code: p.hospain_id })}
+                  <button key={p.id} onClick={() => setSelected({ type: 'patient', id: p.id, name: `${p.first_name} ${p.last_name}`, phone: p.phone_number, code: p.hospyn_id })}
                     className="w-full bg-white rounded-2xl shadow-card p-4 text-left flex justify-between items-center">
                     <div><p className="font-semibold text-ink-900 text-sm">{p.first_name} {p.last_name}</p><p className="text-xs text-gray-400">{p.phone_number}</p></div>
                     <span className="text-xs bg-primary-50 text-primary-600 px-2 py-1 rounded-full font-semibold">HOSPAIN</span>

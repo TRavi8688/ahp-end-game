@@ -6,6 +6,11 @@ from typing import Optional
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Hospyn Auth Service"
     ENVIRONMENT: str = "development"
+    # Alias some code reads directly (main.py uses settings.ENV, not getattr) --
+    # keep in sync with ENVIRONMENT so either name works regardless of which
+    # one is set in the .env file.
+    ENV: str = "development"
+    SENTRY_DSN: str = ""
 
     # Database URL -- enforced PostgreSQL connection
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/hospyn"

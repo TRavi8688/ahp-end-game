@@ -51,7 +51,7 @@ function AiScanModal({ onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-ink-900/60 z-30 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 bg-ink-900/60 z-40 flex items-end sm:items-center justify-center">
       <div className="bg-white w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl overflow-hidden">
         <div className="px-5 py-4 flex items-center justify-between border-b border-lavender-100">
           <h2 className="font-bold text-ink-900">AI Scan</h2>
@@ -132,7 +132,7 @@ function AddMedicineModal({ onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-ink-900/60 z-30 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 bg-ink-900/60 z-40 flex items-end sm:items-center justify-center">
       <div className="bg-white w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl max-h-[90vh] overflow-y-auto">
         <div className="px-5 py-4 flex items-center justify-between border-b border-lavender-100 sticky top-0 bg-white">
           <h2 className="font-bold text-ink-900">Add Medicine</h2>
@@ -140,7 +140,8 @@ function AddMedicineModal({ onClose, onSaved }) {
         </div>
         <form onSubmit={submit} className="p-4 space-y-3">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-xl text-sm">{error}</div>}
-          <input required placeholder="Name" value={form.item_name} onChange={(e) => setForm({ ...form, item_name: e.target.value })} className="w-full px-3 py-2.5 bg-lavender-50 rounded-xl text-sm" />
+          <input required placeholder="Medicine Name" value={form.item_name} onChange={(e) => setForm({ ...form, item_name: e.target.value })} className="w-full px-3 py-2.5 bg-lavender-50 rounded-xl text-sm" />
+          <input placeholder="Generic / Salt Name (optional)" value={form.generic_name} onChange={(e) => setForm({ ...form, generic_name: e.target.value })} className="w-full px-3 py-2.5 bg-lavender-50 rounded-xl text-sm" />
           <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} className="w-full px-3 py-2.5 bg-lavender-50 rounded-xl text-sm">
             <option value="Tablet">Tablet</option><option value="Syrup">Syrup</option><option value="Injection">Injection</option><option value="Other">Other</option>
           </select>
@@ -192,7 +193,7 @@ function MedicineDetailModal({ item, onClose, onChanged }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-ink-900/60 z-30 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 bg-ink-900/60 z-40 flex items-end sm:items-center justify-center">
       <div className="bg-white w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl">
         <div className="px-5 py-4 flex items-center justify-between border-b border-lavender-100">
           <h2 className="font-bold text-ink-900">{editing ? 'Edit Medicine' : 'Medicine Details'}</h2>
@@ -388,7 +389,7 @@ export default function Inventory() {
 
       <button
         onClick={() => setShowAiScan(true)}
-        className="fixed bottom-24 right-5 sm:right-[calc(50%-19rem)] bg-primary-600 hover:bg-primary-700 text-white rounded-full p-4 shadow-floating flex items-center justify-center z-20"
+        className="fixed bottom-24 right-5 sm:right-[calc(50%-19rem)] bg-primary-600 hover:bg-primary-700 text-white rounded-full p-4 shadow-floating flex items-center justify-center z-10"
       >
         <Camera className="w-6 h-6" />
       </button>

@@ -15,7 +15,8 @@ export default function ForgotPassword() {
     setLoading(true);
     setError('');
     try {
-      await apiClient.post('/auth/forgot-password/request', { email });
+      // Backend (app/api/router.py ForgotPasswordRequest) expects { identifier }
+      await apiClient.post('/auth/forgot-password/request', { identifier: email });
       setSent(true);
     } catch (err) {
       console.error(err);

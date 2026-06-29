@@ -4,9 +4,11 @@ import { ChevronLeft, Plus, UserCog, X } from 'lucide-react';
 import apiClient from '../../services/apiClient';
 
 function InviteStaffModal({ onClose, onSaved }) {
-  const [form, setForm] = useState({ email: '', first_name: '', last_name: '', role: 'staff', department: '' });
+  const [form, setForm] = useState({ email: '', full_name: '', role: 'pharmacist', phone_number: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const STAFF_ROLES = ['pharmacist', 'admin', 'hospital_admin', 'staff', 'nurse', 'lab_technician'];
 
   const submit = async (e) => {
     e.preventDefault();
@@ -28,7 +30,7 @@ function InviteStaffModal({ onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-ink-900/60 z-30 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 bg-ink-900/60 z-40 flex items-end sm:items-center justify-center">
       <div className="bg-white w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl">
         <div className="px-5 py-4 flex items-center justify-between border-b border-lavender-100">
           <h2 className="font-bold text-ink-900">Invite Staff</h2>
@@ -37,9 +39,11 @@ function InviteStaffModal({ onClose, onSaved }) {
         <form onSubmit={submit} className="p-4 space-y-3">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-xl text-sm">{error}</div>}
           <input required type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full px-3 py-2.5 bg-lavender-50 rounded-xl text-sm" />
-          <input required placeholder="First name" value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} className="w-full px-3 py-2.5 bg-lavender-50 rounded-xl text-sm" />
-          <input required placeholder="Last name" value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} className="w-full px-3 py-2.5 bg-lavender-50 rounded-xl text-sm" />
-          <input placeholder="Department (optional)" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} className="w-full px-3 py-2.5 bg-lavender-50 rounded-xl text-sm" />
+          <input required placeholder="Full name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="w-full px-3 py-2.5 bg-lavender-50 rounded-xl text-sm" />
+          <select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className="w-full px-3 py-2.5 bg-lavender-50 rounded-xl text-sm">
+            {STAFF_ROLES.map((r) => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
+          </select>
+          <input placeholder="Phone number (optional)" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} className="w-full px-3 py-2.5 bg-lavender-50 rounded-xl text-sm" />
           <button type="submit" disabled={saving} className="w-full bg-primary-600 hover:bg-primary-700 text-white font-semibold py-3 rounded-full disabled:opacity-60">
             {saving ? 'Sending...' : 'Send Invite'}
           </button>

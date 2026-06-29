@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, Wallet } from 'lucide-react';
+import { ChevronLeft, Plus, Wallet, X } from 'lucide-react';
 import apiClient from '../../services/apiClient';
 
 const CATEGORIES = ['rent', 'salaries', 'utilities', 'purchase', 'other'];
@@ -28,9 +28,12 @@ function AddExpenseModal({ onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-ink-900/60 z-30 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 bg-ink-900/60 z-40 flex items-end sm:items-center justify-center">
       <div className="bg-white w-full sm:max-w-sm sm:rounded-3xl rounded-t-3xl">
-        <div className="px-5 py-4 border-b border-lavender-100"><h2 className="font-bold text-ink-900">Add Expense</h2></div>
+        <div className="px-5 py-4 border-b border-lavender-100 flex items-center justify-between">
+          <h2 className="font-bold text-ink-900">Add Expense</h2>
+          <button type="button" onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+        </div>
         <form onSubmit={submit} className="p-4 space-y-3">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-xl text-sm">{error}</div>}
           <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full px-3 py-2.5 bg-lavender-50 rounded-xl text-sm capitalize">

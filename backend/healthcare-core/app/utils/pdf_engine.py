@@ -217,7 +217,7 @@ def build_invoice_pdf(data: InvoiceData) -> io.BytesIO:
     if data.pharmacy_phone:
         meta_right.append([Paragraph(f"Ph: {data.pharmacy_phone}", normal)])
     if data.pharmacy_gstin:
-        meta_right.append([Paragraph(f"GSTIN: {data.pharmacy_gstin}", small_grey)])
+        meta_right.append([Paragraph(f"Reg. No.: {data.pharmacy_gstin}", small_grey)])
 
     t_left  = Table([[r[0]] for r in meta_left],  colWidths=[90*mm])
     t_right = Table([[r[0]] for r in meta_right], colWidths=[width - 90*mm])

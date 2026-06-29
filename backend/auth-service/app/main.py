@@ -29,7 +29,7 @@ from app.api.v1 import auth as auth_v1
 from app.api import jwks as jwks_v1
 from app.api import router as legacy_router   # full router with reset/refresh/blacklist
 from app.api import internal as internal_router
-from app.core.config import get_settings
+from app.config.settings import settings
 from app.core.limiter import limiter
 from app.core.logging_config import configure_logging
 from shared.redis_client import init_redis, close_redis, get_redis_client
@@ -37,8 +37,6 @@ from shared.startup_checks import run_startup_checks
 
 configure_logging()
 logger = logging.getLogger(__name__)
-
-settings = get_settings()
 
 
 # -- Lifespan ------------------------------------------------------------------

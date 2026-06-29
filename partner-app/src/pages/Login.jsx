@@ -68,8 +68,8 @@ export default function Login({ onLogin }) {
       console.error(err);
       if (err.response?.status === 403) {
         setError(
-          'Your account is pending verification. ' +
-          "Check your registration status or contact support@hospain.in."
+          'Access denied. Your account may not have pharmacy partner permissions, ' +
+          'or the pharmacy module is not yet enabled. Contact support@hospain.in.'
         );
       } else if (err.response?.status === 401) {
         setError('Incorrect email or password. Please try again.');

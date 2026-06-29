@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Plus, Trash2, ShoppingCart } from 'lucide-react';
 import apiClient from '../../services/apiClient';
@@ -14,12 +14,12 @@ export default function MorePurchases() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const loadAll = () => {
+  const loadAll = useCallback(() => {
     apiClient.get('/pharmacy/suppliers').then((res) => setSuppliers(res.data || [])).catch(() => {});
     apiClient.get('/pharmacy/inventory').then((res) => setInventory(res.data || [])).catch(() => {});
     apiClient.get('/pharmacy/purchase-orders').then((res) => setRecentOrders(res.data || [])).catch(() => {});
-  };
-  useEffect(() => { loadAll(); }, []);
+  }, []);
+  useEffect(() => { loadAll(); }, [loadAll]);
 
   const addLine = () => setLines((p) => [...p, { inventory_item_id: '', medicine_name: '', quantity: 1, unit_cost: 0 }]);
   const updateLine = (idx, patch) => setLines((p) => p.map((l, i) => (i === idx ? { ...l, ...patch } : l)));

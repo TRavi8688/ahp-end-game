@@ -266,7 +266,7 @@ async def search_doctors(
 async def search_patients_for_pharmacy(
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("doctor", "admin", "hospital_admin", "staff", "pharmacist")),
+        Depends(require_role("doctor", "admin", "hospital_admin", "staff", "pharmacist", "owner")),
     ],
     db: AsyncSession = Depends(get_db),
     q: str = Query(..., min_length=2),
@@ -298,6 +298,7 @@ async def search_patients_for_pharmacy(
             "first_name": p.first_name,
             "last_name": p.last_name,
             "phone_number": p.phone,
+            "hospyn_id": p.hospyn_id or "",
         }
         for p in patients
     ]

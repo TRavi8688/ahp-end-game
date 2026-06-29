@@ -244,7 +244,7 @@ export default function PatientDetailView() {
                                 <SmartToyIcon sx={{ color: '#f59e0b', fontSize: 32 }} />
                             </Box>
                             <Box>
-                                <Typography variant="h6" sx={{ fontWeight: 900, color: '#f59e0b', fontFamily: 'Outfit' }}>NEW HOSPYN MEMBER: BASELINE HEALTH INTAKE REQUIRED</Typography>
+                                <Typography variant="h6" sx={{ fontWeight: 900, color: '#f59e0b', fontFamily: 'Outfit' }}>NEW HOSPAIN MEMBER: BASELINE HEALTH INTAKE REQUIRED</Typography>
                                 <Typography variant="body2" sx={{ color: '#94a3b8', mt: 0.5 }}>This patient has no clinical history. Initialize their digital health passport.</Typography>
                             </Box>
                         </Box>
@@ -288,9 +288,10 @@ export default function PatientDetailView() {
                                 </Box>
                                 <Box>
                                     <Typography variant="h6" sx={{ fontWeight: 900, color: '#fff', fontFamily: 'Outfit' }}>INTELLIGENCE CONTEXT</Typography>
-                                    <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>SYNTHESIZED BY HOSPYN CORE</Typography>
+                                    <Typography variant="caption" sx={{ color: '#64748b', fontWeight: 600 }}>SYNTHESIZED BY HOSPAIN CORE</Typography>
                                 </Box>
                             </Box>
+
                             <Chip label="PRECISION ANALYSIS" sx={{ background: 'linear-gradient(45deg, #6366f1, #a855f7)', color: 'white', fontWeight: 900, fontSize: '0.7rem' }} />
                         </Box>
                         <Box sx={{ p: 3, bgcolor: 'rgba(255,255,255,0.02)', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.05)' }}>

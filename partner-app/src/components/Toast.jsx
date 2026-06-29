@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { CheckCircle2, AlertTriangle, X } from 'lucide-react';
 
 /**
@@ -8,11 +8,16 @@ import { CheckCircle2, AlertTriangle, X } from 'lucide-react';
  *   <Toast toast={toast} onDismiss={() => setToast(null)} />
  */
 export default function Toast({ toast, onDismiss }) {
+  // Store onDismiss in a ref so the timer is not reset when the parent
+  // renders a new inline function reference on every render cycle.
+  const onDismissRef = useRef(onDismiss);
+  useEffect(() => { onDismissRef.current = onDismiss; }, [onDismiss]);
+
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(onDismiss, 3500);
+    const t = setTimeout(() => onDismissRef.current?.(), 3500);
     return () => clearTimeout(t);
-  }, [toast, onDismiss]);
+  }, [toast]);
 
   if (!toast) return null;
 

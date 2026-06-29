@@ -321,3 +321,46 @@ async def customer_report(
         "repeat_customers": sum(1 for c in spend_by_customer.values() if c["visits"] > 1),
         "top_customers": top_customers,
     }
+
+
+# -- Preferences (best-effort: stored in memory / future: in DB) ---------------
+# Simple in-memory store per hospital_id (resets on service restart).
+# This is intentionally lightweight — preferences are non-critical UI state.
+# A future migration can persist this to a JSONB column on the Hospital model.
+
+_PREFS_STORE: dict = {}
+
+
+@router.get("/preferences")
+async def get_preferences(
+    current_user: Annotated[TokenPayload, Depends(require_role(*PHARMACY_ROLES))],
+    db: AsyncSession = Depends(get_db),
+):
+    hospital_id = await _resolve_pharmacy_hospital_id(current_user, db)
+    return _PREFS_STORE.get(str(hospital_id), {
+        "auto_print": True,
+        "low_stock_alerts": True,
+        "order_alerts": True,
+    })
+
+
+@router.patch("/preferences")
+async def update_preferences(
+    patch: dict,
+    current_user: Annotated[TokenPayload, Depends(require_role(*PHARMACY_ROLES))],
+    db: AsyncSession = Depends(get_db),
+):
+    hospital_id = await _resolve_pharmacy_hospital_id(current_user, db)
+    key = str(hospital_id)
+    existing = _PREFS_STORE.get(key, {
+        "auto_print": True,
+        "low_stock_alerts": True,
+        "order_alerts": True,
+    })
+    # Only allow known preference keys to prevent junk data
+    ALLOWED_KEYS = {"auto_print", "low_stock_alerts", "order_alerts"}
+    for k, v in patch.items():
+        if k in ALLOWED_KEYS and isinstance(v, bool):
+            existing[k] = v
+    _PREFS_STORE[key] = existing
+    return existing

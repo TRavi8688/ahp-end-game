@@ -98,7 +98,7 @@ function OrderCard({ order, onAccept, onReject, onAdvance, onDeliver, onOpenDeta
 
 function OrderDetailModal({ order, onClose }) {
   return (
-    <div className="fixed inset-0 bg-ink-900/40 z-30 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 bg-ink-900/40 z-40 flex items-end sm:items-center justify-center">
       <div className="bg-white w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl max-h-[90vh] overflow-y-auto">
         <div className="px-5 py-4 flex items-center justify-between border-b border-lavender-100 sticky top-0 bg-white">
           <h2 className="font-bold text-ink-900">Order Details</h2>
@@ -159,7 +159,9 @@ export default function Orders() {
         params.set('period', period);
         if (search) params.set('q', search);
       } else if (tab === 'accepted') {
-        // Accepted tab shows accepted + preparing
+        // Accepted tab shows both "accepted" and "preparing" orders.
+        // Backend doesn't support multi-status in one call, so fetch all and filter client-side.
+        // No status param → backend returns all orders for this pharmacy.
       } else {
         params.set('status', tab);
       }

@@ -43,7 +43,9 @@ export default function Home() {
       ]);
       setStats(statsRes.data);
       setChartData(buildWeeklySeries(txRes.data));
-      setPrescriptions(rxRes.data || []);
+      // Only show pending/processing prescriptions in the "Pending Orders" counter
+      const allRx = rxRes.data || [];
+      setPrescriptions(allRx.filter((rx) => rx.status !== 'dispensed'));
       setReadyCount((readyRes.data || []).length);
     } catch (err) {
       console.error(err);
@@ -129,7 +131,9 @@ export default function Home() {
             {prescriptions.slice(0, 8).map((rx) => (
               <div key={rx.id} className="flex items-center justify-between px-4 py-3.5">
                 <div>
-                  <p className="font-semibold text-ink-900 text-sm">Patient {rx.patient_id.slice(0, 8)}</p>
+                  <p className="font-semibold text-ink-900 text-sm">
+                    Patient {(rx.patient_id || rx.id || '').slice(0, 8)}
+                  </p>
                   <p className="text-xs text-gray-400">{(rx.medications || []).length} item(s)</p>
                 </div>
                 <span

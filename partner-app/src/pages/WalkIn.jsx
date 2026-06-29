@@ -73,9 +73,11 @@ function CustomerStep({ onNext }) {
     try {
       // Backend requires walkin_customer_id OR patient_id — never both null.
       // Even for "anonymous" sales we create a minimal walk-in customer record.
+      // Use a unique phone per session to avoid merging all anonymous customers.
+      const anonymousPhone = phone || `ANON-${Date.now()}`;
       const res = await apiClient.post('/pharmacy/walkin-customers', {
         name:  name  || 'Walk-In Customer',
-        phone: phone || '0000000000',  // placeholder so backend accepts it
+        phone: anonymousPhone,
       });
       onNext({ walkin_customer_id: res.data.id, customer: res.data });
     } catch (err) {

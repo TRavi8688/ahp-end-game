@@ -156,7 +156,7 @@ export default function HomeDashboard({ onOpenScan }) {
                         {isOnBreak ? 'Resume Session' : 'Take Break'}
                     </Button>
                     <Chip
-                        label="HOSPYN SECURE SHELL"
+                        label="HOSPAIN SECURE SHELL"
                         variant="outlined"
                         sx={{ borderColor: 'rgba(13, 148, 136, 0.3)', color: '#0d9488', fontFamily: 'Space Mono', fontWeight: 700, bgcolor: 'rgba(13, 148, 136, 0.05)', px: 1 }}
                     />

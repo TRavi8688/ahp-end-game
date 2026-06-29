@@ -83,8 +83,18 @@ export default function VerificationPending() {
           disabled={checking || !hospitalId}
           className="w-full text-center text-primary-600 font-semibold text-sm mt-6 py-2 disabled:opacity-50"
         >
-          {checking ? 'Checking...' : 'Check Again Later'}
+          {checking ? 'Checking...' : 'Check Again'}
         </button>
+
+        {!hospitalId && (
+          <p className="text-center text-xs text-gray-400 mt-2">
+            Registration reference not found. If you already registered,{' '}
+            <button onClick={() => window.location.href = '/login'} className="text-primary-600 font-semibold underline">
+              return to Sign In
+            </button>
+            {' '}and try logging in — verification may already be complete.
+          </p>
+        )}
       </div>
     </div>
   );

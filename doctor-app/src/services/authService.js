@@ -66,6 +66,20 @@ export const authService = {
     },
 
     /**
+     * Verify OTP for sign-in (Access Token tab).
+     * BUG FIX: LoginScreen's OTP flow used to call login() for both password
+     * and OTP modes, sending the 6-digit code as if it were the account
+     * password to /auth/login — that endpoint checks it against the stored
+     * password hash, so it always returned 401, no matter how many times
+     * the user re-typed a perfectly valid code. The backend's actual
+     * OTP-login route is /auth/verify-otp, which checks the code against
+     * the OTPVerification record sent by sendOTP, not the password hash.
+     */
+    verifyOTP: async (identifier, otp) => {
+        return apiClient.post('/auth/verify-otp', { ...identifierToOtpBody(identifier), otp });
+    },
+
+    /**
      * Reset Password
      */
     resetPassword: async (resetToken, newPassword) => {

@@ -43,7 +43,7 @@ export default function Notifications() {
             return (
               <div key={idx} className="bg-white rounded-2xl shadow-card p-4 flex items-start gap-3">
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${meta.color}`}>
-                  <Icon className="w-4.5 h-4.5" />
+                  <Icon className="w-5 h-5" />
                 </div>
                 <div>
                   <p className="font-semibold text-ink-900 text-sm">{n.title}</p>

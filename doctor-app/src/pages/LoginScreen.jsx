@@ -168,7 +168,14 @@ export default function LoginScreen() {
         e.preventDefault();
         setIsLoading(true); setErrorMsg('');
         try {
-            const data = await authService.login(identifier, passwordOrOtp);
+            // BUG FIX: OTP mode used to call authService.login() here too,
+            // which posts to /auth/login and checks passwordOrOtp against the
+            // stored password hash — so a correct 6-digit code always failed
+            // with 401. /auth/verify-otp is the endpoint that actually checks
+            // it against the code sendOTP issued.
+            const data = loginMode === 'otp'
+                ? await authService.verifyOTP(identifier, passwordOrOtp)
+                : await authService.login(identifier, passwordOrOtp);
 
             // Verify doctor role from JWT
             try {

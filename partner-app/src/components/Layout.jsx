@@ -44,7 +44,7 @@ export default function Layout({ children, pharmacyName, onLogout }) {
         {children}
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-lavender-100 px-2 py-2 flex justify-around pb-safe z-20 max-w-2xl mx-auto sm:rounded-t-2xl sm:border sm:shadow-floating">
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-lavender-100 px-2 py-2 flex justify-around pb-safe z-10 max-w-2xl mx-auto sm:rounded-t-2xl sm:border sm:shadow-floating">
         {NAV_ITEMS.map((item) => {
           const isActive = location.pathname.startsWith(item.path);
           return (

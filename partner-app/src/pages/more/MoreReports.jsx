@@ -90,9 +90,9 @@ export default function MoreReports() {
               <div className="pt-3 border-t border-lavender-50">
                 <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Top Spenders</p>
                 {customers.top_customers.slice(0, 5).map((c, idx) => (
-                  <div key={c.id} className="flex justify-between text-sm py-1">
-                    <span className="text-gray-600">#{idx + 1} · {c.id.slice(0, 8)}</span>
-                    <span className="font-semibold text-ink-900">₹{c.total_spent.toFixed(0)}</span>
+                  <div key={c.id || idx} className="flex justify-between text-sm py-1">
+                    <span className="text-gray-600">#{idx + 1} · {c.name || c.id?.slice(0, 8) || '—'}</span>
+                    <span className="font-semibold text-ink-900">₹{Number(c.total_spent || 0).toFixed(0)}</span>
                   </div>
                 ))}
               </div>
