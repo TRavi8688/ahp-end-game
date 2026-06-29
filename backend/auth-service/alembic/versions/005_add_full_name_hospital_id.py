@@ -22,17 +22,35 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column('users', sa.Column('full_name', sa.String(length=255), nullable=True))
-    op.add_column(
-        'users',
-        sa.Column('hospital_id', postgresql.UUID(as_uuid=True), nullable=True),
-    )
-    op.create_index(
-        op.f('ix_users_hospital_id'), 'users', ['hospital_id'], unique=False
-    )
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    columns = [col['name'] for col in inspector.get_columns('users')]
+    
+    if 'full_name' not in columns:
+        op.add_column('users', sa.Column('full_name', sa.String(length=255), nullable=True))
+    if 'hospital_id' not in columns:
+        op.add_column(
+            'users',
+            sa.Column('hospital_id', postgresql.UUID(as_uuid=True), nullable=True),
+        )
+    
+    indexes = [idx['name'] for idx in inspector.get_indexes('users')]
+    if 'ix_users_hospital_id' not in indexes:
+        op.create_index(
+            op.f('ix_users_hospital_id'), 'users', ['hospital_id'], unique=False
+        )
 
 
 def downgrade() -> None:
-    op.drop_index(op.f('ix_users_hospital_id'), table_name='users')
-    op.drop_column('users', 'hospital_id')
-    op.drop_column('users', 'full_name')
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    columns = [col['name'] for col in inspector.get_columns('users')]
+    indexes = [idx['name'] for idx in inspector.get_indexes('users')]
+    
+    if 'ix_users_hospital_id' in indexes:
+        op.drop_index(op.f('ix_users_hospital_id'), table_name='users')
+    if 'hospital_id' in columns:
+        op.drop_column('users', 'hospital_id')
+    if 'full_name' in columns:
+        op.drop_column('users', 'full_name')
+
