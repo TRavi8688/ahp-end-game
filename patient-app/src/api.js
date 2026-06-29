@@ -8,7 +8,7 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'https://hospyn-495
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 30000,
   headers: {
     "Content-Type": "application/json",
   },

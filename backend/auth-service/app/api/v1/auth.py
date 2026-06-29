@@ -925,10 +925,22 @@ async def send_otp(
 
     identifier = phone or email
 
-    # Cooldown check -- look at the most recent OTP we issued for this identifier
+    # Cleanup stale records (> 24 hours) inline to keep DB clean without background worker
+    try:
+        await db.execute(
+            text("DELETE FROM otp_verifications WHERE created_at < :limit"),
+            {"limit": datetime.now(timezone.utc) - timedelta(hours=24)}
+        )
+    except Exception as e:
+        logger.warning("Failed to clean up stale OTP verifications: %s", e)
+
+    # Cooldown check -- look at the most recent OTP we issued for this identifier in the last 5 minutes
     recent = await db.execute(
         select(OTPVerification)
-        .where(OTPVerification.identifier == identifier)
+        .where(
+            OTPVerification.identifier == identifier,
+            OTPVerification.created_at > datetime.now(timezone.utc) - timedelta(minutes=5)
+        )
         .order_by(OTPVerification.created_at.desc())
         .limit(1)
     )

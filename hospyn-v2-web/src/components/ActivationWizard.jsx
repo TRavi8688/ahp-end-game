@@ -137,12 +137,13 @@ function DocUpload({ label, hint, icon: Icon, file, onFile, accept = 'image/*,.p
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export default function ActivationWizard({ isOpen, onClose, onActivationSuccess }) {
+export default function ActivationWizard({ isOpen, onClose, onActivationSuccess, onLoginRedirect }) {
   const [step, setStep] = useState(1);   // 1=Coords, 2=Docs, 3=OTP, 4=Submitted
   const [loading, setLoading] = useState(false);
   const [hospitalId, setHospitalId] = useState(null);
   const [globalErr, setGlobalErr] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
 
   // Step 1 fields
   const [f, setF] = useState({
@@ -170,9 +171,7 @@ export default function ActivationWizard({ isOpen, onClose, onActivationSuccess 
 
   // Step 3: OTP
   const [otp, setOtp]           = useState('');
-  const [emailOtp, setEmailOtp] = useState('');
   const [simOtp, setSimOtp]     = useState('');
-  const [simEmailOtp, setSimEmailOtp] = useState('');
 
   // Step 1 validation
   const s1Errors = {
@@ -220,7 +219,11 @@ export default function ActivationWizard({ isOpen, onClose, onActivationSuccess 
       setHospitalId(data.hospital_id);
       setStep(2);
     } catch (e) {
-      setGlobalErr(e.message || 'Registration failed. Please check your details.');
+      if (e.status === 409) {
+        setShowLoginPopup(true);
+      } else {
+        setGlobalErr(e.message || 'Registration failed. Please check your details.');
+      }
     } finally {
       setLoading(false);
     }
@@ -248,7 +251,6 @@ export default function ActivationWizard({ isOpen, onClose, onActivationSuccess 
       // Send OTP (this must succeed)
       const otpData = await post(`/onboarding/send-government-pan-otp/${hospitalId}`, {});
       setSimOtp(otpData.simulated_otp || '');
-      setSimEmailOtp(otpData.simulated_email_otp || '');
       setStep(3);
     } catch (e) {
       setGlobalErr(e.message || 'Failed to send OTP. Please check your phone number and try again.');
@@ -257,15 +259,13 @@ export default function ActivationWizard({ isOpen, onClose, onActivationSuccess 
     }
   };
 
-  // ── Step 3 → 4: verify dual OTP ────────────────────────────────────────────
+  // ── Step 3 → 4: verify OTP ────────────────────────────────────────────
   const verifyOtp = async () => {
     if (!/^\d{6}$/.test(otp))      { setGlobalErr('Enter the 6-digit OTP sent to your phone.'); return; }
-    if (!/^\d{6}$/.test(emailOtp)) { setGlobalErr('Enter the 6-digit OTP sent to your email.'); return; }
     setLoading(true); setGlobalErr('');
     try {
       await postForm(`/onboarding/verify-government-pan-otp/${hospitalId}`, {
         otp_code: otp,
-        email_otp_code: emailOtp,
       });
       setStep(4);
       onActivationSuccess?.({
@@ -285,12 +285,12 @@ export default function ActivationWizard({ isOpen, onClose, onActivationSuccess 
   const steps = ['Hospital Details', 'Documents', 'Verify Identity', 'Submitted'];
 
   const reset = () => {
-    setStep(1); setHospitalId(null); setGlobalErr(''); setShowPw(false);
+    setStep(1); setHospitalId(null); setGlobalErr(''); setShowPw(false); setShowLoginPopup(false);
     setF({ name:'', owner_email:'', owner_password:'', registration_number:'', staff_count:'', phone_number:'', physical_address:'', latitude:'', longitude:'', branches:'' });
     setAddressParts({ street:'', city:'', state:'', pinCode:'' });
     setHasBranches(false); setBranchAddresses({});
     setDocPhoto(null); setDocPan(null); setDocLicense(null);
-    setOtp(''); setEmailOtp(''); setSimOtp(''); setSimEmailOtp('');
+    setOtp(''); setSimOtp('');
   };
 
   const handleClose = () => { reset(); onClose(); };
@@ -352,6 +352,28 @@ export default function ActivationWizard({ isOpen, onClose, onActivationSuccess 
 
             {/* ── Workspace ────────────────────────────────────────────────── */}
             <div className="flex-1 p-7 lg:p-10 bg-white relative flex flex-col">
+              {showLoginPopup && (
+                <div className="absolute inset-0 z-50 bg-white/95 flex flex-col items-center justify-center p-8 text-center">
+                  <div className="w-16 h-16 bg-rose-50 border border-rose-100 rounded-full flex items-center justify-center mb-4">
+                    <AlertCircle className="text-rose-500" size={32} />
+                  </div>
+                  <h4 className="text-xl font-black text-slate-900 mb-2">Account Already Exists</h4>
+                  <p className="text-slate-500 text-sm max-w-sm mb-6">
+                    An account with the email <strong className="text-slate-800">{f.owner_email}</strong> is already registered. Please log in to your existing account.
+                  </p>
+                  <div className="flex gap-3 w-full max-w-xs">
+                    <button type="button" onClick={() => { setShowLoginPopup(false); onLoginRedirect ? onLoginRedirect() : handleClose(); }}
+                      className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-xl transition-all shadow-lg">
+                      Go to Login
+                    </button>
+                    <button type="button" onClick={() => setShowLoginPopup(false)}
+                      className="px-4 py-3 border border-slate-200 text-slate-600 font-bold text-sm rounded-xl hover:bg-slate-50 transition-all">
+                      Edit Email
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <button onClick={handleClose} className="absolute top-5 right-5 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all">
                 <X size={18}/>
               </button>
@@ -512,19 +534,18 @@ export default function ActivationWizard({ isOpen, onClose, onActivationSuccess 
                     </motion.div>
                   )}
 
-                  {/* ═══ STEP 3 — Dual OTP Verification ═══════════════════════ */}
+                  {/* ═══ STEP 3 — Phone OTP Verification ═══════════════════════ */}
                   {step === 3 && (
                     <motion.div key="s3" initial={{ opacity:0, x:12 }} animate={{ opacity:1, x:0 }} exit={{ opacity:0, x:-12 }} className="space-y-6">
                       <div>
                         <h4 className="text-xl font-black text-slate-900">Verify Your Identity</h4>
-                        <p className="text-slate-400 text-xs mt-1">We've sent 6-digit verification codes to your phone and email.</p>
+                        <p className="text-slate-400 text-xs mt-1">We've sent a 6-digit verification code to your phone.</p>
                       </div>
 
-                      {(simOtp || simEmailOtp) && (
+                      {simOtp && (
                         <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-2">
-                          <p className="text-[10px] uppercase font-bold tracking-widest text-amber-800">Dev Mode — Simulated OTPs:</p>
-                          {simOtp      && <p className="text-xs font-bold text-amber-700">Phone OTP: <span className="font-mono text-base ml-2 tracking-widest bg-amber-100/60 px-2 py-0.5 rounded">{simOtp}</span></p>}
-                          {simEmailOtp && <p className="text-xs font-bold text-amber-700">Email OTP: <span className="font-mono text-base ml-2 tracking-widest bg-amber-100/60 px-2 py-0.5 rounded">{simEmailOtp}</span></p>}
+                          <p className="text-[10px] uppercase font-bold tracking-widest text-amber-800">Dev Mode — Simulated OTP:</p>
+                          <p className="text-xs font-bold text-amber-700">Phone OTP: <span className="font-mono text-base ml-2 tracking-widest bg-amber-100/60 px-2 py-0.5 rounded">{simOtp}</span></p>
                         </div>
                       )}
 
@@ -542,19 +563,6 @@ export default function ActivationWizard({ isOpen, onClose, onActivationSuccess 
                           {otp && otp.length < 6 && <p className="mt-1.5 text-[10px] font-bold text-amber-600">{otp.length}/6 digits entered</p>}
                         </div>
 
-                        <div>
-                          <label className="block text-slate-700 text-[11px] font-semibold mb-2">
-                            Email OTP — sent to {f.owner_email} <span className="text-rose-500">*</span>
-                          </label>
-                          <input type="text" value={emailOtp} onChange={e => { setEmailOtp(e.target.value.replace(/\D/g,'').slice(0,6)); setGlobalErr(''); }}
-                            placeholder="● ● ● ● ● ●" inputMode="numeric" maxLength={6}
-                            className={`w-full border rounded-xl p-4 text-center text-2xl font-black tracking-[0.7em] font-mono outline-none transition-all ${
-                              emailOtp.length===6 ? 'bg-emerald-50 border-emerald-300' : 'bg-slate-50 border-slate-200 focus:bg-white focus:border-violet-500'
-                            }`}
-                          />
-                          {emailOtp && emailOtp.length < 6 && <p className="mt-1.5 text-[10px] font-bold text-amber-600">{emailOtp.length}/6 digits entered</p>}
-                        </div>
-
                         <p className="text-[10px] text-slate-400 text-center">
                           Didn't receive it?{' '}
                           <button type="button" onClick={submitStep2} disabled={loading} className="text-violet-600 font-bold hover:underline disabled:opacity-50">
@@ -567,7 +575,7 @@ export default function ActivationWizard({ isOpen, onClose, onActivationSuccess 
                             className="px-6 py-4 border border-slate-200 text-slate-600 font-bold text-sm rounded-2xl hover:bg-slate-50 transition-all">
                             ← Back
                           </button>
-                          <button type="button" onClick={verifyOtp} disabled={loading || otp.length < 6 || emailOtp.length < 6}
+                          <button type="button" onClick={verifyOtp} disabled={loading || otp.length < 6}
                             className="flex-1 py-4 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white font-bold text-sm rounded-2xl transition-all flex items-center justify-center gap-2">
                             {loading ? 'Verifying…' : 'Verify & Submit Application →'}
                           </button>

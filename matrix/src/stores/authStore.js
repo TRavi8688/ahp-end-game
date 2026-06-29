@@ -19,7 +19,7 @@ const PERMISSION_LEVELS = {
 
 const restoreSession = () => {
   try {
-    const token = sessionStorage.getItem('hospin_token');
+    const token = sessionStorage.getItem('matrix_token');
     const user  = JSON.parse(sessionStorage.getItem('hospin_user') || 'null');
     if (token && user) { tokenStore.set(token); return { user, isAuthenticated: true }; }
   } catch (_) {}
@@ -31,7 +31,7 @@ export const useAuthStore = create((set, get) => ({
 
   login: (user, token) => {
     tokenStore.set(token);
-    sessionStorage.setItem('hospin_token', token);
+    sessionStorage.setItem('matrix_token', token);
     // Persist must_change_password so ProtectedRoute can intercept on refresh
     const userToStore = { ...user };
     sessionStorage.setItem('hospin_user', JSON.stringify(userToStore));
@@ -40,7 +40,7 @@ export const useAuthStore = create((set, get) => ({
 
   logout: () => {
     tokenStore.clear();
-    sessionStorage.removeItem('hospin_token');
+    sessionStorage.removeItem('matrix_token');
     sessionStorage.removeItem('hospin_user');
     // Clear all matrixStore state so next employee doesn't see stale data
     import('./matrixStore').then(({ useMatrixStore }) => {

@@ -29,13 +29,15 @@ import random
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from app.core.database import get_db
 from app.models.hospital import Hospital, HospitalStatus
+from app.api.v1.onboarding import _hospital_or_404, _upload_to_gcs
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -101,8 +103,16 @@ async def register_enterprise_simple(
             existing.state                = state
             existing.pin_code             = pin_code
             db.add(existing)
-            await db.flush()
+            try:
+                await db.flush()
+            except IntegrityError:
+                await db.rollback()
+                raise HTTPException(
+                    status_code=409,
+                    detail="An account with this email already exists. Please log in instead.",
+                )
             await db.refresh(existing)
+            await db.commit()
 
             logger.info("Hospital registration updated (re-edit): %s", existing.id)
             return {
@@ -128,6 +138,22 @@ async def register_enterprise_simple(
             detail="A hospital with this registration number already exists.",
         )
 
+    # -- Duplicate email check (only for brand new submissions) --
+    dup_email = await db.execute(
+        text("""
+            SELECT id FROM hospitals
+            WHERE email = :email
+              AND status != 'rejected'
+            LIMIT 1
+        """),
+        {"email": body.owner_email},
+    )
+    if dup_email.first():
+        raise HTTPException(
+            status_code=409,
+            detail="An account with this email already exists. Please log in instead.",
+        )
+
     hospital_id = uuid.uuid4()
     hospyn_id   = _hospyn_id(body.name)
 
@@ -146,8 +172,16 @@ async def register_enterprise_simple(
         owner_user_id=uuid.uuid4(),
     )
     db.add(hospital)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="An account with this email already exists. Please log in instead.",
+        )
     await db.refresh(hospital)
+    await db.commit()
 
     logger.info(
         "Hospital registered (simple, no docs/payment): %s (%s)",
@@ -160,3 +194,19 @@ async def register_enterprise_simple(
         "status":       hospital.status,
         "message":      "Hospital registered. Proceed to phone verification.",
     }
+
+
+@router.post("/upload-documents/{hospital_id}", status_code=200)
+async def upload_documents(
+    hospital_id: str,
+    selfie: Optional[UploadFile] = File(None),
+    pan_card_photo: Optional[UploadFile] = File(None),
+    certificate: Optional[UploadFile] = File(None),
+    db: AsyncSession = Depends(get_db),
+):
+    await _hospital_or_404(db, hospital_id)
+    for upload, label in [(selfie, "selfie"), (pan_card_photo, "pan"), (certificate, "cert")]:
+        if upload:
+            contents = await upload.read()
+            await _upload_to_gcs(hospital_id, label, upload.filename, contents)
+    return {"message": "Documents received."}

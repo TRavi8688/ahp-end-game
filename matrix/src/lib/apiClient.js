@@ -7,13 +7,23 @@
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-// ─── In-memory token store (NO localStorage — PHI security requirement) ─────
+// ─── In-memory/sessionStorage token store (NO localStorage — PHI security requirement) ─────
 export const tokenStore = (() => {
-  let _token = null;
+  let _token = sessionStorage.getItem("matrix_token") || null;
   return {
     get:   ()    => _token,
-    set:   (t)   => { _token = t; },
-    clear: ()    => { _token = null; },
+    set:   (t)   => {
+      _token = t;
+      if (t) {
+        sessionStorage.setItem("matrix_token", t);
+      } else {
+        sessionStorage.removeItem("matrix_token");
+      }
+    },
+    clear: ()    => {
+      _token = null;
+      sessionStorage.removeItem("matrix_token");
+    },
   };
 })();
 

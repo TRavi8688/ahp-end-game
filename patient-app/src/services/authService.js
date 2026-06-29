@@ -10,7 +10,7 @@ export const authService = {
         formData.append('password', password);
         const response = await axios.post(`${API_BASE_URL}/auth/login`, formData.toString(), {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            timeout: 10000 // 10 seconds timeout
+            timeout: 30000 // 30 seconds timeout
         });
         return response.data;
     } catch (error) {

@@ -118,7 +118,15 @@ function NavigationWrapper() {
         <Route path="*" element={<Navigate to="/" replace/>}/>
       </Routes>
 
-      <ActivationWizard isOpen={wizardOpen} onClose={() => setWizardOpen(false)} onActivationSuccess={handleActivationSuccess}/>
+      <ActivationWizard 
+        isOpen={wizardOpen} 
+        onClose={() => setWizardOpen(false)} 
+        onActivationSuccess={handleActivationSuccess}
+        onLoginRedirect={() => {
+          setWizardOpen(false);
+          setLoginOpen(true);
+        }}
+      />
       <LedgerLoginModal isOpen={loginOpen}  onClose={() => setLoginOpen(false)}  onLoginSuccess={handleLoginSuccess}/>
     </>
   );
