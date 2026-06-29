@@ -202,14 +202,17 @@ async def health_check():
 # -- Debug Patient Query Endpoint -----------------------------------------------
 @app.get("/api/v1/healthcare/debug-patient-query", tags=["Debug"])
 async def debug_patient_query():
-    from app.core.database import get_db
-    from app.models.patient import Patient
-    from sqlalchemy import select
+    from app.core.database import get_engine
+    from sqlalchemy import text
     try:
-        async for db in get_db():
-            result = await db.execute(select(Patient).limit(1))
-            patient = result.scalars().first()
-            return {"status": "ok", "patient_found": patient is not None}
+        engine = get_engine()
+        async with engine.connect() as conn:
+            # Query columns of patients table
+            result = await conn.execute(text(
+                "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'patients'"
+            ))
+            columns = [{"name": row[0], "type": row[1]} for row in result.fetchall()]
+            return {"status": "ok", "table": "patients", "columns": columns}
     except Exception as exc:
         import traceback
         return {
@@ -218,6 +221,7 @@ async def debug_patient_query():
             "error_detail": str(exc),
             "traceback": traceback.format_exc()
         }
+
 
 
 # -- Routers -------------------------------------------------------------------
