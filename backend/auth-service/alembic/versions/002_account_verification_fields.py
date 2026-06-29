@@ -37,24 +37,32 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "users",
-        sa.Column(
-            "phone_verified", sa.Boolean(), server_default=sa.text("true"), nullable=False
-        ),
-    )
-    op.add_column(
-        "users",
-        sa.Column(
-            "auth_provider", sa.String(20), server_default=sa.text("'local'"), nullable=False
-        ),
-    )
-    op.add_column(
-        "users",
-        sa.Column(
-            "has_usable_password", sa.Boolean(), server_default=sa.text("true"), nullable=False
-        ),
-    )
+    conn = op.get_bind()
+    from sqlalchemy import inspect
+    inspector = inspect(conn)
+    columns = [col['name'] for col in inspector.get_columns('users')]
+
+    if "phone_verified" not in columns:
+        op.add_column(
+            "users",
+            sa.Column(
+                "phone_verified", sa.Boolean(), server_default=sa.text("true"), nullable=False
+            ),
+        )
+    if "auth_provider" not in columns:
+        op.add_column(
+            "users",
+            sa.Column(
+                "auth_provider", sa.String(20), server_default=sa.text("'local'"), nullable=False
+            ),
+        )
+    if "has_usable_password" not in columns:
+        op.add_column(
+            "users",
+            sa.Column(
+                "has_usable_password", sa.Boolean(), server_default=sa.text("true"), nullable=False
+            ),
+        )
 
 
 def downgrade() -> None:

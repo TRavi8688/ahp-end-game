@@ -198,7 +198,7 @@ jobs:
             --image gcr.io/${{ env.PROJECT_ID }}/hospyn-api:${{ github.sha }} \
             --region $REGION \
             --project $PROJECT_ID \
-            --command "alembic" --args "stamp,head" \
+            --command "alembic" --args "upgrade,head" \
             --update-secrets="DATABASE_URL=DATABASE_URL:latest"
 
           gcloud run jobs execute hospyn-migrations \

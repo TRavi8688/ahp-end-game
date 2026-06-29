@@ -159,7 +159,7 @@ jobs:
             --image $AUTH_IMAGE \
             --region asia-south1 \
             --project hospyn-495906 \
-            --command "alembic" --args "stamp,head" \
+            --command "alembic" --args "upgrade,head" \
             --update-secrets "DATABASE_URL=DATABASE_URL:latest"
           gcloud run jobs execute hospyn-auth-migrations --region asia-south1 --project hospyn-495906 --wait || {
             echo "=== MIGRATION EXECUTION FAILED ==="
@@ -175,7 +175,7 @@ jobs:
             --image $HEALTHCARE_IMAGE \
             --region asia-south1 \
             --project hospyn-495906 \
-            --command "alembic" --args "stamp,head" \
+            --command "alembic" --args "upgrade,head" \
             --update-secrets "DATABASE_URL=DATABASE_URL:latest"
           gcloud run jobs execute hospyn-hc-migrations --region asia-south1 --project hospyn-495906 --wait
 
