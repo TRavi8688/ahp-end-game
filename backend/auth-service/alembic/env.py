@@ -51,6 +51,14 @@ def do_run_migrations(connection: Connection) -> None:
     inspector = inspect(connection)
     tables = inspector.get_table_names()
     
+    # If the tracking table exists but 'users' table is missing, the database is in an inconsistent state.
+    # We drop the tracking table so Alembic will re-run the migrations stack and recreate all missing tables safely.
+    if "users" not in tables and "alembic_version_auth" in tables:
+        connection.execute(sa.text("DROP TABLE IF EXISTS alembic_version_auth"))
+        connection.commit()
+        # Re-inspect tables after dropping
+        tables = [t for t in tables if t != "alembic_version_auth"]
+    
     if "users" in tables and "alembic_version_auth" not in tables:
         connection.execute(sa.text(
             "CREATE TABLE alembic_version_auth (version_num VARCHAR(32) NOT NULL, PRIMARY KEY (version_num))"
@@ -58,6 +66,7 @@ def do_run_migrations(connection: Connection) -> None:
         connection.execute(sa.text(
             "INSERT INTO alembic_version_auth (version_num) VALUES ('004_make_email_nullable')"
         ))
+        connection.commit()
 
     context.configure(
         connection=connection,
