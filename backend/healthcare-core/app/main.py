@@ -199,6 +199,27 @@ async def health_check():
     )
 
 
+# -- Debug Patient Query Endpoint -----------------------------------------------
+@app.get("/api/v1/healthcare/debug-patient-query", tags=["Debug"])
+async def debug_patient_query():
+    from app.core.database import get_db
+    from app.models.patient import Patient
+    from sqlalchemy import select
+    try:
+        async for db in get_db():
+            result = await db.execute(select(Patient).limit(1))
+            patient = result.scalars().first()
+            return {"status": "ok", "patient_found": patient is not None}
+    except Exception as exc:
+        import traceback
+        return {
+            "status": "error",
+            "error_type": type(exc).__name__,
+            "error_detail": str(exc),
+            "traceback": traceback.format_exc()
+        }
+
+
 # -- Routers -------------------------------------------------------------------
 #
 # FIX BUG-8: Partner routers are registered ONLY inside api_router (router.py).
