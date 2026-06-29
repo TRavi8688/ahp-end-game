@@ -130,10 +130,6 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Sync DATABASE_URL to Secret Manager
-        run: |
-          echo -n "${{ secrets.DATABASE_URL }}" | gcloud secrets versions add DATABASE_URL --data-file=- --project=hospyn-495906
-
       - name: Login to Artifact Registry
         uses: docker/login-action@v3
         with:
@@ -194,9 +190,8 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --port 8080 \
-            --remove-secrets="ENCRYPTION_KEY,FERNET_KEY" \
-            --set-env-vars "ENVIRONMENT=production,APP_ENCRYPTION_KEY=${{ secrets.FERNET_KEY }},SERVICE_NAME=auth-service" \
-            --update-secrets "DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_SECRET_KEY=SECRET_KEY:latest,REDIS_URL=REDIS_URL:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest,INTERNAL_SERVICE_SECRET=SECRET_KEY:latest"
+            --set-env-vars "ENVIRONMENT=production,SERVICE_NAME=auth-service" \
+            --update-secrets "DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_SECRET_KEY=SECRET_KEY:latest,REDIS_URL=REDIS_URL:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest,INTERNAL_SERVICE_SECRET=SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,FERNET_KEY=FERNET_KEY:latest"
           
           AUTH_URL=$(gcloud run services describe hospyn-495906-auth --region asia-south1 --format 'value(status.url)')
           echo "AUTH_URL=$AUTH_URL" >> $GITHUB_ENV
@@ -212,9 +207,8 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --port 8080 \
-            --remove-secrets="ENCRYPTION_KEY,FERNET_KEY" \
-            --set-env-vars "ENVIRONMENT=production,APP_ENCRYPTION_KEY=${{ secrets.FERNET_KEY }},AUTH_SERVICE_INTERNAL_URL=${{ env.AUTH_URL }}/api/v1,AUTH_JWKS_URL=${{ env.AUTH_URL }}/api/v1/auth/.well-known/jwks.json,SERVICE_NAME=healthcare-core" \
-            --update-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_SECRET_KEY=JWT_SECRET_KEY:latest,REDIS_URL=REDIS_URL:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest,INTERNAL_SERVICE_SECRET=SECRET_KEY:latest"
+            --set-env-vars "ENVIRONMENT=production,AUTH_SERVICE_INTERNAL_URL=${{ env.AUTH_URL }}/api/v1,AUTH_JWKS_URL=${{ env.AUTH_URL }}/api/v1/auth/.well-known/jwks.json,SERVICE_NAME=healthcare-core" \
+            --update-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_SECRET_KEY=JWT_SECRET_KEY:latest,REDIS_URL=REDIS_URL:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest,INTERNAL_SERVICE_SECRET=SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,FERNET_KEY=FERNET_KEY:latest"
 
             
           HEALTH_URL=$(gcloud run services describe hospyn-495906-healthcare --region asia-south1 --format 'value(status.url)')

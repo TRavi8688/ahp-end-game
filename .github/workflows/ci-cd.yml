@@ -193,13 +193,13 @@ jobs:
           # Delete existing job if it exists to clear any conflicting secret bindings
           gcloud run jobs delete hospyn-migrations --region $REGION --project $PROJECT_ID --quiet || true
 
-          # Create fresh job with env vars
+          # Create fresh job with secret bindings
           gcloud run jobs create hospyn-migrations \
             --image gcr.io/${{ env.PROJECT_ID }}/hospyn-api:${{ github.sha }} \
             --region $REGION \
             --project $PROJECT_ID \
             --command "alembic" --args "upgrade,head" \
-            --set-env-vars="DATABASE_URL=${{ secrets.DATABASE_URL }}"
+            --update-secrets="DATABASE_URL=DATABASE_URL:latest"
 
           gcloud run jobs execute hospyn-migrations \
             --region=$REGION \
