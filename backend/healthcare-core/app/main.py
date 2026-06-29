@@ -124,8 +124,21 @@ async def correlation_id_middleware(request: Request, call_next):
             },
         )
         return response
+    except Exception as exc:
+        import traceback
+        tb = traceback.format_exc()
+        logger.error("Unhandled exception: %s", tb)
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Unhandled Exception",
+                "detail": str(exc),
+                "traceback": tb,
+            }
+        )
     finally:
         structlog.contextvars.clear_contextvars()
+
 
 
 # -- CORS ----------------------------------------------------------------------

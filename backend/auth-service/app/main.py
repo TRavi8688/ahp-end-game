@@ -94,21 +94,35 @@ def _add_request_id_middleware(application: FastAPI) -> None:
     async def request_id_middleware(request: Request, call_next):
         request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
         start = time.monotonic()
-        response = await call_next(request)
-        duration_ms = round((time.monotonic() - start) * 1000)
-        response.headers["X-Request-ID"] = request_id
-        logger.info(
-            "request",
-            extra={
-                "service": "auth-service",
-                "request_id": request_id,
-                "path": request.url.path,
-                "method": request.method,
-                "duration_ms": duration_ms,
-                "status": response.status_code,
-            },
-        )
-        return response
+        try:
+            response = await call_next(request)
+            duration_ms = round((time.monotonic() - start) * 1000)
+            response.headers["X-Request-ID"] = request_id
+            logger.info(
+                "request",
+                extra={
+                    "service": "auth-service",
+                    "request_id": request_id,
+                    "path": request.url.path,
+                    "method": request.method,
+                    "duration_ms": duration_ms,
+                    "status": response.status_code,
+                },
+            )
+            return response
+        except Exception as exc:
+            import traceback
+            tb = traceback.format_exc()
+            logger.error("Unhandled exception: %s", tb)
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "error": "Unhandled Exception",
+                    "detail": str(exc),
+                    "traceback": tb,
+                }
+            )
+
 
 
 # -- CORS ----------------------------------------------------------------------
