@@ -303,24 +303,14 @@ jobs:
           npm run build
 
       - name: Deploy Firebase Sites
-        shell: bash
-        run: |
-          TARGETS=""
-          if [[ "${{ github.event.inputs.target }}" == "all" || "${{ github.event.inputs.target }}" == "" && "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            npx firebase-tools deploy --only hosting --token ${{ secrets.FIREBASE_TOKEN }}
-          else
-            if [[ "${{ needs.check-changes.outputs.patient }}" == "true" || "${{ github.event.inputs.target }}" == "patient" ]]; then TARGETS="$TARGETS,hosting:patient"; fi
-            if [[ "${{ needs.check-changes.outputs.doctor }}" == "true" || "${{ github.event.inputs.target }}" == "doctor" ]]; then TARGETS="$TARGETS,hosting:doctor"; fi
-            if [[ "${{ needs.check-changes.outputs.erp }}" == "true" || "${{ github.event.inputs.target }}" == "erp" ]]; then TARGETS="$TARGETS,hosting:erp"; fi
-            if [[ "${{ needs.check-changes.outputs.admin }}" == "true" || "${{ github.event.inputs.target }}" == "admin" ]]; then TARGETS="$TARGETS,hosting:admin"; fi
-            if [[ "${{ needs.check-changes.outputs.landing }}" == "true" || "${{ github.event.inputs.target }}" == "landing" ]]; then TARGETS="$TARGETS,hosting:landing"; fi
-            if [[ "${{ needs.check-changes.outputs.partner }}" == "true" || "${{ github.event.inputs.target }}" == "partner" ]]; then TARGETS="$TARGETS,hosting:partner"; fi
-            # Remove leading comma
-            TARGETS=${TARGETS#,}
-            if [[ ! -z "$TARGETS" ]]; then
-              echo "Deploying targets: $TARGETS"
-              npx firebase-tools deploy --only $TARGETS --token ${{ secrets.FIREBASE_TOKEN }}
-            else
-              echo "No frontend targets were built. Skipping deploy."
-            fi
-          fi
+  shell: bash
+  run: |
+    echo "========================================"
+    echo "Deploying ALL Firebase Hosting Sites"
+    echo "========================================"
+
+    npx firebase-tools deploy --only hosting --token ${{ secrets.FIREBASE_TOKEN }}
+
+    echo "========================================"
+    echo "Deployment Complete"
+    echo "========================================"
