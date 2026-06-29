@@ -186,6 +186,30 @@ async def health_check():
     )
 
 
+# -- Debug Patient Query Endpoint -----------------------------------------------
+@app.get("/api/v1/healthcare/debug-patient-query", tags=["Debug"])
+async def debug_patient_query():
+    from app.core.database import get_engine
+    from sqlalchemy import text
+    try:
+        engine = get_engine()
+        async with engine.connect() as conn:
+            # Query columns of patients table
+            result = await conn.execute(text(
+                "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'patients'"
+            ))
+            columns = [{"name": row[0], "type": row[1]} for row in result.fetchall()]
+            return {"status": "ok", "table": "patients", "columns": columns}
+    except Exception as exc:
+        import traceback
+        return {
+            "status": "error",
+            "error_type": type(exc).__name__,
+            "error_detail": str(exc),
+            "traceback": traceback.format_exc()
+        }
+
+
 # -- Routers -------------------------------------------------------------------
 #
 # FIX BUG-8: Partner routers are registered ONLY inside api_router (router.py).
