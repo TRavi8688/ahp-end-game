@@ -187,6 +187,19 @@ async def run_auth_migrations(request: Request):
         ("employee_id",           "ALTER TABLE users ADD COLUMN IF NOT EXISTS employee_id VARCHAR(10)"),
         ("is_temporary_password", "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_temporary_password BOOLEAN DEFAULT false NOT NULL"),
         ("employee_id_index",     "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_employee_id ON users (employee_id) WHERE employee_id IS NOT NULL"),
+
+        # OTP Verifications table self-healing
+        ("drop_otp_if_old",       "DROP TABLE IF EXISTS otp_verifications CASCADE"),
+        ("otp_table",             "CREATE TABLE IF NOT EXISTS otp_verifications (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), identifier VARCHAR(255) NOT NULL)"),
+        ("hashed_otp",            "ALTER TABLE otp_verifications ADD COLUMN IF NOT EXISTS hashed_otp VARCHAR(255)"),
+        ("attempts",              "ALTER TABLE otp_verifications ADD COLUMN IF NOT EXISTS attempts INTEGER DEFAULT 0 NOT NULL"),
+        ("expires_at",            "ALTER TABLE otp_verifications ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE"),
+        ("created_at",            "ALTER TABLE otp_verifications ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL"),
+        ("is_verified",           "ALTER TABLE otp_verifications ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false NOT NULL"),
+
+        # DROP NOT NULL constraints on users table columns (to allow social logins and phone-only signups)
+        ("drop_phone_not_null",   "ALTER TABLE users ALTER COLUMN phone_number DROP NOT NULL"),
+        ("drop_email_not_null",   "ALTER TABLE users ALTER COLUMN email DROP NOT NULL"),
     ]
     results = {}
     try:
