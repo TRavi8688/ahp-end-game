@@ -1,7 +1,7 @@
 // patient-app/src/screens/SetPasswordScreen.js
 //
 // NEW (2026-06-23): fixes the reported issue "Google account users have no
-// way to set a Hospyn ID + password, so they have to tap Sign in with
+// way to set a Hospain ID + password, so they have to tap Sign in with
 // Google every single time." Reachable from Settings, and offered once
 // automatically right after a first-time Google/Apple sign-in.
 
@@ -11,12 +11,14 @@ import {
     ActivityIndicator, Platform, KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, useTheme} from '../theme';
 import { SecurityUtils } from '../utils/security';
 import { authService } from '../services/authService';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function SetPasswordScreen({ navigation }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const { updateAuthProvider } = useAuth();
     const [phone, setPhone] = useState('');
     const [password, setPassword] = useState('');
@@ -56,13 +58,13 @@ export default function SetPasswordScreen({ navigation }) {
     if (done) {
         return (
             <View style={[GlobalStyles.screen, styles.center]}>
-                <Ionicons name="shield-checkmark" size={72} color={Theme.colors.positive} />
-                <Text style={[styles.title, { color: Theme.colors.text }]}>You're all set</Text>
-                <Text style={[styles.subtitle, { color: Theme.colors.textMuted }]}>
+                <Ionicons name="shield-checkmark" size={72} color={colors.positive} />
+                <Text style={[styles.title, { color: colors.text }]}>You're all set</Text>
+                <Text style={[styles.subtitle, { color: colors.textMuted }]}>
                     You can now log in with your phone number and password, or keep using Google — whichever's faster.
                 </Text>
                 <TouchableOpacity
-                    style={[styles.primaryBtn, { backgroundColor: Theme.colors.primary }]}
+                    style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
                     onPress={() => navigation.goBack()}
                 >
                     <Text style={styles.primaryBtnText}>Done</Text>
@@ -75,23 +77,23 @@ export default function SetPasswordScreen({ navigation }) {
         <KeyboardAvoidingView style={GlobalStyles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />
+                    <Ionicons name="arrow-back" size={24} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: Theme.colors.text }]}>Set up Hospyn ID</Text>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>Set up Hospain ID</Text>
                 <View style={{ width: 24 }} />
             </View>
 
             <View style={styles.content}>
-                <Text style={[styles.subtitle, { color: Theme.colors.textMuted, marginBottom: 28 }]}>
+                <Text style={[styles.subtitle, { color: colors.textMuted, marginBottom: 28 }]}>
                     You signed in with Google. Add a phone number and password so you can log in
                     either way — no need to tap "Sign in with Google" every time.
                 </Text>
 
                 <Text style={[GlobalStyles.label, styles.label]}>Phone number</Text>
                 <TextInput
-                    style={[styles.input, { borderColor: Theme.colors.border, color: Theme.colors.text }]}
+                    style={[styles.input, { borderColor: colors.border, color: colors.text }]}
                     placeholder="+91XXXXXXXXXX"
-                    placeholderTextColor={Theme.colors.textMuted}
+                    placeholderTextColor={colors.textMuted}
                     value={phone}
                     onChangeText={setPhone}
                     keyboardType="phone-pad"
@@ -99,9 +101,9 @@ export default function SetPasswordScreen({ navigation }) {
 
                 <Text style={[GlobalStyles.label, styles.label]}>New password</Text>
                 <TextInput
-                    style={[styles.input, { borderColor: Theme.colors.border, color: Theme.colors.text }]}
+                    style={[styles.input, { borderColor: colors.border, color: colors.text }]}
                     placeholder="At least 8 characters"
-                    placeholderTextColor={Theme.colors.textMuted}
+                    placeholderTextColor={colors.textMuted}
                     value={password}
                     onChangeText={setPassword}
                     secureTextEntry
@@ -109,9 +111,9 @@ export default function SetPasswordScreen({ navigation }) {
 
                 <Text style={[GlobalStyles.label, styles.label]}>Confirm password</Text>
                 <TextInput
-                    style={[styles.input, { borderColor: Theme.colors.border, color: Theme.colors.text }]}
+                    style={[styles.input, { borderColor: colors.border, color: colors.text }]}
                     placeholder="Re-enter password"
-                    placeholderTextColor={Theme.colors.textMuted}
+                    placeholderTextColor={colors.textMuted}
                     value={confirm}
                     onChangeText={setConfirm}
                     secureTextEntry
@@ -120,7 +122,7 @@ export default function SetPasswordScreen({ navigation }) {
                 {!!error && <Text style={styles.errorText}>{error}</Text>}
 
                 <TouchableOpacity
-                    style={[styles.primaryBtn, { backgroundColor: Theme.colors.primary, marginTop: 28 }, loading && { opacity: 0.7 }]}
+                    style={[styles.primaryBtn, { backgroundColor: colors.primary, marginTop: 28 }, loading && { opacity: 0.7 }]}
                     onPress={handleSubmit}
                     disabled={loading}
                 >
@@ -128,14 +130,14 @@ export default function SetPasswordScreen({ navigation }) {
                 </TouchableOpacity>
 
                 <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 16 }}>
-                    <Text style={[styles.linkBtn, { color: Theme.colors.secondary }]}>Maybe later</Text>
+                    <Text style={[styles.linkBtn, { color: colors.secondary }]}>Maybe later</Text>
                 </TouchableOpacity>
             </View>
         </KeyboardAvoidingView>
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: Platform.OS === 'ios' ? 60 : 30, paddingBottom: 16 },
     backBtn: { padding: 4 },
     headerTitle: { fontSize: 18, fontFamily: Theme.fonts.headingSemi },

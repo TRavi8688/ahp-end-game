@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, useTheme} from '../theme';
 import ApiService from '../utils/ApiService';
 
 const { width } = Dimensions.get('window');
 
 export default function MedsScreen({ navigation }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const [meds, setMeds] = useState([]);
     const [loading, setLoading] = useState(true);
     const [adherence, setAdherence] = useState(0);
@@ -67,7 +69,7 @@ export default function MedsScreen({ navigation }) {
                 </View>
 
                 {loading ? (
-                    <ActivityIndicator color={Theme.colors.primary} />
+                    <ActivityIndicator color={colors.primary} />
                 ) : (
                     <View style={styles.list}>
                         {meds.length > 0 ? meds.map((med, i) => (
@@ -107,7 +109,7 @@ export default function MedsScreen({ navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     topBar: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -118,7 +120,7 @@ const styles = StyleSheet.create({
     },
     topBarLabel: {
         fontFamily: Theme.fonts.label,
-        color: Theme.colors.secondary,
+        color: colors.secondary,
         fontSize: 12,
         letterSpacing: 2,
     },
@@ -127,7 +129,7 @@ const styles = StyleSheet.create({
     },
     bigHeading: {
         fontFamily: Theme.fonts.heading,
-        color: Theme.colors.primary,
+        color: colors.primary,
         fontSize: 32,
         marginTop: 20,
     },
@@ -137,7 +139,7 @@ const styles = StyleSheet.create({
     },
     progressLabel: {
         fontFamily: Theme.fonts.label,
-        color: Theme.colors.secondary,
+        color: colors.secondary,
         fontSize: 10,
         letterSpacing: 1,
         marginBottom: 10,
@@ -166,7 +168,7 @@ const styles = StyleSheet.create({
     },
     medName: {
         fontFamily: Theme.fonts.headingSemi,
-        color: Theme.colors.primary,
+        color: colors.primary,
         fontSize: 20,
         flex: 1,
     },
@@ -188,7 +190,7 @@ const styles = StyleSheet.create({
     },
     medDose: {
         fontFamily: Theme.fonts.label,
-        color: Theme.colors.secondary,
+        color: colors.secondary,
         fontSize: 14,
     },
     statusToggle: {
@@ -203,8 +205,8 @@ const styles = StyleSheet.create({
         fontSize: 10,
     },
     statusTaken: {
-        backgroundColor: Theme.colors.positive,
-        borderColor: Theme.colors.positive,
+        backgroundColor: colors.positive,
+        borderColor: colors.positive,
     },
     statusTakenText: {
         color: '#000000',

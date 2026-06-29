@@ -10,7 +10,7 @@ import { Audio } from 'expo-av';
 import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
 import { SecurityUtils } from '../utils/security';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, useTheme} from '../theme';
 import { API_BASE_URL } from '../api';
 import HapticUtils from '../utils/HapticUtils';
 
@@ -25,6 +25,8 @@ const LANGUAGES = [
 ];
 
 export default function ChittiAiScreen() {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const [messages, setMessages] = useState([]);
     const [inputText, setInputText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
@@ -180,7 +182,7 @@ export default function ChittiAiScreen() {
                 behavior={Platform.OS === 'ios' ? 'padding' : null}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
             >
-                <LinearGradient colors={['#050810', '#0F172A']} style={styles.header}>
+                <LinearGradient colors={['#070D17', '#0F172A']} style={styles.header}>
                     <View style={styles.headerProfile}>
                         <Image source={require('../../assets/chitti_avatar.png')} style={styles.headerAvatar} />
                         <View style={{ flex: 1 }}>
@@ -208,7 +210,7 @@ export default function ChittiAiScreen() {
 
                 {isTyping && (
                     <Animated.View entering={FadeInDown} style={styles.typingContainer}>
-                        <ActivityIndicator size="small" color={Theme.colors.primary} />
+                        <ActivityIndicator size="small" color={colors.primary} />
                         <Text style={styles.typingText}>Chitti is analyzing clinical data...</Text>
                     </Animated.View>
                 )}
@@ -227,7 +229,7 @@ export default function ChittiAiScreen() {
                                 if (!result.canceled) sendMessage(null, null, result.assets[0]);
                             }}
                         >
-                            <Ionicons name="camera" size={22} color={Theme.colors.primary} />
+                            <Ionicons name="camera" size={22} color={colors.primary} />
                         </TouchableOpacity>
 
                         <TextInput
@@ -242,7 +244,7 @@ export default function ChittiAiScreen() {
 
                     {inputText.length > 0 ? (
                         <TouchableOpacity style={styles.sendButton} onPress={() => sendMessage(inputText)}>
-                            <LinearGradient colors={[Theme.colors.primary, Theme.colors.secondary]} style={styles.btnGradient}>
+                            <LinearGradient colors={[colors.primary, colors.secondary]} style={styles.btnGradient}>
                                 <Ionicons name="send" size={18} color="#fff" />
                             </LinearGradient>
                         </TouchableOpacity>
@@ -268,8 +270,8 @@ export default function ChittiAiScreen() {
                                 style={[styles.langOption, selectedLang === lang.id && styles.langOptionActive]}
                                 onPress={() => { HapticUtils.selection(); setSelectedLang(lang.id); setShowLangModal(false); }}
                             >
-                                <Text style={lang.id === selectedLang ? { ...styles.langText, color: Theme.colors.primary, fontWeight: 'bold' } : styles.langText}>{lang.flag} {lang.name}</Text>
-                                {selectedLang === lang.id && <Ionicons name="shield-checkmark" size={20} color={Theme.colors.primary} />}
+                                <Text style={lang.id === selectedLang ? { ...styles.langText, color: colors.primary, fontWeight: 'bold' } : styles.langText}>{lang.flag} {lang.name}</Text>
+                                {selectedLang === lang.id && <Ionicons name="shield-checkmark" size={20} color={colors.primary} />}
                             </TouchableOpacity>
                         ))}
                         <TouchableOpacity style={styles.closeButton} onPress={() => setShowLangModal(false)}>
@@ -282,10 +284,10 @@ export default function ChittiAiScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     header: { padding: 24, paddingTop: 60, paddingBottom: 24 },
     headerProfile: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-    headerAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: Theme.colors.primary },
+    headerAvatar: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: colors.primary },
     headerName: { color: '#fff', fontSize: 13, fontWeight: '900', letterSpacing: 1 },
     statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
     statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#10b981' },
@@ -298,7 +300,7 @@ const styles = StyleSheet.create({
     aiRow: { justifyContent: 'flex-start' },
     avatarContainer: { position: 'relative' },
     chittiAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(34, 211, 238, 0.1)' },
-    onlinePulse: { position: 'absolute', right: 0, bottom: 0, width: 8, height: 8, borderRadius: 4, backgroundColor: '#10b981', borderWidth: 2, borderColor: '#050810' },
+    onlinePulse: { position: 'absolute', right: 0, bottom: 0, width: 8, height: 8, borderRadius: 4, backgroundColor: '#10b981', borderWidth: 2, borderColor: '#070D17' },
     messageBubble: { maxWidth: '80%', padding: 16, borderRadius: 24 },
     userBubble: { backgroundColor: 'rgba(34, 211, 238, 0.15)', borderBottomRightRadius: 4, borderColor: 'rgba(34, 211, 238, 0.2)' },
     aiBubble: { backgroundColor: 'rgba(15, 23, 42, 0.6)', borderBottomLeftRadius: 4, borderColor: 'rgba(255,255,255,0.05)' },
@@ -317,7 +319,7 @@ const styles = StyleSheet.create({
     btnGradient: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', padding: 24 },
     modalContent: { borderRadius: 32, padding: 24 },
-    modalTitle: { fontSize: 14, fontWeight: '900', color: Theme.colors.primary, textAlign: 'center', marginBottom: 24, letterSpacing: 2 },
+    modalTitle: { fontSize: 14, fontWeight: '900', color: colors.primary, textAlign: 'center', marginBottom: 24, letterSpacing: 2 },
     langOption: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 20, borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
     langText: { fontSize: 16, color: '#fff', fontWeight: '500' },
     closeButton: { marginTop: 24, padding: 16, alignItems: 'center' },

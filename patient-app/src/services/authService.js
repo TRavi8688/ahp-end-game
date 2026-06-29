@@ -62,7 +62,7 @@ export const authService = {
         return response.data; // { access_token, user }
     },
 
-    // Lets a Google/Apple-only user set a real Hospyn ID + password.
+    // Lets a Google/Apple-only user set a real Hospain ID + password.
     // Requires the access token from their current (social) session.
     setPassword: async (phone, password, accessToken) => {
         const response = await axios.post(`${API_BASE_URL}/auth/set-password`, {

@@ -350,10 +350,10 @@ export default function HomeScreen({ navigation }) {
         );
     }
 
-    const isLightTheme = Theme.colors.primary === '#7C3AED';
+    const isLightTheme = Theme.colors.primary === '#13396B';
     const bgColors = isLightTheme 
-        ? ['#F8F7FF', '#EEEBFF'] 
-        : ['#090D1A', '#020408'];
+        ? ['#F4F7FB', '#E6EDF5'] 
+        : ['#070D17', '#020408'];
 
     return (
         <LinearGradient colors={bgColors} style={{ flex: 1 }}>
@@ -378,7 +378,7 @@ export default function HomeScreen({ navigation }) {
                 <View style={styles.headerTop}>
                     <View style={styles.logoContainer}>
                         <Image source={require('../../assets/logo.png')} style={styles.logo} resizeMode="contain" />
-                        <Text style={[styles.logoText, { color: Theme.colors.text }]}>HOSPYN</Text>
+                        <Text style={[styles.logoText, { color: Theme.colors.text }]}>HOSPAIN</Text>
                     </View>
                     <View style={styles.headerActions}>
                         <TouchableOpacity onPress={() => { HapticUtils.light(); navigation.navigate('Notifications'); }} style={[styles.iconBtn, GlobalStyles.glass]}>
@@ -394,10 +394,10 @@ export default function HomeScreen({ navigation }) {
                     <Text style={[styles.greetingText, { color: Theme.colors.text }]}>{greeting}</Text>
                     <View style={styles.subGreetingRow}>
                         <LinearGradient 
-                            colors={Theme.colors.primary === '#7C3AED' ? ['rgba(124, 58, 237, 0.1)', 'rgba(16, 185, 129, 0.05)'] : ['rgba(34, 211, 238, 0.2)', 'rgba(52, 211, 153, 0.1)']} 
+                            colors={Theme.colors.primary === '#13396B' ? ['rgba(124, 58, 237, 0.1)', 'rgba(16, 185, 129, 0.05)'] : ['rgba(34, 211, 238, 0.2)', 'rgba(52, 211, 153, 0.1)']} 
                             start={{x: 0, y: 0}} 
                             end={{x: 1, y: 0}} 
-                            style={[styles.shieldBadge, { borderColor: Theme.colors.primary === '#7C3AED' ? 'rgba(124, 58, 237, 0.15)' : 'rgba(16, 185, 129, 0.2)' }]}
+                            style={[styles.shieldBadge, { borderColor: Theme.colors.primary === '#13396B' ? 'rgba(124, 58, 237, 0.15)' : 'rgba(16, 185, 129, 0.2)' }]}
                         >
                             <Ionicons name="shield-checkmark" size={12} color={Theme.colors.primary} />
                             <Text style={[styles.subGreeting, { color: Theme.colors.secondary }]}>{profile?.is_family_member ? `${profile.relation} Profile` : 'Personal Health Shield'}</Text>
@@ -414,11 +414,11 @@ export default function HomeScreen({ navigation }) {
             {/* 2. Premium Digital Health Passport Card */}
             <View style={styles.heroContainer}>
                 <TouchableOpacity 
-                    onPress={() => Alert.alert("Digital Health Passport", `Your unique Hospyn ID: ${profile?.hospyn_id}\n\nThis passport allows hospitals to instantly sync your clinical history securely.`)}
+                    onPress={() => Alert.alert("Digital Health Passport", `Your unique Hospain ID: ${profile?.hospyn_id}\n\nThis passport allows hospitals to instantly sync your clinical history securely.`)}
                     activeOpacity={0.95}
                 >
                     <LinearGradient 
-                        colors={['#050810', '#0F172A', '#1E293B']} 
+                        colors={['#070D17', '#0F172A', '#1E293B']} 
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.heroCard}
@@ -426,7 +426,7 @@ export default function HomeScreen({ navigation }) {
                         <Image source={require('../../assets/logo.png')} style={[styles.cardWatermark, { opacity: 0.05 }]} />
                         
                         <View style={styles.cardTop}>
-                            <Text style={styles.passportTitle}>HOSPYN PASS</Text>
+                            <Text style={styles.passportTitle}>HOSPAIN PASS</Text>
                             <View style={styles.chip} />
                         </View>
 
@@ -434,7 +434,7 @@ export default function HomeScreen({ navigation }) {
                             <View style={styles.qrContainer}>
                                 <LinearGradient colors={['rgba(34, 211, 238, 0.3)', 'transparent']} style={styles.qrGlow} />
                                 <QRCode
-                                    value={profile?.hospyn_id || 'HOSPYN-PENDING'}
+                                    value={profile?.hospyn_id || 'HOSPAIN-PENDING'}
                                     size={50}
                                     color="#fff"
                                     backgroundColor="transparent"
@@ -645,10 +645,10 @@ export default function HomeScreen({ navigation }) {
                 </View>
                 <View style={styles.familyRow}>
                     <TouchableOpacity 
-                        style={[styles.addFamilyCircle, { borderColor: Theme.colors.primary === '#7C3AED' ? 'rgba(124, 58, 237, 0.4)' : 'rgba(255,255,255,0.2)' }]} 
+                        style={[styles.addFamilyCircle, { borderColor: Theme.colors.primary === '#13396B' ? 'rgba(124, 58, 237, 0.4)' : 'rgba(255,255,255,0.2)' }]} 
                         onPress={() => navigation.navigate('FamilyProfiles')}
                     >
-                        <Ionicons name="add" size={24} color={Theme.colors.primary === '#7C3AED' ? '#7C3AED' : '#fff'} />
+                        <Ionicons name="add" size={24} color={Theme.colors.primary === '#13396B' ? '#13396B' : '#fff'} />
                     </TouchableOpacity>
                     
                     {/* Primary User Profile */}
@@ -660,7 +660,7 @@ export default function HomeScreen({ navigation }) {
                             <Text style={styles.avatarInitials}>ME</Text>
                             {!profile?.is_family_member && <View style={styles.statusDot} />}
                         </View>
-                        <Text style={[styles.memberName, { color: Theme.colors.background === '#050810' ? '#94A3B8' : '#475569' }, !profile?.is_family_member && styles.activeMemberName, !profile?.is_family_member && { color: Theme.colors.text }]}>Self</Text>
+                        <Text style={[styles.memberName, { color: Theme.colors.background === '#070D17' ? '#94A3B8' : '#475569' }, !profile?.is_family_member && styles.activeMemberName, !profile?.is_family_member && { color: Theme.colors.text }]}>Self</Text>
                     </TouchableOpacity>
 
                     {profile?.care_circle?.map((member, i) => (
@@ -673,7 +673,7 @@ export default function HomeScreen({ navigation }) {
                                 <Text style={styles.avatarInitials}>{member.full_name[0]}</Text>
                                 {profile?.id === member.id && <View style={styles.statusDot} />}
                             </View>
-                            <Text style={[styles.memberName, { color: Theme.colors.background === '#050810' ? '#94A3B8' : '#475569' }, profile?.id === member.id && styles.activeMemberName, profile?.id === member.id && { color: Theme.colors.text }]}>{member.full_name.split(' ')[0]}</Text>
+                            <Text style={[styles.memberName, { color: Theme.colors.background === '#070D17' ? '#94A3B8' : '#475569' }, profile?.id === member.id && styles.activeMemberName, profile?.id === member.id && { color: Theme.colors.text }]}>{member.full_name.split(' ')[0]}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>
@@ -766,7 +766,7 @@ export default function HomeScreen({ navigation }) {
                                     <Ionicons name="business" size={32} color={Theme.colors.primary} />
                                     <View>
                                         <Text style={styles.scannedHospitalName}>{scannedHospital.name}</Text>
-                                        <Text style={styles.scannedHospitalId}>Hospyn ID: {scannedHospital.hospyn_id}</Text>
+                                        <Text style={styles.scannedHospitalId}>Hospain ID: {scannedHospital.hospyn_id}</Text>
                                     </View>
                                 </View>
                                 
@@ -949,10 +949,10 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#050810',
+        backgroundColor: '#070D17',
     },
     loadingText: {
-        color: '#6366F1',
+        color: '#5B9BD5',
         fontSize: 12,
         marginTop: 20,
         fontFamily: Theme.fonts.label,
@@ -1004,7 +1004,7 @@ const styles = StyleSheet.create({
         borderRadius: 4,
         backgroundColor: '#EF4444',
         borderWidth: 2,
-        borderColor: '#050810',
+        borderColor: '#070D17',
         zIndex: 1,
     },
     headerActions: {
@@ -1687,7 +1687,7 @@ const styles = StyleSheet.create({
         borderRadius: 7,
         backgroundColor: '#10b981',
         borderWidth: 2,
-        borderColor: '#050810',
+        borderColor: '#070D17',
     },
     memberName: {
         color: '#94A3B8',

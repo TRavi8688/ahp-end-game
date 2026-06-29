@@ -114,7 +114,7 @@ export const SocketProvider = ({ children }) => {
             const ws = new WebSocket(`${WS_BASE_URL}/ws`);
 
             ws.onopen = () => {
-                console.log('[Socket] Hospyn WebSocket Connected ✅. Performing handshake...');
+                console.log('[Socket] Hospain WebSocket Connected ✅. Performing handshake...');
                 ws.send(JSON.stringify({ type: 'auth', token: latestToken }));
                 setSocket(ws);
                 setRetryCount(0);
@@ -235,7 +235,7 @@ export const SocketProvider = ({ children }) => {
                             <View style={styles.card}>
                                 <Text style={styles.doctorLabel}>Requesting Clinician</Text>
                                 <Text style={styles.doctorName}>{consentData.doctor_name || 'Proctor Clinician'}</Text>
-                                <Text style={styles.clinicName}>{consentData.clinic_name || 'Hospyn Medical Network'}</Text>
+                                <Text style={styles.clinicName}>{consentData.clinic_name || 'Hospain Medical Network'}</Text>
                                 <Text style={styles.timestamp}>
                                     Received: {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </Text>
@@ -245,7 +245,7 @@ export const SocketProvider = ({ children }) => {
                             <Text style={styles.sectionTitle}>Select Vault Records to Share</Text>
                             
                             {isFetchingRecords ? (
-                                <ActivityIndicator size="small" color="#6366F1" style={{ marginVertical: 15 }} />
+                                <ActivityIndicator size="small" color="#5B9BD5" style={{ marginVertical: 15 }} />
                             ) : records.length === 0 ? (
                                 <Text style={styles.emptyText}>No clinical records found in your vault.</Text>
                             ) : (
@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
         padding: 24,
         borderWidth: 1,
         borderColor: 'rgba(99, 102, 241, 0.15)',
-        shadowColor: '#6366F1',
+        shadowColor: '#5B9BD5',
         shadowOffset: { width: 0, height: 12 },
         shadowOpacity: 0.12,
         shadowRadius: 24,
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
         marginBottom: 10
     },
     badgeText: {
-        color: '#6366F1',
+        color: '#5B9BD5',
         fontWeight: 'bold',
         fontSize: 10,
         letterSpacing: 1
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
         marginTop: 4
     },
     clinicName: {
-        color: '#6366F1',
+        color: '#5B9BD5',
         fontSize: 13,
         fontWeight: '600',
         marginTop: 2
@@ -435,8 +435,8 @@ const styles = StyleSheet.create({
         marginRight: 12
     },
     checkboxSelected: {
-        borderColor: '#6366F1',
-        backgroundColor: '#6366F1'
+        borderColor: '#5B9BD5',
+        backgroundColor: '#5B9BD5'
     },
     checkmark: {
         color: '#FFFFFF',
@@ -499,11 +499,11 @@ const styles = StyleSheet.create({
     },
     btnGrant: {
         flex: 1,
-        backgroundColor: '#6366F1',
+        backgroundColor: '#5B9BD5',
         paddingVertical: 14,
         borderRadius: 14,
         alignItems: 'center',
-        shadowColor: '#6366F1',
+        shadowColor: '#5B9BD5',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.25,
         shadowRadius: 8

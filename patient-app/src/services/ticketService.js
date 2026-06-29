@@ -1,6 +1,6 @@
 // patient-app/src/services/ticketService.js
 //
-// NEW (2026-06-23): the "Hospyn Help Center" button in Settings used to just
+// NEW (2026-06-23): the "Hospain Help Center" button in Settings used to just
 // show a fake local alert — it never called the backend at all, even though
 // healthcare-core already has a full ticket system (create / list / message).
 // This service wires the patient app up to the real thing.

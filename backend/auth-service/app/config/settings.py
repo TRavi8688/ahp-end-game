@@ -4,13 +4,8 @@ from typing import Optional
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Hospyn Auth Service"
+    PROJECT_NAME: str = "Hospain Auth Service"
     ENVIRONMENT: str = "development"
-    # Alias some code reads directly (main.py uses settings.ENV, not getattr) --
-    # keep in sync with ENVIRONMENT so either name works regardless of which
-    # one is set in the .env file.
-    ENV: str = "development"
-    SENTRY_DSN: str = ""
 
     # Database URL -- enforced PostgreSQL connection
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/hospyn"
@@ -55,6 +50,18 @@ class Settings(BaseSettings):
     SMTP_USER: Optional[str] = None
     SMTP_PASSWORD: Optional[str] = None
     SMTP_FROM_EMAIL: Optional[str] = None
+
+    # -- Google Sign-In --------------------------------------------------------
+    # A patient signing in on web/iOS/Android can present an ID token minted
+    # against any of these three OAuth client IDs depending on platform, so
+    # the backend accepts all of them as valid audiences.
+    GOOGLE_CLIENT_ID: Optional[str] = "625745217419-cq76tvb0mlt0bkmg8bd4r0csj4vmqmr8.apps.googleusercontent.com"
+    GOOGLE_CLIENT_ID_IOS: Optional[str] = None
+    GOOGLE_CLIENT_ID_ANDROID: Optional[str] = None
+
+    # -- Apple Sign-In ----------------------------------------------------------
+    # Must match app.json -> ios.bundleIdentifier
+    APPLE_BUNDLE_ID: str = "com.hospyn.patient"
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod

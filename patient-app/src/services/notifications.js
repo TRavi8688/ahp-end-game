@@ -68,7 +68,7 @@ export async function registerForPushNotifications() {
   // Cache token locally
   await AsyncStorage.setItem(PUSH_TOKEN_KEY, token);
 
-  // Register token with Hospyn backend
+  // Register token with Hospain backend
   await syncTokenWithBackend(token);
 
   console.log("[Push] Registered push token:", token);
@@ -76,7 +76,7 @@ export async function registerForPushNotifications() {
 }
 
 /**
- * Send the push token to the Hospyn backend so the notification service can use it.
+ * Send the push token to the Hospain backend so the notification service can use it.
  */
 async function syncTokenWithBackend(token) {
   try {

@@ -19,7 +19,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "Hospyn Healthcare Core"
+    PROJECT_NAME: str = "Hospain Healthcare Core"
 
     ENV: str = "development"
     ENVIRONMENT: str = "development"
@@ -94,16 +94,17 @@ class Settings(BaseSettings):
     )
     JWT_ALGORITHM: str = "HS256"
 
-    # RS256/JWKS token verification (see app/core/security.py FIX-S3) --
-    # auth-service signs access tokens with RS256 and exposes its public key
-    # at this URL. healthcare-core fetches it to verify incoming tokens.
+    # Kept for future migration to RS256/JWKS (app/middleware/rbac.py implements
+    # that path already, but auth-service's login route doesn't issue RS256
+    # tokens yet, so it isn't wired into the dependency graph -- see rbac.py
+    # docstring before switching to it).
     AUTH_JWKS_URL: str = (
-        "http://auth-service:8000/api/v1/auth/.well-known/jwks.json"
+        "http://auth-service:8001/api/v1/auth/.well-known/jwks.json"
     )
 
     # EXECUTION: used by onboarding.py to call auth-service's internal
     # create-partner-user / activate-user endpoints (see auth-service/app/api/internal.py).
-    AUTH_SERVICE_INTERNAL_URL: str = "http://auth-service:8000/api/v1"
+    AUTH_SERVICE_INTERNAL_URL: str = "http://auth-service:8001/api/v1"
 
     # Partner JWT secret (for partner-app specific tokens -- HS256)
     PARTNER_JWT_SECRET: str = (

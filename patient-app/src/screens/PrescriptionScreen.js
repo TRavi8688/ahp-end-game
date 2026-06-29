@@ -3,10 +3,12 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, 
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import ApiService from '../utils/ApiService';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, useTheme} from '../theme';
 import { HapticUtils } from '../utils/haptics';
 
 export default function PrescriptionScreen({ navigation }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const [prescriptions, setPrescriptions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -34,7 +36,7 @@ export default function PrescriptionScreen({ navigation }) {
 
     const renderItem = ({ item }) => {
         const isFulfilled = item.status === 'fulfilled';
-        const color = isFulfilled ? Theme.colors.success : Theme.colors.primary;
+        const color = isFulfilled ? colors.success : colors.primary;
 
         return (
             <TouchableOpacity 
@@ -69,7 +71,7 @@ export default function PrescriptionScreen({ navigation }) {
 
     return (
         <View style={GlobalStyles.screen}>
-            <LinearGradient colors={['#0F172A', '#050810']} style={styles.header}>
+            <LinearGradient colors={['#0F172A', '#070D17']} style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
@@ -82,7 +84,7 @@ export default function PrescriptionScreen({ navigation }) {
                 keyExtractor={item => item.id.toString()}
                 renderItem={renderItem}
                 contentContainerStyle={styles.listContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.primary} />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
                 ListEmptyComponent={
                     !loading && (
                         <View style={styles.emptyBox}>
@@ -96,7 +98,7 @@ export default function PrescriptionScreen({ navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     header: { padding: 24, paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     headerTitle: { fontSize: 18, letterSpacing: 4 },
     backBtn: { padding: 4 },

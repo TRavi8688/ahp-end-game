@@ -9,12 +9,12 @@ import {
     ActivityIndicator, RefreshControl, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, useTheme} from '../theme';
 import ticketService from '../services/ticketService';
 
 const STATUS_COLORS = {
     open: '#F59E0B',
-    in_progress: '#6366F1',
+    in_progress: '#5B9BD5',
     waiting_on_user: '#F59E0B',
     resolved: '#10B981',
     closed: '#64748B',
@@ -29,6 +29,8 @@ const STATUS_LABELS = {
 };
 
 export default function MyTicketsScreen({ navigation }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -52,18 +54,18 @@ export default function MyTicketsScreen({ navigation }) {
     const onRefresh = () => { setRefreshing(true); fetchTickets(); };
 
     const renderItem = ({ item }) => (
-        <View style={[styles.card, { backgroundColor: Theme.colors.card, borderColor: Theme.colors.border }]}>
+        <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.cardTopRow}>
-                <Text style={[styles.ticketId, { color: Theme.colors.textMuted }]}>{item.ticket_id}</Text>
+                <Text style={[styles.ticketId, { color: colors.textMuted }]}>{item.ticket_id}</Text>
                 <View style={[styles.statusPill, { backgroundColor: `${STATUS_COLORS[item.status] || '#64748B'}22` }]}>
                     <Text style={[styles.statusText, { color: STATUS_COLORS[item.status] || '#64748B' }]}>
                         {STATUS_LABELS[item.status] || item.status}
                     </Text>
                 </View>
             </View>
-            <Text style={[styles.subject, { color: Theme.colors.text }]}>{item.subject}</Text>
+            <Text style={[styles.subject, { color: colors.text }]}>{item.subject}</Text>
             {!!item.last_message && (
-                <Text style={[styles.lastMsg, { color: Theme.colors.textMuted }]} numberOfLines={2}>
+                <Text style={[styles.lastMsg, { color: colors.textMuted }]} numberOfLines={2}>
                     {item.last_message_sender === 'agent' ? 'Support: ' : 'You: '}{item.last_message}
                 </Text>
             )}
@@ -74,29 +76,29 @@ export default function MyTicketsScreen({ navigation }) {
         <View style={GlobalStyles.screen}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />
+                    <Ionicons name="arrow-back" size={24} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: Theme.colors.text }]}>My tickets</Text>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>My tickets</Text>
                 <TouchableOpacity onPress={() => navigation.navigate('RaiseTicket')} style={styles.backBtn}>
-                    <Ionicons name="add-circle-outline" size={26} color={Theme.colors.primary} />
+                    <Ionicons name="add-circle-outline" size={26} color={colors.primary} />
                 </TouchableOpacity>
             </View>
 
             {loading ? (
-                <View style={styles.center}><ActivityIndicator color={Theme.colors.primary} /></View>
+                <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>
             ) : error ? (
                 <View style={styles.center}>
-                    <Text style={[styles.errorText, { color: Theme.colors.textMuted }]}>{error}</Text>
-                    <TouchableOpacity onPress={fetchTickets} style={[styles.retryBtn, { borderColor: Theme.colors.primary }]}>
-                        <Text style={{ color: Theme.colors.primary, fontFamily: Theme.fonts.headingSemi }}>Try again</Text>
+                    <Text style={[styles.errorText, { color: colors.textMuted }]}>{error}</Text>
+                    <TouchableOpacity onPress={fetchTickets} style={[styles.retryBtn, { borderColor: colors.primary }]}>
+                        <Text style={{ color: colors.primary, fontFamily: Theme.fonts.headingSemi }}>Try again</Text>
                     </TouchableOpacity>
                 </View>
             ) : tickets.length === 0 ? (
                 <View style={styles.center}>
-                    <Ionicons name="chatbubbles-outline" size={56} color={Theme.colors.textMuted} />
-                    <Text style={[styles.emptyText, { color: Theme.colors.textMuted }]}>No tickets yet.</Text>
+                    <Ionicons name="chatbubbles-outline" size={56} color={colors.textMuted} />
+                    <Text style={[styles.emptyText, { color: colors.textMuted }]}>No tickets yet.</Text>
                     <TouchableOpacity
-                        style={[styles.primaryBtn, { backgroundColor: Theme.colors.primary }]}
+                        style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
                         onPress={() => navigation.navigate('RaiseTicket')}
                     >
                         <Text style={styles.primaryBtnText}>Raise a ticket</Text>
@@ -108,14 +110,14 @@ export default function MyTicketsScreen({ navigation }) {
                     keyExtractor={(item) => item.ticket_id}
                     renderItem={renderItem}
                     contentContainerStyle={styles.listContent}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.primary} />}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
                 />
             )}
         </View>
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: Platform.OS === 'ios' ? 60 : 30, paddingBottom: 16 },
     backBtn: { padding: 4 },
     headerTitle: { fontSize: 18, fontFamily: Theme.fonts.headingSemi },

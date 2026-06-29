@@ -52,6 +52,7 @@ try {
 // Core
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { SocketProvider } from './src/contexts/SocketContext';
+import { AppDialogHost } from './src/components/AppDialog';
 import ApiService from './src/utils/ApiService';
 import { subscribeToTheme, getTheme } from './src/theme';
 import { useFonts } from 'expo-font';
@@ -108,7 +109,7 @@ function AppContent() {
   const navigationRef = useRef(null);
 
   // FIX (2026-06-23): one-time prompt after a Google/Apple sign-in that
-  // created an account with no usable Hospyn ID + password. Waits briefly
+  // created an account with no usable Hospain ID + password. Waits briefly
   // for the post-login screen (MainTabs) to actually mount before navigating,
   // since the navigator's authenticated routes only exist once isAuthenticated
   // flips true.
@@ -170,7 +171,7 @@ function AppContent() {
       if (fontsLoaded && !isLoading && !isUpdating) {
         if (isAuthenticated) {
           const { SecurityService } = require('./src/utils/SecurityService');
-          const success = await SecurityService.authenticate('Unlock Hospyn Clinical Vault');
+          const success = await SecurityService.authenticate('Unlock Hospain Clinical Vault');
           if (success) {
             setIsUnlocked(true);
           } else {
@@ -231,16 +232,16 @@ function AppContent() {
     return (
       <View style={{
         flex: 1,
-        backgroundColor: theme === 'light' ? '#F8F7FF' : '#050810',
+        backgroundColor: theme === 'light' ? '#F4F7FB' : '#070D17',
         justifyContent: 'center',
         alignItems: 'center',
         padding: 40,
       }}>
-        <Text style={{ color: '#6366F1', fontSize: 32, fontWeight: '900', letterSpacing: -1 }}>
-          HOSPYN <Text style={{ color: theme === 'light' ? '#0F172A' : '#fff' }}>CORE</Text>
+        <Text style={{ color: '#13396B', fontSize: 32, fontWeight: '900', letterSpacing: -1 }}>
+          HOSPAIN <Text style={{ color: theme === 'light' ? '#0F172A' : '#fff' }}>CORE</Text>
         </Text>
         <View style={{ marginTop: 40, alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#6366F1" />
+          <ActivityIndicator size="large" color="#13396B" />
           <Text style={{
             color: theme === 'light' ? '#475569' : '#94A3B8',
             fontSize: 12,
@@ -265,8 +266,9 @@ function AppContent() {
   }
 
   return (
-    <SafeAreaProvider style={{ flex: 1, backgroundColor: theme === 'light' ? '#F8F7FF' : '#050810' }}>
+    <SafeAreaProvider style={{ flex: 1, backgroundColor: theme === 'light' ? '#F4F7FB' : '#070D17' }}>
       <SocketProvider>
+        <AppDialogHost />
         <NavigationContainer ref={navigationRef}>
           <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
             {!isAuthenticated ? (

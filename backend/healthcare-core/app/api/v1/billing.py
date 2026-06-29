@@ -437,7 +437,7 @@ async def get_invoice_upi_url(
         name=hospital_name,
         amount=float(inv.total_amount),
         invoice_number=inv.invoice_number,
-        description=f"Hospyn Bill {inv.invoice_number}",
+        description=f"Hospain Bill {inv.invoice_number}",
     )
 
     return success_response(
@@ -509,7 +509,7 @@ async def get_invoice_upi_qr(
         name=hospital_name,
         amount=float(inv.total_amount),
         invoice_number=inv.invoice_number,
-        description=f"Hospyn Bill {inv.invoice_number}",
+        description=f"Hospain Bill {inv.invoice_number}",
     )
 
     # Generate QR Code

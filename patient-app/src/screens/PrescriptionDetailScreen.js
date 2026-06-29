@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Share, Modal, TextInput, ActivityIndicator, Alert, Platform } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, useTheme} from '../theme';
 import HapticUtils from '../utils/HapticUtils';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import QRCode from 'react-native-qrcode-svg';
 import { clinicalService } from '../services/clinicalService';
 
 export default function PrescriptionDetailScreen({ route, navigation }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const { prescription } = route.params;
     const [showShareModal, setShowShareModal] = useState(false);
     const [pharmacyId, setPharmacyId] = useState('');
@@ -19,7 +21,7 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
     const shareExternally = async () => {
         try {
             const medList = prescription.medications.map(m => `- ${m.name} (${m.dosage})`).join('\n');
-            const message = `Digital Prescription from Hospyn\n\nDiagnosis: ${prescription.diagnosis}\nDate: ${new Date(prescription.created_at).toLocaleDateString()}\n\nMedications:\n${medList}\n\nRef: ${prescription.id}`;
+            const message = `Digital Prescription from Hospain\n\nDiagnosis: ${prescription.diagnosis}\nDate: ${new Date(prescription.created_at).toLocaleDateString()}\n\nMedications:\n${medList}\n\nRef: ${prescription.id}`;
             
             if (Platform.OS === 'web' && (!navigator.share || !navigator.canShare)) {
                 if (navigator.clipboard) {
@@ -68,7 +70,7 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
 
     return (
         <View style={GlobalStyles.screen}>
-            <LinearGradient colors={['#0F172A', '#050810']} style={styles.header}>
+            <LinearGradient colors={['#0F172A', '#070D17']} style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
@@ -80,9 +82,9 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
                 <View style={[styles.infoCard, GlobalStyles.glass]}>
                     <View style={{ marginBottom: 16 }}>
                         <Text style={styles.sectionLabel}>PRESCRIBING PHYSICIAN</Text>
-                        <Text style={styles.diagnosisText}>{prescription.doctor_name || 'Hospyn Clinician'}</Text>
+                        <Text style={styles.diagnosisText}>{prescription.doctor_name || 'Hospain Clinician'}</Text>
                         <Text style={styles.metaLabel}>HOSPITAL / CLINIC</Text>
-                        <Text style={styles.metaValue}>{prescription.hospital_name || 'Hospyn Network Facility'}</Text>
+                        <Text style={styles.metaValue}>{prescription.hospital_name || 'Hospain Network Facility'}</Text>
                     </View>
                     
                     <Text style={styles.sectionLabel}>DIAGNOSIS</Text>
@@ -101,7 +103,7 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
                         <View style={styles.divider} />
                         <View>
                             <Text style={styles.metaLabel}>STATUS</Text>
-                            <Text style={[styles.metaValue, { color: prescription.status === 'fulfilled' ? '#10B981' : Theme.colors.primary }]}>{prescription.status.toUpperCase()}</Text>
+                            <Text style={[styles.metaValue, { color: prescription.status === 'fulfilled' ? '#10B981' : colors.primary }]}>{prescription.status.toUpperCase()}</Text>
                         </View>
                     </View>
                 </View>
@@ -112,7 +114,7 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
                     <View key={index} style={[styles.medCard, GlobalStyles.glass]}>
                         <View style={styles.medHeader}>
                             <View style={styles.medIconBox}>
-                                <MaterialCommunityIcons name="pill" size={20} color={Theme.colors.primary} />
+                                <MaterialCommunityIcons name="pill" size={20} color={colors.primary} />
                             </View>
                             <Text style={styles.medName}>{med.name}</Text>
                         </View>
@@ -134,7 +136,7 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
 
                         {med.instructions && (
                             <View style={styles.notesBox}>
-                                <Ionicons name="information-circle-outline" size={16} color="#6366F1" />
+                                <Ionicons name="information-circle-outline" size={16} color="#5B9BD5" />
                                 <Text style={styles.notesText}>{med.instructions}</Text>
                             </View>
                         )}
@@ -174,18 +176,18 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
                 {/* Share Buttons */}
                 <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
                     <TouchableOpacity style={styles.actionBtnSecondary} onPress={shareExternally}>
-                        <Ionicons name="share-outline" size={20} color="#6366F1" />
+                        <Ionicons name="share-outline" size={20} color="#5B9BD5" />
                         <Text style={styles.actionBtnTextSecondary}>SHARE</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={styles.actionBtnPrimary} onPress={() => setShowShareModal(true)}>
                         <Ionicons name="qr-code-outline" size={20} color="#fff" />
-                        <Text style={styles.actionBtnTextPrimary}>HOSPYN PHARMACY</Text>
+                        <Text style={styles.actionBtnTextPrimary}>HOSPAIN PHARMACY</Text>
                     </TouchableOpacity>
                 </View>
 
             </ScrollView>
 
-            {/* Share to Hospyn Pharmacy Modal */}
+            {/* Share to Hospain Pharmacy Modal */}
             <Modal visible={showShareModal} animationType="slide" transparent={true}>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
@@ -195,7 +197,7 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
                                 <Ionicons name="close" size={24} color="#fff" />
                             </TouchableOpacity>
                         </View>
-                        <Text style={styles.modalSub}>Enter the Pharmacy's Hospyn ID to instantly beam this prescription to their queue.</Text>
+                        <Text style={styles.modalSub}>Enter the Pharmacy's Hospain ID to instantly beam this prescription to their queue.</Text>
                         
                         {isScanning ? (
                             <View style={{ height: 300, borderRadius: 16, overflow: 'hidden', marginBottom: 20 }}>
@@ -213,21 +215,21 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
                             <>
                                 <TextInput 
                                     style={styles.input} 
-                                    placeholder="e.g. Hospyn-PHARMA-123" 
+                                    placeholder="e.g. Hospain-PHARMA-123" 
                                     placeholderTextColor="#64748B"
                                     value={pharmacyId}
                                     onChangeText={setPharmacyId}
                                     autoCapitalize="characters"
                                 />
                                 <TouchableOpacity 
-                                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#6366F1', marginBottom: 20 }}
+                                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#5B9BD5', marginBottom: 20 }}
                                     onPress={async () => {
                                         if (!permission?.granted) await requestPermission();
                                         setIsScanning(true);
                                     }}
                                 >
-                                    <Ionicons name="qr-code" size={20} color="#6366F1" />
-                                    <Text style={{ color: '#6366F1', fontSize: 12, fontWeight: 'bold' }}>SCAN PHARMACY QR</Text>
+                                    <Ionicons name="qr-code" size={20} color="#5B9BD5" />
+                                    <Text style={{ color: '#5B9BD5', fontSize: 12, fontWeight: 'bold' }}>SCAN PHARMACY QR</Text>
                                 </TouchableOpacity>
                             </>
                         )}
@@ -243,43 +245,43 @@ export default function PrescriptionDetailScreen({ route, navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     header: { padding: 24, paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     headerTitle: { fontSize: 16, letterSpacing: 2 },
     backBtn: { padding: 4 },
     scrollContent: { padding: 20, paddingBottom: 40 },
     infoCard: { padding: 20, borderRadius: 24, marginBottom: 25 },
-    sectionLabel: { color: '#6366F1', fontSize: 10, fontWeight: 'bold', letterSpacing: 2, marginBottom: 8 },
-    diagnosisText: { color: Theme.colors.text, fontSize: 22, fontWeight: 'bold', marginBottom: 20 },
+    sectionLabel: { color: '#5B9BD5', fontSize: 10, fontWeight: 'bold', letterSpacing: 2, marginBottom: 8 },
+    diagnosisText: { color: colors.text, fontSize: 22, fontWeight: 'bold', marginBottom: 20 },
     metaRow: { flexDirection: 'row', alignItems: 'center', gap: 20 },
-    metaLabel: { color: Theme.colors.textMuted, fontSize: 9, fontWeight: 'bold', marginBottom: 4 },
-    metaValue: { color: Theme.colors.text, fontSize: 14, fontWeight: 'bold' },
+    metaLabel: { color: colors.textMuted, fontSize: 9, fontWeight: 'bold', marginBottom: 4 },
+    metaValue: { color: colors.text, fontSize: 14, fontWeight: 'bold' },
     divider: { width: 1, height: 30, backgroundColor: 'rgba(150,150,150,0.2)' },
-    medicationHeading: { color: Theme.colors.text, fontSize: 14, fontWeight: 'bold', letterSpacing: 1, marginBottom: 15, marginLeft: 5 },
+    medicationHeading: { color: colors.text, fontSize: 14, fontWeight: 'bold', letterSpacing: 1, marginBottom: 15, marginLeft: 5 },
     medCard: { padding: 20, borderRadius: 24, marginBottom: 12 },
     medHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 15 },
     medIconBox: { width: 36, height: 36, borderRadius: 12, backgroundColor: 'rgba(99,102,241,0.1)', justifyContent: 'center', alignItems: 'center' },
-    medName: { color: Theme.colors.text, fontSize: 18, fontWeight: 'bold' },
+    medName: { color: colors.text, fontSize: 18, fontWeight: 'bold' },
     instructionGrid: { flexDirection: 'row', justifyContent: 'space-between' },
     instructionItem: { flex: 1 },
-    instLabel: { color: Theme.colors.textMuted, fontSize: 9, fontWeight: 'bold', marginBottom: 4 },
-    instValue: { color: Theme.colors.text, fontSize: 13, fontWeight: '600' },
+    instLabel: { color: colors.textMuted, fontSize: 9, fontWeight: 'bold', marginBottom: 4 },
+    instValue: { color: colors.text, fontSize: 13, fontWeight: '600' },
     notesBox: { marginTop: 15, padding: 12, backgroundColor: 'rgba(99,102,241,0.05)', borderRadius: 12, flexDirection: 'row', gap: 8, alignItems: 'center' },
-    notesText: { color: Theme.colors.textMuted, fontSize: 12, flex: 1 },
-    notesContent: { color: Theme.colors.textMuted, fontSize: 14, lineHeight: 22 },
+    notesText: { color: colors.textMuted, fontSize: 12, flex: 1 },
+    notesContent: { color: colors.textMuted, fontSize: 14, lineHeight: 22 },
     footer: { marginTop: 30, alignItems: 'center' },
-    footerText: { color: Theme.colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 1 },
-    footerId: { color: Theme.colors.textMuted, fontSize: 9, marginTop: 4 },
-    actionBtnSecondary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#6366F1', backgroundColor: 'rgba(99,102,241,0.1)' },
-    actionBtnTextSecondary: { color: '#6366F1', fontSize: 12, fontWeight: '900', letterSpacing: 1 },
-    actionBtnPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 16, backgroundColor: '#6366F1' },
+    footerText: { color: colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+    footerId: { color: colors.textMuted, fontSize: 9, marginTop: 4 },
+    actionBtnSecondary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#5B9BD5', backgroundColor: 'rgba(99,102,241,0.1)' },
+    actionBtnTextSecondary: { color: '#5B9BD5', fontSize: 12, fontWeight: '900', letterSpacing: 1 },
+    actionBtnPrimary: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 16, borderRadius: 16, backgroundColor: '#5B9BD5' },
     actionBtnTextPrimary: { color: '#fff', fontSize: 12, fontWeight: '900', letterSpacing: 1 },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
-    modalContent: { backgroundColor: Theme.colors.background, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 50 },
+    modalContent: { backgroundColor: colors.background, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 50 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
     modalTitle: { color: '#fff', fontSize: 16, fontWeight: '900', letterSpacing: 1 },
     modalSub: { color: '#94A3B8', fontSize: 14, marginBottom: 20, lineHeight: 22 },
     input: { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', color: '#fff', padding: 16, borderRadius: 16, fontSize: 16, marginBottom: 20 },
-    sendBtn: { backgroundColor: '#6366F1', padding: 16, borderRadius: 16, alignItems: 'center' },
+    sendBtn: { backgroundColor: '#5B9BD5', padding: 16, borderRadius: 16, alignItems: 'center' },
     sendBtnText: { color: '#fff', fontSize: 14, fontWeight: '900', letterSpacing: 1 }
 });

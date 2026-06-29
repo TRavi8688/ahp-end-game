@@ -46,13 +46,11 @@ logger = logging.getLogger(__name__)
 patient_router = APIRouter()
 profile_router = APIRouter()
 
-HOSPAIN_ID_PREFIX = "HSP"
-
-def _generate_hospain_id(name: str, patient_id: uuid.UUID) -> str:
-    """Generate a human-readable HOSPAIN ID like HSP-JOHN-4A2F."""
-    initials = re.sub(r"[^A-Z]", "", name.upper())[:4] or "USR"
-    suffix = str(patient_id).replace("-", "").upper()[:4]
-    return f"{HOSPAIN_ID_PREFIX}-{initials}-{suffix}"
+# BUG FIX: this used to generate IDs in a completely different format
+# (HSP-JOHN-4A2F) than patients.py's canonical generator (HOSPAIN-123456-ABC)
+# -- which format a patient got depended entirely on which signup path they
+# went through. Now both paths share the same generator/format.
+from app.api.v1.patients import _generate_hospyn_id
 
 
 def _patient_to_dict(p: Patient) -> dict:
@@ -172,9 +170,7 @@ async def setup_profile(
         return {"patient": _patient_to_dict(patient), "already_existed": True}
 
     new_id = uuid.uuid4()
-    hospain_id = _generate_hospain_id(
-        f"{payload.first_name}{payload.last_name}", new_id
-    )
+    hospain_id = await _generate_hospyn_id(db)
 
     dob = None
     if payload.date_of_birth:

@@ -250,7 +250,7 @@ async def send_government_pan_otp(
     _otp_store[hospital_id] = {**_otp_store.get(hospital_id, {}), "govt_otp": otp}
 
     # Production: Twilio SMS
-    await _send_sms(hospital.phone, f"[Hospyn] Your PAN verification OTP is {otp}. Valid for 10 minutes.")
+    await _send_sms(hospital.phone, f"[Hospain] Your PAN verification OTP is {otp}. Valid for 10 minutes.")
 
     logger.info("Govt OTP sent for hospital %s (phone ending %s)", hospital_id, hospital.phone[-2:])
     return {

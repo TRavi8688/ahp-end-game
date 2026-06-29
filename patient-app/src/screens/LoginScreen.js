@@ -99,7 +99,7 @@ export default function AuthScreen({ navigation }) {
                                     await AsyncStorage.removeItem('mock_profile');
                                     await login(access_token, email, null, 'google');
                                     // FIX (2026-06-23): tell the app this account can't use
-                                    // Hospyn ID + password yet, so it can offer a one-time
+                                    // Hospain ID + password yet, so it can offer a one-time
                                     // "set up a password" prompt instead of forcing Google
                                     // sign-in forever.
                                     if (data.has_usable_password === false) {
@@ -181,7 +181,7 @@ export default function AuthScreen({ navigation }) {
     };
 
     const handleHospynLogin = async () => {
-        if (!hospynId || !password) return Alert.alert('Missing Info', 'Please enter your Hospyn ID and Password.');
+        if (!hospynId || !password) return Alert.alert('Missing Info', 'Please enter your Hospain ID and Password.');
         setLoading(true);
         try {
             const identifier = hospynId.trim();
@@ -209,7 +209,7 @@ export default function AuthScreen({ navigation }) {
             
             setLoading(true);
             try {
-                // Pass identity token to backend to verify and mint Hospyn token
+                // Pass identity token to backend to verify and mint Hospain token
                 const data = await authService.appleLogin(credential.identityToken);
                 const { access_token } = data;
                 
@@ -283,7 +283,7 @@ export default function AuthScreen({ navigation }) {
         try {
             // FIX-P1 (2026-06-24): field names now match the real PatientCreate
             // schema (phone, not phone_number). Also: this endpoint has no
-            // password field at all — setting a Hospyn ID password is a
+            // password field at all — setting a Hospain ID password is a
             // separate operation now handled by the dedicated "Set up
             // password" flow (Settings, or the one-time prompt after first
             // Google sign-in), so it's no longer silently ignored here.
@@ -312,7 +312,7 @@ export default function AuthScreen({ navigation }) {
 
     // Forgot Password Flow
     const handleForgotRequest = async () => {
-        if (!forgotIdentifier) return Alert.alert('Required', 'Please enter your registered Hospyn ID or Email.');
+        if (!forgotIdentifier) return Alert.alert('Required', 'Please enter your registered Hospain ID or Email.');
         setForgotLoading(true);
         try {
             const data = await authService.requestForgotPassword(forgotIdentifier);
@@ -373,10 +373,19 @@ export default function AuthScreen({ navigation }) {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={['#050810', '#1E1B4B', '#050810']} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={['#070D17', '#0B2545', '#070D17']} style={StyleSheet.absoluteFill} />
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                 <ScrollView contentContainerStyle={styles.scrollContent}>
 
+                    <View style={styles.brandHeader}>
+                        <Image
+                            source={require('../../assets/adaptive-icon.png')}
+                            style={styles.brandMark}
+                            resizeMode="contain"
+                        />
+                        <Text style={styles.brandWordmark}>HOSPAIN</Text>
+                        <Text style={styles.brandTagline}>CARE BEYOND TODAY</Text>
+                    </View>
 
                     <View style={styles.card}>
                         <Text style={styles.loginTitle}>Welcome Back</Text>
@@ -384,12 +393,12 @@ export default function AuthScreen({ navigation }) {
 
                         <View style={styles.inputArea}>
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>EMAIL or PHONE NUMBER</Text>
+                                <Text style={styles.label}>HOSPAIN ID or EMAIL</Text>
                                 <View style={styles.inputWrapper}>
                                     <Ionicons name="person-outline" size={18} color="#94A3B8" style={styles.inputIcon} />
                                     <TextInput
                                         style={styles.input}
-                                        placeholder="email@example.com or phone number"
+                                        placeholder="HOSPAIN-000000-XXX or email"
                                         placeholderTextColor="#475569"
                                         value={hospynId}
                                         onChangeText={(t) => setHospynId(t)}
@@ -424,7 +433,7 @@ export default function AuthScreen({ navigation }) {
                             </TouchableOpacity>
 
                             <TouchableOpacity style={styles.button} onPress={handleHospynLogin} disabled={loading}>
-                                <LinearGradient colors={['#6366F1', '#4F46E5']} style={styles.gradientBtn}>
+                                <LinearGradient colors={['#5B9BD5', '#4F46E5']} style={styles.gradientBtn}>
                                     {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Authorize Access</Text>}
                                 </LinearGradient>
                             </TouchableOpacity>
@@ -459,7 +468,7 @@ export default function AuthScreen({ navigation }) {
 
                             <TouchableOpacity onPress={() => navigation.navigate('Register')} style={styles.registerLink}>
                                 <Text style={styles.registerLinkText}>
-                                    Don't have an account? <Text style={{ color: '#6366F1', fontWeight: 'bold' }}>Register here</Text>
+                                    Don't have an account? <Text style={{ color: '#5B9BD5', fontWeight: 'bold' }}>Register here</Text>
                                 </Text>
                             </TouchableOpacity>
 
@@ -484,7 +493,7 @@ export default function AuthScreen({ navigation }) {
                                 </TouchableOpacity>
 
                                 <View style={styles.setupHeader}>
-                                    <Ionicons name="pulse" size={40} color="#6366F1" />
+                                    <Ionicons name="pulse" size={40} color="#5B9BD5" />
                                     <Text style={styles.setupTitle}>Complete Your Profile</Text>
                                     <Text style={styles.setupSubtitle}>Configure your encrypted clinical biometrics</Text>
                                 </View>
@@ -581,12 +590,12 @@ export default function AuthScreen({ navigation }) {
 
                                     <View style={styles.inputGroup}>
                                         <Text style={[styles.label, { opacity: 0.6 }]}>
-                                            You can set a Hospyn ID password right after this, from Settings → "Set up Hospyn ID & password."
+                                            You can set a Hospain ID password right after this, from Settings → "Set up Hospain ID & password."
                                         </Text>
                                     </View>
 
                                     <TouchableOpacity style={styles.setupSubmitBtn} onPress={handleSetupSubmit} disabled={setupLoading}>
-                                        <LinearGradient colors={['#6366F1', '#4F46E5']} style={styles.gradientBtn}>
+                                        <LinearGradient colors={['#5B9BD5', '#4F46E5']} style={styles.gradientBtn}>
                                             {setupLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Finish Setup</Text>}
                                         </LinearGradient>
                                     </TouchableOpacity>
@@ -714,7 +723,29 @@ export default function AuthScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#050810',
+        backgroundColor: '#070D17',
+    },
+    brandHeader: {
+        alignItems: 'center',
+        marginTop: 36,
+        marginBottom: 18,
+    },
+    brandMark: {
+        width: 64,
+        height: 64,
+        marginBottom: 10,
+    },
+    brandWordmark: {
+        color: '#FFFFFF',
+        fontSize: 22,
+        fontWeight: '600',
+        letterSpacing: 3,
+    },
+    brandTagline: {
+        color: '#7FA8D9',
+        fontSize: 10,
+        letterSpacing: 2,
+        marginTop: 4,
     },
     registerLink: {
         alignSelf: 'center',
@@ -754,7 +785,7 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         overflow: 'hidden',
         elevation: 8,
-        shadowColor: '#6366F1',
+        shadowColor: '#5B9BD5',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.3,
         shadowRadius: 16,
@@ -858,7 +889,7 @@ const styles = StyleSheet.create({
     },
     label: {
         fontSize: 10,
-        color: '#6366F1',
+        color: '#5B9BD5',
         fontFamily: Theme.fonts.label,
         letterSpacing: 1.5,
         marginLeft: 4,
@@ -1121,7 +1152,7 @@ const styles = StyleSheet.create({
     },
     pillBtnActive: {
         backgroundColor: '#4F46E5',
-        borderColor: '#6366F1',
+        borderColor: '#5B9BD5',
     },
     pillText: {
         color: '#94A3B8',

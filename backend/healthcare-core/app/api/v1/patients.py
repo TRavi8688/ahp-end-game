@@ -46,20 +46,25 @@ router = APIRouter()
 async def _generate_hospyn_id(db: AsyncSession) -> str:
     """
     FIX-P1 (2026-06-24): patient self-registration never had its own ID
-    generator (only doctors/hospitals did), even though the Hospyn ID is
+    generator (only doctors/hospitals did), even though the Hospain ID is
     the consumer-facing identity shown throughout the app (e.g. the Login
-    screen's "HOSPYN-000000-XXX" placeholder). Format: HOSPYN-{6 digits}-{3
+    screen's "HOSPAIN-000000-XXX" placeholder). Format: HOSPAIN-{6 digits}-{3
     letters}. Retries on the (very unlikely) chance of a collision.
+
+    Rebrand note: existing patients keep whatever ID they were already
+    issued (including old HOSPYN- prefixed ones) — only newly created
+    accounts get the new HOSPAIN- prefix. The column is still named
+    hospyn_id at the DB level; only the generated value's prefix changed.
     """
     for _ in range(10):
         digits = "".join(secrets.choice(string.digits) for _ in range(6))
         letters = "".join(secrets.choice(string.ascii_uppercase) for _ in range(3))
-        candidate = f"HOSPYN-{digits}-{letters}"
+        candidate = f"HOSPAIN-{digits}-{letters}"
         existing = await db.execute(select(Patient).where(Patient.hospyn_id == candidate))
         if not existing.scalars().first():
             return candidate
     # Practically unreachable, but never silently return a colliding id.
-    raise HTTPException(status_code=500, detail="Could not allocate a Hospyn ID. Please try again.")
+    raise HTTPException(status_code=500, detail="Could not allocate a Hospain ID. Please try again.")
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -266,7 +271,7 @@ async def search_doctors(
 async def search_patients_for_pharmacy(
     current_user: Annotated[
         TokenPayload,
-        Depends(require_role("doctor", "admin", "hospital_admin", "staff", "pharmacist", "owner")),
+        Depends(require_role("doctor", "admin", "hospital_admin", "staff", "pharmacist")),
     ],
     db: AsyncSession = Depends(get_db),
     q: str = Query(..., min_length=2),
@@ -298,7 +303,6 @@ async def search_patients_for_pharmacy(
             "first_name": p.first_name,
             "last_name": p.last_name,
             "phone_number": p.phone,
-            "hospyn_id": p.hospyn_id or "",
         }
         for p in patients
     ]

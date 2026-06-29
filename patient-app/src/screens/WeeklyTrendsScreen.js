@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, useTheme} from '../theme';
 import { Svg, Polyline, Circle, Line } from 'react-native-svg';
 
 const { width } = Dimensions.get('window');
@@ -9,6 +9,8 @@ const chartHeight = 150;
 const chartWidth = width - 60;
 
 export default function WeeklyTrendsScreen({ navigation }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const [activeTab, setActiveTab] = useState('BP');
 
     const tabs = ['BP', 'HEART', 'OXYGEN'];
@@ -101,7 +103,7 @@ export default function WeeklyTrendsScreen({ navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     topBar: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -112,7 +114,7 @@ const styles = StyleSheet.create({
     },
     topBarLabel: {
         fontFamily: Theme.fonts.label,
-        color: Theme.colors.secondary,
+        color: colors.secondary,
         fontSize: 12,
         letterSpacing: 2,
     },
@@ -149,12 +151,12 @@ const styles = StyleSheet.create({
     },
     bigValue: {
         fontFamily: Theme.fonts.heading,
-        color: Theme.colors.primary,
+        color: colors.primary,
         fontSize: 40,
     },
     statusText: {
         fontFamily: Theme.fonts.label,
-        color: Theme.colors.secondary,
+        color: colors.secondary,
         fontSize: 12,
         marginTop: 5,
     },
@@ -171,7 +173,7 @@ const styles = StyleSheet.create({
     },
     axisLabel: {
         fontFamily: Theme.fonts.label,
-        color: Theme.colors.secondary,
+        color: colors.secondary,
         fontSize: 8,
     },
     insightBox: {
@@ -189,13 +191,13 @@ const styles = StyleSheet.create({
     },
     insightTitle: {
         fontFamily: Theme.fonts.label,
-        color: Theme.colors.primary,
+        color: colors.primary,
         fontSize: 10,
         letterSpacing: 1,
     },
     insightText: {
         fontFamily: Theme.fonts.body,
-        color: Theme.colors.primary,
+        color: colors.primary,
         fontSize: 14,
         lineHeight: 20,
     }

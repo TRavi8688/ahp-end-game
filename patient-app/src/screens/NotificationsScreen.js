@@ -3,10 +3,12 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import ApiService from '../utils/ApiService';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, useTheme} from '../theme';
 import { HapticUtils } from '../utils/haptics';
 
 export default function NotificationsScreen({ navigation }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -50,7 +52,7 @@ export default function NotificationsScreen({ navigation }) {
     const renderItem = ({ item }) => {
         const isConsent = item.type === 'consent_request';
         const icon = isConsent ? 'people-outline' : 'notifications-outline';
-        const color = isConsent ? Theme.colors.primary : Theme.colors.secondary;
+        const color = isConsent ? colors.primary : colors.secondary;
 
         return (
             <View style={[styles.alertCard, GlobalStyles.glass]}>
@@ -89,7 +91,7 @@ export default function NotificationsScreen({ navigation }) {
 
     return (
         <View style={GlobalStyles.screen}>
-            <LinearGradient colors={['#0F172A', '#050810']} style={styles.header}>
+            <LinearGradient colors={['#0F172A', '#070D17']} style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
@@ -102,7 +104,7 @@ export default function NotificationsScreen({ navigation }) {
                 keyExtractor={item => item.id.toString()}
                 renderItem={renderItem}
                 contentContainerStyle={styles.listContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.primary} />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
                 ListEmptyComponent={
                     !loading && (
                         <View style={styles.emptyBox}>
@@ -116,7 +118,7 @@ export default function NotificationsScreen({ navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     header: { padding: 24, paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     headerTitle: { fontSize: 20, letterSpacing: 4 },
     backBtn: { padding: 4 },
@@ -130,7 +132,7 @@ const styles = StyleSheet.create({
     time: { color: '#64748B', fontSize: 11 },
     msg: { color: '#94A3B8', fontSize: 13, lineHeight: 18 },
     actionRow: { flexDirection: 'row', gap: 12, marginTop: 15 },
-    approveBtn: { flex: 2, backgroundColor: Theme.colors.primary, paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
+    approveBtn: { flex: 2, backgroundColor: colors.primary, paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
     btnText: { color: '#fff', fontSize: 12, fontWeight: '900' },
     rejectBtn: { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)', paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
     rejectText: { color: '#64748B', fontSize: 12, fontWeight: 'bold' },

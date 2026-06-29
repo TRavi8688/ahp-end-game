@@ -94,7 +94,7 @@ export default function QueueStatusScreen({ navigation, route }) {
 
   const statusColor = isDone       ? '#0D9488'
                     : isInProgress ? '#F59E0B'
-                    : '#6366F1';
+                    : '#5B9BD5';
 
   const statusLabel = isDone       ? "It's your turn!"
                     : isInProgress ? 'Doctor is ready for you'
@@ -127,7 +127,7 @@ export default function QueueStatusScreen({ navigation, route }) {
       {/* Main badge */}
       <View style={styles.center}>
         {position === null ? (
-          <ActivityIndicator size="large" color="#6366F1" />
+          <ActivityIndicator size="large" color="#5B9BD5" />
         ) : (
           <>
             <Animated.View style={[styles.badge, { borderColor: statusColor, transform: [{ scale: pulseAnim }] }]}>
@@ -155,14 +155,14 @@ export default function QueueStatusScreen({ navigation, route }) {
       {/* Info cards */}
       <View style={styles.cards}>
         <View style={styles.card}>
-          <Ionicons name="refresh-outline" size={20} color="#6366F1" />
+          <Ionicons name="refresh-outline" size={20} color="#5B9BD5" />
           <Text style={styles.cardTitle}>Auto-updating</Text>
           <Text style={styles.cardSub}>
             {wsState === 'open' ? 'Live via WebSocket' : 'Polling every 15s'}
           </Text>
         </View>
         <View style={styles.card}>
-          <Ionicons name="notifications-outline" size={20} color="#6366F1" />
+          <Ionicons name="notifications-outline" size={20} color="#5B9BD5" />
           <Text style={styles.cardTitle}>Push alert</Text>
           <Text style={styles.cardSub}>We'll notify you when it's your turn</Text>
         </View>
@@ -181,7 +181,7 @@ export default function QueueStatusScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: '#050810' },
+  container:    { flex: 1, backgroundColor: '#070D17' },
   header:       { flexDirection: 'row', alignItems: 'center', padding: 16, paddingTop: 8 },
   backBtn:      { marginRight: 12, padding: 4 },
   title:        { flex: 1, fontSize: 20, fontWeight: '800', color: '#fff' },
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
                   borderWidth: 1, borderColor: '#1E293B', gap: 12 },
   avatar:       { width: 44, height: 44, borderRadius: 22, backgroundColor: '#1E293B',
                   justifyContent: 'center', alignItems: 'center' },
-  avatarText:   { color: '#6366F1', fontSize: 18, fontWeight: '800' },
+  avatarText:   { color: '#5B9BD5', fontSize: 18, fontWeight: '800' },
   doctorName:   { color: '#fff', fontSize: 15, fontWeight: '700' },
   doctorSub:    { color: '#64748B', fontSize: 12 },
 

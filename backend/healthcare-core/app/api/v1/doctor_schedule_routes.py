@@ -369,7 +369,7 @@ async def provision_slot(
     if not patient_row:
         return error_response(
             error_code="PATIENT_NOT_FOUND",
-            message="No patient found with that Hospyn ID. Please check and try again.",
+            message="No patient found with that Hospain ID. Please check and try again.",
             status_code=404,
         )
 

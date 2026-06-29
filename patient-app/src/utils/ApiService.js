@@ -8,7 +8,7 @@ import { API_BASE_URL } from '../api';
 const SessionMemoryCache = new Map();
 
 /**
- * Hospyn 2.0 Enterprise API Service (Patient App)
+ * Hospain 2.0 Enterprise API Service (Patient App)
  * Centralized handler for all production clinical endpoints.
  */
 class ApiService {

@@ -5,10 +5,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Theme } from '../theme';
+import { Theme, useTheme } from '../theme';
 import ApiService from '../utils/ApiService';
 
 export default function CEODashboardScreen({ navigation }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const [loading, setLoading] = useState(true);
     const [metrics, setMetrics] = useState({
         revenue: "₹0",
@@ -56,7 +58,7 @@ export default function CEODashboardScreen({ navigation }) {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={['#050810', '#1E1B4B']} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={['#070D17', '#0B2545']} style={StyleSheet.absoluteFill} />
             
             <View style={styles.header}>
                 <View>
@@ -64,13 +66,13 @@ export default function CEODashboardScreen({ navigation }) {
                     <Text style={styles.hospitalName}>City General Hospital</Text>
                 </View>
                 <TouchableOpacity onPress={fetchMetrics}>
-                    <Ionicons name="refresh" size={24} color="#6366F1" />
+                    <Ionicons name="refresh" size={24} color="#5B9BD5" />
                 </TouchableOpacity>
             </View>
 
             <ScrollView 
                 contentContainerStyle={styles.scrollContent}
-                refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchMetrics} tintColor="#6366F1" />}
+                refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchMetrics} tintColor="#5B9BD5" />}
             >
                 <View style={styles.grid}>
                     <MetricCard 
@@ -84,7 +86,7 @@ export default function CEODashboardScreen({ navigation }) {
                         title="BED OCCUPANCY" 
                         value={metrics.occupancy} 
                         icon="bed-outline" 
-                        color="#6366F1" 
+                        color="#5B9BD5" 
                         subtitle="14 units available"
                     />
                     <MetricCard 
@@ -129,13 +131,13 @@ export default function CEODashboardScreen({ navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#050810' },
+const getStyles = (colors) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: '#070D17' },
     header: { 
         paddingTop: 60, paddingHorizontal: 24, paddingBottom: 20,
         flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end'
     },
-    greeting: { color: '#6366F1', fontSize: 10, fontWeight: 'bold', letterSpacing: 2 },
+    greeting: { color: '#5B9BD5', fontSize: 10, fontWeight: 'bold', letterSpacing: 2 },
     hospitalName: { color: '#fff', fontSize: 20, fontWeight: 'bold', marginTop: 4 },
     scrollContent: { padding: 24 },
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 15, marginBottom: 30 },
@@ -148,7 +150,7 @@ const styles = StyleSheet.create({
     metricTitle: { color: '#94A3B8', fontSize: 10, fontWeight: 'bold', marginTop: 4 },
     metricSubtitle: { color: '#475569', fontSize: 9, marginTop: 4 },
     sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
-    sectionTitle: { color: '#6366F1', fontSize: 10, fontWeight: 'bold', letterSpacing: 1 },
+    sectionTitle: { color: '#5B9BD5', fontSize: 10, fontWeight: 'bold', letterSpacing: 1 },
     viewAll: { color: '#94A3B8', fontSize: 10, fontWeight: 'bold' },
     riskCard: { 
         backgroundColor: 'rgba(239, 68, 68, 0.05)', borderRadius: 24, padding: 20,

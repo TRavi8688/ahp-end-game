@@ -192,7 +192,7 @@ export default function RecordsScreen({ navigation }) {
                                 <Ionicons name="checkmark-shield" size={14} color="#10B981" />
                             )}
                         </View>
-                        <Text style={[styles.recordSub, { color: Theme.colors.textMuted }]}>{item.hospital_name || 'Hospyn Network'}</Text>
+                        <Text style={[styles.recordSub, { color: Theme.colors.textMuted }]}>{item.hospital_name || 'Hospain Network'}</Text>
                         
                         {analyzing ? (
                             <View style={styles.analyzingBadge}>
@@ -238,7 +238,7 @@ export default function RecordsScreen({ navigation }) {
                         </View>
                         <View style={{ flex: 1 }}>
                             <Text style={[styles.visitHospital, { color: Theme.colors.text }]} numberOfLines={1}>
-                                {item.hospital_name || 'Hospyn Medical Center'}
+                                {item.hospital_name || 'Hospain Medical Center'}
                             </Text>
                             <Text style={[styles.visitReason, { color: Theme.colors.textMuted }]} numberOfLines={1}>
                                 {item.visit_reason || 'General Consultation'}
@@ -268,7 +268,7 @@ export default function RecordsScreen({ navigation }) {
                             }}
                         >
                             <View style={[styles.nestedIconBox, { backgroundColor: 'rgba(99, 102, 241, 0.1)' }]}>
-                                <Ionicons name="medical" size={16} color="#6366F1" />
+                                <Ionicons name="medical" size={16} color="#5B9BD5" />
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Text style={[styles.nestedTitle, { color: Theme.colors.text }]}>Digital Prescription</Text>
@@ -412,16 +412,16 @@ export default function RecordsScreen({ navigation }) {
         );
     };
 
-    const isLightTheme = Theme.colors.primary === '#7C3AED';
+    const isLightTheme = Theme.colors.primary === '#13396B';
     const bgColors = isLightTheme 
-        ? ['#F8F7FF', '#EEEBFF'] 
-        : ['#090D1A', '#020408'];
+        ? ['#F4F7FB', '#E6EDF5'] 
+        : ['#070D17', '#020408'];
 
     const docUrl = selectedRecord?.secure_url || selectedRecord?.file_url;
 
     return (
         <LinearGradient colors={bgColors} style={{ flex: 1 }}>
-            <LinearGradient colors={Theme.colors.primary === '#7C3AED' ? ['#7C3AED', '#4F46E5'] : ['#0F172A', '#050810']} style={styles.header}>
+            <LinearGradient colors={Theme.colors.primary === '#13396B' ? ['#13396B', '#4F46E5'] : ['#0F172A', '#070D17']} style={styles.header}>
                 <View>
                     <Text style={styles.headerTitle}>CLINICAL VAULT</Text>
                     <Text style={[styles.headerSub, { color: 'rgba(255, 255, 255, 0.7)' }]}>End-to-End Encrypted Records</Text>
@@ -498,7 +498,7 @@ export default function RecordsScreen({ navigation }) {
                             </Text>
                             <Text style={[styles.emptySub, { color: Theme.colors.textMuted }]}>
                                 {activeTab === 'visits' 
-                                    ? "Scan a Hospyn QR code at any hospital or clinic to open a new digital check-in."
+                                    ? "Scan a Hospain QR code at any hospital or clinic to open a new digital check-in."
                                     : '"Hello! I am Chitti. Your clinical vault is ready for ingestion. Upload your prescriptions or lab reports to begin my neural analysis."'}
                             </Text>
                             {activeTab === 'all_files' && (
@@ -512,7 +512,7 @@ export default function RecordsScreen({ navigation }) {
             )}
 
             <Modal visible={showDetail} animationType="slide" transparent={true}>
-                <View style={[styles.modalOverlay, { backgroundColor: Theme.colors.primary === '#7C3AED' ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.9)' }]}>
+                <View style={[styles.modalOverlay, { backgroundColor: Theme.colors.primary === '#13396B' ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.9)' }]}>
                     <View style={[styles.modalContent, { backgroundColor: Theme.colors.background }]}>
                         <View style={styles.modalHeader}>
                             <Text style={[styles.modalTitle, { color: Theme.colors.text }]}>Record Detail</Text>
@@ -596,13 +596,13 @@ export default function RecordsScreen({ navigation }) {
                             </Text>
                         </View>
                         
-                        <View style={{ backgroundColor: Theme.colors.primary === '#7C3AED' ? '#F1F5F9' : 'rgba(0,0,0,0.2)', padding: 12, borderRadius: 8, marginBottom: 20 }}>
+                        <View style={{ backgroundColor: Theme.colors.primary === '#13396B' ? '#F1F5F9' : 'rgba(0,0,0,0.2)', padding: 12, borderRadius: 8, marginBottom: 20 }}>
                             <Text style={{ fontSize: 12, fontWeight: '700', color: Theme.colors.text, marginBottom: 4 }}>RECORD DETIALS</Text>
                             <Text style={{ fontSize: 14, color: Theme.colors.textMuted }} numberOfLines={2}>{selectedRecord?.ai_summary || selectedRecord?.hospital_name}</Text>
                         </View>
 
                         <TextInput
-                            style={{ backgroundColor: Theme.colors.primary === '#7C3AED' ? '#fff' : 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: Theme.colors.border, borderRadius: 8, padding: 16, color: Theme.colors.text, fontSize: 16, marginBottom: 24 }}
+                            style={{ backgroundColor: Theme.colors.primary === '#13396B' ? '#fff' : 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: Theme.colors.border, borderRadius: 8, padding: 16, color: Theme.colors.text, fontSize: 16, marginBottom: 24 }}
                             placeholder="Enter your password"
                             placeholderTextColor={Theme.colors.textMuted}
                             secureTextEntry
@@ -611,7 +611,7 @@ export default function RecordsScreen({ navigation }) {
                         />
 
                         <View style={{ flexDirection: 'row', gap: 12 }}>
-                            <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 8, backgroundColor: Theme.colors.primary === '#7C3AED' ? '#e2e8f0' : 'rgba(255,255,255,0.1)', alignItems: 'center' }} onPress={() => setShowDeleteModal(false)}>
+                            <TouchableOpacity style={{ flex: 1, paddingVertical: 14, borderRadius: 8, backgroundColor: Theme.colors.primary === '#13396B' ? '#e2e8f0' : 'rgba(255,255,255,0.1)', alignItems: 'center' }} onPress={() => setShowDeleteModal(false)}>
                                 <Text style={{ fontWeight: '700', color: Theme.colors.text }}>CANCEL</Text>
                             </TouchableOpacity>
                             <TouchableOpacity 
@@ -715,7 +715,7 @@ const styles = StyleSheet.create({
         borderBottomColor: 'transparent'
     },
     tabButtonActive: {
-        borderBottomColor: '#6366F1'
+        borderBottomColor: '#5B9BD5'
     },
     tabText: {
         fontSize: 12,

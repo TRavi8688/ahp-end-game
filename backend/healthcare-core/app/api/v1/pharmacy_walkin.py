@@ -319,16 +319,10 @@ async def download_sale_pdf(
             issued_at=sale.created_at or datetime.now(timezone.utc),
             pharmacy_name=hospital.name if hospital else "Pharmacy",
             pharmacy_address=(
-                ", ".join(filter(None, [
-                    hospital.address_line1 or "",
-                    hospital.address_line2 or "",
-                    hospital.city or "",
-                    hospital.state or "",
-                    hospital.pin_code or "",
-                ])) if hospital else ""
+                f"{hospital.address_line1 or ''}, {hospital.city or ''}".strip(", ")
+                if hospital else ""
             ),
             pharmacy_phone=hospital.phone if hospital else "",
-            pharmacy_gstin=hospital.registration_number if hospital else "",
             invoice_type="Pharmacy Tax Invoice",
             payment_method=sale.payment_method.value.upper() if sale.payment_method else "",
             patient_name=patient_name,

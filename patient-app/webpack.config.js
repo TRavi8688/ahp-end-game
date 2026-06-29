@@ -11,7 +11,7 @@ module.exports = async function (env, argv) {
     'react-native/Libraries/Utilities/Platform': 'react-native-web/dist/exports/Platform',
   };
 
-  // Custom Webpack fix for Hospyn Security Portal
+  // Custom Webpack fix for Hospain Security Portal
   config.resolve.fallback = {
     ...config.resolve.fallback,
     crypto: false,

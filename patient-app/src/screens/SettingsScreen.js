@@ -7,6 +7,7 @@ import { HapticUtils } from '../utils/haptics';
 import ApiService from '../utils/ApiService';
 import { Theme, GlobalStyles, setTheme, getTheme, subscribeToTheme } from '../theme';
 import { useAuth } from '../contexts/AuthContext';
+import { showDialog, showAlert } from '../components/AppDialog';
 
 export default function SettingsScreen({ navigation }) {
     const [profile, setProfile] = useState(null);
@@ -65,24 +66,14 @@ export default function SettingsScreen({ navigation }) {
 
     const handleLogout = async () => {
         HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Heavy);
-        const msg = 'Are you sure you want to logout from your Hospyn Shield?';
-        if (Platform.OS === 'web') {
-            const confirmed = window.confirm(msg);
-            if (confirmed) {
-                await logout();
-            }
-        } else {
-            Alert.alert('Logout', msg, [
+        showDialog({
+            title: 'Logout',
+            message: 'Are you sure you want to logout from your Hospain Shield?',
+            buttons: [
                 { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Logout',
-                    style: 'destructive',
-                    onPress: async () => {
-                        await logout();
-                    }
-                }
-            ]);
-        }
+                { text: 'Logout', style: 'destructive', onPress: () => logout() },
+            ],
+        });
     };
 
     const handleAccountDeletion = async () => {
@@ -99,24 +90,19 @@ export default function SettingsScreen({ navigation }) {
             }
         };
 
-        if (Platform.OS === 'web') {
-            const confirmed = window.confirm(msg);
-            if (confirmed) await executeDeletion();
-        } else {
-            Alert.alert('DELETE ACCOUNT', msg, [
+        showDialog({
+            title: 'DELETE ACCOUNT',
+            message: msg,
+            buttons: [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Delete My Account', style: 'destructive', onPress: executeDeletion }
-            ]);
-        }
+                { text: 'Delete My Account', style: 'destructive', onPress: executeDeletion },
+            ],
+        });
     };
 
     const handleUpdateProfile = async () => {
         if (!editName) {
-            if (Platform.OS === 'web') {
-                window.alert('Name cannot be empty.');
-            } else {
-                Alert.alert('Error', 'Name cannot be empty.');
-            }
+            showAlert('Error', 'Name cannot be empty.');
             return;
         }
         setIsUpdatingProfile(true);
@@ -130,11 +116,7 @@ export default function SettingsScreen({ navigation }) {
             setShowEditModal(false);
             HapticUtils.notificationAsync(HapticUtils.NotificationFeedbackType.Success);
         } catch (e) {
-            if (Platform.OS === 'web') {
-                window.alert('Failed to update profile.');
-            } else {
-                Alert.alert('Error', 'Failed to update profile.');
-            }
+            showAlert('Error', 'Failed to update profile.');
         } finally {
             setIsUpdatingProfile(false);
         }
@@ -145,17 +127,9 @@ export default function SettingsScreen({ navigation }) {
         try {
             const res = await ApiService.exportProfileData();
             const successMsg = `Your medical records have been packaged and encrypted:\n\nFilename: ${res.filename}\nTimestamp: ${res.timestamp}`;
-            if (Platform.OS === 'web') {
-                window.alert(`Data Vault Ready!\n\n${successMsg}`);
-            } else {
-                Alert.alert('Data Vault Ready', successMsg);
-            }
+            showAlert('Data Vault Ready', successMsg);
         } catch (e) {
-            if (Platform.OS === 'web') {
-                window.alert('Export failed.');
-            } else {
-                Alert.alert('Error', 'Export failed.');
-            }
+            showAlert('Error', 'Export failed.');
         } finally {
             setIsExporting(false);
         }
@@ -229,19 +203,19 @@ export default function SettingsScreen({ navigation }) {
       navigation.getParent()?.setOptions({ tabBarStyle: { display: 'flex' } });
     }
   }}>
-            <LinearGradient colors={theme === 'light' ? ['#7C3AED', '#4F46E5'] : ['#0F172A', '#050810']} style={styles.header}>
+            <LinearGradient colors={theme === 'light' ? ['#13396B', '#4F46E5'] : ['#0F172A', '#070D17']} style={styles.header}>
                 <View style={styles.profileBox}>
                     <View style={[styles.avatarBox, { borderColor: Theme.colors.primary }]}>
                         {profile?.avatar_url ? (
                             <Image source={{ uri: profile.avatar_url }} style={styles.avatarImg} />
                         ) : (
-                            <LinearGradient colors={theme === 'light' ? ['#8B5CF6', '#7C3AED'] : ['#6366F1', '#4F46E5']} style={styles.avatarGradient}>
+                            <LinearGradient colors={theme === 'light' ? ['#8B5CF6', '#13396B'] : ['#5B9BD5', '#4F46E5']} style={styles.avatarGradient}>
                                 <Text style={styles.avatarText}>{profile?.full_name?.charAt(0) || 'P'}</Text>
                             </LinearGradient>
                         )}
                         <View style={[styles.onlineDot, { borderColor: Theme.colors.background }]} />
                     </View>
-                    <Text style={styles.profileName}>{profile?.full_name || 'Hospyn Member'}</Text>
+                    <Text style={styles.profileName}>{profile?.full_name || 'Hospain Member'}</Text>
                     <Text style={styles.hospynIdText}>{profile?.hospyn_id || hospynId || 'SYNCHRONIZING...'}</Text>
                     <TouchableOpacity style={styles.editBtn} onPress={() => setShowEditModal(true)}>
                         <Text style={styles.editBtnText}>EDIT PROFILE</Text>
@@ -311,7 +285,7 @@ export default function SettingsScreen({ navigation }) {
                 {authProvider !== 'local' && (
                     <SettingItem
                         icon="key-outline"
-                        label="Set up Hospyn ID & password"
+                        label="Set up Hospain ID & password"
                         sub="So you don't have to use Google every time"
                         onPress={() => {
                             HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Light);
@@ -349,12 +323,11 @@ export default function SettingsScreen({ navigation }) {
                 />
                 <SettingItem 
                     icon="information-circle-outline" 
-                    label="About Hospyn 4.0" 
+                    label="About Hospain" 
                     onPress={() => {
                         HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Light);
-                        const aboutMsg = "Hospyn Clinical Ecosystem v4.0.1\nSecured by Advanced AI.\nISO 27001 Certified medical-grade decentralized infrastructure.";
-                        if (Platform.OS === 'web') window.alert(aboutMsg);
-                        else Alert.alert("About Hospyn 4.0", aboutMsg);
+                        const aboutMsg = "Hospain Clinical Ecosystem v4.0.1\nSecured by Advanced AI.\nISO 27001 Certified medical-grade decentralized infrastructure.";
+                        showAlert("About Hospain", aboutMsg);
                     }} 
                 />
 
@@ -368,12 +341,12 @@ export default function SettingsScreen({ navigation }) {
                     <Text style={[styles.logoutText, { color: '#64748B', fontSize: 11 }]}>DELETE ACCOUNT</Text>
                 </TouchableOpacity>
 
-                <Text style={styles.versionText}>SECURED BY HOSPYN QUANTUM SHIELD</Text>
+                <Text style={styles.versionText}>SECURED BY HOSPAIN QUANTUM SHIELD</Text>
             </View>
 
             {/* Edit Profile Modal */}
             <Modal visible={showEditModal} animationType="slide" transparent>
-                <View style={[styles.modalOverlay, { backgroundColor: Theme.colors.primary === '#7C3AED' ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.9)' }]}>
+                <View style={[styles.modalOverlay, { backgroundColor: Theme.colors.primary === '#13396B' ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.9)' }]}>
                     <View style={[styles.modalBox, GlobalStyles.glass, { backgroundColor: Theme.colors.card, borderWidth: 1, borderColor: Theme.colors.border }]}>
                         <View style={styles.modalHeader}>
                             <Text style={[styles.modalTitle, { color: Theme.colors.text }]}>UPDATE PROFILE</Text>
@@ -383,9 +356,9 @@ export default function SettingsScreen({ navigation }) {
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.inputLabel, { color: Theme.colors.primary === '#7C3AED' ? '#4F46E5' : '#64748B' }]}>FULL LEGAL NAME</Text>
+                            <Text style={[styles.inputLabel, { color: Theme.colors.primary === '#13396B' ? '#4F46E5' : '#64748B' }]}>FULL LEGAL NAME</Text>
                             <TextInput 
-                                style={[styles.input, { color: Theme.colors.text, backgroundColor: Theme.colors.primary === '#7C3AED' ? '#FFFFFF' : 'rgba(255,255,255,0.03)', borderColor: Theme.colors.primary === '#7C3AED' ? '#E2E8F0' : 'rgba(255,255,255,0.05)' }]} 
+                                style={[styles.input, { color: Theme.colors.text, backgroundColor: Theme.colors.primary === '#13396B' ? '#FFFFFF' : 'rgba(255,255,255,0.03)', borderColor: Theme.colors.primary === '#13396B' ? '#E2E8F0' : 'rgba(255,255,255,0.05)' }]} 
                                 value={editName} 
                                 onChangeText={setEditName} 
                                 placeholderTextColor="#475569" 
@@ -393,8 +366,8 @@ export default function SettingsScreen({ navigation }) {
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.inputLabel, { color: Theme.colors.primary === '#7C3AED' ? '#4F46E5' : '#64748B' }]}>CONTACT NUMBER</Text>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: Theme.colors.primary === '#7C3AED' ? '#F1F5F9' : 'rgba(255,255,255,0.03)', borderRadius: 12, borderWidth: 1, borderColor: Theme.colors.primary === '#7C3AED' ? '#E2E8F0' : 'rgba(255,255,255,0.05)', paddingHorizontal: 15, height: 50 }}>
+                            <Text style={[styles.inputLabel, { color: Theme.colors.primary === '#13396B' ? '#4F46E5' : '#64748B' }]}>CONTACT NUMBER</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: Theme.colors.primary === '#13396B' ? '#F1F5F9' : 'rgba(255,255,255,0.03)', borderRadius: 12, borderWidth: 1, borderColor: Theme.colors.primary === '#13396B' ? '#E2E8F0' : 'rgba(255,255,255,0.05)', paddingHorizontal: 15, height: 50 }}>
                                 <Text style={{ color: Theme.colors.textMuted, opacity: 0.7 }}>{editPhone || "Not set"}</Text>
                                 <View style={{ flex: 1 }} />
                                 <Ionicons name="lock-closed" size={16} color={Theme.colors.textMuted} />
@@ -403,9 +376,9 @@ export default function SettingsScreen({ navigation }) {
                         </View>
 
                         <View style={styles.inputGroup}>
-                            <Text style={[styles.inputLabel, { color: Theme.colors.primary === '#7C3AED' ? '#4F46E5' : '#64748B' }]}>BLOOD GROUP</Text>
+                            <Text style={[styles.inputLabel, { color: Theme.colors.primary === '#13396B' ? '#4F46E5' : '#64748B' }]}>BLOOD GROUP</Text>
                             <TextInput 
-                                style={[styles.input, { color: Theme.colors.text, backgroundColor: Theme.colors.primary === '#7C3AED' ? '#FFFFFF' : 'rgba(255,255,255,0.03)', borderColor: Theme.colors.primary === '#7C3AED' ? '#E2E8F0' : 'rgba(255,255,255,0.05)' }]} 
+                                style={[styles.input, { color: Theme.colors.text, backgroundColor: Theme.colors.primary === '#13396B' ? '#FFFFFF' : 'rgba(255,255,255,0.03)', borderColor: Theme.colors.primary === '#13396B' ? '#E2E8F0' : 'rgba(255,255,255,0.05)' }]} 
                                 value={editBlood} 
                                 onChangeText={setEditBlood} 
                                 placeholderTextColor="#475569" 
@@ -434,7 +407,7 @@ export default function SettingsScreen({ navigation }) {
                             <>
                                 <Text style={{ color: Theme.colors.textMuted, fontSize: 12, marginBottom: 20 }}>Enter your new mobile number. We will send a 6-digit OTP to verify.</Text>
                                 <TextInput 
-                                    style={[styles.input, { color: Theme.colors.text, backgroundColor: Theme.colors.primary === '#7C3AED' ? '#FFFFFF' : 'rgba(255,255,255,0.03)', borderColor: Theme.colors.primary === '#7C3AED' ? '#E2E8F0' : 'rgba(255,255,255,0.05)', marginBottom: 20 }]} 
+                                    style={[styles.input, { color: Theme.colors.text, backgroundColor: Theme.colors.primary === '#13396B' ? '#FFFFFF' : 'rgba(255,255,255,0.03)', borderColor: Theme.colors.primary === '#13396B' ? '#E2E8F0' : 'rgba(255,255,255,0.05)', marginBottom: 20 }]} 
                                     value={newPhone} 
                                     onChangeText={setNewPhone} 
                                     keyboardType="phone-pad" 
@@ -449,7 +422,7 @@ export default function SettingsScreen({ navigation }) {
                             <>
                                 <Text style={{ color: Theme.colors.textMuted, fontSize: 12, marginBottom: 20 }}>Enter the 6-digit OTP sent to {newPhone}.</Text>
                                 <TextInput 
-                                    style={[styles.input, { color: Theme.colors.text, backgroundColor: Theme.colors.primary === '#7C3AED' ? '#FFFFFF' : 'rgba(255,255,255,0.03)', borderColor: Theme.colors.primary === '#7C3AED' ? '#E2E8F0' : 'rgba(255,255,255,0.05)', marginBottom: 20 }]} 
+                                    style={[styles.input, { color: Theme.colors.text, backgroundColor: Theme.colors.primary === '#13396B' ? '#FFFFFF' : 'rgba(255,255,255,0.03)', borderColor: Theme.colors.primary === '#13396B' ? '#E2E8F0' : 'rgba(255,255,255,0.05)', marginBottom: 20 }]} 
                                     value={phoneOtp} 
                                     onChangeText={setPhoneOtp} 
                                     keyboardType="number-pad" 
@@ -478,7 +451,7 @@ export default function SettingsScreen({ navigation }) {
                 <View style={styles.modalOverlay}>
                     <View style={[styles.modalBox, GlobalStyles.glass, { alignItems: 'center' }]}>
                         <View style={[styles.modalHeader, { width: '100%' }]}>
-                            <Text style={styles.modalTitle}>HOSPYN SHIELD SECURITY</Text>
+                            <Text style={styles.modalTitle}>HOSPAIN SHIELD SECURITY</Text>
                             <TouchableOpacity onPress={() => { HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Light); setShowSecurityModal(false); }}>
                                 <Ionicons name="close" size={24} color="#fff" />
                             </TouchableOpacity>
@@ -498,7 +471,7 @@ export default function SettingsScreen({ navigation }) {
                         </View>
 
                         <Text style={styles.securityStatusTitle}>
-                            STATUS: <Text style={{ color: securityStatus === 'AUTHENTICATED' ? '#10B981' : '#6366F1', fontWeight: 'bold' }}>{securityStatus}</Text>
+                            STATUS: <Text style={{ color: securityStatus === 'AUTHENTICATED' ? '#10B981' : '#5B9BD5', fontWeight: 'bold' }}>{securityStatus}</Text>
                         </Text>
 
                         <View style={styles.securityLogBox}>
@@ -506,7 +479,7 @@ export default function SettingsScreen({ navigation }) {
                         </View>
 
                         <Text style={styles.encryptionInfo}>
-                            Your device holds a unique hardware-backed private key registered in the Hospyn ledger. Tapping below validates your enrollment.
+                            Your device holds a unique hardware-backed private key registered in the Hospain ledger. Tapping below validates your enrollment.
                         </Text>
 
                         <TouchableOpacity 
@@ -532,7 +505,7 @@ const styles = StyleSheet.create({
     avatarGradient: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' },
     avatarImg: { width: '100%', height: '100%' },
     avatarText: { fontSize: 42, fontWeight: '900', color: '#fff' },
-    onlineDot: { position: 'absolute', bottom: 5, right: 5, width: 18, height: 18, borderRadius: 9, backgroundColor: '#10B981', borderWidth: 3, borderColor: '#050810', zIndex: 10 },
+    onlineDot: { position: 'absolute', bottom: 5, right: 5, width: 18, height: 18, borderRadius: 9, backgroundColor: '#10B981', borderWidth: 3, borderColor: '#070D17', zIndex: 10 },
     profileName: { color: '#fff', fontSize: 24, fontWeight: 'bold', marginTop: 15 },
     hospynIdText: { color: '#64748B', fontSize: 13, marginTop: 4, letterSpacing: 1, fontFamily: 'monospace' },
     editBtn: { marginTop: 15, backgroundColor: 'rgba(255,255,255,0.05)', paddingHorizontal: 15, paddingVertical: 6, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },

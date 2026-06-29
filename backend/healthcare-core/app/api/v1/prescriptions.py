@@ -136,6 +136,21 @@ async def get_prescription(
     rx = result.scalars().first()
     if not rx:
         raise HTTPException(status_code=404, detail="Prescription not found.")
+
+    # SECURITY FIX: this had no ownership check at all — any authenticated
+    # patient could read any OTHER patient's prescription just by guessing/
+    # incrementing an id. Patients may only view their own.
+    if current_user.role == "patient":
+        from app.models.patient import Patient
+        owns = await db.execute(
+            select(Patient.id).where(
+                Patient.user_id == uuid.UUID(current_user.sub),
+                Patient.id == rx.patient_id,
+            )
+        )
+        if not owns.first():
+            raise HTTPException(status_code=403, detail="Not authorised to view this prescription.")
+
     return _prescription_to_dict(rx)
 
 
@@ -151,7 +166,20 @@ async def list_prescriptions(
 ):
     query = select(Prescription).options(selectinload(Prescription.items))
 
-    if patient_id:
+    # SECURITY FIX: a patient calling this with no patient_id (or with
+    # someone else's patient_id) got every prescription in the system, or
+    # any other patient's — there was no ownership enforcement at all.
+    # Patients are now always scoped to their own record server-side.
+    if current_user.role == "patient":
+        from app.models.patient import Patient
+        own_patient = await db.execute(
+            select(Patient.id).where(Patient.user_id == uuid.UUID(current_user.sub))
+        )
+        own_patient_id = own_patient.scalar_one_or_none()
+        if not own_patient_id:
+            raise HTTPException(status_code=404, detail="Patient profile not found.")
+        query = query.where(Prescription.patient_id == own_patient_id)
+    elif patient_id:
         try:
             query = query.where(Prescription.patient_id == uuid.UUID(patient_id))
         except ValueError:

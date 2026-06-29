@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SecurityUtils } from '../utils/security';
 import { authService } from '../services/authService';
+import { showDialog } from '../components/AppDialog';
 
 export default function RegisterScreen({ navigation }) {
     const [loading, setLoading] = useState(false);
@@ -79,16 +80,14 @@ export default function RegisterScreen({ navigation }) {
             const checkResp = await authService.checkUser(phone);
             if (checkResp.exists && checkResp.verified) {
                 setLoading(false);
-                if (Platform.OS === 'web') {
-                    const proceed = window.confirm("This phone number is already registered. Click OK to go to Login, or Cancel to use a different number.");
-                    if (proceed) navigation.navigate('Login');
-                } else {
-                    Alert.alert(
-                        'Already Registered',
-                        'This phone number is already linked to an account. Please login instead.',
-                        [{ text: 'Go to Login', onPress: () => navigation.navigate('Login') }, { text: 'Change Number', style: 'cancel' }]
-                    );
-                }
+                showDialog({
+                    title: 'Already Registered',
+                    message: 'This phone number is already linked to an account. Please login instead.',
+                    buttons: [
+                        { text: 'Change Number', style: 'cancel' },
+                        { text: 'Go to Login', onPress: () => navigation.navigate('Login') },
+                    ],
+                });
                 return;
             }
 
@@ -168,7 +167,7 @@ export default function RegisterScreen({ navigation }) {
     };
 
     return (
-        <LinearGradient colors={['#050810', '#1E1B4B', '#050810']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.container}>
+        <LinearGradient colors={['#070D17', '#0B2545', '#070D17']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.container}>
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
                 <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
@@ -340,7 +339,7 @@ export default function RegisterScreen({ navigation }) {
                                         placeholderTextColor="#475569"
                                     />
                                 </View>
-                                <Text style={{ color: '#6366F1', fontSize: 12, textAlign: 'center', marginBottom: 10, opacity: 0.8 }}>
+                                <Text style={{ color: '#5B9BD5', fontSize: 12, textAlign: 'center', marginBottom: 10, opacity: 0.8 }}>
                                     Check your messages for the 6-digit verification code.
                                 </Text>
                                 <TouchableOpacity
@@ -394,7 +393,7 @@ export default function RegisterScreen({ navigation }) {
                         </View>
                     </View>
 
-                    <Text style={styles.footerText}>Secure • Private • Hospyn</Text>
+                    <Text style={styles.footerText}>Secure • Private • Hospain</Text>
                 </ScrollView>
             </KeyboardAvoidingView>
         </LinearGradient>
@@ -402,7 +401,7 @@ export default function RegisterScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#050810' },
+    container: { flex: 1, backgroundColor: '#070D17' },
     content: {
         flexGrow: 1,
         padding: 24,
@@ -466,7 +465,7 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
     },
     button: {
-        backgroundColor: '#6366F1',
+        backgroundColor: '#5B9BD5',
         height: 56,
         borderRadius: 16,
         flexDirection: 'row',

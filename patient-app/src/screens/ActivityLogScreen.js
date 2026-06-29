@@ -3,10 +3,12 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import ApiService from '../utils/ApiService';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, useTheme} from '../theme';
 import { HapticUtils } from '../utils/haptics';
 
 export default function ActivityLogScreen({ navigation }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -29,7 +31,7 @@ export default function ActivityLogScreen({ navigation }) {
                 type: 'NETWORK',
                 category: 'Clinical Exchange',
                 title: item.status === 'granted' ? 'Doctor Access Granted' : item.status === 'revoked' ? 'Doctor Access Revoked' : 'Doctor Access Requested',
-                description: `Dr. ${item.doctor_name} (${item.clinic_name || 'Hospyn Network'}) was ${item.status} access to your sovereign vault.`,
+                description: `Dr. ${item.doctor_name} (${item.clinic_name || 'Hospain Network'}) was ${item.status} access to your sovereign vault.`,
                 icon: item.status === 'granted' ? 'shield-checkmark-outline' : item.status === 'revoked' ? 'shield-x-outline' : 'shield-outline',
                 color: item.status === 'granted' ? '#0D9488' : item.status === 'revoked' ? '#EF4444' : '#F59E0B',
             }));
@@ -84,7 +86,7 @@ export default function ActivityLogScreen({ navigation }) {
                     title: 'Secure Keychain Refreshed',
                     description: 'Local session credentials rotated and secured in device Keystore/Keychain.',
                     icon: 'lock-closed-outline',
-                    color: '#6366F1',
+                    color: '#5B9BD5',
                 }
             ];
 
@@ -149,7 +151,7 @@ export default function ActivityLogScreen({ navigation }) {
 
     return (
         <View style={GlobalStyles.screen}>
-            <LinearGradient colors={['#0F172A', '#050810']} style={styles.header}>
+            <LinearGradient colors={['#0F172A', '#070D17']} style={styles.header}>
                 <TouchableOpacity 
                     onPress={() => {
                         triggerHaptic();
@@ -200,7 +202,7 @@ export default function ActivityLogScreen({ navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     header: { 
         padding: 24, 
         paddingTop: Platform.OS === 'ios' ? 60 : 40, 
@@ -245,7 +247,7 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#050810'
+        backgroundColor: '#070D17'
     },
     loadingText: {
         color: '#0D9488',

@@ -116,7 +116,7 @@ export default function DoctorSearchScreen({ navigation }) {
 
       {/* Results */}
       {loading ? (
-        <ActivityIndicator size="large" color="#6366F1" style={{ marginTop: 60 }} />
+        <ActivityIndicator size="large" color="#5B9BD5" style={{ marginTop: 60 }} />
       ) : error ? (
         <View style={styles.empty}>
           <Ionicons name="wifi-outline" size={44} color="#334155" />
@@ -145,7 +145,7 @@ export default function DoctorSearchScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container:      { flex: 1, backgroundColor: '#050810' },
+  container:      { flex: 1, backgroundColor: '#070D17' },
   header:         { flexDirection: 'row', alignItems: 'center', padding: 16, paddingTop: 8 },
   backBtn:        { marginRight: 12, padding: 4 },
   title:          { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
@@ -154,14 +154,14 @@ const styles = StyleSheet.create({
   searchBox:      { flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#0F172A',
                     borderRadius: 12, paddingHorizontal: 12, borderWidth: 1, borderColor: '#1E293B' },
   searchInput:    { flex: 1, height: 44, color: '#fff', fontSize: 14 },
-  searchBtn:      { backgroundColor: '#6366F1', borderRadius: 12, paddingHorizontal: 16,
+  searchBtn:      { backgroundColor: '#5B9BD5', borderRadius: 12, paddingHorizontal: 16,
                     justifyContent: 'center', alignItems: 'center', height: 44 },
   searchBtnText:  { color: '#fff', fontWeight: '700', fontSize: 14 },
 
   chips:          { paddingHorizontal: 16, paddingBottom: 8, gap: 8 },
   chip:           { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
                     backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#1E293B' },
-  chipActive:     { backgroundColor: '#6366F1', borderColor: '#6366F1' },
+  chipActive:     { backgroundColor: '#5B9BD5', borderColor: '#5B9BD5' },
   chipText:       { color: '#64748B', fontSize: 12, fontWeight: '600' },
   chipTextActive: { color: '#fff' },
 
@@ -170,10 +170,10 @@ const styles = StyleSheet.create({
   cardLeft:       { marginRight: 12 },
   avatar:         { width: 48, height: 48, borderRadius: 24, backgroundColor: '#1E293B',
                     justifyContent: 'center', alignItems: 'center' },
-  avatarText:     { color: '#6366F1', fontSize: 20, fontWeight: '800' },
+  avatarText:     { color: '#5B9BD5', fontSize: 20, fontWeight: '800' },
   cardBody:       { flex: 1 },
   doctorName:     { color: '#fff', fontSize: 15, fontWeight: '700', marginBottom: 2 },
-  specialty:      { color: '#6366F1', fontSize: 12, fontWeight: '600', marginBottom: 2 },
+  specialty:      { color: '#5B9BD5', fontSize: 12, fontWeight: '600', marginBottom: 2 },
   hospital:       { color: '#64748B', fontSize: 12, marginBottom: 6 },
   meta:           { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText:       { color: '#94A3B8', fontSize: 11 },
@@ -183,5 +183,5 @@ const styles = StyleSheet.create({
   emptyText:      { color: '#94A3B8', fontSize: 16, fontWeight: '600', marginTop: 16, textAlign: 'center' },
   emptySubText:   { color: '#475569', fontSize: 13, marginTop: 6, textAlign: 'center' },
   retryBtn:       { marginTop: 20, backgroundColor: '#1E293B', borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10 },
-  retryText:      { color: '#6366F1', fontWeight: '700' },
+  retryText:      { color: '#5B9BD5', fontWeight: '700' },
 });

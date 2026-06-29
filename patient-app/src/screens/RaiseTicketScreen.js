@@ -1,6 +1,6 @@
 // patient-app/src/screens/RaiseTicketScreen.js
 //
-// NEW (2026-06-23): replaces the fake "Hospyn Help Center" alert that used
+// NEW (2026-06-23): replaces the fake "Hospain Help Center" alert that used
 // to just show a local message and never contacted anyone. This screen
 // actually calls the backend's existing ticket system.
 
@@ -10,7 +10,7 @@ import {
     TextInput, ActivityIndicator, Alert, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, useTheme} from '../theme';
 import { HapticUtils } from '../utils/haptics';
 import { useAuth } from '../contexts/AuthContext';
 import ticketService from '../services/ticketService';
@@ -31,6 +31,8 @@ const PRIORITIES = [
 ];
 
 export default function RaiseTicketScreen({ navigation }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const { user } = useAuth();
     const [category, setCategory] = useState('technical');
     const [priority, setPriority] = useState('medium');
@@ -74,18 +76,18 @@ export default function RaiseTicketScreen({ navigation }) {
     if (result) {
         return (
             <View style={[GlobalStyles.screen, styles.center]}>
-                <Ionicons name="checkmark-circle" size={72} color={Theme.colors.positive} />
-                <Text style={[styles.successTitle, { color: Theme.colors.text }]}>Ticket raised</Text>
-                <Text style={[styles.successId, { color: Theme.colors.primary }]}>{result.ticket_id}</Text>
-                <Text style={[styles.successMsg, { color: Theme.colors.textMuted }]}>{result.message}</Text>
+                <Ionicons name="checkmark-circle" size={72} color={colors.positive} />
+                <Text style={[styles.successTitle, { color: colors.text }]}>Ticket raised</Text>
+                <Text style={[styles.successId, { color: colors.primary }]}>{result.ticket_id}</Text>
+                <Text style={[styles.successMsg, { color: colors.textMuted }]}>{result.message}</Text>
                 <TouchableOpacity
-                    style={[styles.primaryBtn, { backgroundColor: Theme.colors.primary }]}
+                    style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
                     onPress={() => navigation.navigate('MyTickets')}
                 >
                     <Text style={styles.primaryBtnText}>View my tickets</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <Text style={[styles.linkBtn, { color: Theme.colors.secondary }]}>Done</Text>
+                    <Text style={[styles.linkBtn, { color: colors.secondary }]}>Done</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -95,9 +97,9 @@ export default function RaiseTicketScreen({ navigation }) {
         <View style={GlobalStyles.screen}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color={Theme.colors.text} />
+                    <Ionicons name="arrow-back" size={24} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: Theme.colors.text }]}>Raise a ticket</Text>
+                <Text style={[styles.headerTitle, { color: colors.text }]}>Raise a ticket</Text>
                 <View style={{ width: 24 }} />
             </View>
 
@@ -109,14 +111,14 @@ export default function RaiseTicketScreen({ navigation }) {
                             key={c.key}
                             style={[
                                 styles.chip,
-                                { borderColor: Theme.colors.border },
-                                category === c.key && { backgroundColor: Theme.colors.primary, borderColor: Theme.colors.primary },
+                                { borderColor: colors.border },
+                                category === c.key && { backgroundColor: colors.primary, borderColor: colors.primary },
                             ]}
                             onPress={() => setCategory(c.key)}
                         >
                             <Text style={[
                                 styles.chipText,
-                                { color: category === c.key ? '#FFF' : Theme.colors.text },
+                                { color: category === c.key ? '#FFF' : colors.text },
                             ]}>{c.label}</Text>
                         </TouchableOpacity>
                     ))}
@@ -129,14 +131,14 @@ export default function RaiseTicketScreen({ navigation }) {
                             key={p.key}
                             style={[
                                 styles.chip,
-                                { borderColor: Theme.colors.border },
-                                priority === p.key && { backgroundColor: Theme.colors.primary, borderColor: Theme.colors.primary },
+                                { borderColor: colors.border },
+                                priority === p.key && { backgroundColor: colors.primary, borderColor: colors.primary },
                             ]}
                             onPress={() => setPriority(p.key)}
                         >
                             <Text style={[
                                 styles.chipText,
-                                { color: priority === p.key ? '#FFF' : Theme.colors.text },
+                                { color: priority === p.key ? '#FFF' : colors.text },
                             ]}>{p.label}</Text>
                         </TouchableOpacity>
                     ))}
@@ -144,9 +146,9 @@ export default function RaiseTicketScreen({ navigation }) {
 
                 <Text style={[GlobalStyles.label, styles.sectionLabel]}>Subject</Text>
                 <TextInput
-                    style={[styles.input, { borderColor: Theme.colors.border, color: Theme.colors.text }]}
+                    style={[styles.input, { borderColor: colors.border, color: colors.text }]}
                     placeholder="e.g. Can't download my last invoice"
-                    placeholderTextColor={Theme.colors.textMuted}
+                    placeholderTextColor={colors.textMuted}
                     value={subject}
                     onChangeText={setSubject}
                     maxLength={120}
@@ -154,9 +156,9 @@ export default function RaiseTicketScreen({ navigation }) {
 
                 <Text style={[GlobalStyles.label, styles.sectionLabel]}>Describe the issue</Text>
                 <TextInput
-                    style={[styles.input, styles.textArea, { borderColor: Theme.colors.border, color: Theme.colors.text }]}
+                    style={[styles.input, styles.textArea, { borderColor: colors.border, color: colors.text }]}
                     placeholder="What happened, what did you expect, and when did it start?"
-                    placeholderTextColor={Theme.colors.textMuted}
+                    placeholderTextColor={colors.textMuted}
                     value={description}
                     onChangeText={setDescription}
                     multiline
@@ -167,7 +169,7 @@ export default function RaiseTicketScreen({ navigation }) {
                 {!!error && <Text style={styles.errorText}>{error}</Text>}
 
                 <TouchableOpacity
-                    style={[styles.primaryBtn, { backgroundColor: Theme.colors.primary, marginTop: 24 }, submitting && { opacity: 0.7 }]}
+                    style={[styles.primaryBtn, { backgroundColor: colors.primary, marginTop: 24 }, submitting && { opacity: 0.7 }]}
                     onPress={handleSubmit}
                     disabled={submitting}
                 >
@@ -180,7 +182,7 @@ export default function RaiseTicketScreen({ navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: Platform.OS === 'ios' ? 60 : 30, paddingBottom: 16 },
     backBtn: { padding: 4 },
     headerTitle: { fontSize: 18, fontFamily: Theme.fonts.headingSemi },

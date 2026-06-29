@@ -155,13 +155,35 @@ async def list_doctors(
     result = await db.execute(query)
     doctors = result.scalars().all()
 
+    # BUG FIX: the patient app's doctor cards read `doctor.full_name`,
+    # `doctor.specialty`, and `doctor.hospital_name` — none of which this
+    # endpoint ever returned (only first_name/last_name/specialization/
+    # hospital_id), so every doctor card rendered blank. Patch in the
+    # composed/joined fields the client actually needs without changing the
+    # existing response shape (additive only).
+    hospital_ids = {d.hospital_id for d in doctors if d.hospital_id}
+    hospital_names = {}
+    if hospital_ids:
+        hosp_result = await db.execute(
+            select(Hospital.id, Hospital.name).where(Hospital.id.in_(hospital_ids))
+        )
+        hospital_names = {row.id: row.name for row in hosp_result.all()}
+
+    items = []
+    for d in doctors:
+        item = DoctorResponse.model_validate(d).model_dump(mode="json")
+        item["full_name"] = f"{d.first_name} {d.last_name}".strip()
+        item["specialty"] = d.specialization
+        item["hospital_name"] = hospital_names.get(d.hospital_id, "Hospain Hospital")
+        items.append(item)
+
     return success_response(
-        data=DoctorListResponse(
-            total=total,
-            page=page,
-            page_size=page_size,
-            items=[DoctorResponse.model_validate(d) for d in doctors],
-        ).model_dump(mode="json")
+        data={
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "items": items,
+        }
     )
 
 
@@ -179,9 +201,20 @@ async def get_doctor(
     if not doctor:
         raise HTTPException(status_code=404, detail="Doctor not found")
 
-    return success_response(
-        data=DoctorResponse.model_validate(doctor).model_dump(mode="json")
-    )
+    data = DoctorResponse.model_validate(doctor).model_dump(mode="json")
+    data["full_name"] = f"{doctor.first_name} {doctor.last_name}".strip()
+    data["specialty"] = doctor.specialization
+    hospital_name = "Hospain Hospital"
+    if doctor.hospital_id:
+        hosp_result = await db.execute(
+            select(Hospital.name).where(Hospital.id == doctor.hospital_id)
+        )
+        row = hosp_result.first()
+        if row:
+            hospital_name = row[0]
+    data["hospital_name"] = hospital_name
+
+    return success_response(data=data)
 
 
 @router.get("/patients/{patient_id}/medical-records")

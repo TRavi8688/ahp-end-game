@@ -3,10 +3,12 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, 
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import ApiService from '../utils/ApiService';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, useTheme} from '../theme';
 import { HapticUtils } from '../utils/haptics';
 
 export default function AccessHistoryScreen({ navigation }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const [history, setHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -63,7 +65,7 @@ export default function AccessHistoryScreen({ navigation }) {
                         </View>
                         <View>
                             <Text style={styles.doctorName}>Dr. {item.doctor_name}</Text>
-                            <Text style={styles.clinicName}>{item.clinic_name || 'Hospyn Network'}</Text>
+                            <Text style={styles.clinicName}>{item.clinic_name || 'Hospain Network'}</Text>
                         </View>
                     </View>
                     <View style={[styles.badge, { backgroundColor: statusColor + '15' }]}>
@@ -105,7 +107,7 @@ export default function AccessHistoryScreen({ navigation }) {
 
     return (
         <View style={GlobalStyles.screen}>
-            <LinearGradient colors={['#0F172A', '#050810']} style={styles.header}>
+            <LinearGradient colors={['#0F172A', '#070D17']} style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
@@ -116,14 +118,14 @@ export default function AccessHistoryScreen({ navigation }) {
             </LinearGradient>
 
             {loading ? (
-                <ActivityIndicator size="large" color={Theme.colors.primary} style={{ marginTop: 50 }} />
+                <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 50 }} />
             ) : (
                 <FlatList
                     data={history}
                     keyExtractor={item => item.id.toString()}
                     renderItem={renderItem}
                     contentContainerStyle={styles.listContent}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Theme.colors.primary} />}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
                     ListEmptyComponent={
                         <View style={styles.emptyBox}>
                             <Ionicons name="shield-outline" size={80} color="#1E293B" />
@@ -137,7 +139,7 @@ export default function AccessHistoryScreen({ navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     header: { padding: 24, paddingTop: 60, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     headerTitle: { fontSize: 20, letterSpacing: 4 },
     backBtn: { padding: 4 },

@@ -35,13 +35,15 @@ from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Response, HTTPException, status, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 import jwt as pyjwt
 
 from app.core.database import get_db
 from app.core.limiter import limiter
 from app.core.security import decode_token
+from app.config.settings import settings
 from app.models.user import User, RoleEnum, OTPVerification
 from app.services.auth_service import (
     verify_password, get_password_hash, create_access_token,
@@ -52,6 +54,57 @@ import re
 import uuid
 
 _bearer_scheme = HTTPBearer(auto_error=False)
+
+
+async def _find_user_by_identifier(db: AsyncSession, identifier: str) -> User | None:
+    """
+    Resolve a login identifier (email, phone number, OR Hospain ID) to a User.
+
+    The login screen's field is labeled "Hospain ID / Email" but a Hospain ID
+    isn't a column on this table — it lives on healthcare-core's `patients`
+    table (patients.hospyn_id -> patients.user_id -> users.id; column name
+    kept as hospyn_id at the DB level for backward compatibility with
+    already-issued IDs). auth-service and healthcare-core share one physical
+    Postgres database, so this resolves with a plain SQL lookup against
+    `patients` without creating a Python import dependency between services.
+    """
+    result = await db.execute(
+        select(User).where(
+            ((User.email == identifier) | (User.phone_number == identifier)),
+            User.deleted_at.is_(None),
+        )
+    )
+    user = result.scalars().first()
+    if user:
+        return user
+
+    identifier = (identifier or "").strip()
+    if not identifier:
+        return None
+
+    try:
+        row = (
+            await db.execute(
+                text(
+                    "SELECT user_id FROM patients "
+                    "WHERE UPPER(hospyn_id) = UPPER(:hid) AND deleted_at IS NULL "
+                    "LIMIT 1"
+                ),
+                {"hid": identifier},
+            )
+        ).first()
+    except Exception:
+        logger.exception("Hospain ID lookup against patients table failed")
+        return None
+
+    if not row or not row[0]:
+        return None
+
+    result = await db.execute(
+        select(User).where(User.id == row[0], User.deleted_at.is_(None))
+    )
+    return result.scalars().first()
+
 
 
 async def get_current_user(
@@ -134,14 +187,6 @@ async def run_auth_migrations(request: Request):
         ("employee_id",           "ALTER TABLE users ADD COLUMN IF NOT EXISTS employee_id VARCHAR(10)"),
         ("is_temporary_password", "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_temporary_password BOOLEAN DEFAULT false NOT NULL"),
         ("employee_id_index",     "CREATE UNIQUE INDEX IF NOT EXISTS ix_users_employee_id ON users (employee_id) WHERE employee_id IS NOT NULL"),
-        
-        # OTP Verifications table self-healing
-        ("otp_table",             "CREATE TABLE IF NOT EXISTS otp_verifications (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), identifier VARCHAR(255) NOT NULL)"),
-        ("hashed_otp",            "ALTER TABLE otp_verifications ADD COLUMN IF NOT EXISTS hashed_otp VARCHAR(255)"),
-        ("attempts",              "ALTER TABLE otp_verifications ADD COLUMN IF NOT EXISTS attempts INTEGER DEFAULT 0 NOT NULL"),
-        ("expires_at",            "ALTER TABLE otp_verifications ADD COLUMN IF NOT EXISTS expires_at TIMESTAMP WITH TIME ZONE"),
-        ("created_at",            "ALTER TABLE otp_verifications ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL"),
-        ("is_verified",           "ALTER TABLE otp_verifications ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT false NOT NULL"),
     ]
     results = {}
     try:
@@ -233,14 +278,8 @@ async def login(
             )
             user = result2.scalars().first()
     else:
-        # Legacy path: email or phone login
-        result = await db.execute(
-            select(User).where(
-                ((User.email == identifier) | (User.phone_number == identifier)),
-                User.deleted_at.is_(None),
-            )
-        )
-        user = result.scalars().first()
+        # Legacy path: email, phone, OR Hospain ID login
+        user = await _find_user_by_identifier(db, identifier)
 
     if not user or not verify_password(password, user.hashed_password):
         has_usable = (user.has_usable_password if user.has_usable_password is not None else True) if user else True
@@ -439,9 +478,30 @@ async def google_login(
     import string
     import uuid
 
-    GOOGLE_CLIENT_ID = "625745217419-cq76tvb0mlt0bkmg8bd4r0csj4vmqmr8.apps.googleusercontent.com"
+    # Accept tokens minted against any platform's client ID (web, iOS,
+    # Android) instead of one hardcoded web client ID, which silently
+    # rejected every native (non-web) Google sign-in attempt.
+    valid_audiences = [
+        cid for cid in (
+            settings.GOOGLE_CLIENT_ID,
+            settings.GOOGLE_CLIENT_ID_IOS,
+            settings.GOOGLE_CLIENT_ID_ANDROID,
+        ) if cid
+    ]
+
+    # BUG FIX (likely cause of the reported 500): verify_oauth2_token makes a
+    # blocking, synchronous HTTPS call out to Google to fetch certs. Calling
+    # that directly inside an `async def` blocks the entire event loop for
+    # the whole request -- under any load, or if that outbound call is slow,
+    # this can starve/timeout the worker and surface as a raw 500 from the
+    # platform rather than a clean error from our own code. Running it in a
+    # thread keeps the event loop free either way.
     try:
-        idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), GOOGLE_CLIENT_ID)
+        idinfo = await run_in_threadpool(
+            id_token.verify_oauth2_token, token, google_requests.Request()
+        )
+        if idinfo.get("aud") not in valid_audiences:
+            raise ValueError(f"Unrecognized audience: {idinfo.get('aud')}")
     except Exception as e:
         logger.error("Google Auth token verification failed: %s", e)
         raise HTTPException(
@@ -456,50 +516,64 @@ async def google_login(
             detail="Email address not provided by Google",
         )
 
-    # Check if user already exists
-    result = await db.execute(
-        select(User).where(
-            (User.email == email),
-            User.deleted_at.is_(None),
+    try:
+        # Check if user already exists
+        result = await db.execute(
+            select(User).where(
+                (User.email == email),
+                User.deleted_at.is_(None),
+            )
         )
-    )
-    user = result.scalars().first()
+        user = result.scalars().first()
 
-    if not user:
-        # Create a new patient user
-        # Secure random password generation
-        raw_password = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32))
-        hashed_password = get_password_hash(raw_password)
-        
-        name = idinfo.get("name") or f"{idinfo.get('given_name', '')} {idinfo.get('family_name', '')}".strip() or "Google User"
-        
-        user = User(
-            id=uuid.uuid4(),
-            email=email,
-            phone_number=None,
-            hashed_password=hashed_password,
-            role=RoleEnum.patient,
-            full_name=name,
-            is_active=True,
-            token_version=1,
-            # FIX-A6: tag this account so /login can give a helpful message
-            # and the frontend can offer a one-time "set up a password" step
-            # instead of forcing Google sign-in forever.
-            auth_provider="google",
-            has_usable_password=False,
-            phone_verified=True,  # email already verified by Google itself
+        if not user:
+            # Create a new patient user
+            # Secure random password generation
+            raw_password = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32))
+            hashed_password = get_password_hash(raw_password)
+
+            name = idinfo.get("name") or f"{idinfo.get('given_name', '')} {idinfo.get('family_name', '')}".strip() or "Google User"
+
+            user = User(
+                id=uuid.uuid4(),
+                email=email,
+                phone_number=None,
+                hashed_password=hashed_password,
+                role=RoleEnum.patient,
+                full_name=name,
+                is_active=True,
+                token_version=1,
+                # FIX-A6: tag this account so /login can give a helpful message
+                # and the frontend can offer a one-time "set up a password" step
+                # instead of forcing Google sign-in forever.
+                auth_provider="google",
+                has_usable_password=False,
+                phone_verified=True,  # email already verified by Google itself
+            )
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+        else:
+            # If user exists but full_name is empty, populate it
+            if not user.full_name:
+                name = idinfo.get("name") or f"{idinfo.get('given_name', '')} {idinfo.get('family_name', '')}".strip()
+                if name:
+                    user.full_name = name
+                    await db.commit()
+                    await db.refresh(user)
+    except HTTPException:
+        raise
+    except Exception:
+        # BUG FIX: any DB-layer failure here (e.g. a pending migration not
+        # yet applied to this environment) used to surface as an unhandled
+        # 500 with no detail anywhere. Now it's logged with a full traceback
+        # server-side and the client gets a clean, non-leaky error instead.
+        await db.rollback()
+        logger.exception("Google login failed while creating/loading user for email=%s", email)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not complete Google sign-in right now. Please try again in a moment.",
         )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
-    else:
-        # If user exists but full_name is empty, populate it
-        if not user.full_name:
-            name = idinfo.get("name") or f"{idinfo.get('given_name', '')} {idinfo.get('family_name', '')}".strip()
-            if name:
-                user.full_name = name
-                await db.commit()
-                await db.refresh(user)
 
     if not user.is_active:
         raise HTTPException(
@@ -558,10 +632,29 @@ async def apple_login(
             detail="Apple identity token is required",
         )
 
+    # SECURITY FIX: this previously called
+    #   pyjwt.decode(token, options={"verify_signature": False})
+    # which does NOT check the signature at all -- anyone could send a
+    # hand-crafted token with any email/sub they wanted and log in as, or
+    # create, any account. This now verifies against Apple's real public
+    # keys (fetched fresh, matched by kid) plus issuer/audience/expiry,
+    # exactly like /auth/google verifies against Google's keys.
     try:
-        idinfo = pyjwt.decode(token, options={"verify_signature": False})
+        jwks_client = await run_in_threadpool(
+            pyjwt.PyJWKClient, "https://appleid.apple.com/auth/keys"
+        )
+        signing_key = await run_in_threadpool(
+            jwks_client.get_signing_key_from_jwt, token
+        )
+        idinfo = pyjwt.decode(
+            token,
+            signing_key.key,
+            algorithms=["RS256"],
+            audience=settings.APPLE_BUNDLE_ID,
+            issuer="https://appleid.apple.com",
+        )
     except Exception as e:
-        logger.error("Apple Auth token decode failed: %s", e)
+        logger.error("Apple Auth token verification failed: %s", e)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Apple Authentication failed: {str(e)}",
@@ -575,49 +668,66 @@ async def apple_login(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Subject claim (sub) or email not found in Apple token",
             )
-        email = f"apple_{sub}@hospyn.com"
+        email = f"apple_{sub}@hospain-relay.local"
 
-    # Check if user already exists
-    result = await db.execute(
-        select(User).where(
-            (User.email == email),
-            User.deleted_at.is_(None),
+    full_name_from_client = (body.get("full_name") or "").strip()
+
+    try:
+        # Check if user already exists
+        result = await db.execute(
+            select(User).where(
+                (User.email == email),
+                User.deleted_at.is_(None),
+            )
         )
-    )
-    user = result.scalars().first()
+        user = result.scalars().first()
 
-    name = idinfo.get("name") or f"{idinfo.get('given_name', '')} {idinfo.get('family_name', '')}".strip() or "Apple User"
-
-    if not user:
-        # Create a new patient user
-        import secrets
-        import string
-        import uuid
-        raw_password = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32))
-        hashed_password = get_password_hash(raw_password)
-        
-        user = User(
-            id=uuid.uuid4(),
-            email=email,
-            phone_number=None,
-            hashed_password=hashed_password,
-            role=RoleEnum.patient,
-            full_name=name,
-            is_active=True,
-            token_version=1,
-            auth_provider="apple",
-            has_usable_password=False,
-            phone_verified=True,
+        name = (
+            idinfo.get("name")
+            or f"{idinfo.get('given_name', '')} {idinfo.get('family_name', '')}".strip()
+            or full_name_from_client
+            or "Apple User"
         )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
-    else:
-        # If user exists but full_name is empty, populate it
-        if not user.full_name:
-            user.full_name = name
+
+        if not user:
+            # Create a new patient user
+            import secrets
+            import string
+            import uuid
+            raw_password = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(32))
+            hashed_password = get_password_hash(raw_password)
+
+            user = User(
+                id=uuid.uuid4(),
+                email=email,
+                phone_number=None,
+                hashed_password=hashed_password,
+                role=RoleEnum.patient,
+                full_name=name,
+                is_active=True,
+                token_version=1,
+                auth_provider="apple",
+                has_usable_password=False,
+                phone_verified=True,
+            )
+            db.add(user)
             await db.commit()
             await db.refresh(user)
+        else:
+            # If user exists but full_name is empty, populate it
+            if not user.full_name:
+                user.full_name = name
+                await db.commit()
+                await db.refresh(user)
+    except HTTPException:
+        raise
+    except Exception:
+        await db.rollback()
+        logger.exception("Apple login failed while creating/loading user for email=%s", email)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not complete Apple sign-in right now. Please try again in a moment.",
+        )
 
     if not user.is_active:
         raise HTTPException(

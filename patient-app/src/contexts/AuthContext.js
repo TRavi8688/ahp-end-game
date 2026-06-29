@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const AuthContext = createContext();
 
 /**
- * Hospyn Enterprise Authentication Provider
+ * Hospain Enterprise Authentication Provider
  * Manages the global authentication lifecycle, token persistence, and session restoration.
  */
 export const AuthProvider = ({ children }) => {
@@ -150,7 +150,7 @@ export const AuthProvider = ({ children }) => {
 
     /**
      * FIX-A6 (2026-06-23): called after a Google/Apple user successfully sets
-     * a real Hospyn ID + password, so the UI stops treating them as
+     * a real Hospain ID + password, so the UI stops treating them as
      * "social-only" without needing a full re-login.
      */
     const updateAuthProvider = async (provider) => {

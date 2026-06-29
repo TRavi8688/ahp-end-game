@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Hospyn",
+    "name": "Hospain",
     "slug": "hospyn-patient",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,24 +8,24 @@
     "splash": {
       "image": "./assets/logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#E8F4F8"
+      "backgroundColor": "#FFFFFF"
     },
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hospyn.patient",
       "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "Hospyn requires camera access to scan physical medical reports, prescriptions, and profile avatars for your clinical vault.",
-        "NSFaceIDUsageDescription": "Hospyn uses FaceID to securely authenticate your identity before decrypting and displaying your sensitive medical records.",
-        "NSMicrophoneUsageDescription": "Hospyn requires microphone access to record voice notes for telemedicine consultations."
+        "NSCameraUsageDescription": "Hospain requires camera access to scan physical medical reports, prescriptions, and profile avatars for your clinical vault.",
+        "NSFaceIDUsageDescription": "Hospain uses FaceID to securely authenticate your identity before decrypting and displaying your sensitive medical records.",
+        "NSMicrophoneUsageDescription": "Hospain requires microphone access to record voice notes for telemedicine consultations."
       },
       "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#E8F4F8"
+        "backgroundColor": "#FFFFFF"
       },
       "permissions": [
         "android.permission.CAMERA",
@@ -46,7 +46,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Hospyn to use the camera to scan medical reports and profiles."
+          "cameraPermission": "Allow Hospain to use the camera to scan medical reports and profiles."
         }
       ],
       [

@@ -118,7 +118,7 @@ async def _send_rejection_notifications(
     fields_str = ", ".join(reupload_fields) if reupload_fields else "required documents"
 
     sms_body = (
-        f"[Hospyn] Your hospital '{name}' registration was not approved. "
+        f"[Hospain] Your hospital '{name}' registration was not approved. "
         f"Reason: {reason}. "
         f"Please re-upload: {fields_str}. "
         f"Log in to hospyn.com to resubmit."
@@ -145,7 +145,7 @@ What to do next:
 
 If you have any questions, raise a support ticket from the registration page.
 
-Hospyn Verification Team
+Hospain Verification Team
 https://hospyn.com
 """
 
@@ -180,7 +180,7 @@ https://hospyn.com
 
             msg = MIMEMultipart("alternative")
             msg["Subject"] = f"[Action Required] Hospyn Registration -- {name}"
-            msg["From"]    = f"Hospyn Verification Team <{from_email}>"
+            msg["From"]    = f"Hospain Verification Team <{from_email}>"
             msg["To"]      = owner_email
             msg.attach(MIMEText(email_body, "plain"))
 

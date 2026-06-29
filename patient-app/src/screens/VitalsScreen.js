@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, useTheme} from '../theme';
 import { patientService } from '../services/patientService';
 
 const { width } = Dimensions.get('window');
 
 export default function VitalsScreen({ navigation }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
     const [vitals, setVitals] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -62,7 +64,7 @@ export default function VitalsScreen({ navigation }) {
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <Text style={styles.bigHeading}>YOUR BODY.</Text>
                 {loading ? (
-                    <ActivityIndicator size="large" color={Theme.colors.primary} style={{ marginTop: 20 }} />
+                    <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 20 }} />
                 ) : (
                     <>
                     <Text style={styles.updateText}>LAST UPDATED {vitals?.lastUpdated}</Text>
@@ -87,7 +89,7 @@ export default function VitalsScreen({ navigation }) {
                                     style={[
                                         styles.chartBar,
                                         { height: h },
-                                        i >= 5 && { backgroundColor: Theme.colors.warning }
+                                        i >= 5 && { backgroundColor: colors.warning }
                                     ]}
                                 />
                             ))}
@@ -146,7 +148,7 @@ export default function VitalsScreen({ navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     topBar: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -157,13 +159,13 @@ const styles = StyleSheet.create({
     },
     topBarLabel: {
         fontFamily: Theme.fonts.label,
-        color: Theme.colors.secondary,
+        color: colors.secondary,
         fontSize: 12,
         letterSpacing: 2,
     },
     topBarDate: {
         fontFamily: Theme.fonts.label,
-        color: Theme.colors.primary,
+        color: colors.primary,
         fontSize: 10,
     },
     scrollContent: {
@@ -171,13 +173,13 @@ const styles = StyleSheet.create({
     },
     bigHeading: {
         fontFamily: Theme.fonts.heading,
-        color: Theme.colors.primary,
+        color: colors.primary,
         fontSize: 32,
         marginTop: 20,
     },
     updateText: {
         fontFamily: Theme.fonts.label,
-        color: Theme.colors.secondary,
+        color: colors.secondary,
         fontSize: 10,
         marginTop: 5,
     },
@@ -194,7 +196,7 @@ const styles = StyleSheet.create({
     },
     vitalLabel: {
         fontFamily: Theme.fonts.label,
-        color: Theme.colors.secondary,
+        color: colors.secondary,
         fontSize: 10,
         letterSpacing: 2,
         marginBottom: 10,
@@ -206,18 +208,18 @@ const styles = StyleSheet.create({
     },
     vitalValue: {
         fontFamily: Theme.fonts.heading,
-        color: Theme.colors.primary,
+        color: colors.primary,
         fontSize: 36,
     },
     vitalUnit: {
         fontFamily: Theme.fonts.label,
-        color: Theme.colors.secondary,
+        color: colors.secondary,
         fontSize: 14,
         paddingBottom: 5,
     },
     vitalSub: {
         fontFamily: Theme.fonts.label,
-        color: Theme.colors.secondary,
+        color: colors.secondary,
         fontSize: 10,
         marginTop: 5,
     },

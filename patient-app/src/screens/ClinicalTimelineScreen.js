@@ -4,9 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import ApiService from '../utils/ApiService';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, useTheme} from '../theme';
 
 export default function ClinicalTimelineScreen({ navigation }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -106,7 +108,7 @@ export default function ClinicalTimelineScreen({ navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fff',

@@ -10,6 +10,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 import QRCode from 'react-native-qrcode-svg';
 import { Theme, GlobalStyles, getTheme, subscribeToTheme } from '../theme';
+import { showDialog, showAlert } from '../components/AppDialog';
 import ApiService from '../utils/ApiService';
 import { SecurityUtils } from '../utils/security';
 import { useAuth } from '../contexts/AuthContext';
@@ -120,42 +121,30 @@ export default function FamilyProfilesScreen({ navigation }) {
                 }
                 load();
             } catch (e) {
-                // Cross platform alert fallback
-                if (Platform.OS === 'web') {
-                    window.alert('Could not remove family member. Please try again.');
-                } else {
-                    Alert.alert('Error', 'Could not remove family member. Please try again.');
-                }
+                showAlert('Error', 'Could not remove family member. Please try again.');
             } finally {
                 setLoading(false);
             }
         };
 
         const msg = `Are you sure you want to remove ${name} from your Care Circle?\n\nThis will disconnect access to their health vault.`;
-        if (Platform.OS === 'web') {
-            const confirmed = window.confirm(msg);
-            if (confirmed) {
-                await executeDelete();
-            }
-        } else {
-            Alert.alert(
-                'Remove Family Member',
-                msg,
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Remove', style: 'destructive', onPress: executeDelete }
-                ]
-            );
-        }
+        showDialog({
+            title: 'Remove Family Member',
+            message: msg,
+            buttons: [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Remove', style: 'destructive', onPress: executeDelete },
+            ],
+        });
     };
 
     const primaryHospynId = user?.hospyn_id || 'YOUR-ID';
-    const bgGradient = Theme.colors.background === '#050810' 
-        ? ['#0A0F1E', '#050810'] 
-        : ['#FFFFFF', '#F8F7FF'];
+    const bgGradient = Theme.colors.background === '#070D17' 
+        ? ['#0A0F1E', '#070D17'] 
+        : ['#FFFFFF', '#F4F7FB'];
 
-    const inputPlaceholderColor = Theme.colors.background === '#050810' ? '#475569' : '#94A3B8';
-    const inputIconColor = Theme.colors.background === '#050810' ? '#475569' : '#94A3B8';
+    const inputPlaceholderColor = Theme.colors.background === '#070D17' ? '#475569' : '#94A3B8';
+    const inputIconColor = Theme.colors.background === '#070D17' ? '#475569' : '#94A3B8';
 
     return (
         <View style={[styles.container, { backgroundColor: Theme.colors.background }]}>
@@ -163,7 +152,7 @@ export default function FamilyProfilesScreen({ navigation }) {
 
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: Theme.colors.background === '#050810' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backBtn, { backgroundColor: Theme.colors.background === '#070D17' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
                     <Ionicons name="chevron-back" size={24} color={Theme.colors.text} />
                 </TouchableOpacity>
                 <View>
@@ -179,9 +168,9 @@ export default function FamilyProfilesScreen({ navigation }) {
 
                 {/* Primary Profile Card */}
                 <Animated.View entering={FadeInDown.delay(50)}>
-                    <LinearGradient colors={Theme.colors.background === '#050810' ? ['rgba(99,102,241,0.2)', 'rgba(99,102,241,0.05)'] : ['rgba(124,58,237,0.12)', 'rgba(124,58,237,0.04)']} style={[styles.primaryCard, activeMemberId == null && styles.activeHighlight]}>
+                    <LinearGradient colors={Theme.colors.background === '#070D17' ? ['rgba(99,102,241,0.2)', 'rgba(99,102,241,0.05)'] : ['rgba(124,58,237,0.12)', 'rgba(124,58,237,0.04)']} style={[styles.primaryCard, activeMemberId == null && styles.activeHighlight]}>
                         <View style={styles.cardRow}>
-                            <View style={[styles.avatar, { backgroundColor: Theme.colors.background === '#050810' ? 'rgba(99,102,241,0.3)' : 'rgba(124,58,237,0.15)' }]}>
+                            <View style={[styles.avatar, { backgroundColor: Theme.colors.background === '#070D17' ? 'rgba(99,102,241,0.3)' : 'rgba(124,58,237,0.15)' }]}>
                                 <Ionicons name="person" size={22} color={Theme.colors.primary} />
                             </View>
                             <View style={{ flex: 1 }}>
@@ -211,9 +200,9 @@ export default function FamilyProfilesScreen({ navigation }) {
 
                 {/* Add Member Form */}
                 {isAdding && (
-                    <Animated.View entering={FadeInDown} style={[styles.addCard, { backgroundColor: Theme.colors.background === '#050810' ? 'rgba(99,102,241,0.04)' : 'rgba(124,58,237,0.04)', borderColor: Theme.colors.background === '#050810' ? 'rgba(99,102,241,0.15)' : 'rgba(124,58,237,0.15)' }]}>
+                    <Animated.View entering={FadeInDown} style={[styles.addCard, { backgroundColor: Theme.colors.background === '#070D17' ? 'rgba(99,102,241,0.04)' : 'rgba(124,58,237,0.04)', borderColor: Theme.colors.background === '#070D17' ? 'rgba(99,102,241,0.15)' : 'rgba(124,58,237,0.15)' }]}>
                         <Text style={[styles.addCardTitle, { color: Theme.colors.text }]}>Add Family Member</Text>
-                        <Text style={[styles.addCardSub, { color: Theme.colors.textMuted }]}>Each member gets a unique Hospyn ID & QR code</Text>
+                        <Text style={[styles.addCardSub, { color: Theme.colors.textMuted }]}>Each member gets a unique Hospain ID & QR code</Text>
 
                         <Text style={[styles.fieldLabel, { color: Theme.colors.primary }]}>RELATIONSHIP</Text>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.relationRow}>
@@ -230,7 +219,7 @@ export default function FamilyProfilesScreen({ navigation }) {
                         </ScrollView>
 
                         <Text style={[styles.fieldLabel, { color: Theme.colors.primary }]}>FULL NAME</Text>
-                        <View style={[styles.inputBox, { backgroundColor: Theme.colors.background === '#050810' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.02)', borderColor: Theme.colors.background === '#050810' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)' }]}>
+                        <View style={[styles.inputBox, { backgroundColor: Theme.colors.background === '#070D17' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.02)', borderColor: Theme.colors.background === '#070D17' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)' }]}>
                             <Ionicons name="person-outline" size={16} color={inputIconColor} />
                             <TextInput
                                 style={[styles.input, { color: Theme.colors.text }]}
@@ -242,7 +231,7 @@ export default function FamilyProfilesScreen({ navigation }) {
                         </View>
 
                         <Text style={[styles.fieldLabel, { color: Theme.colors.primary }]}>MOBILE (OPTIONAL)</Text>
-                        <View style={[styles.inputBox, { backgroundColor: Theme.colors.background === '#050810' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.02)', borderColor: Theme.colors.background === '#050810' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)' }]}>
+                        <View style={[styles.inputBox, { backgroundColor: Theme.colors.background === '#070D17' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.02)', borderColor: Theme.colors.background === '#070D17' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.08)' }]}>
                             <Ionicons name="call-outline" size={16} color={inputIconColor} />
                             <TextInput
                                 style={[styles.input, { color: Theme.colors.text }]}
@@ -255,7 +244,7 @@ export default function FamilyProfilesScreen({ navigation }) {
                         </View>
 
                         <TouchableOpacity style={styles.submitBtn} onPress={handleAddMember} disabled={submitting}>
-                            <LinearGradient colors={Theme.colors.background === '#050810' ? ['#6366F1', '#4F46E5'] : ['#7C3AED', '#6D28D9']} style={styles.submitGradient}>
+                            <LinearGradient colors={Theme.colors.background === '#070D17' ? ['#5B9BD5', '#4F46E5'] : ['#13396B', '#6D28D9']} style={styles.submitGradient}>
                                 {submitting
                                     ? <ActivityIndicator color="#fff" />
                                     : <><Ionicons name="person-add" size={16} color="#fff" /><Text style={styles.submitText}>Add to Care Circle</Text></>
@@ -275,10 +264,10 @@ export default function FamilyProfilesScreen({ navigation }) {
                     <ActivityIndicator color={Theme.colors.primary} style={{ marginTop: 40 }} />
                 ) : profiles.length === 0 && !isAdding ? (
                     <Animated.View entering={FadeInUp} style={styles.emptyState}>
-                        <Ionicons name="people-outline" size={60} color={Theme.colors.background === '#050810' ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"} />
+                        <Ionicons name="people-outline" size={60} color={Theme.colors.background === '#070D17' ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"} />
                         <Text style={[styles.emptyTitle, { color: Theme.colors.text }]}>Care Circle is Empty</Text>
                         <Text style={[styles.emptySub, { color: Theme.colors.textMuted }]}>Add family members to manage their health records and switch contexts instantly.</Text>
-                        <TouchableOpacity style={[styles.emptyAction, { backgroundColor: Theme.colors.background === '#050810' ? 'rgba(99,102,241,0.15)' : 'rgba(124,58,237,0.08)', borderColor: Theme.colors.background === '#050810' ? 'rgba(99,102,241,0.3)' : 'rgba(124,58,237,0.2)' }]} onPress={() => { HapticUtils.light(); setIsAdding(true); }}>
+                        <TouchableOpacity style={[styles.emptyAction, { backgroundColor: Theme.colors.background === '#070D17' ? 'rgba(99,102,241,0.15)' : 'rgba(124,58,237,0.08)', borderColor: Theme.colors.background === '#070D17' ? 'rgba(99,102,241,0.3)' : 'rgba(124,58,237,0.2)' }]} onPress={() => { HapticUtils.light(); setIsAdding(true); }}>
                             <Text style={[styles.emptyActionText, { color: Theme.colors.primary }]}>+ Add First Member</Text>
                         </TouchableOpacity>
                     </Animated.View>
@@ -287,9 +276,9 @@ export default function FamilyProfilesScreen({ navigation }) {
                         const cleanedHospynId = formatFamilyHospynId(p.linked_hospyn_id || p.id, p.relation);
                         return (
                             <Animated.View key={p.id} entering={FadeInUp.delay(i * 80)}>
-                                <View style={[styles.memberCard, { backgroundColor: Theme.colors.background === '#050810' ? 'rgba(255,255,255,0.03)' : '#FFFFFF', borderColor: Theme.colors.background === '#050810' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }, activeMemberId === p.id && styles.activeHighlight]}>
+                                <View style={[styles.memberCard, { backgroundColor: Theme.colors.background === '#070D17' ? 'rgba(255,255,255,0.03)' : '#FFFFFF', borderColor: Theme.colors.background === '#070D17' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)' }, activeMemberId === p.id && styles.activeHighlight]}>
                                     <View style={styles.cardRow}>
-                                        <View style={[styles.avatar, { backgroundColor: Theme.colors.background === '#050810' ? 'rgba(34,211,238,0.1)' : 'rgba(124,58,237,0.1)' }]}>
+                                        <View style={[styles.avatar, { backgroundColor: Theme.colors.background === '#070D17' ? 'rgba(34,211,238,0.1)' : 'rgba(124,58,237,0.1)' }]}>
                                             <Ionicons name={RELATION_ICONS[p.relation] || 'person'} size={22} color={Theme.colors.primary} />
                                         </View>
                                         <View style={{ flex: 1 }}>
@@ -335,7 +324,7 @@ export default function FamilyProfilesScreen({ navigation }) {
             {/* QR Code Modal */}
             <Modal visible={!!qrModal} transparent animationType="fade" onRequestClose={() => setQrModal(null)}>
                 <View style={styles.modalOverlay}>
-                    <Animated.View entering={FadeInUp} style={[styles.qrModalCard, { backgroundColor: Theme.colors.background === '#050810' ? '#0F172A' : '#FFFFFF', borderColor: Theme.colors.background === '#050810' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]}>
+                    <Animated.View entering={FadeInUp} style={[styles.qrModalCard, { backgroundColor: Theme.colors.background === '#070D17' ? '#0F172A' : '#FFFFFF', borderColor: Theme.colors.background === '#070D17' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)' }]}>
                         <Text style={[styles.qrModalName, { color: Theme.colors.text }]}>{qrModal?.name}</Text>
                         <Text style={styles.qrModalId}>{qrModal?.hospyn_id}</Text>
                         <View style={styles.qrBox}>
@@ -349,8 +338,8 @@ export default function FamilyProfilesScreen({ navigation }) {
                                 />
                             ) : null}
                         </View>
-                        <Text style={[styles.qrHint, { color: Theme.colors.textMuted }]}>Show this QR at any Hospyn-enabled hospital for instant record access</Text>
-                        <TouchableOpacity style={[styles.qrCloseBtn, { backgroundColor: Theme.colors.background === '#050810' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]} onPress={() => { HapticUtils.light(); setQrModal(null); }}>
+                        <Text style={[styles.qrHint, { color: Theme.colors.textMuted }]}>Show this QR at any Hospain-enabled hospital for instant record access</Text>
+                        <TouchableOpacity style={[styles.qrCloseBtn, { backgroundColor: Theme.colors.background === '#070D17' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]} onPress={() => { HapticUtils.light(); setQrModal(null); }}>
                             <Text style={[styles.qrCloseBtnText, { color: Theme.colors.textMuted }]}>CLOSE</Text>
                         </TouchableOpacity>
                     </Animated.View>
@@ -380,7 +369,7 @@ const styles = StyleSheet.create({
     cardRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
     avatar: { width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center' },
     memberName: { fontSize: 15, fontWeight: '700' },
-    hospynIdLabel: { color: '#6366F1', fontSize: 11, fontWeight: 'bold', marginTop: 2, letterSpacing: 0.5 },
+    hospynIdLabel: { color: '#5B9BD5', fontSize: 11, fontWeight: 'bold', marginTop: 2, letterSpacing: 0.5 },
     relationTag: { fontSize: 9, fontWeight: 'bold', letterSpacing: 1, marginTop: 3 },
     rightActions: { alignItems: 'flex-end', gap: 8 },
     qrBtn: { width: 36, height: 36, borderRadius: 12, backgroundColor: 'rgba(124,58,237,0.12)', justifyContent: 'center', alignItems: 'center' },
@@ -396,7 +385,7 @@ const styles = StyleSheet.create({
     fieldLabel: { fontSize: 9, fontWeight: 'bold', letterSpacing: 1.5, marginBottom: 8, marginLeft: 4 },
     relationRow: { marginBottom: 20 },
     relationChip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: 'rgba(124,58,237,0.3)', backgroundColor: 'rgba(124,58,237,0.06)', marginRight: 8 },
-    relationChipActive: { backgroundColor: '#7C3AED', borderColor: '#7C3AED' },
+    relationChipActive: { backgroundColor: '#13396B', borderColor: '#13396B' },
     relationChipText: { fontSize: 12, fontWeight: '600' },
     inputBox: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, paddingHorizontal: 16, height: 54, borderWidth: 1, marginBottom: 16 },
     input: { flex: 1, fontSize: 15 },
@@ -411,7 +400,7 @@ const styles = StyleSheet.create({
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center', padding: 30 },
     qrModalCard: { borderRadius: 32, padding: 32, alignItems: 'center', borderWidth: 1, width: '100%' },
     qrModalName: { fontSize: 20, fontWeight: 'bold', textAlign: 'center' },
-    qrModalId: { color: '#7C3AED', fontSize: 13, fontWeight: 'bold', marginTop: 6, marginBottom: 28, letterSpacing: 1 },
+    qrModalId: { color: '#13396B', fontSize: 13, fontWeight: 'bold', marginTop: 6, marginBottom: 28, letterSpacing: 1 },
     qrBox: { backgroundColor: '#F8FAFC', borderRadius: 24, padding: 20, marginBottom: 24 },
     qrHint: { fontSize: 12, textAlign: 'center', lineHeight: 18, marginBottom: 24 },
     qrCloseBtn: { borderRadius: 16, paddingHorizontal: 32, paddingVertical: 14 },

@@ -199,7 +199,7 @@ export default function BookAppointmentScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container:          { flex: 1, backgroundColor: '#050810' },
+  container:          { flex: 1, backgroundColor: '#070D17' },
   header:             { flexDirection: 'row', alignItems: 'center', padding: 16, paddingTop: 8 },
   backBtn:            { marginRight: 12, padding: 4 },
   title:              { fontSize: 20, fontWeight: '800', color: '#fff' },
@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
                         borderWidth: 1, borderColor: '#1E293B', gap: 14 },
   avatar:             { width: 52, height: 52, borderRadius: 26, backgroundColor: '#1E293B',
                         justifyContent: 'center', alignItems: 'center' },
-  avatarText:         { color: '#6366F1', fontSize: 22, fontWeight: '800' },
+  avatarText:         { color: '#5B9BD5', fontSize: 22, fontWeight: '800' },
   doctorName:         { color: '#fff', fontSize: 16, fontWeight: '700', marginBottom: 2 },
   doctorSub:          { color: '#64748B', fontSize: 12, marginBottom: 4 },
   fee:                { color: '#0D9488', fontSize: 13, fontWeight: '600' },
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
   dateChip:           { width: 56, height: 64, borderRadius: 14, backgroundColor: '#0F172A',
                         justifyContent: 'center', alignItems: 'center', marginRight: 10,
                         borderWidth: 1, borderColor: '#1E293B' },
-  dateChipActive:     { backgroundColor: '#6366F1', borderColor: '#6366F1' },
+  dateChipActive:     { backgroundColor: '#5B9BD5', borderColor: '#5B9BD5' },
   dateDay:            { color: '#64748B', fontSize: 11, fontWeight: '600', marginBottom: 4 },
   dateNum:            { color: '#fff', fontSize: 18, fontWeight: '800' },
   dateTextActive:     { color: '#fff' },
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   slot:               { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10,
                         backgroundColor: '#0F172A', borderWidth: 1, borderColor: '#1E293B' },
   slotUnavailable:    { opacity: 0.35 },
-  slotSelected:       { backgroundColor: '#6366F1', borderColor: '#6366F1' },
+  slotSelected:       { backgroundColor: '#5B9BD5', borderColor: '#5B9BD5' },
   slotText:           { color: '#94A3B8', fontSize: 13, fontWeight: '600' },
   slotTextUnavailable:{ textDecorationLine: 'line-through' },
   slotTextSelected:   { color: '#fff' },
@@ -246,14 +246,14 @@ const styles = StyleSheet.create({
   payChip:            { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
                         gap: 6, paddingVertical: 12, borderRadius: 12, backgroundColor: '#0F172A',
                         borderWidth: 1, borderColor: '#1E293B' },
-  payChipActive:      { backgroundColor: '#6366F1', borderColor: '#6366F1' },
+  payChipActive:      { backgroundColor: '#5B9BD5', borderColor: '#5B9BD5' },
   payText:            { color: '#64748B', fontSize: 13, fontWeight: '600' },
   payTextActive:      { color: '#fff' },
 
   footer:             { position: 'absolute', bottom: 0, left: 0, right: 0,
-                        padding: 20, backgroundColor: '#050810',
+                        padding: 20, backgroundColor: '#070D17',
                         borderTopWidth: 1, borderTopColor: '#0F172A' },
-  bookBtn:            { backgroundColor: '#6366F1', borderRadius: 14, height: 52,
+  bookBtn:            { backgroundColor: '#5B9BD5', borderRadius: 14, height: 52,
                         justifyContent: 'center', alignItems: 'center' },
   bookBtnText:        { color: '#fff', fontSize: 16, fontWeight: '800' },
 });

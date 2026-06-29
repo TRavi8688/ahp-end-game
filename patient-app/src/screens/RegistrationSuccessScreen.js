@@ -4,12 +4,14 @@ import * as Clipboard from 'expo-clipboard';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import QRCode from 'react-native-qrcode-svg';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, useTheme} from '../theme';
 import HapticUtils from '../utils/HapticUtils';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function RegistrationSuccessScreen({ navigation, route }) {
-    const { hospyn_id, fullName } = route.params || { hospyn_id: 'Hospyn-IN-XXXX-XXXX-XX', fullName: 'Member' };
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
+    const { hospyn_id, fullName } = route.params || { hospyn_id: 'Hospain-IN-XXXX-XXXX-XX', fullName: 'Member' };
     const { setIsAuthenticated } = useAuth();
 
     const copyToClipboard = async () => {
@@ -21,7 +23,7 @@ export default function RegistrationSuccessScreen({ navigation, route }) {
         HapticUtils.medium();
         try {
             await Share.share({
-                message: `My Hospyn Health Passport ID is ${hospyn_id}. Scan this to view my medical history.`,
+                message: `My Hospain Health Passport ID is ${hospyn_id}. Scan this to view my medical history.`,
             });
         } catch (error) {
             console.error(error);
@@ -29,23 +31,23 @@ export default function RegistrationSuccessScreen({ navigation, route }) {
     };
 
     return (
-        <View style={[styles.container, { backgroundColor: '#050810' }]}>
-            <LinearGradient colors={['#050810', '#1E1B4B']} style={styles.header}>
+        <View style={[styles.container, { backgroundColor: '#070D17' }]}>
+            <LinearGradient colors={['#070D17', '#0B2545']} style={styles.header}>
                 <View style={styles.successIcon}>
-                    <Ionicons name="checkmark-circle" size={80} color={Theme.colors.primary} />
+                    <Ionicons name="checkmark-circle" size={80} color={colors.primary} />
                 </View>
-                <Text style={styles.welcomeText}>Welcome to Hospyn,</Text>
+                <Text style={styles.welcomeText}>Welcome to Hospain,</Text>
                 <Text style={[styles.nameText, GlobalStyles.heading]}>{fullName}!</Text>
                 <Text style={styles.subtitle}>Your AI Health Passport is ready.</Text>
             </LinearGradient>
 
             <View style={styles.content}>
                 <View style={[styles.idCard, GlobalStyles.glass]}>
-                    <Text style={styles.idLabel}>YOUR UNIQUE HOSPYN ID</Text>
+                    <Text style={styles.idLabel}>YOUR UNIQUE HOSPAIN ID</Text>
                     <View style={styles.idRow}>
                         <Text style={[styles.idValue, { color: '#fff' }]}>{hospyn_id}</Text>
                         <TouchableOpacity onPress={copyToClipboard} style={styles.copyBtn}>
-                            <Ionicons name="copy-outline" size={20} color={Theme.colors.primary} />
+                            <Ionicons name="copy-outline" size={20} color={colors.primary} />
                         </TouchableOpacity>
                     </View>
 
@@ -60,7 +62,7 @@ export default function RegistrationSuccessScreen({ navigation, route }) {
                                 logoSize={40}
                                 logoBackgroundColor='transparent'
                             />
-                            <Text style={[styles.qrText, { color: Theme.colors.primary, marginTop: 15 }]}>SCAN TO CONNECT</Text>
+                            <Text style={[styles.qrText, { color: colors.primary, marginTop: 15 }]}>SCAN TO CONNECT</Text>
                         </View>
                     </View>
                 </View>
@@ -68,31 +70,31 @@ export default function RegistrationSuccessScreen({ navigation, route }) {
                 <View style={styles.benefitSection}>
                     <Text style={[styles.benefitTitle, { color: '#fff' }]}>What's Next?</Text>
                     <View style={styles.benefitItem}>
-                        <Ionicons name="cloud-upload-outline" size={24} color={Theme.colors.primary} />
+                        <Ionicons name="cloud-upload-outline" size={24} color={colors.primary} />
                         <Text style={[styles.benefitText, { color: '#94A3B8' }]}>Upload your medical reports for AI analysis.</Text>
                     </View>
                     <View style={styles.benefitItem}>
-                        <Ionicons name="people-outline" size={24} color={Theme.colors.primary} />
-                        <Text style={[styles.benefitText, { color: '#94A3B8' }]}>Share your Hospyn ID with doctors for instant consultation.</Text>
+                        <Ionicons name="people-outline" size={24} color={colors.primary} />
+                        <Text style={[styles.benefitText, { color: '#94A3B8' }]}>Share your Hospain ID with doctors for instant consultation.</Text>
                     </View>
                 </View>
 
-                <TouchableOpacity style={[styles.mainButton, { backgroundColor: Theme.colors.primary }]} onPress={() => { HapticUtils.heavy(); setIsAuthenticated(true); }}>
+                <TouchableOpacity style={[styles.mainButton, { backgroundColor: colors.primary }]} onPress={() => { HapticUtils.heavy(); setIsAuthenticated(true); }}>
                     <Text style={styles.mainButtonText}>Go to Dashboard</Text>
                     <Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginLeft: 10 }} />
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.shareButton} onPress={onShare}>
-                    <Ionicons name="share-social-outline" size={20} color={Theme.colors.secondary} />
-                    <Text style={[styles.shareButtonText, { color: Theme.colors.secondary }]}>Share Passport</Text>
+                    <Ionicons name="share-social-outline" size={20} color={colors.secondary} />
+                    <Text style={[styles.shareButtonText, { color: colors.secondary }]}>Share Passport</Text>
                 </TouchableOpacity>
             </View>
         </View>
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#050810' },
+const getStyles = (colors) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: '#070D17' },
     header: {
         paddingTop: 80,
         paddingBottom: 40,
@@ -102,7 +104,7 @@ const styles = StyleSheet.create({
     },
     successIcon: {
         marginBottom: 20,
-        shadowColor: Theme.colors.primary,
+        shadowColor: colors.primary,
         shadowOpacity: 0.5,
         shadowRadius: 20,
     },

@@ -9,7 +9,7 @@ import { HapticUtils } from '../utils/haptics';
 
 export default function ShareDoctorScreen({ navigation }) {
     const { user } = useAuth();
-    const hospynId = user?.hospyn_id || 'HOSPYN-ID-PENDING';
+    const hospynId = user?.hospyn_id || 'HOSPAIN-ID-PENDING';
     const [theme, setThemeState] = useState(getTheme());
 
     useEffect(() => {
@@ -22,7 +22,7 @@ export default function ShareDoctorScreen({ navigation }) {
         HapticUtils.impactAsync(HapticUtils.ImpactFeedbackStyle.Light);
         try {
             await Share.share({
-                message: `Connect with my Hospyn Health Profile. My ID: ${hospynId}. Download Hospyn to view my clinical history.`,
+                message: `Connect with my Hospain Health Profile. My ID: ${hospynId}. Download Hospain to view my clinical history.`,
             });
         } catch (error) {
             console.error(error.message);
@@ -31,7 +31,7 @@ export default function ShareDoctorScreen({ navigation }) {
 
     return (
         <View style={GlobalStyles.screen}>
-            <LinearGradient colors={Theme.colors.primary === '#7C3AED' ? ['#7C3AED', '#4F46E5'] : ['#0F172A', '#050810']} style={styles.header}>
+            <LinearGradient colors={Theme.colors.primary === '#13396B' ? ['#13396B', '#4F46E5'] : ['#0F172A', '#070D17']} style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <Ionicons name="arrow-back" size={24} color="#fff" />
                 </TouchableOpacity>
@@ -60,7 +60,7 @@ export default function ShareDoctorScreen({ navigation }) {
                     <Text style={styles.shareBtnText}>SHARE ID MANUALLY</Text>
                 </TouchableOpacity>
 
-                <View style={[styles.securityBox, { backgroundColor: Theme.colors.primary === '#7C3AED' ? 'rgba(124, 58, 237, 0.08)' : 'rgba(99, 102, 241, 0.05)' }]}>
+                <View style={[styles.securityBox, { backgroundColor: Theme.colors.primary === '#13396B' ? 'rgba(124, 58, 237, 0.08)' : 'rgba(99, 102, 241, 0.05)' }]}>
                     <Ionicons name="shield-checkmark" size={24} color={Theme.colors.primary} />
                     <Text style={[styles.securityText, { color: Theme.colors.textMuted }]}>
                         Access is only granted for the duration of your visit. You can revoke it at any time from the "Connected Doctors" settings.

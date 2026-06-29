@@ -200,7 +200,7 @@ export function BillingDetailScreen({ route }) {
     try {
       await Share.share({
         message: `Pay ₹${parseFloat(invoice?.total_amount || 0).toFixed(2)} to ${invoice?.hospital_name}\nUPI Link: ${upiUrl}`,
-        title: "Hospyn Payment",
+        title: "Hospain Payment",
       });
     } catch (e) {
       console.error("Share error:", e);

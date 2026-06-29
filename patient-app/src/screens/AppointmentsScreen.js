@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, useTheme} from '../theme';
 import { patientService } from '../services/patientService';
 
 const { width } = Dimensions.get('window');
 
 export default function AppointmentsScreen({ navigation }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const [upcoming, setUpcoming] = useState([]);
     const [past, setPast] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -48,7 +50,7 @@ export default function AppointmentsScreen({ navigation }) {
                 <View style={styles.divider} />
 
                 {loading ? (
-                    <ActivityIndicator size="large" color={Theme.colors.primary} style={{ marginTop: 50 }} />
+                    <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 50 }} />
                 ) : (
                     <>
 
@@ -81,7 +83,7 @@ export default function AppointmentsScreen({ navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     topBar: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -92,7 +94,7 @@ const styles = StyleSheet.create({
     },
     topBarLabel: {
         fontFamily: Theme.fonts.label,
-        color: Theme.colors.secondary,
+        color: colors.secondary,
         fontSize: 12,
         letterSpacing: 2,
     },
@@ -101,7 +103,7 @@ const styles = StyleSheet.create({
     },
     bigHeading: {
         fontFamily: Theme.fonts.heading,
-        color: Theme.colors.primary,
+        color: colors.primary,
         fontSize: 32,
         marginTop: 20,
     },
@@ -113,7 +115,7 @@ const styles = StyleSheet.create({
     },
     sectionLabel: {
         fontFamily: Theme.fonts.label,
-        color: Theme.colors.secondary,
+        color: colors.secondary,
         fontSize: 10,
         letterSpacing: 1,
         marginBottom: 15,
@@ -126,12 +128,12 @@ const styles = StyleSheet.create({
     },
     docName: {
         fontFamily: Theme.fonts.headingSemi,
-        color: Theme.colors.primary,
+        color: colors.primary,
         fontSize: 18,
     },
     aptMeta: {
         fontFamily: Theme.fonts.label,
-        color: Theme.colors.secondary,
+        color: colors.secondary,
         fontSize: 10,
         marginTop: 5,
         letterSpacing: 0.5,

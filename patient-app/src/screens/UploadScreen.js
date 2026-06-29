@@ -7,11 +7,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInUp, useAnimatedStyle, useSharedValue, withRepeat, withTiming, withSequence } from 'react-native-reanimated';
 import ApiService from '../utils/ApiService';
 import HapticUtils from '../utils/HapticUtils';
-import { Theme, GlobalStyles } from '../theme';
+import { Theme, GlobalStyles, useTheme} from '../theme';
 
 const { width } = Dimensions.get('window');
 
 export default function UploadScreen({ navigation }) {
+    const { colors } = useTheme();
+    const styles = getStyles(colors);
     const [file, setFile] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -118,7 +120,7 @@ export default function UploadScreen({ navigation }) {
 
     return (
         <View style={GlobalStyles.screen}>
-            <LinearGradient colors={['#050810', '#0F172A']} style={styles.header}>
+            <LinearGradient colors={['#070D17', '#0F172A']} style={styles.header}>
                 <TouchableOpacity onPress={() => { HapticUtils.light(); navigation.goBack(); }} style={styles.backBtn}>
                     <Ionicons name="chevron-back" size={28} color="#fff" />
                 </TouchableOpacity>
@@ -135,7 +137,7 @@ export default function UploadScreen({ navigation }) {
                         
                         <TouchableOpacity style={[styles.optionBtn, GlobalStyles.glass]} onPress={() => pickImage(true)}>
                             <View style={[styles.iconBox, { backgroundColor: 'rgba(34, 211, 238, 0.1)' }]}>
-                                <Ionicons name="camera" size={28} color={Theme.colors.primary} />
+                                <Ionicons name="camera" size={28} color={colors.primary} />
                             </View>
                             <View style={styles.optionText}>
                                 <Text style={styles.optionTitle}>Direct Capture</Text>
@@ -173,7 +175,7 @@ export default function UploadScreen({ navigation }) {
                                 <Image source={{ uri: file.uri }} style={styles.previewImage} />
                             ) : (
                                 <View style={styles.pdfIcon}>
-                                    <Ionicons name="document-attach" size={80} color={Theme.colors.primary} />
+                                    <Ionicons name="document-attach" size={80} color={colors.primary} />
                                     <Text style={styles.pdfName}>{file.name}</Text>
                                 </View>
                             )}
@@ -181,7 +183,7 @@ export default function UploadScreen({ navigation }) {
                             {uploading && (
                                 <Animated.View style={[styles.scanLine, animatedScanStyle]}>
                                     <LinearGradient 
-                                        colors={['transparent', Theme.colors.primary, 'transparent']} 
+                                        colors={['transparent', colors.primary, 'transparent']} 
                                         style={StyleSheet.absoluteFill} 
                                         start={{x:0, y:0.5}} 
                                         end={{x:1, y:0.5}} 
@@ -191,7 +193,7 @@ export default function UploadScreen({ navigation }) {
 
                             {!uploading && (
                                 <TouchableOpacity style={styles.removeBtn} onPress={() => { HapticUtils.light(); setFile(null); }}>
-                                    <Ionicons name="close-circle" size={32} color={Theme.colors.critical} />
+                                    <Ionicons name="close-circle" size={32} color={colors.critical} />
                                 </TouchableOpacity>
                             )}
                         </View>
@@ -202,7 +204,7 @@ export default function UploadScreen({ navigation }) {
                             disabled={uploading}
                         >
                             <LinearGradient 
-                                colors={[Theme.colors.primary, Theme.colors.secondary]} 
+                                colors={[colors.primary, colors.secondary]} 
                                 start={{x:0, y:0}} 
                                 end={{x:1, y:0}} 
                                 style={styles.gradientBtn}
@@ -235,7 +237,7 @@ export default function UploadScreen({ navigation }) {
     );
 }
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     header: { padding: 24, paddingTop: 60, paddingBottom: 24, flexDirection: 'row', alignItems: 'center' },
     backBtn: { marginRight: 20 },
     headerTitle: { fontSize: 20, fontWeight: '900', color: '#fff', letterSpacing: 1, fontFamily: Theme.fonts.heading },

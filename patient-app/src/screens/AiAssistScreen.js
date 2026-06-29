@@ -29,7 +29,7 @@ import * as DocumentPicker from 'expo-document-picker';
 
 import { SecurityUtils } from '../utils/security';
 import { API_BASE_URL } from '../api';
-import { Theme } from '../theme';
+import { Theme, useTheme } from '../theme';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -136,6 +136,8 @@ function RecordCard({ record, onShare }) {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function AiAssistScreen({ navigation, route }) {
+    const { colors, theme } = useTheme();
+    const styles = getStyles(colors);
     // Chat state
     const [messages, setMessages] = useState([]);
     const [inputText, setInputText] = useState('');
@@ -218,8 +220,8 @@ export default function AiAssistScreen({ navigation, route }) {
         const conditionNames = healthContext?.conditions?.slice(0, 3).map(c => c.name || c).join(', ');
         
         const greeting = conditionNames
-            ? `Namaste ${patientName}! 🙏 I'm Chitti, your Hospyn clinical companion. I've synced with your dashboard and see your profile includes: **${conditionNames}**. Is there anything specific you'd like to discuss or a report you'd like me to analyze?`
-            : `Namaste ${patientName}! 🙏 I'm Chitti, your Hospyn clinical companion. I'm ready to help! Upload your first health report or clinical visit details so I can build your health story with you.`;
+            ? `Namaste ${patientName}! 🙏 I'm Chitti, your Hospain clinical companion. I've synced with your dashboard and see your profile includes: **${conditionNames}**. Is there anything specific you'd like to discuss or a report you'd like me to analyze?`
+            : `Namaste ${patientName}! 🙏 I'm Chitti, your Hospain clinical companion. I'm ready to help! Upload your first health report or clinical visit details so I can build your health story with you.`;
         
         setMessages([{ id: 'greeting_new', sender: 'ai', text: greeting, records: [] }]);
         setCurrentSessionId(null);
@@ -289,8 +291,8 @@ export default function AiAssistScreen({ navigation, route }) {
             const conditionNames = ctxData?.conditions?.slice(0, 3).map(c => c.name || c).join(', ');
             
             const greeting = conditionNames
-                ? `Namaste ${patientName}! 🙏 I'm Chitti, your Hospyn clinical companion. I've synced with your dashboard and see your profile includes: **${conditionNames}**. Is there anything specific you'd like to discuss or a report you'd like me to analyze?`
-                : `Namaste ${patientName}! 🙏 I'm Chitti, your Hospyn clinical companion. I'm ready to help! Upload your first health report or clinical visit details so I can build your health story with you.`;
+                ? `Namaste ${patientName}! 🙏 I'm Chitti, your Hospain clinical companion. I've synced with your dashboard and see your profile includes: **${conditionNames}**. Is there anything specific you'd like to discuss or a report you'd like me to analyze?`
+                : `Namaste ${patientName}! 🙏 I'm Chitti, your Hospain clinical companion. I'm ready to help! Upload your first health report or clinical visit details so I can build your health story with you.`;
             
             setMessages([{ id: 'greeting_0', sender: 'ai', text: greeting, records: [] }]);
             setCurrentSessionId(null);
@@ -659,15 +661,15 @@ export default function AiAssistScreen({ navigation, route }) {
 
     // ─── RENDER ───────────────────────────────────────────────────────────────
 
-    const isLightTheme = Theme.colors.primary === '#7C3AED';
-    const bgColors = isLightTheme 
-        ? ['#F8F7FF', '#EEEBFF'] 
-        : ['#090D1A', '#020408'];
+    const isLightTheme = theme === 'light';
+    const bgColors = isLightTheme
+        ? ['#F4F7FB', '#E6EDF5']
+        : ['#070D17', '#020408'];
 
     return (
         <LinearGradient colors={bgColors} style={{ flex: 1 }}>
             {/* HEADER */}
-            <LinearGradient colors={['#050810', '#1E1B4B', '#2d1b69']} style={styles.header}>
+            <LinearGradient colors={[colors.gradientStart, colors.gradientEnd]} style={styles.header}>
                 <View style={styles.headerContent}>
                     <TouchableOpacity 
                         style={{ marginRight: 8, paddingVertical: 8, paddingRight: 4 }} 
@@ -1386,7 +1388,7 @@ export default function AiAssistScreen({ navigation, route }) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const getStyles = (colors) => StyleSheet.create({
     root: {
         flex: 1,
         backgroundColor: 'transparent',
@@ -1562,7 +1564,7 @@ const styles = StyleSheet.create({
     },
     bubbleAi: {
         alignSelf: 'flex-start',
-        backgroundColor: '#1E1B4B',
+        backgroundColor: '#0B2545',
         borderBottomLeftRadius: 4,
         borderWidth: 1,
         borderColor: 'rgba(255, 255, 255, 0.1)',
@@ -2165,7 +2167,7 @@ const styles = StyleSheet.create({
         opacity: 0.5,
     },
     historyBarContainer: {
-        backgroundColor: '#050810',
+        backgroundColor: '#070D17',
         paddingVertical: 12,
         borderBottomWidth: 1,
         borderBottomColor: 'rgba(255,255,255,0.05)',
@@ -2319,7 +2321,7 @@ const styles = StyleSheet.create({
     sidebarDrawer: {
         width: '82%',
         height: '100%',
-        backgroundColor: '#090D1A',
+        backgroundColor: '#070D17',
         borderRightWidth: 1,
         borderRightColor: 'rgba(255,255,255,0.08)',
         paddingTop: Platform.OS === 'ios' ? 56 : 24,

@@ -76,7 +76,7 @@ apiClient.interceptors.response.use(
         }
         
         if (response?.status === 429) {
-            console.warn("RATE_LIMIT: Too many requests sent to Hospyn.");
+            console.warn("RATE_LIMIT: Too many requests sent to Hospain.");
         }
 
         return Promise.reject(error);

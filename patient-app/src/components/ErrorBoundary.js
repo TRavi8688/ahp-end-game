@@ -12,7 +12,7 @@ class ErrorBoundary extends React.Component {
     }
 
     componentDidCatch(error, errorInfo) {
-        console.error("Hospyn Patient Error Boundary Caught:", error, errorInfo);
+        console.error("Hospain Patient Error Boundary Caught:", error, errorInfo);
         this.setState({ error, errorInfo });
     }
 
@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         padding: 24,
-        backgroundColor: '#050810',
+        backgroundColor: '#070D17',
     },
     icon: {
         fontSize: 64,
