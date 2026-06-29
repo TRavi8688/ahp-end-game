@@ -207,6 +207,9 @@ async def debug_patient_query():
             "error_type": type(exc).__name__,
             "error_detail": str(exc),
             "traceback": traceback.format_exc()
+        }
+
+
 # -- Wipe Database Schema Endpoint ---------------------------------------------
 @app.get("/api/v1/healthcare/wipe-database-schema", tags=["Debug"])
 async def wipe_database_schema(request: Request):
