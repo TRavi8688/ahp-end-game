@@ -48,7 +48,9 @@ def upgrade() -> None:
     internal_roles = [
         'manager', 'team_lead', 'l1', 'l2', 'support',
         'finance', 'engineering', 'onboarding', 'data',
-        'verification', 'employee'
+        'verification', 'employee',
+        'nurse', 'pharmacist', 'super_admin', 'owner',
+        'receptionist', 'lab', 'hr'
     ]
     for role in internal_roles:
         op.execute(f"""
