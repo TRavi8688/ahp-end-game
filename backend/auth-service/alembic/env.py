@@ -47,19 +47,30 @@ def run_migrations_offline() -> None:
 def do_run_migrations(connection: Connection) -> None:
     import sqlalchemy as sa
     from sqlalchemy import inspect
+    import logging
+    
+    db_logger = logging.getLogger("alembic.env")
     
     inspector = inspect(connection)
     tables = inspector.get_table_names()
+    schemas = inspector.get_schema_names()
+    
+    db_logger.info(f"=== DB INSPECTION BEFORE RUN ===")
+    db_logger.info(f"Default schema: {connection.dialect.default_schema_name}")
+    db_logger.info(f"All schemas: {schemas}")
+    db_logger.info(f"Tables: {tables}")
     
     # If the tracking table exists but 'users' table is missing, the database is in an inconsistent state.
     # We drop the tracking table so Alembic will re-run the migrations stack and recreate all missing tables safely.
     if "users" not in tables and "alembic_version_auth" in tables:
+        db_logger.info("Inconsistent DB state detected: users table missing but alembic_version_auth exists. Wiping version table...")
         connection.execute(sa.text("DROP TABLE IF EXISTS alembic_version_auth"))
         connection.commit()
         # Re-inspect tables after dropping
         tables = [t for t in tables if t != "alembic_version_auth"]
     
     if "users" in tables and "alembic_version_auth" not in tables:
+        db_logger.info("First-time setup conversion: users table exists but no alembic_version_auth. Creating version table at 004...")
         connection.execute(sa.text(
             "CREATE TABLE alembic_version_auth (version_num VARCHAR(32) NOT NULL, PRIMARY KEY (version_num))"
         ))

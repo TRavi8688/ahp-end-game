@@ -18,8 +18,11 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     conn = op.get_bind()
     from sqlalchemy import inspect
+    import logging
+    logger = logging.getLogger("alembic.runtime.migration")
     inspector = inspect(conn)
     tables = inspector.get_table_names()
+    logger.info(f"=== 001_initial upgrade: tables in DB = {tables} ===")
 
     # Users table
     if "users" not in tables:
