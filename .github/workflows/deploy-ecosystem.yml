@@ -190,6 +190,7 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --port 8080 \
+            --remove-secrets="FERNET_KEY" \
             --set-env-vars "ENVIRONMENT=production,SERVICE_NAME=auth-service" \
             --update-secrets "DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,JWT_SECRET_KEY=SECRET_KEY:latest,REDIS_URL=REDIS_URL:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest,INTERNAL_SERVICE_SECRET=SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest"
           
@@ -207,6 +208,7 @@ jobs:
             --platform managed \
             --allow-unauthenticated \
             --port 8080 \
+            --remove-secrets="FERNET_KEY" \
             --set-env-vars "ENVIRONMENT=production,AUTH_SERVICE_INTERNAL_URL=${{ env.AUTH_URL }}/api/v1,AUTH_JWKS_URL=${{ env.AUTH_URL }}/api/v1/auth/.well-known/jwks.json,SERVICE_NAME=healthcare-core" \
             --update-secrets "DATABASE_URL=DATABASE_URL:latest,JWT_SECRET_KEY=JWT_SECRET_KEY:latest,REDIS_URL=REDIS_URL:latest,ALLOWED_ORIGINS=ALLOWED_ORIGINS:latest,INTERNAL_SERVICE_SECRET=SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest"
 
