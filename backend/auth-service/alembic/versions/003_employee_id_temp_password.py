@@ -55,9 +55,16 @@ def upgrade() -> None:
     #
     # Correct approach:
     #   * `ALTER TYPE ... ADD VALUE IF NOT EXISTS` is a plain statement
-    #     (no function wrapper) and is idempotent (PG 12+).
-    #   * It must NOT run inside the migration's transaction, so we use
-    #     alembic's autocommit_block().
+    #     (no function/DO wrapper) and is idempotent.
+    #   * On PostgreSQL 12+ (Cloud SQL) it is fully legal INSIDE a transaction
+    #     block, as long as the new value isn't USED in the same transaction
+    #     (we don't -- no rows are inserted here). So a plain op.execute is
+    #     both correct and safe.
+    #
+    # NOTE: we deliberately do NOT use alembic's autocommit_block() here.
+    # env.py commits mid-run during its self-heal, which leaves the migration
+    # context without the transaction autocommit_block() asserts on
+    # (AssertionError: self._transaction is not None).
     #
     # With 001 now creating roleenum with the full label set, these are almost
     # always no-ops -- but we keep them so databases whose type predates the
@@ -69,9 +76,8 @@ def upgrade() -> None:
         'nurse', 'pharmacist', 'super_admin', 'owner',
         'receptionist', 'lab', 'hr'
     ]
-    with op.get_context().autocommit_block():
-        for role in internal_roles:
-            op.execute(f"ALTER TYPE roleenum ADD VALUE IF NOT EXISTS '{role}'")
+    for role in internal_roles:
+        op.execute(f"ALTER TYPE roleenum ADD VALUE IF NOT EXISTS '{role}'")
 
 
 def downgrade() -> None:
