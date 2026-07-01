@@ -43,8 +43,25 @@ def upgrade() -> None:
         WHERE employee_id IS NOT NULL
     """)
 
-    # 4. Ensure all Hospain internal roles exist in the enum
-    # PostgreSQL requires adding enum values outside transactions
+    # 4. Ensure all Hospain internal roles exist in the enum.
+    #
+    # ROOT-CAUSE FIX (2026-07-01): the previous version wrapped
+    # `ALTER TYPE roleenum ADD VALUE` inside a `DO $$ ... $$` block. PostgreSQL
+    # rejects that with "ALTER TYPE ... ADD cannot be executed from a function
+    # or multi-command string" -- so this migration failed on EVERY run,
+    # which blocked 003/004/005 and left the users table half-built (or, as
+    # seen in production, not built at all). That was the source of the
+    # patient/partner app 500s.
+    #
+    # Correct approach:
+    #   * `ALTER TYPE ... ADD VALUE IF NOT EXISTS` is a plain statement
+    #     (no function wrapper) and is idempotent (PG 12+).
+    #   * It must NOT run inside the migration's transaction, so we use
+    #     alembic's autocommit_block().
+    #
+    # With 001 now creating roleenum with the full label set, these are almost
+    # always no-ops -- but we keep them so databases whose type predates the
+    # full list still get healed.
     internal_roles = [
         'manager', 'team_lead', 'l1', 'l2', 'support',
         'finance', 'engineering', 'onboarding', 'data',
@@ -52,22 +69,9 @@ def upgrade() -> None:
         'nurse', 'pharmacist', 'super_admin', 'owner',
         'receptionist', 'lab', 'hr'
     ]
-    for role in internal_roles:
-        op.execute(f"""
-            DO $$
-            BEGIN
-                IF NOT EXISTS (
-                    SELECT 1 FROM pg_enum
-                    WHERE enumlabel = '{role}'
-                    AND enumtypid = (
-                        SELECT oid FROM pg_type WHERE typname = 'roleenum'
-                    )
-                ) THEN
-                    ALTER TYPE roleenum ADD VALUE '{role}';
-                END IF;
-            END
-            $$;
-        """)
+    with op.get_context().autocommit_block():
+        for role in internal_roles:
+            op.execute(f"ALTER TYPE roleenum ADD VALUE IF NOT EXISTS '{role}'")
 
 
 def downgrade() -> None:

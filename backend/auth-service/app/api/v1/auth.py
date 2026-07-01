@@ -180,6 +180,41 @@ async def run_auth_migrations(request: Request):
     )
 
     migrations = [
+        # ── SCHEMA BOOTSTRAP (2026-07-01) ────────────────────────────────
+        # Production hit "relation \"users\" does not exist" because the
+        # alembic job never created the table. These first statements make
+        # this endpoint a true self-heal: create the roleenum type (with the
+        # FULL label set) and the users table if they're missing, so the
+        # ADD COLUMN statements below have something to attach to. All are
+        # idempotent (IF NOT EXISTS / duplicate_object guard).
+        ("roleenum_type", """
+            DO $$ BEGIN
+                CREATE TYPE roleenum AS ENUM (
+                    'patient','doctor','admin','hospital_admin','staff',
+                    'nurse','pharmacist','super_admin','owner','receptionist',
+                    'lab','hr','manager','team_lead','l1','l2','support',
+                    'finance','engineering','onboarding','data','verification','employee'
+                );
+            EXCEPTION WHEN duplicate_object THEN NULL;
+            END $$;
+        """),
+        ("users_table", """
+            CREATE TABLE IF NOT EXISTS users (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                email VARCHAR(255) UNIQUE,
+                phone_number VARCHAR(20) UNIQUE,
+                hashed_password VARCHAR(255) NOT NULL,
+                role roleenum NOT NULL DEFAULT 'patient',
+                is_active BOOLEAN NOT NULL DEFAULT true,
+                token_version INTEGER NOT NULL DEFAULT 1,
+                created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+                deleted_at TIMESTAMP WITH TIME ZONE
+            )
+        """),
+        ("full_name",             "ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255)"),
+        ("hospital_id",           "ALTER TABLE users ADD COLUMN IF NOT EXISTS hospital_id UUID"),
+        ("hospital_id_index",     "CREATE INDEX IF NOT EXISTS ix_users_hospital_id ON users (hospital_id)"),
         ("phone_verified",        "ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT true NOT NULL"),
         ("auth_provider",         "ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(20) DEFAULT 'local' NOT NULL"),
         ("has_usable_password",   "ALTER TABLE users ADD COLUMN IF NOT EXISTS has_usable_password BOOLEAN DEFAULT true NOT NULL"),
